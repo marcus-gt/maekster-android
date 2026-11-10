@@ -8,7 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.DownloadList
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertEquals
@@ -159,7 +159,7 @@ class DeleteDownloadsDialogTest {
         onController: (PendingDownloadDeleteController) -> Unit,
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 val controller = rememberPendingDownloadDelete(dismissals, downloadedBytes)
                 onController(controller)
                 PendingDownloadDeleteConfirmation(controller) { pending ->
@@ -175,7 +175,7 @@ class DeleteDownloadsDialogTest {
         onDismiss: () -> Unit = {},
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 DeleteDownloadsDialog(name = "Kid A", bytes = bytes, onConfirm = onConfirm, onDismiss = onDismiss)
             }
         }

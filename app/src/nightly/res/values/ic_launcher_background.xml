@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#1A1200</color>
+    <!-- Brand Orange. The brand guide puts the one-colour white mark on orange, never the full-colour one. -->
+    <color name="ic_launcher_background">#FE7619</color>
 </resources>

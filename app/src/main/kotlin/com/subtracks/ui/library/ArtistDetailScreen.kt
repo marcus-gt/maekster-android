@@ -122,6 +122,7 @@ import com.subtracks.ui.theme.ArtworkColors
 import com.subtracks.ui.theme.ArtworkTheme
 import com.subtracks.ui.theme.HeroGradient
 import com.subtracks.ui.theme.PrefetchArtworkSeeds
+import com.subtracks.ui.theme.WhiteStatusBarIcons
 import com.subtracks.ui.theme.baseArtworkColors
 import com.subtracks.ui.theme.heroBarColor
 import com.subtracks.ui.theme.rememberArtworkColors
@@ -362,6 +363,7 @@ fun ArtistDetailScreen(
 
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         ArtworkTheme(effectiveArtwork) {
+            WhiteStatusBarIcons()
             BoxWithConstraints(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                 val screenHeightPx = with(density) { maxHeight.toPx() }
                 val barHeightPx = with(density) { barHeight.toPx() }

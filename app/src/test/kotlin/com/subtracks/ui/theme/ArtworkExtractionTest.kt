@@ -70,7 +70,7 @@ class ArtworkExtractionTest {
         val ref = CoverArtRef(url = "art", cacheKey = "art")
         var colors: ArtworkColors? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 colors = rememberArtworkColors(ref)
             }
         }
@@ -83,7 +83,7 @@ class ArtworkExtractionTest {
     fun fallsBackToAPlaceholderColourWhenThereIsNoArt() {
         var colors: ArtworkColors? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 colors = rememberArtworkColors(null, fallbackName = "Kid A")
             }
         }
@@ -98,7 +98,7 @@ class ArtworkExtractionTest {
         val artwork = mutableStateOf(placeholder)
         val seen = mutableListOf<androidx.compose.ui.graphics.Color>()
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 val colors = rememberAnimatedArtworkColors(artwork.value, baseArtworkColors())
                 SideEffect { seen += colors.scheme.background }
             }
@@ -117,7 +117,7 @@ class ArtworkExtractionTest {
         var baseTick by mutableStateOf(0)
         val seen = mutableListOf<androidx.compose.ui.graphics.Color>()
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 val base = remember(baseTick) { artworkColorsFromSeed(baseTick) }
                 val colors = rememberAnimatedArtworkColors(artwork.value, base)
                 SideEffect {
@@ -137,7 +137,7 @@ class ArtworkExtractionTest {
         val artwork = mutableStateOf<ArtworkColors?>(null)
         lateinit var state: MutableState<Int>
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ArtworkTheme(artwork.value) {
                     state = remember { mutableStateOf(0) }
                     Text(state.value.toString())
@@ -156,7 +156,7 @@ class ArtworkExtractionTest {
         val artwork = mutableStateOf<ArtworkColors?>(null)
         val seen = mutableListOf<androidx.compose.ui.graphics.Color>()
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 val colors = rememberAnimatedArtworkColors(artwork.value, baseArtworkColors())
                 SideEffect { seen += colors.scheme.background }
             }

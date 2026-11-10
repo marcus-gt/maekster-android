@@ -27,7 +27,7 @@ import com.subtracks.playback.FakePlayerConnection
 import com.subtracks.playback.FakePlayerHandle
 import com.subtracks.playback.PlaybackController
 import com.subtracks.playback.RepeatMode
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -148,7 +148,7 @@ class NowPlayingRouteTest {
         }
 
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 NowPlayingRoute(
                     onBack = {},
                     onQueue = {},

@@ -2,9 +2,11 @@ package com.subtracks.ui.theme
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -221,11 +223,20 @@ fun ArtworkTheme(
     colors: ArtworkColors?,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = colors?.scheme ?: MaterialTheme.colorScheme,
-        typography = SubtracksTypography,
-        content = content,
-    )
+    val fallback = MaeksterTheme.darkColorScheme
+    CompositionLocalProvider(
+        LocalMaeksterColors provides DarkMaeksterColors,
+        LocalMaeksterDarkTheme provides true,
+    ) {
+        MaterialTheme(
+            colorScheme = colors?.scheme ?: fallback,
+            typography = MaeksterTypography,
+            shapes = MaeksterShapes.material,
+        ) {
+            // Plain text on an artwork surface is white, even when the app theme is light.
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground, content = content)
+        }
+    }
 }
 
 fun playerSurfaceColor(artwork: ArtworkColors): Color {

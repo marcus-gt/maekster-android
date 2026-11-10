@@ -8,7 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.Playlist
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -40,7 +40,7 @@ class ItemContextMenuInfoTest {
     fun anAlbumMenuOpensItsInfo() {
         var opened: MenuTarget? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ItemContextMenu(
                     target = MenuTarget.Album(album),
                     actions = ItemActions(),
@@ -60,7 +60,7 @@ class ItemContextMenuInfoTest {
     fun anArtistMenuOpensItsInfo() {
         var opened: MenuTarget? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ItemContextMenu(
                     target =
                         MenuTarget.Artist(
@@ -89,7 +89,7 @@ class ItemContextMenuInfoTest {
     fun aPlaylistMenuOpensItsInfo() {
         var opened: MenuTarget? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ItemContextMenu(
                     target =
                         MenuTarget.Playlist(

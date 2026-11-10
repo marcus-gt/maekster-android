@@ -33,7 +33,7 @@ android {
     buildToolsVersion = "37.0.0"
 
     defaultConfig {
-        applicationId = "com.subtracks"
+        applicationId = "io.github.marcus_gt.maekster"
         minSdk = 24
         targetSdk = 37
         versionCode = 14
@@ -44,10 +44,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    androidResources {
-        generateLocaleConfig = true
     }
 
     dependenciesInfo {

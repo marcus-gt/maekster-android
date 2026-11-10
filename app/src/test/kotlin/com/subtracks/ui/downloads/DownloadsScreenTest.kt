@@ -9,7 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.DownloadStatus
 import com.subtracks.data.model.DownloadedSong
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -86,7 +86,7 @@ class DownloadsScreenTest {
         onCancel: (List<String>) -> Unit,
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 DownloadsScreen(
                     tree = tree,
                     loadEncoding = { null },

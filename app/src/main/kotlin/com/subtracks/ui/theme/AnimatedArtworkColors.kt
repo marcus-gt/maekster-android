@@ -3,7 +3,6 @@ package com.subtracks.ui.theme
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,7 +16,7 @@ const val ARTWORK_THEME_TRANSITION_MS = 600
 
 @Composable
 internal fun baseArtworkColors(): ArtworkColors {
-    val scheme = MaterialTheme.colorScheme
+    val scheme = MaeksterTheme.darkColorScheme
     return remember(scheme) {
         ArtworkColors(
             scheme = scheme,

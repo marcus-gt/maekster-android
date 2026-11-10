@@ -20,7 +20,7 @@ import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -41,7 +41,7 @@ class SearchScreenTest {
         var played: Song? = null
         var opened: Album? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SearchScreen(
                     query = "road",
                     onQueryChange = {},
@@ -73,7 +73,7 @@ class SearchScreenTest {
     @Test
     fun aQueryShorterThanThreeCharactersPromptsForMoreInput() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SearchScreen(query = "ro", onQueryChange = {}, results = SearchResults())
             }
         }
@@ -84,7 +84,7 @@ class SearchScreenTest {
     @Test
     fun aQueryWithNoResultsSaysSo() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SearchScreen(query = "zzz", onQueryChange = {}, results = SearchResults())
             }
         }
@@ -98,7 +98,7 @@ class SearchScreenTest {
         var show by mutableStateOf(true)
         composeRule.setContent {
             if (show) {
-                SubtracksTheme {
+                MaeksterTheme {
                     SearchScreen(query = query, onQueryChange = { query = it }, results = SearchResults())
                 }
             }
@@ -126,7 +126,7 @@ class SearchScreenTest {
     fun restoringTheScreenKeepsFocusOnTheQuery() {
         val restorationTester = StateRestorationTester(composeRule)
         restorationTester.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SearchScreen(query = "road", onQueryChange = {}, results = SearchResults())
             }
         }
@@ -140,7 +140,7 @@ class SearchScreenTest {
     @Test
     fun idsSharedAcrossTypesDoNotCollide() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SearchScreen(
                     query = "road",
                     onQueryChange = {},
@@ -164,7 +164,7 @@ class SearchScreenTest {
     @Test
     fun disablingATypeHidesItsSection() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SearchScreen(
                     query = "road",
                     onQueryChange = {},
@@ -186,7 +186,7 @@ class SearchScreenTest {
     fun tappingAFilterChipTogglesIt() {
         var toggled: SearchFilter? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SearchScreen(
                     query = "ro",
                     onQueryChange = {},
@@ -204,7 +204,7 @@ class SearchScreenTest {
     @Test
     fun smallerGroupsAreListedFirst() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SearchScreen(
                     query = "road",
                     onQueryChange = {},

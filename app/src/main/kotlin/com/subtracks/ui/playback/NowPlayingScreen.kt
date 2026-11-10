@@ -96,6 +96,7 @@ import com.subtracks.ui.theme.ArtworkColors
 import com.subtracks.ui.theme.ArtworkSeedCache
 import com.subtracks.ui.theme.ArtworkTheme
 import com.subtracks.ui.theme.HeroGradient
+import com.subtracks.ui.theme.WhiteStatusBarIcons
 import com.subtracks.ui.theme.rememberArtworkColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -395,6 +396,7 @@ fun NowPlayingScreen(
 
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         ArtworkTheme(artwork) {
+            WhiteStatusBarIcons()
             Box(
                 modifier
                     .fillMaxSize()

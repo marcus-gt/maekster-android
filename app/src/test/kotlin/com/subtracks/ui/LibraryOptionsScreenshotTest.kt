@@ -19,7 +19,7 @@ import com.subtracks.ui.library.ALBUM_COVER_TAG
 import com.subtracks.ui.library.LibraryScreen
 import com.subtracks.ui.library.LibraryTab
 import com.subtracks.ui.library.sortOptionsFor
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
 import org.junit.Test
@@ -38,7 +38,7 @@ class LibraryOptionsScreenshotTest {
     @Test
     fun libraryOptions() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Albums,
                     onTabSelected = {},

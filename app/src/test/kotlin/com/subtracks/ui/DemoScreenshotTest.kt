@@ -61,7 +61,7 @@ import com.subtracks.ui.search.SearchResults
 import com.subtracks.ui.search.SearchScreen
 import com.subtracks.ui.theme.ArtworkColors
 import com.subtracks.ui.theme.ArtworkTheme
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.artworkColorsFromSeeds
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -121,7 +121,7 @@ class DemoScreenshotTest {
         )
 
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 Surface(Modifier.fillMaxSize()) {
                     when (screen) {
                         Screen.Home -> {

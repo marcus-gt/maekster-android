@@ -15,7 +15,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.ArtistRef
 import com.subtracks.data.model.Song
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -50,7 +50,7 @@ class ItemContextMenuArtistTest {
     fun pluralArtistsShareOneEntryThatOpensTheChooser() {
         var opened: List<ArtistRef>? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 var show by remember { mutableStateOf(true) }
                 if (show) {
                     ItemContextMenu(
@@ -91,7 +91,7 @@ class ItemContextMenuArtistTest {
     fun aSingleArtistOpensDirectly() {
         var opened: String? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ItemContextMenu(
                     target = MenuTarget.Song(song.copy(artists = listOf(ArtistRef("ar1", "A")))),
                     actions = ItemActions(viewArtist = { opened = it }),
@@ -111,7 +111,7 @@ class ItemContextMenuArtistTest {
     fun manyArtistsStillShareOneEntry() {
         var opened: List<ArtistRef>? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ItemContextMenu(
                     target =
                         MenuTarget.Song(

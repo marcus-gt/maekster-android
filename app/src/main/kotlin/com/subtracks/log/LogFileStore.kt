@@ -1,5 +1,6 @@
 package com.subtracks.log
 
+import com.subtracks.MaeksterBrand
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -89,7 +90,7 @@ class LogFileStore(
             if (logs.isEmpty()) return null
             destDir.mkdirs()
             destDir.listFiles()?.forEach { if (it.isFile) it.delete() }
-            val zip = File(destDir, "subtracks-logs-${System.currentTimeMillis()}.zip")
+            val zip = File(destDir, "${MaeksterBrand.CLIENT_ID}-logs-${System.currentTimeMillis()}.zip")
             ZipOutputStream(zip.outputStream().buffered()).use { out ->
                 logs.forEach { log ->
                     if (!log.isFile) return@forEach

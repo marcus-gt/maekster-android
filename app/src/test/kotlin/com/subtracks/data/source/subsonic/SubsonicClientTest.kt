@@ -53,7 +53,7 @@ class SubsonicClientTest {
         val url = server.takeRequest().requestUrl!!
         assertEquals("/rest/ping.view", url.encodedPath)
         assertEquals("guest", url.queryParameter("u"))
-        assertEquals("subtracks", url.queryParameter("c"))
+        assertEquals("maekster", url.queryParameter("c"))
         assertNotNull(url.queryParameter("s"))
         assertNotNull(url.queryParameter("t"))
         assertNull(url.queryParameter("p"))

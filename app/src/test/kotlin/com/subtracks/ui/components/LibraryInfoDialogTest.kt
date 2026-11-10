@@ -10,7 +10,7 @@ import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistRef
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -27,7 +27,7 @@ class LibraryInfoDialogTest {
     @Test
     fun anAlbumShowsEveryArtistAndBothSortNames() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AlbumInfoDialog(
                     album =
                         Album(
@@ -65,7 +65,7 @@ class LibraryInfoDialogTest {
     @Test
     fun anArtistShowsItsSortNameAndCounts() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ArtistInfoDialog(
                     artist =
                         Artist(
@@ -90,7 +90,7 @@ class LibraryInfoDialogTest {
     @Test
     fun anArtistHidesASortNameThatMatchesItsName() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ArtistInfoDialog(
                     artist =
                         Artist(
@@ -112,7 +112,7 @@ class LibraryInfoDialogTest {
     @Test
     fun anAlbumHidesSortNamesThatMatchTheRegularNames() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AlbumInfoDialog(
                     album =
                         Album(
@@ -143,7 +143,7 @@ class LibraryInfoDialogTest {
     @Test
     fun anAlbumsDatesAreListedTogether() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AlbumInfoDialog(
                     album =
                         Album(
@@ -183,7 +183,7 @@ class LibraryInfoDialogTest {
     @Test
     fun aPlaylistShowsOwnerSharingLengthAndDates() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 PlaylistInfoDialog(
                     playlist =
                         Playlist(
@@ -217,7 +217,7 @@ class LibraryInfoDialogTest {
     @Test
     fun aSingleArtistTrackUsesSingularLabels() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SongInfoDialog(
                     song = song(artists = listOf(ArtistRef("ar1", "Alpha")), artistSort = "Beta"),
                     download = null,
@@ -238,7 +238,7 @@ class LibraryInfoDialogTest {
     @Test
     fun duplicateAndBlankArtistRefsStaySingular() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SongInfoDialog(
                     song =
                         song(
@@ -261,7 +261,7 @@ class LibraryInfoDialogTest {
     @Test
     fun aMixedArtistTrackUsesPluralLabelsForBothRows() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SongInfoDialog(
                     song =
                         song(
@@ -287,7 +287,7 @@ class LibraryInfoDialogTest {
     @Test
     fun aTrackHidesATitleAndArtistSortThatMatchTheRegularNames() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SongInfoDialog(
                     song = song(artists = listOf(ArtistRef("ar1", "Artist")), sortName = "song", artistSort = "artist"),
                     download = null,
@@ -306,7 +306,7 @@ class LibraryInfoDialogTest {
     @Test
     fun aMixedArtistTrackWithoutASortShowsOnlyTheArtistsRow() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SongInfoDialog(
                     song =
                         song(
@@ -330,7 +330,7 @@ class LibraryInfoDialogTest {
     @Test
     fun aTrackWithOnlyAnArtistSortShowsOnlyTheSortRow() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SongInfoDialog(
                     song = song(artists = emptyList(), artist = null, artistSort = "Alpha"),
                     download = null,

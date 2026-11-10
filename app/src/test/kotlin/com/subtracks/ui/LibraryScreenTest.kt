@@ -34,7 +34,7 @@ import com.subtracks.ui.library.ALBUM_COVER_TAG
 import com.subtracks.ui.library.LibraryScreen
 import com.subtracks.ui.library.LibraryTab
 import com.subtracks.ui.library.LibraryTabs
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -60,7 +60,7 @@ class LibraryScreenTest {
         var synced = false
         var settingsOpened = false
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Albums,
                     onTabSelected = {},
@@ -93,7 +93,7 @@ class LibraryScreenTest {
     fun anEmptyTabOffersSync() {
         var synced = false
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Albums,
                     onTabSelected = {},
@@ -122,7 +122,7 @@ class LibraryScreenTest {
     fun theHomeTabOffersSearch() {
         var searched = false
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Home,
                     onTabSelected = {},
@@ -164,7 +164,7 @@ class LibraryScreenTest {
                 emit(PagingData.empty())
             }
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Albums,
                     onTabSelected = {},
@@ -207,7 +207,7 @@ class LibraryScreenTest {
             }
         val selectedTab = mutableStateOf(LibraryTab.Albums)
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = selectedTab.value,
                     onTabSelected = { selectedTab.value = it },
@@ -247,7 +247,7 @@ class LibraryScreenTest {
         var opened: Album? = null
         composeRule.setContent {
             if (show.value) {
-                SubtracksTheme {
+                MaeksterTheme {
                     LibraryScreen(
                         selectedTab = LibraryTab.Albums,
                         onTabSelected = {},
@@ -284,7 +284,7 @@ class LibraryScreenTest {
     fun backClosesTheListSearchInsteadOfLeavingTheApp() {
         val search = mutableStateOf("xyz")
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Albums,
                     onTabSelected = {},
@@ -320,7 +320,7 @@ class LibraryScreenTest {
     fun theTabRowReflowsInOneDirectionDuringASwitch() {
         val pagerState = PagerState(currentPage = 1, pageCount = { LibraryTab.entries.size })
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryTabs(
                     pagerState = pagerState,
                     onTabSelected = {},
@@ -352,7 +352,7 @@ class LibraryScreenTest {
     fun aLongTabKeepsTheGearFullSizeAndScrollsIntoView() {
         var labelWidth = 0f
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 labelWidth =
                     rememberTextMeasurer()
                         .measure(
@@ -389,7 +389,7 @@ class LibraryScreenTest {
     fun aLongTabScrollsIntoViewInRtl() {
         var labelWidth = 0f
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 labelWidth =
                     rememberTextMeasurer()
                         .measure(
@@ -427,7 +427,7 @@ class LibraryScreenTest {
         val selectedTab = mutableStateOf(LibraryTab.Home)
         var labelWidth = 0f
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 labelWidth =
                     rememberTextMeasurer()
                         .measure(
@@ -469,7 +469,7 @@ class LibraryScreenTest {
     fun returningToTheFirstTabLeavesAGapAtTheEdge() {
         val selectedTab = mutableStateOf(LibraryTab.Playlists)
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = selectedTab.value,
                     onTabSelected = { selectedTab.value = it },
@@ -513,7 +513,7 @@ class LibraryScreenTest {
     fun theOfflineIndicatorGoesOnline() {
         var exited = false
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Playlists,
                     onTabSelected = {},

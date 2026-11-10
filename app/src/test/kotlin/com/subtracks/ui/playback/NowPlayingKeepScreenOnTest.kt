@@ -11,7 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.playback.PlaybackState
 import com.subtracks.playback.QueueItem
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.artworkColorsFromSeed
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -46,7 +46,7 @@ class NowPlayingKeepScreenOnTest {
     fun theScreenOnFlagTracksTheSetting() {
         var keepScreenOn by mutableStateOf(true)
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 NowPlayingScreen(
                     state = state,
                     positionMs = 62_000,

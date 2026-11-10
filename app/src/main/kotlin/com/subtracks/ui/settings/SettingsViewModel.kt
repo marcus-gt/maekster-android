@@ -9,6 +9,7 @@ import com.subtracks.data.prefs.ReplayGainMode
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.SyncMode
+import com.subtracks.data.prefs.ThemeMode
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.data.source.DEFAULT_FETCH_CONCURRENCY
@@ -87,6 +88,16 @@ class SettingsViewModel(
             .keepScreenOn()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val themeMode: StateFlow<ThemeMode> =
+        userPreferences
+            .themeMode()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.System)
+
+    val materialYou: StateFlow<Boolean> =
+        userPreferences
+            .materialYou()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val offline: StateFlow<Boolean> = sourceRepository.offline
 
     val verboseLogging: StateFlow<Boolean> =
@@ -152,5 +163,13 @@ class SettingsViewModel(
 
     fun setSortNameMode(mode: SortNameMode) {
         viewModelScope.launch { userPreferences.setSortNameMode(mode) }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { userPreferences.setThemeMode(mode) }
+    }
+
+    fun setMaterialYou(enabled: Boolean) {
+        viewModelScope.launch { userPreferences.setMaterialYou(enabled) }
     }
 }

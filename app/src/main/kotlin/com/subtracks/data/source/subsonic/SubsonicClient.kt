@@ -1,5 +1,6 @@
 package com.subtracks.data.source.subsonic
 
+import com.subtracks.MaeksterBrand
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.log.Log
@@ -105,7 +106,7 @@ class SubsonicClient(
         // Airsonic/Airsonic-Advanced cap at 1.15.0 and reject a newer client with error 30, so this
         // stays at the highest minor they accept. OpenSubsonic fields do not depend on it.
         const val API_VERSION = "1.15.0"
-        const val CLIENT = "subtracks"
+        const val CLIENT = MaeksterBrand.CLIENT_ID
 
         // Classic Subsonic uses 41; OpenSubsonic servers (lms) answer 42, so both disable token auth.
         val TOKEN_AUTH_UNSUPPORTED_CODES = setOf(41, 42)

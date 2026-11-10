@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.ListDownloadStatus
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -78,7 +78,7 @@ class HeroDownloadTest {
         onAction: (BulkDownloadAction) -> Unit,
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 HeroHeader(
                     art = null,
                     name = "Album",

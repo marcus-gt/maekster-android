@@ -68,6 +68,56 @@ class UserPreferencesTest {
         }
 
     @Test
+    fun theThemeFollowsTheSystemUntilChosenAndRoundTrips() =
+        runTest {
+            val file = File.createTempFile("user-prefs", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val prefs = UserPreferences(store)
+
+            assertEquals(ThemeMode.System, prefs.themeMode().first())
+
+            prefs.setThemeMode(ThemeMode.Light)
+            assertEquals(ThemeMode.Light, prefs.themeMode().first())
+
+            prefs.setThemeMode(ThemeMode.Dark)
+            assertEquals(ThemeMode.Dark, prefs.themeMode().first())
+
+            file.delete()
+        }
+
+    @Test
+    fun anUnknownStoredThemeFallsBackToTheSystem() =
+        runTest {
+            val file = File.createTempFile("user-prefs", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val prefs = UserPreferences(store)
+
+            store.edit { it[stringPreferencesKey("theme_mode")] = "Sepia" }
+
+            assertEquals(ThemeMode.System, prefs.themeMode().first())
+
+            file.delete()
+        }
+
+    @Test
+    fun materialYouIsOffUntilChosenAndRoundTrips() =
+        runTest {
+            val file = File.createTempFile("user-prefs", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val prefs = UserPreferences(store)
+
+            assertEquals(false, prefs.materialYou().first())
+
+            prefs.setMaterialYou(true)
+            assertEquals(true, prefs.materialYou().first())
+
+            prefs.setMaterialYou(false)
+            assertEquals(false, prefs.materialYou().first())
+
+            file.delete()
+        }
+
+    @Test
     fun theSelectedLibraryTabRoundTrips() =
         runTest {
             val file = File.createTempFile("user-prefs", ".preferences_pb").apply { delete() }

@@ -24,7 +24,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistAlbums
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -50,7 +50,7 @@ class ArtistDetailScreenTest {
     ) {
         composeRule.setContent {
             var expanded by remember { mutableStateOf(false) }
-            SubtracksTheme {
+            MaeksterTheme {
                 ArtistDetailScreen(
                     artist = artist,
                     artistName = artistName,

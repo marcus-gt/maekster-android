@@ -8,7 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.ArtistRef
 import com.subtracks.data.model.Song
 import com.subtracks.ui.library.SongRow
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,7 +39,7 @@ class SongArtistDisplayTest {
     @Test
     fun aSongRowListsThePluralArtistsWithTheSingularArtistFirst() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SongRow(song = song)
             }
         }
@@ -50,7 +50,7 @@ class SongArtistDisplayTest {
     @Test
     fun theInfoDialogListsThePluralArtistsWithTheSingularArtistFirst() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SongInfoDialog(
                     song = song,
                     download = null,

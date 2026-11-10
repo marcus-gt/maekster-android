@@ -8,7 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.ArtistRef
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -25,7 +25,7 @@ class ArtistChooserSheetTest {
     fun listsEveryArtistAndOpensTheChosenOne() {
         var opened: ArtistRef? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ArtistChooserSheet(
                     artists = listOf(ArtistRef("ar1", "A"), ArtistRef("ar2", "B")),
                     onArtistClick = { opened = it },
@@ -49,7 +49,7 @@ class ArtistChooserSheetTest {
     fun opensTheChosenArtistImmediately() {
         var opened: ArtistRef? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ArtistChooserSheet(
                     artists = listOf(ArtistRef("ar1", "A"), ArtistRef("ar2", "B")),
                     onArtistClick = { opened = it },
@@ -73,7 +73,7 @@ class ArtistChooserSheetTest {
         var opened: ArtistRef? = null
         val artists = (1..20).map { ArtistRef("ar$it", "Artist $it") }
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ArtistChooserSheet(
                     artists = artists,
                     onArtistClick = { opened = it },

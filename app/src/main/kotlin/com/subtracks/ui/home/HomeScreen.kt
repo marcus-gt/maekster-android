@@ -1,6 +1,7 @@
 package com.subtracks.ui.home
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -282,14 +283,13 @@ private fun LazyListScope.homeTitle() {
                     .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 0.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_subtracks_logo),
+            Image(
+                painter = painterResource(R.drawable.ic_maekster_mark),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(width = 34.dp, height = 25.dp),
+                modifier = Modifier.size(width = 52.dp, height = 24.dp),
             )
             Spacer(Modifier.width(8.dp))
-            Text(text = "subtracks", style = MaterialTheme.typography.headlineMedium)
+            Text(text = stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
         }
     }
 }

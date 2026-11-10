@@ -16,7 +16,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -84,7 +84,7 @@ class HomeRevealScrollTest {
     private fun render(labels: MutableState<List<String>>): LazyListState {
         lateinit var state: LazyListState
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 state = rememberLazyListState()
                 RevealNewFrontItem(labels.value, state) { it }
                 LazyRow(state = state, modifier = Modifier.fillMaxSize()) {

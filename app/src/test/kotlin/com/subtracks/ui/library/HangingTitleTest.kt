@@ -10,7 +10,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -31,7 +31,7 @@ class HangingTitleTest {
 
     private fun setUpMeasurements() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 measurer = rememberTextMeasurer()
                 style = MaterialTheme.typography.headlineLarge
                 val density = LocalDensity.current

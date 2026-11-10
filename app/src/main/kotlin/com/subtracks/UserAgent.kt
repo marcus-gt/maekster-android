@@ -5,7 +5,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 
 object UserAgent {
-    val value: String = "subtracks (Android ${Build.VERSION.RELEASE}; ${BuildConfig.VERSION_NAME})"
+    val value: String = MaeksterBrand.userAgent(Build.VERSION.RELEASE, BuildConfig.VERSION_NAME)
 
     fun interceptor(): Interceptor =
         Interceptor { chain ->

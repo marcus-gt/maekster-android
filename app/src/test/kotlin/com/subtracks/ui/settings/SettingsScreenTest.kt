@@ -14,7 +14,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StreamQuality
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.data.prefs.ThemeMode
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -82,14 +83,66 @@ class SettingsScreenTest {
         assertEquals(SortNameMode.SortName, requested)
     }
 
+    @Test
+    fun theThemeRowShowsTheCurrentModeAndChangesIt() {
+        var requested: ThemeMode? = null
+        renderSettings(
+            keepScreenOn = false,
+            onKeepScreenOnChange = {},
+            themeMode = ThemeMode.System,
+            onThemeModeChange = { requested = it },
+            scrollTo = "Theme",
+        )
+
+        composeRule.onNodeWithText("Follow system").assertExists()
+        composeRule.onNodeWithText("Theme").performClick()
+        composeRule.onNodeWithText("Light").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(ThemeMode.Light, requested)
+    }
+
+    @Test
+    fun theMaterialYouRowTurnsTheSettingOn() {
+        var requested: Boolean? = null
+        renderSettings(
+            keepScreenOn = false,
+            onKeepScreenOnChange = {},
+            onMaterialYouChange = { requested = it },
+            scrollTo = "Material You colours",
+        )
+
+        composeRule.onNodeWithText("Material You colours").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(true, requested)
+    }
+
+    @Test
+    fun theMaterialYouRowIsHiddenWhereTheDeviceCannotShowIt() {
+        renderSettings(
+            keepScreenOn = false,
+            onKeepScreenOnChange = {},
+            materialYouAvailable = false,
+            scrollTo = "Theme",
+        )
+
+        composeRule.onNodeWithText("Material You colours").assertDoesNotExist()
+    }
+
     private fun renderSettings(
         keepScreenOn: Boolean,
         onKeepScreenOnChange: (Boolean) -> Unit,
         onSortNameModeChange: (SortNameMode) -> Unit = {},
+        themeMode: ThemeMode = ThemeMode.System,
+        onThemeModeChange: (ThemeMode) -> Unit = {},
+        materialYouAvailable: Boolean = true,
+        onMaterialYouChange: (Boolean) -> Unit = {},
         scrollTo: String = "Keep screen on",
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SettingsScreen(
                     sources = emptyList(),
                     activeSourceId = null,
@@ -110,6 +163,11 @@ class SettingsScreenTest {
                     onScrobblingChange = {},
                     onKeepScreenOnChange = onKeepScreenOnChange,
                     onSortNameModeChange = onSortNameModeChange,
+                    themeMode = themeMode,
+                    materialYou = false,
+                    materialYouAvailable = materialYouAvailable,
+                    onThemeModeChange = onThemeModeChange,
+                    onMaterialYouChange = onMaterialYouChange,
                     onAddServer = {},
                     onOpenDownloads = {},
                     onOpenLicenses = {},

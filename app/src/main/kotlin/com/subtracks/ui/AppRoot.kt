@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -94,6 +96,7 @@ import com.subtracks.ui.settings.AddSourceRoute
 import com.subtracks.ui.settings.LicensesRoute
 import com.subtracks.ui.settings.SettingsRoute
 import com.subtracks.ui.theme.ArtworkTheme
+import com.subtracks.ui.theme.WhiteStatusBarIcons
 import com.subtracks.ui.theme.rememberArtworkColors
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.SharingStarted
@@ -344,7 +347,13 @@ private fun MainNavigation() {
             markActive = true,
             fallbackName = playback.item?.title,
         )
-    ArtworkTheme(artwork) {
+    // The app follows the chosen light or dark theme. Only the artwork-led surfaces (mini-player, Now Playing,
+    // queue, album and artist pages) take the playing track's colours, and those are always dark.
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+    ) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().imePadding()) {
                 NavHost(
@@ -751,7 +760,7 @@ private fun MainNavigation() {
                             .align(Alignment.TopCenter)
                             .graphicsLayer {
                                 alpha = ((nowPlayingProgress - SCRIM_FADE_START) / (1f - SCRIM_FADE_START)).coerceIn(0f, 1f)
-                            }.statusBarScrim(),
+                            }.statusBarScrim(dark = true),
                 )
             }
 
@@ -768,11 +777,14 @@ private fun MainNavigation() {
                     }
                 DisposableEffect(queueStoreOwner) { onDispose { queueStoreOwner.viewModelStore.clear() } }
                 CompositionLocalProvider(LocalViewModelStoreOwner provides queueStoreOwner) {
-                    QueueRoute(
-                        open = showingQueue,
-                        onBack = { showingQueue = false },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    ArtworkTheme(artwork) {
+                        WhiteStatusBarIcons()
+                        QueueRoute(
+                            open = showingQueue,
+                            onBack = { showingQueue = false },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
 

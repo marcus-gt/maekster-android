@@ -11,7 +11,7 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.model.Disc
 import com.subtracks.data.model.Song
 import com.subtracks.ui.library.AlbumDetailScreen
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -95,7 +95,7 @@ class AlbumDiscsTest {
         discs: List<Disc> = emptyList(),
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AlbumDetailScreen(
                     album = album(),
                     songs = songs,

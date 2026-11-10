@@ -52,6 +52,8 @@ import coil3.request.crossfade
 import coil3.size.Dimension
 import com.subtracks.R
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.ui.theme.MaeksterSpacing
+import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.artworkColorsFromSeed
 import com.subtracks.ui.theme.placeholderSeed
 import kotlinx.coroutines.CancellationException
@@ -347,16 +349,16 @@ fun EmptyState(
     onAction: (() -> Unit)? = null,
 ) {
     Box(
-        modifier = modifier.fillMaxSize().padding(32.dp),
+        modifier = modifier.fillMaxSize().padding(MaeksterSpacing.xxxl),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(MaeksterSpacing.l),
         ) {
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaeksterTheme.text.body,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
@@ -375,16 +377,16 @@ fun FilteredEmptyState(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier.fillMaxSize().padding(32.dp),
+        modifier = modifier.fillMaxSize().padding(MaeksterSpacing.xxxl),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(MaeksterSpacing.l),
         ) {
             Text(
                 text = stringResource(R.string.components_filters_hiding),
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaeksterTheme.text.body,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
@@ -411,15 +413,16 @@ fun CloseWhenDownloadsGone(
     }
 }
 
+/**
+ * A fade under the status bar so its icons stay readable over scrolling content. Dark surfaces fade from black;
+ * the light theme fades from the page colour, so the dark icons keep their contrast.
+ */
 @Composable
-fun Modifier.statusBarScrim(): Modifier {
+fun Modifier.statusBarScrim(dark: Boolean = MaeksterTheme.isDark): Modifier {
     val top = with(LocalDensity.current) { WindowInsets.statusBars.getTop(this).toDp() }
+    val edge = if (dark) Color.Black.copy(alpha = 0.55f) else MaterialTheme.colorScheme.background.copy(alpha = 0.9f)
     return this
         .fillMaxWidth()
         .height(top + 8.dp)
-        .background(
-            Brush.verticalGradient(
-                listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent),
-            ),
-        )
+        .background(Brush.verticalGradient(listOf(edge, Color.Transparent)))
 }

@@ -27,7 +27,7 @@ import com.subtracks.ui.library.LibraryScreen
 import com.subtracks.ui.library.LibraryTab
 import com.subtracks.ui.library.PlaySortAvailability
 import com.subtracks.ui.library.sortOptionsFor
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -47,7 +47,7 @@ class LibraryOptionsTest {
     fun theOptionsSheetAppliesSortFilterAndClear() {
         var query by mutableStateOf(ListQuery("Name"))
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Albums,
                     onTabSelected = {},
@@ -104,7 +104,7 @@ class LibraryOptionsTest {
     fun theOptionsSheetClosesWhenTransientUiIsDismissed() {
         val host = ContextMenuHost()
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Albums,
                     onTabSelected = {},

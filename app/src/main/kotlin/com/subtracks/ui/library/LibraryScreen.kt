@@ -138,7 +138,6 @@ import com.subtracks.ui.home.OfflineListKind
 import com.subtracks.ui.theme.ArtworkColors
 import com.subtracks.ui.theme.librarySurfaceColor
 import com.subtracks.ui.theme.playerSurfaceColor
-import com.subtracks.ui.theme.rememberArtworkColors
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.koin.compose.koinInject
@@ -271,8 +270,6 @@ fun LibraryRoute(
                 val term by viewModel.search(tabList).collectAsStateWithLifecycle()
                 tab to "${query.sort}|${query.descending}|${query.starred}|${query.downloaded || offline}|$term"
             }.toMap()
-    val playback by playbackController.state.collectAsStateWithLifecycle()
-    val artwork = rememberArtworkColors(playbackController.coverArt(playback.item, thumbnail = true), fallbackName = playback.item?.title)
     val downloadsState = listTab?.let { viewModel.downloads(it).collectAsStateWithLifecycle() }
     val downloads = downloadsState?.value ?: emptyMap()
     val focusManager = LocalFocusManager.current
@@ -292,7 +289,8 @@ fun LibraryRoute(
         syncing = syncing,
         refreshing = refreshing,
         bottomInset = bottomInset,
-        artwork = artwork,
+        // The tab screens follow the app theme. Only artwork-led surfaces take the playing track's colours.
+        artwork = null,
         albums = viewModel.albums,
         artists = viewModel.artists,
         playlists = viewModel.playlists,

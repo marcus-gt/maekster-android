@@ -2,10 +2,11 @@ name: Release
 
 run-name: Release ${{ github.ref_name }}
 
+# Disabled. This workflow still targets the Subtracks Play listing (package com.subtracks) and its
+# signing secrets. It stays off until maekster distribution is set up (roadmap M4.11: new signing key,
+# store listings and metadata). Tags no longer trigger it, and a manual run fails at the first step.
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
 
 concurrency:
   group: release
@@ -23,6 +24,10 @@ jobs:
     outputs:
       version-code: ${{ steps.build.outputs.version-code }}
     steps:
+      - name: Refuse to run until maekster distribution exists
+        run: |
+          echo "Release publishing is disabled until maekster distribution is set up (roadmap M4.11)." >&2
+          exit 1
       - uses: actions/checkout@v7
         with:
           persist-credentials: false

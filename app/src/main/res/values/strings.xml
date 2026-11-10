@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">subtracks</string>
+    <string name="app_name" translatable="false">mækster</string>
     <string name="download_channel_description">Progress while songs download</string>
     <string name="sync_notification_channel">Sync</string>
     <string name="sync_notification_title">Syncing library</string>
@@ -70,15 +70,24 @@
     <string name="settings_about_actions_licenses">Licenses</string>
     <string name="settings_about_actions_project_homepage">Project homepage</string>
     <string name="settings_about_actions_share_logs">Share logs</string>
-    <string name="settings_about_actions_support">Support the developer</string>
+    <string name="settings_about_credits">Credits</string>
+    <string name="settings_about_credits_description">Built on Subtracks by Austin Ried. The iOS app builds on Minidisc and Cassette.</string>
     <string name="settings_about_name">About</string>
     <string name="settings_troubleshooting_name">Troubleshooting</string>
     <string name="settings_about_share_logs_empty">No logs to send yet</string>
     <string name="settings_about_share_logs_failed">Couldn\'t prepare the logs</string>
-    <string name="settings_about_share_logs_subject">Subtracks logs</string>
+    <string name="settings_about_share_logs_subject">maekster logs</string>
     <string name="settings_about_verbose_logging">Verbose logging</string>
     <string name="settings_about_verbose_logging_description">Log extra detail for troubleshooting</string>
     <string name="settings_about_version">Version %1$s</string>
+    <string name="settings_appearance_name">Appearance</string>
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_prompt">Choose when maekster uses its light and dark colours.</string>
+    <string name="theme_mode_system">Follow system</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+    <string name="settings_material_you_title">Material You colours</string>
+    <string name="settings_material_you_description">Use your wallpaper\'s colours instead of maekster orange.</string>
     <string name="settings_library_name">Library</string>
     <string name="settings_music_name">Playback</string>
     <string name="settings_music_options_scrobble_description_on">Send now playing and play counts</string>

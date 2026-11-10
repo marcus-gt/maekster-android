@@ -9,7 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.DownloadStatus
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -65,7 +65,7 @@ class SongRowDownloadTest {
 
     private fun render(download: SongDownload?) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SongRow(song = song, download = download)
             }
         }

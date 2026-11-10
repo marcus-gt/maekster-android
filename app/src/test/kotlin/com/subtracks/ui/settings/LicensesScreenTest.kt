@@ -14,7 +14,7 @@ import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.mikepenz.aboutlibraries.Libs
 import com.subtracks.data.prefs.StreamQuality
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -34,7 +34,7 @@ class LicensesScreenTest {
     fun licenses() {
         val libs = Libs.Builder().withJson(fixture).build()
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LicensesScreen(libs = libs, onBack = {})
             }
         }
@@ -46,7 +46,7 @@ class LicensesScreenTest {
     fun settingsOpensLicenses() {
         var opened = false
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SettingsScreen(
                     sources = emptyList(),
                     activeSourceId = null,

@@ -10,7 +10,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.subtracks.data.model.Album
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -29,7 +29,7 @@ class AlbumsPlaceholderTest {
     @Test
     fun anUnloadedCellIsDrawnAsAPlaceholder() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 val items =
                     remember { flowOf(PagingData.from(listOf(album(0)), placeholdersAfter = 2)) }
                         .collectAsLazyPagingItems()

@@ -29,6 +29,22 @@ class ArtworkColorsTest {
     }
 
     @Test
+    fun whiteTextOnArtworkSurfacesStaysAtSevenToOne() {
+        for (seed in seeds + 0xFFE6C822.toInt() + 0xFF22E6C8.toInt()) {
+            val colors = artworkColorsFromSeed(seed)
+            val pages = listOf(colors.scheme.background, playerSurfaceColor(colors), librarySurfaceColor(colors))
+            for (page in pages) {
+                assertTrue("white on $page for $seed", page.luminance() <= 0.1f)
+                assertTrue("white on $page for $seed", contrast(Color.White, page) >= 7f)
+            }
+            // The hero gradient is deliberately livelier than the page, so it only has to keep white text at AA.
+            for (gradient in listOf(colors.gradientHigh, colors.gradientLow)) {
+                assertTrue("white on gradient $gradient for $seed", contrast(Color.White, gradient) >= 4.5f)
+            }
+        }
+    }
+
+    @Test
     fun placeholderColourDependsOnTheNameAndIsNotGrey() {
         assertEquals(0, placeholderSeed(""))
         assertNotEquals(placeholderSeed("Kid A"), placeholderSeed("Amnesiac"))

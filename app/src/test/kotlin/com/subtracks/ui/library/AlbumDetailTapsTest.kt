@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.CoverArtRef
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -45,7 +45,7 @@ class AlbumDetailTapsTest {
 
     private fun render(onArtistClick: (() -> Unit)? = null) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AlbumDetailScreen(
                     album = album,
                     songs = emptyList(),

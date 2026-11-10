@@ -68,6 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.BuildConfig
+import com.subtracks.MaeksterBrand
 import com.subtracks.R
 import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
@@ -77,9 +78,11 @@ import com.subtracks.data.prefs.ReplayGainMode
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.SyncMode
+import com.subtracks.data.prefs.ThemeMode
 import com.subtracks.log.Log
 import com.subtracks.ui.components.DismissOnRequest
 import com.subtracks.ui.components.rememberViewportFill
+import com.subtracks.ui.theme.materialYouSupported
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -90,8 +93,7 @@ import org.koin.compose.viewmodel.koinViewModel
 private val bitrateOptions = listOf(0, 24, 32, 64, 96, 128, 192, 256, 320)
 private val streamFormats = listOf(null, "mp3", "opus", "ogg", "webm", "aac", "flac")
 
-private const val PROJECT_HOMEPAGE = "https://github.com/austinried/subtracks"
-private const val SUPPORT_URL = "https://ko-fi.com/austinried"
+private const val PROJECT_HOMEPAGE = MaeksterBrand.REPOSITORY_URL
 
 private enum class SettingsDialog {
     WifiQuality,
@@ -103,6 +105,7 @@ private enum class SettingsDialog {
     ReplayGain,
     ReplayGainPreamp,
     SortNames,
+    Theme,
 }
 
 @Composable
@@ -131,6 +134,8 @@ fun SettingsRoute(
     val replayGainMode by viewModel.replayGainMode.collectAsStateWithLifecycle()
     val replayGainPreamp by viewModel.replayGainPreamp.collectAsStateWithLifecycle()
     val sortNameMode by viewModel.sortNameMode.collectAsStateWithLifecycle()
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val materialYou by viewModel.materialYou.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     SettingsScreen(
@@ -147,6 +152,8 @@ fun SettingsRoute(
         replayGainMode = replayGainMode,
         replayGainPreamp = replayGainPreamp,
         sortNameMode = sortNameMode,
+        themeMode = themeMode,
+        materialYou = materialYou,
         keepScreenOn = keepScreenOn,
         offline = offline,
         verboseLogging = verboseLogging,
@@ -163,6 +170,8 @@ fun SettingsRoute(
         onReplayGainModeChange = viewModel::setReplayGainMode,
         onReplayGainPreampChange = viewModel::setReplayGainPreamp,
         onSortNameModeChange = viewModel::setSortNameMode,
+        onThemeModeChange = viewModel::setThemeMode,
+        onMaterialYouChange = viewModel::setMaterialYou,
         onKeepScreenOnChange = viewModel::setKeepScreenOn,
         onOfflineChange = viewModel::setOfflineMode,
         onVerboseLoggingChange = viewModel::setVerboseLogging,
@@ -211,6 +220,9 @@ fun SettingsScreen(
     replayGainMode: ReplayGainMode = ReplayGainMode.Auto,
     replayGainPreamp: Float = 0f,
     sortNameMode: SortNameMode = SortNameMode.Name,
+    themeMode: ThemeMode = ThemeMode.System,
+    materialYou: Boolean = false,
+    materialYouAvailable: Boolean = materialYouSupported,
     onSelectSource: (Long) -> Unit,
     onEditServer: (Long) -> Unit,
     onWifiQualityChange: (StreamQuality) -> Unit,
@@ -224,6 +236,8 @@ fun SettingsScreen(
     onReplayGainModeChange: (ReplayGainMode) -> Unit = {},
     onReplayGainPreampChange: (Float) -> Unit = {},
     onSortNameModeChange: (SortNameMode) -> Unit = {},
+    onThemeModeChange: (ThemeMode) -> Unit = {},
+    onMaterialYouChange: (Boolean) -> Unit = {},
     onKeepScreenOnChange: (Boolean) -> Unit = {},
     onOfflineChange: (Boolean) -> Unit = {},
     onVerboseLoggingChange: (Boolean) -> Unit = {},
@@ -354,6 +368,37 @@ fun SettingsScreen(
                     modifier = Modifier.clickable { dialog = SettingsDialog.SyncConcurrency },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
+            }
+            item { SectionHeader(stringResource(R.string.settings_appearance_name)) }
+            item {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_theme_title)) },
+                    supportingContent = { Text(themeModeLabel(LocalResources.current, themeMode)) },
+                    modifier = Modifier.clickable { dialog = SettingsDialog.Theme },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+            if (materialYouAvailable) {
+                item {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.settings_material_you_title)) },
+                        supportingContent = { Text(stringResource(R.string.settings_material_you_description)) },
+                        trailingContent = {
+                            Switch(
+                                checked = materialYou,
+                                onCheckedChange = onMaterialYouChange,
+                                colors =
+                                    SwitchDefaults.colors(
+                                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                                    ),
+                            )
+                        },
+                        modifier = Modifier.clickable { onMaterialYouChange(!materialYou) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                }
             }
             item { SectionHeader(stringResource(R.string.settings_library_name)) }
             item {
@@ -498,7 +543,7 @@ fun SettingsScreen(
             item { SectionHeader(stringResource(R.string.settings_about_name)) }
             item {
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.app_name)) },
+                    headlineContent = { Text(MaeksterBrand.NAME) },
                     supportingContent = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME))
@@ -534,16 +579,9 @@ fun SettingsScreen(
             }
             item {
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_about_actions_support)) },
-                    supportingContent = { Text(SUPPORT_URL) },
-                    leadingContent = {
-                        Icon(
-                            Icons.Rounded.Favorite,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    modifier = Modifier.clickable { runCatching { uriHandler.openUri(SUPPORT_URL) } },
+                    headlineContent = { Text(stringResource(R.string.settings_about_credits)) },
+                    supportingContent = { Text(stringResource(R.string.settings_about_credits_description)) },
+                    leadingContent = { Icon(Icons.Rounded.Favorite, contentDescription = null) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
             }
@@ -623,6 +661,14 @@ fun SettingsScreen(
             SortNameModeDialog(
                 selected = sortNameMode,
                 onSelect = onSortNameModeChange,
+                onDismiss = { dialog = null },
+            )
+        }
+
+        SettingsDialog.Theme -> {
+            ThemeModeDialog(
+                selected = themeMode,
+                onSelect = onThemeModeChange,
                 onDismiss = { dialog = null },
             )
         }
@@ -762,6 +808,51 @@ private fun SyncModeDialog(
             ChoiceGroup(
                 header = stringResource(R.string.sync_mode_prompt),
                 options = syncModeOptions.map { it to syncModeLabel(resources, it) },
+                selected = draft,
+                onSelect = { draft = it },
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSelect(draft)
+                    onDismiss()
+                },
+            ) { Text(stringResource(R.string.action_done)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.actions_cancel)) }
+        },
+    )
+}
+
+private val themeModeOptions = ThemeMode.entries
+
+private fun themeModeLabel(
+    resources: Resources,
+    mode: ThemeMode,
+): String =
+    when (mode) {
+        ThemeMode.System -> resources.getString(R.string.theme_mode_system)
+        ThemeMode.Light -> resources.getString(R.string.theme_mode_light)
+        ThemeMode.Dark -> resources.getString(R.string.theme_mode_dark)
+    }
+
+@Composable
+private fun ThemeModeDialog(
+    selected: ThemeMode,
+    onSelect: (ThemeMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val resources = LocalResources.current
+    var draft by remember(selected) { mutableStateOf(selected) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_theme_title)) },
+        text = {
+            ChoiceGroup(
+                header = stringResource(R.string.settings_theme_prompt),
+                options = themeModeOptions.map { it to themeModeLabel(resources, it) },
                 selected = draft,
                 onSelect = { draft = it },
             )
@@ -1010,7 +1101,7 @@ private fun <T> ChoiceGroup(
     onSelect: (T) -> Unit,
 ) {
     Column {
-        Text(header, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        Text(header, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         options.forEach { (value, label) ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1029,7 +1120,7 @@ private fun SectionHeader(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleLarge,
-        color = MaterialTheme.colorScheme.primary,
+        color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
     )
 }

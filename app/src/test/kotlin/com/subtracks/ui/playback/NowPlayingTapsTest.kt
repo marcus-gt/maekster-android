@@ -21,7 +21,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.playback.PlaybackState
 import com.subtracks.playback.QueueItem
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.artworkColorsFromSeed
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -62,7 +62,7 @@ class NowPlayingTapsTest {
         nextArt: NowPlayingArt? = null,
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 NowPlayingScreen(
                     state = state,
                     positionMs = 62_000,

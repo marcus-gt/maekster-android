@@ -41,7 +41,7 @@ app/src/main/kotlin/com/subtracks
     playback/                        Mini player and Now Playing screen
     settings/                        Server list and add-server form
     components/                      Cover art and empty/loading states
-    theme/                           Material 3 theme (Material You dynamic colour)
+    theme/                           MaeksterTheme (tokens, light/dark schemes), ArtworkTheme (always-dark artwork surfaces)
   playback/
     PlaybackService.kt               MediaSessionService hosting ExoPlayer
     PlaybackController.kt            MediaController wrapper: state, queue, transport
@@ -74,7 +74,9 @@ The library is one `LibraryScreen` with a pinned top bar: the current section as
 
 The Albums tab is a three-column grid of covers only. Sorting and filtering hang off a FAB, and Settings holds the server list and the network, playback, download and about sections rather than list sort or sync.
 
-The default theme is Material You: on Android 12+ the root scheme is the wallpaper's dynamic dark palette, falling back to the Material 3 baseline dark scheme elsewhere. Screens that show cover art layer an artwork-derived palette (`ArtworkTheme`) on top, and when no art is available they fall back to the same theme colours rather than a fixed monochrome scheme.
+Theming is `MaeksterTheme`, set once in `MainActivity` from two DataStore preferences: `ThemeMode` (System, Light or Dark) and Material You (off by default, Android 12+ only). The schemes are derived from the brand tokens in `MaeksterColors.kt` (Ink and Paper surfaces, the orange accent, warm greys); `MaeksterSpacing.kt` holds the spacing grid, control sizes and shapes, and `Type.kt` the system-font type scale plus named text roles (`MaeksterTheme.text`). Tokens Material 3 has no slot for (lossless badge colour, cover border and shadow) are read with `MaeksterTheme.colors`.
+
+The tab screens (Home, Library, Settings, search) follow the app theme. Only artwork-led surfaces (mini-player, Now Playing, queue, album, playlist and artist pages) wrap themselves in `ArtworkTheme`, which layers the playing or shown cover's palette on a dark scheme. These are always dark, whatever the app theme, and fall back to the active dark scheme when no art is available. Because the light theme gives dark system bar icons, each always-dark screen calls `WhiteStatusBarIcons()` while it is composed, and `MainActivity` switches the status bar icons to white for as long as one is showing.
 
 ## Playback
 
@@ -142,13 +144,11 @@ The two branches do not fold case identically: the trigram tokenizer lowercases 
 
 ## Internationalization
 
-All user-facing text lives in Android string resources: `res/values/strings.xml` (the English source, including `<plurals>`) and `res/values-*/strings.xml` for translations. This is the platform-native mechanism, needs no extra dependency, and is a first-class Weblate format ("Android String Resource": monolingual base `res/values/strings.xml`, file mask `res/values-*/strings.xml`, plurals supported). Code reads it through `stringResource`/`pluralStringResource` in Compose and `getString`/`getQuantityString` elsewhere.
+All user-facing text lives in Android string resources: `res/values/strings.xml` (English, including `<plurals>`). The app is English-only (roadmap decision D14): the 27 partial locales inherited from Subtracks were removed in M1.1, and with them AGP's generated per-app language config. Keeping text in resources still costs nothing and leaves translation possible later. Code reads it through `stringResource`/`pluralStringResource` in Compose and `getString`/`getQuantityString` elsewhere.
 
-Resource names are `snake_case`. They were derived once from the old Flutter ARB keys: resources whose English matched an old string (the "identical" set) reuse the old key's translations, mechanically renamed (`settingsServersFieldsName` -> `settings_servers_fields_name`); everything else is a new key. Strings whose wording changed were deliberately given new keys rather than reusing a translation with stale meaning, with one exception: the three library tab labels (`resources_album_name`/`resources_artist_name`/`resources_playlist_name`) take the `other` form of the old `resourcesAlbumName`/`resourcesArtistName`/`resourcesPlaylistName` plurals. The migration is one-time; there is no generator in the build.
+Resource names are `snake_case`, derived once from the old Flutter ARB keys. `StringResourcesTest` checks that every default `<plurals>` has the required `other` quantity, and still validates any `res/values-*/strings.xml` against the default (same kind, same placeholders) if translations are ever added back.
 
-27 locales were carried over from the Flutter app: `ar, ca, cs, da, de, es, eu, fr, gl, hu, it, ja, ko, nb, pa, pl, pt, pt-BR, ru, sv, ta, th, tr, uk, vi, zh, zh-Hant` (PR #178 plus `ar/ca/cs/pa/pt` from the frozen Flutter branches). Locale files contain only translated keys; anything missing falls back to English. Chinese uses script qualifiers (`values-b+zh+Hans`, `values-b+zh+Hant`) and Brazilian Portuguese is `values-b+pt+BR`.
-
-Per-app language selection (Android 13+) is generated by AGP: `androidResources.generateLocaleConfig = true` with `res/resources.properties` supplying the default locale. `StringResourcesTest` guards the translations: every locale resource must exist in the default with the same kind and no placeholder the default lacks, which is what caught a duplicated `{value}` in the Thai ARB during migration.
+In-app text follows the naming rule in `CLAUDE.md`: "maekster", lowercase. The launcher label `app_name` is the only place that says "mækster", and the product name, client ID and repository URL used in code come from `MaeksterBrand`.
 
 Text produced below the UI is typed, not free-form English. Repositories, `SyncManager` and playback report a `UiMessage` (a string-resource id plus format args) through `showMessage`, and the UI resolves it in the current locale; `SyncStatus.Failed` carries one too. Subsonic and playback failures set a localized `UiMessage` on the exception (the raw message stays as the developer detail/log text), and the download progress notification is formatted from resources. Persisted download failures are also typed: `SongDownload.error` is a `DownloadError` enum mapped to `@StringRes` and stored by name (rows written before the enum are mapped back to their error, and anything unrecognized degrades to `DownloadError.Failed`), so `SongInfoDialog` resolves it in the current locale. The remaining non-localized strings are internal invariants and log tags that are never shown.
 

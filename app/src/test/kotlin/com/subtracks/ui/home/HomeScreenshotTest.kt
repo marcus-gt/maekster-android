@@ -20,7 +20,7 @@ import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
 import org.junit.Test
@@ -39,7 +39,7 @@ class HomeScreenshotTest {
     @Test
     fun home() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     HomeScreen(
                         feed = feed(),
@@ -58,7 +58,7 @@ class HomeScreenshotTest {
     @Test
     fun homeGenres() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     HomeScreen(
                         feed = feed(),
@@ -90,7 +90,7 @@ class HomeScreenshotTest {
                 listAlbum("Added Weeks Ago", (now - 21 * 86_400_000L) / 1000L),
             )
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 HomeListScreen(
                     request = HomeListRequest(title = "Recently added", section = HomeSection.RecentlyAddedAlbums),
                     albums = remember { flowOf(PagingData.from(albums)) }.collectAsLazyPagingItems(),
@@ -116,7 +116,7 @@ class HomeScreenshotTest {
                 listArtist("Artist This Week", (now - 3 * 86_400_000L) / 1000L),
             )
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 HomeListScreen(
                     request = HomeListRequest(title = "Recently played artists", section = HomeSection.RecentlyPlayedArtists),
                     albums = remember { flowOf(PagingData.empty<Album>()) }.collectAsLazyPagingItems(),
@@ -149,7 +149,7 @@ class HomeScreenshotTest {
     @Test
     fun homeOffline() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     OfflineHomeScreen(
                         albums = remember { flowOf(PagingData.from(listOf(listAlbum("Offline Album", 0)))) }.collectAsLazyPagingItems(),

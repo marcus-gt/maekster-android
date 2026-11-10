@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.map
 
 enum class SortNameMode { SortName, Name, NonLatin }
 
+/** Which colour scheme the app uses. `System` follows the device's dark mode setting. */
+enum class ThemeMode { System, Light, Dark }
+
 enum class AlbumSort { Name, Artist, Year, Added, Starred, Frequent, Recent }
 
 enum class ArtistSort { Name, AlbumCount, Starred, Frequent, Recent }
@@ -194,6 +197,26 @@ class UserPreferences(
     }
 
     private val sortNameModeKey = stringPreferencesKey("sort_name_mode")
+
+    fun themeMode(): Flow<ThemeMode> =
+        store.data.map { prefs ->
+            prefs[themeModeKey]?.let { stored -> ThemeMode.entries.firstOrNull { it.name == stored } } ?: ThemeMode.System
+        }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        store.edit { prefs -> prefs[themeModeKey] = mode.name }
+    }
+
+    private val themeModeKey = stringPreferencesKey("theme_mode")
+
+    /** Use the wallpaper-derived Material You colours instead of the maekster palette (Android 12 and later). */
+    fun materialYou(): Flow<Boolean> = store.data.map { prefs -> prefs[materialYouKey] ?: false }
+
+    suspend fun setMaterialYou(enabled: Boolean) {
+        store.edit { prefs -> prefs[materialYouKey] = enabled }
+    }
+
+    private val materialYouKey = booleanPreferencesKey("material_you")
 
     fun offlineMode(): Flow<Boolean> = store.data.map { prefs -> prefs[offlineModeKey] ?: false }
 

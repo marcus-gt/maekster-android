@@ -64,7 +64,7 @@ import com.subtracks.ui.playback.QueueScreen
 import com.subtracks.ui.settings.AddSourceScreen
 import com.subtracks.ui.settings.AddSourceState
 import com.subtracks.ui.settings.SettingsScreen
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.artworkColorsFromSeed
 import com.subtracks.ui.theme.artworkColorsFromSeeds
 import kotlinx.coroutines.flow.flowOf
@@ -117,7 +117,7 @@ class AppScreenshotTest {
     fun libraryScrolledUnderHeader() {
         val albums = (1..60).map { Fixtures.albums.first().copy(id = "scrolled-$it", name = "Album $it") }
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Albums,
                     onTabSelected = {},
@@ -144,7 +144,7 @@ class AppScreenshotTest {
     fun libraryAlbumsWithDownloads() {
         val ids = Fixtures.albums.take(3).map { it.id }
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = LibraryTab.Albums,
                     onTabSelected = {},
@@ -197,7 +197,7 @@ class AppScreenshotTest {
         file: String,
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 val artwork = artworkColorsFromSeed(seed)
                 Column(Modifier.fillMaxSize()) {
                     LibraryScreen(
@@ -235,7 +235,7 @@ class AppScreenshotTest {
     @Test
     fun albumDetail() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AlbumDetailScreen(
                     album = Fixtures.albums.first(),
                     songs = Fixtures.songs,
@@ -255,7 +255,7 @@ class AppScreenshotTest {
     @Test
     fun albumDetailCool() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AlbumDetailScreen(
                     album = Fixtures.albums.first(),
                     songs = Fixtures.songs,
@@ -282,7 +282,7 @@ class AppScreenshotTest {
                 Fixtures.song("s-htdc", "al-kid-a", "ar-radiohead", "How to Disappear Completely", "Kid A", "Radiohead", 2, 356, disc = 2),
             )
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AlbumDetailScreen(
                     album = Fixtures.albums.first(),
                     songs = songs,
@@ -325,7 +325,7 @@ class AppScreenshotTest {
     @Test
     fun artistDetailArtGrid() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ArtistDetailScreen(
                     artist = Fixtures.artists.first(),
                     albums =
@@ -356,7 +356,7 @@ class AppScreenshotTest {
 
     private fun renderArtistDetail(bioExpanded: Boolean) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 ArtistDetailScreen(
                     artist = Fixtures.artists.first(),
                     albums =
@@ -382,7 +382,7 @@ class AppScreenshotTest {
     @Test
     fun playlistDetail() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 PlaylistDetailScreen(
                     playlist = Fixtures.playlists.first(),
                     songs = remember { flowOf(PagingData.from(Fixtures.songItems)) }.collectAsLazyPagingItems(),
@@ -417,7 +417,7 @@ class AppScreenshotTest {
 
     private fun setSettingsContent() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 SettingsScreen(
                     sources = Fixtures.sources,
                     activeSourceId = 1,
@@ -460,7 +460,7 @@ class AppScreenshotTest {
         file: String,
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AddSourceScreen(
                     state =
                         AddSourceState(
@@ -489,7 +489,7 @@ class AppScreenshotTest {
     @Test
     fun editSource() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 AddSourceScreen(
                     state =
                         AddSourceState(
@@ -537,7 +537,7 @@ class AppScreenshotTest {
         file: String,
     ) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 NowPlayingScreen(
                     state = state,
                     positionMs = 62_000,
@@ -561,7 +561,7 @@ class AppScreenshotTest {
     @Test
     fun queue() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 QueueScreen(
                     rows =
                         Fixtures.songItems.mapIndexed { index, item -> QueueRow(index.toLong(), index.toLong(), item) },
@@ -588,7 +588,7 @@ class AppScreenshotTest {
     @Test
     fun miniPlayer() {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 Column(Modifier.fillMaxSize()) {
                     Spacer(Modifier.weight(1f))
                     MiniPlayer(
@@ -609,7 +609,7 @@ class AppScreenshotTest {
 
     private fun setLibraryContent(tab: LibraryTab) {
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 LibraryScreen(
                     selectedTab = tab,
                     onTabSelected = {},

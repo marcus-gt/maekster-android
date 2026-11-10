@@ -19,7 +19,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,7 +36,7 @@ class HeroDetailScaffoldRestoreTest {
         var visible by mutableStateOf(true)
         var rows by mutableIntStateOf(100)
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 val holder = rememberSaveableStateHolder()
                 if (visible) {
                     holder.SaveableStateProvider("detail") {

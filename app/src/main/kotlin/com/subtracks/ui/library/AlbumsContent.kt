@@ -1,6 +1,5 @@
 package com.subtracks.ui.library
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +38,7 @@ import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.ResetScrollOnChange
 import com.subtracks.ui.components.ScrollToTopOnRequest
+import com.subtracks.ui.components.SkeletonBlock
 import com.subtracks.ui.components.rememberViewportFill
 import com.subtracks.ui.theme.PrefetchArtworkSeeds
 
@@ -122,14 +121,9 @@ fun AlbumsContent(
                             )
                         }
                     } else {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .testTag(ALBUM_PLACEHOLDER_TAG),
+                        SkeletonBlock(
+                            modifier = Modifier.fillMaxWidth().aspectRatio(1f).testTag(ALBUM_PLACEHOLDER_TAG),
+                            shape = RoundedCornerShape(2.dp),
                         )
                     }
                 }

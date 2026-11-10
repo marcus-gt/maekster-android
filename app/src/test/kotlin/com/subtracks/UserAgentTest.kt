@@ -12,7 +12,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class UserAgentTest {
     @Test
-    fun theSharedClientSendsTheSubtracksUserAgent() {
+    fun theSharedClientSendsTheMaeksterUserAgent() {
         val server = MockWebServer()
         server.enqueue(MockResponse())
         server.start()
@@ -25,6 +25,6 @@ class UserAgentTest {
         val header = server.takeRequest().getHeader("User-Agent")
         server.shutdown()
 
-        assertEquals("subtracks (Android ${Build.VERSION.RELEASE}; ${BuildConfig.VERSION_NAME})", header)
+        assertEquals("maekster (Android ${Build.VERSION.RELEASE}; ${BuildConfig.VERSION_NAME})", header)
     }
 }

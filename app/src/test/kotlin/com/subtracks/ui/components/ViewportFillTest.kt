@@ -16,7 +16,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -37,7 +37,7 @@ class ViewportFillTest {
         lateinit var state: LazyListState
         var fillHeight = 0
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 state = rememberLazyListState()
                 val fill = rememberViewportFill(state)
                 LazyColumn(state = state, modifier = Modifier.fillMaxSize()) {
@@ -62,7 +62,7 @@ class ViewportFillTest {
         lateinit var state: LazyListState
         val request = mutableStateOf<Any?>(null)
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 state = rememberLazyListState()
                 ScrollToTopOnRequest(request.value, state)
                 LazyColumn(state = state, modifier = Modifier.fillMaxSize()) {

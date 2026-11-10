@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown before the first Compose frame. Paper in light mode; values-night overrides it with Ink. -->
+    <color name="maekster_window_background">#FAF8F5</color>
+</resources>

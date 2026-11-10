@@ -11,7 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.Song
-import com.subtracks.ui.theme.SubtracksTheme
+import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -47,7 +47,7 @@ class ItemContextMenuStarTest {
         var dismissed = false
         var starred: Boolean? = null
         composeRule.setContent {
-            SubtracksTheme {
+            MaeksterTheme {
                 var show by remember { mutableStateOf(true) }
                 if (show) {
                     ItemContextMenu(
