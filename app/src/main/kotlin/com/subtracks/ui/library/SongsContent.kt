@@ -14,9 +14,12 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +65,7 @@ import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.ui.components.CoverArt
 import com.subtracks.ui.components.artistSubtitle
+import com.subtracks.ui.theme.MaeksterControlSize
 
 private val TRACK_COLUMN_WIDTH = 24.dp
 private val TIME_COLUMN_WIDTH = 36.dp
@@ -102,6 +106,8 @@ fun SongRow(
     durationSeconds: Long? = null,
     download: SongDownload? = null,
     trailingContent: (@Composable () -> Unit)? = null,
+    // Shows a heart before the duration that toggles the song's favorite; called with the new value.
+    onToggleFavorite: ((Boolean) -> Unit)? = null,
 ) {
     ListItem(
         modifier = modifier,
@@ -131,6 +137,7 @@ fun SongRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (download.showsIndicator()) DownloadBadge(download)
+                if (onToggleFavorite != null) FavoriteToggle(song.starred != null, onToggleFavorite)
                 if (durationSeconds != null) TrackTime(durationSeconds)
                 trailingContent?.invoke()
             }
@@ -284,6 +291,24 @@ private fun TrackCell(
         }
     }
 }
+
+/** A small heart that keeps a full 40dp touch target: outlined, or filled in the accent once a favorite. */
+@Composable
+private fun FavoriteToggle(
+    favorite: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    IconButton(onClick = { onToggle(!favorite) }, modifier = Modifier.size(MaeksterControlSize.compact)) {
+        Icon(
+            imageVector = if (favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+            contentDescription = stringResource(if (favorite) R.string.actions_unstar else R.string.actions_star),
+            tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(FAVORITE_ICON_SIZE),
+        )
+    }
+}
+
+private val FAVORITE_ICON_SIZE = 20.dp
 
 @Composable
 private fun TrackTime(seconds: Long) {

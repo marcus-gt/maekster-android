@@ -22,6 +22,7 @@ import com.subtracks.data.model.ListDownloadStatus
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.QueueKind
+import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
@@ -98,6 +99,7 @@ fun PlaylistDetailRoute(
             playlist?.let { contextMenuHost?.show(MenuTarget.Playlist(it, viewModel.coverArt(it.coverArt, true), downloadStatus), actions) }
         },
         playingSongId = playback.item?.id.takeIf { context?.kind == QueueKind.Playlist && context.refId == playlistId },
+        onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
     )
 
     PendingDownloadDeleteConfirmation(pendingDelete) {
@@ -123,6 +125,7 @@ fun PlaylistDetailScreen(
     onPlay: () -> Unit = {},
     onMore: () -> Unit = {},
     playingSongId: String? = null,
+    onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     HeroDetailScaffold(
@@ -158,6 +161,7 @@ fun PlaylistDetailScreen(
                         isPlaying = item.song.id == playingSongId,
                         durationSeconds = item.song.duration,
                         download = downloads[item.song.id],
+                        onToggleFavorite = onToggleFavorite?.let { toggle -> { favorite -> toggle(item.song, favorite) } },
                         modifier =
                             rowModifier.combinedClickable(
                                 onClick = { onSongClick(item.position) },
