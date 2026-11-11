@@ -47,9 +47,16 @@ class LibraryHubScreenTest {
     @Test
     fun theEntriesFollowTheIosOrderAndFavoritesIsAPageNotAList() {
         assertEquals(
-            listOf(LibraryHubEntry.Playlists, LibraryHubEntry.Albums, LibraryHubEntry.Artists, LibraryHubEntry.Favorites),
+            listOf(
+                LibraryHubEntry.Playlists,
+                LibraryHubEntry.Albums,
+                LibraryHubEntry.Artists,
+                LibraryHubEntry.Songs,
+                LibraryHubEntry.Favorites,
+            ),
             LIBRARY_HUB_ENTRIES,
         )
+        assertEquals(LibraryTab.Songs, LibraryHubEntry.Songs.list)
         assertEquals(LibraryTab.Albums, LibraryHubEntry.Albums.list)
         assertNull(LibraryHubEntry.Favorites.list)
     }
@@ -78,6 +85,10 @@ class LibraryHubScreenTest {
         assertEquals(
             listOf(LibraryHubEntry.Albums, LibraryHubEntry.Artists, LibraryHubEntry.Favorites),
             offlineLibraryEntries(setOf(LibraryListTab.Artists, LibraryListTab.Albums)),
+        )
+        assertEquals(
+            listOf(LibraryHubEntry.Songs, LibraryHubEntry.Favorites),
+            offlineLibraryEntries(setOf(LibraryListTab.Songs)),
         )
         assertEquals(emptyList<LibraryHubEntry>(), offlineLibraryEntries(emptySet()))
     }

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.FilterAltOff
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
@@ -63,16 +64,20 @@ import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.subtracks.R
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.ListDownloadStatus
 import com.subtracks.data.model.Playlist
+import com.subtracks.data.model.Song
+import com.subtracks.data.model.SongDownload
 import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.ArtistSort
 import com.subtracks.data.prefs.LibraryListTab
 import com.subtracks.data.prefs.ListQuery
 import com.subtracks.data.prefs.PlaylistSort
+import com.subtracks.data.prefs.SongSort
 import com.subtracks.data.prefs.StarredFilter
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
@@ -83,6 +88,7 @@ import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
 import com.subtracks.ui.components.SearchField
+import com.subtracks.ui.components.ShuffleFab
 import com.subtracks.ui.components.rememberPendingDownloadDelete
 import com.subtracks.ui.theme.MaeksterSpacing
 import kotlinx.coroutines.flow.Flow
@@ -99,6 +105,7 @@ enum class LibraryTab(
     Albums(R.string.resources_album_name, Icons.Rounded.Album),
     Artists(R.string.resources_artist_name, Icons.Rounded.Person),
     Playlists(R.string.resources_playlist_name, Icons.AutoMirrored.Rounded.PlaylistPlay),
+    Songs(R.string.resources_song_name, Icons.Rounded.MusicNote),
 }
 
 data class SortOption(
@@ -155,6 +162,15 @@ fun sortOptionsFor(
             }
         }
 
+        LibraryTab.Songs -> {
+            listOf(
+                SortOption(SongSort.Name.name, R.string.resources_sort_by_title),
+                SortOption(SongSort.Artist.name, R.string.resources_sort_by_artist),
+                SortOption(SongSort.Album.name, R.string.resources_filter_album),
+                SortOption(SongSort.Added.name, R.string.resources_sort_by_added, descendingByDefault = true),
+            )
+        }
+
         LibraryTab.Playlists -> {
             listOf(
                 SortOption(PlaylistSort.Name.name, R.string.resources_sort_by_name),
@@ -187,6 +203,10 @@ fun LibraryListRoute(
     val displayQuery = if (offline) listQuery.copy(downloaded = true) else listQuery
     val search by viewModel.search(listTab).collectAsStateWithLifecycle()
     val downloads by viewModel.downloads(listTab).collectAsStateWithLifecycle()
+    val songsSpec by viewModel.songListSpec.collectAsStateWithLifecycle()
+    val songDownloads =
+        if (list == LibraryTab.Songs) viewModel.songDownloads.collectAsStateWithLifecycle().value else emptyMap()
+    val playback by playbackController.state.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val pendingDelete = rememberPendingDownloadDelete(contextMenuHost?.dismissals ?: emptyFlow(), viewModel::downloadedBytes)
     val itemActions =
@@ -205,6 +225,12 @@ fun LibraryListRoute(
         albums = if (list == LibraryTab.Albums) viewModel.albums else emptyFlow(),
         artists = if (list == LibraryTab.Artists) viewModel.artists else emptyFlow(),
         playlists = if (list == LibraryTab.Playlists) viewModel.playlists else emptyFlow(),
+        songs = if (list == LibraryTab.Songs) viewModel.songs else emptyFlow(),
+        onSongClick = { _, index -> viewModel.playSongs(index) },
+        onShuffleSongs = viewModel::shuffleSongs,
+        onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
+        playingSongId = playback.item?.id,
+        songDownloads = songDownloads,
         coverArt = viewModel::coverArt,
         artistArt = { viewModel.artistArt(it) },
         onAlbumClick = onAlbumClick,
@@ -217,7 +243,9 @@ fun LibraryListRoute(
             contextMenuHost?.show(it, itemActions)
         },
         listQuery = displayQuery,
-        resetKey = "${listQuery.sort}|${listQuery.descending}|${listQuery.starred}|${listQuery.downloaded || offline}|$search",
+        resetKey =
+            "${listQuery.sort}|${listQuery.descending}|${listQuery.starred}|${listQuery.downloaded || offline}|$search|" +
+                if (list == LibraryTab.Songs) songsSpec.sortNameMode.name else "",
         offline = offline,
         onExitOffline = { viewModel.setOffline(false) },
         sortOptions = sortOptionsFor(list, playSort),
@@ -265,6 +293,12 @@ fun LibraryListScreen(
     albums: Flow<PagingData<Album>> = remember { flowOf(PagingData.empty()) },
     artists: Flow<PagingData<Artist>> = remember { flowOf(PagingData.empty()) },
     playlists: Flow<PagingData<Playlist>> = remember { flowOf(PagingData.empty()) },
+    songs: Flow<PagingData<AlbumSongItem>> = remember { flowOf(PagingData.empty()) },
+    onSongClick: (Song, Int) -> Unit = { _, _ -> },
+    onShuffleSongs: () -> Unit = {},
+    onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
+    playingSongId: String? = null,
+    songDownloads: Map<String, SongDownload> = emptyMap(),
     onAlbumClick: (Album) -> Unit = {},
     onArtistClick: (Artist) -> Unit = {},
     onPlaylistClick: (Playlist) -> Unit = {},
@@ -303,6 +337,8 @@ fun LibraryListScreen(
     LaunchedEffect(Unit) { if (search.isNotEmpty()) searchActive = true }
 
     val filtersActive = listQuery.starred != StarredFilter.Any || listQuery.downloaded || search.isNotEmpty()
+    // Collected here rather than in the list so the shuffle button knows whether there is anything to shuffle.
+    val songItems = if (list == LibraryTab.Songs) songs.collectAsLazyPagingItems() else null
     val listBottomInset = bottomInset + MaeksterSpacing.l
     val open = { action: () -> Unit ->
         focusManager.clearFocus()
@@ -352,6 +388,9 @@ fun LibraryListScreen(
                 )
             }
         },
+        floatingActionButton = {
+            if (songItems != null && songItems.itemCount > 0) ShuffleFab(onClick = onShuffleSongs)
+        },
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = refreshing,
@@ -387,6 +426,23 @@ fun LibraryListScreen(
                         onSync = onSync,
                         downloadStatuses = downloads,
                         artistArt = artistArt,
+                    )
+                }
+
+                LibraryTab.Songs -> {
+                    LibrarySongsContent(
+                        items = checkNotNull(songItems),
+                        coverArt = coverArt,
+                        bottomInset = listBottomInset,
+                        onSongClick = { song, index -> open { onSongClick(song, index) } },
+                        onLongClick = onItemLongClick,
+                        onToggleFavorite = onToggleFavorite,
+                        playingSongId = playingSongId,
+                        downloads = songDownloads,
+                        filtered = filtersActive,
+                        onClearFilters = onClearFilters,
+                        resetKey = resetKey,
+                        onSync = onSync,
                     )
                 }
 

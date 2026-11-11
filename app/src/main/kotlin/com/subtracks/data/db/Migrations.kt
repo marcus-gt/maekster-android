@@ -780,6 +780,16 @@ val MIGRATION_40_41 =
         }
     }
 
+// The Library's Songs list (M2.4) sorts by title, artist and date added.
+val MIGRATION_41_42 =
+    object : Migration(41, 42) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL("CREATE INDEX IF NOT EXISTS `index_songs_sortName` ON `songs` (`sourceId`, `sortName`, `id`)")
+            connection.execSQL("CREATE INDEX IF NOT EXISTS `index_songs_artistSort` ON `songs` (`sourceId`, `artistSort`)")
+            connection.execSQL("CREATE INDEX IF NOT EXISTS `index_songs_created` ON `songs` (`sourceId`, `created`, `id`)")
+        }
+    }
+
 internal fun artistSearchTriggersOptimized(connection: SQLiteConnection): Boolean {
     val triggers = mutableListOf<String>()
     connection.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name IN (?, ?)").use { statement ->
@@ -861,4 +871,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_38_39,
         MIGRATION_39_40,
         MIGRATION_40_41,
+        MIGRATION_41_42,
     )

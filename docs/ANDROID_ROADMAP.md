@@ -220,7 +220,12 @@ screenshot.
 
 **M2.4 status (11 Nov 2026):** in progress. Part A is done: every album and playlist track has a heart before its duration
 that adds or removes the favorite, in the accent colour when set. iOS's long-press on that heart (quick playlists) is part of
-M2.9.
+M2.9. Part B is done: a Songs list in the Library (after Artists) sorts by title, artist, album or date added, filters by
+favorites and downloads, searches, and offline shows downloaded songs. Each row has a heart. A tap plays the list exactly as
+shown from that row, and the button shuffles it: a new `Library` queue kind stores the list's sort, filters and search as its
+reference and reads the same SQL as the list, so nothing is copied. Schema 42 adds song indices for the title, artist and added
+sorts. Checked on the emulator against the real library (`docs/handoffs/M2.4-songs.md`). Not run: offline with real
+downloads, and the 200k-song `queryTiming` measurement.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

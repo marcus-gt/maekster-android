@@ -3,8 +3,10 @@ package com.subtracks.data.repo
 import androidx.room3.useReaderConnection
 import androidx.room3.useWriterConnection
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
+import com.subtracks.data.db.songsPageQuery
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.DownloadStatus
 import com.subtracks.data.model.Playlist
@@ -14,6 +16,8 @@ import com.subtracks.data.model.QueueKind
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.data.model.Source
+import com.subtracks.data.prefs.SongSort
+import com.subtracks.data.prefs.StarredFilter
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -95,6 +99,52 @@ class QueueRepositoryTest {
 
             assertEquals(3, snapshot.size)
             assertEquals(listOf("s2", "s3", "s1"), resolveAll(snapshot))
+        }
+
+    @Test
+    fun librarySongsEntryFollowsTheSongsListSortFiltersAndSearch() =
+        runTest {
+            seedLibrary()
+            db.libraryDao().upsertSongs(
+                listOf(
+                    song("s1", "al1", track = 1, album = "First Album", title = "Delta", starred = 1, created = 10),
+                    song("s2", "al1", track = 2, album = "First Album", title = "alpha", created = 30),
+                    song("s3", "al1", track = 3, album = "First Album", title = "Charlie", starred = 2, created = 20),
+                    song("s4", "al2", track = 1, album = "Second Album", title = "bravo", created = 40),
+                    song("s5", "al2", track = 2, album = "Second Album", title = "Echo", created = 50),
+                ),
+            )
+            db.downloadDao().upsert(SongDownload(1, "s4", DownloadStatus.Completed))
+            db.downloadDao().upsert(SongDownload(1, "s5", DownloadStatus.Running))
+
+            val cases =
+                mapOf(
+                    SongListSpec() to listOf("s2", "s4", "s3", "s1", "s5"),
+                    SongListSpec(descending = true) to listOf("s5", "s1", "s3", "s4", "s2"),
+                    SongListSpec(sort = SongSort.Added) to listOf("s5", "s4", "s2", "s3", "s1"),
+                    SongListSpec(sort = SongSort.Added, descending = true) to listOf("s1", "s3", "s2", "s4", "s5"),
+                    SongListSpec(sort = SongSort.Album) to listOf("s1", "s2", "s3", "s4", "s5"),
+                    SongListSpec(starred = StarredFilter.Starred) to listOf("s3", "s1"),
+                    SongListSpec(starred = StarredFilter.NotStarred) to listOf("s2", "s4", "s5"),
+                    SongListSpec(downloaded = true) to listOf("s4"),
+                    SongListSpec(search = "ha") to listOf("s2", "s3"),
+                )
+            cases.forEach { (spec, expected) ->
+                val snapshot = repository.snapshotAfter(listOf(repository.libraryEntry(1, spec)))
+                assertEquals(spec.toString(), expected, resolveAll(snapshot))
+                // The list reads the same rows in the same order, so a tapped row's index is where the queue starts.
+                val listed = db.queueDao().songItems(songsPageQuery(1, spec)).map { it.song.id }
+                assertEquals(spec.toString(), expected, listed)
+            }
+        }
+
+    @Test
+    fun aLibrarySongsEntryThatDoesNotDecodePlaysNothing() =
+        runTest {
+            seedLibrary()
+            val entry = QueueEntry(position = 0, sourceId = 1, kind = QueueKind.Library, refId = "not a spec")
+
+            assertEquals(0, repository.snapshotAfter(listOf(entry)).size)
         }
 
     @Test

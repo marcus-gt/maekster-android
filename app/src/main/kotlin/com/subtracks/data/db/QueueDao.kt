@@ -4,6 +4,8 @@ import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.OnConflictStrategy
 import androidx.room3.Query
+import androidx.room3.RawQuery
+import androidx.room3.RoomRawQuery
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.PlaybackCursor
 import com.subtracks.data.model.PlaylistSongItem
@@ -39,6 +41,25 @@ private const val SONG_SQL =
 interface QueueDao {
     @Query("DELETE FROM queue_entries")
     suspend fun clear()
+
+    @RawQuery
+    suspend fun songItems(query: RoomRawQuery): List<AlbumSongItem>
+
+    @RawQuery
+    suspend fun count(query: RoomRawQuery): Long
+
+    /** The length of a Songs list queue entry; a reference that does not decode plays nothing. */
+    suspend fun libraryLength(
+        sourceId: Long,
+        refId: String,
+    ): Long = SongListSpec.decode(refId)?.let { count(songsCountQuery(sourceId, it)) } ?: 0L
+
+    suspend fun librarySongs(
+        sourceId: Long,
+        refId: String,
+        offset: Long,
+        limit: Int,
+    ): List<AlbumSongItem> = SongListSpec.decode(refId)?.let { songItems(songsPageQuery(sourceId, it, offset, limit)) }.orEmpty()
 
     @Insert
     suspend fun insert(entries: List<QueueEntry>)

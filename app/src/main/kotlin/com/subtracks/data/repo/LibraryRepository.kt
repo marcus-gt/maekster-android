@@ -6,11 +6,13 @@ import androidx.paging.PagingData
 import androidx.paging.PagingSource
 import com.subtracks.R
 import com.subtracks.UiMessage
+import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.albumsPageQuery
 import com.subtracks.data.db.artistsPageQuery
 import com.subtracks.data.db.playlistsPageQuery
 import com.subtracks.data.db.rediscoverAlbumsQuery
+import com.subtracks.data.db.songsPageQuery
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
@@ -67,11 +69,13 @@ class LibraryRepository(
             dao.hasDownloadedAlbums(sourceId, StarredFilter.Any.ordinal, search = ""),
             dao.hasDownloadedArtists(sourceId, StarredFilter.Any.ordinal, search = ""),
             dao.hasDownloadedPlaylists(sourceId, search = ""),
-        ) { albums, artists, playlists ->
+            dao.hasDownloadedSongs(sourceId),
+        ) { albums, artists, playlists, songs ->
             buildSet {
                 if (albums) add(LibraryListTab.Albums)
                 if (artists) add(LibraryListTab.Artists)
                 if (playlists) add(LibraryListTab.Playlists)
+                if (songs) add(LibraryListTab.Songs)
             }
         }
     }
@@ -269,6 +273,18 @@ class LibraryRepository(
                     downloaded = downloaded,
                 )
             if (downloaded) dao.downloadedPlaylistsPaging(query) else dao.playlistsPaging(query)
+        }
+
+    /** The Library's Songs list; [spec] is also what playing from it queues, so both read the same rows. */
+    fun songs(
+        sourceId: Long,
+        spec: SongListSpec,
+    ): Flow<PagingData<AlbumSongItem>> =
+        // Placeholders keep a row's index equal to its position in the list, which is where playing it starts.
+        pager(60, enablePlaceholders = true) {
+            val dao = db.libraryDao()
+            val query = songsPageQuery(sourceId, spec)
+            if (spec.downloaded) dao.downloadedSongsPaging(query) else dao.songsPaging(query)
         }
 
     fun album(

@@ -63,7 +63,7 @@ import com.subtracks.data.model.UpNextEntry
         SongDownload::class,
         PendingAction::class,
     ],
-    version = 41,
+    version = 42,
     exportSchema = true,
 )
 @ColumnTypeConverters(

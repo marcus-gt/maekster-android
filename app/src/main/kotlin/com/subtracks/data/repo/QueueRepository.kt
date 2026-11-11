@@ -4,6 +4,7 @@ import androidx.room3.deferredTransaction
 import androidx.room3.immediateTransaction
 import androidx.room3.useReaderConnection
 import androidx.room3.useWriterConnection
+import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.model.PlaybackCursor
 import com.subtracks.data.model.QueueEntry
@@ -401,6 +402,20 @@ private val queueKindResolvers =
                     limit: Int,
                 ) = dao.starredSongs(entry.sourceId, offset, limit)
             },
+        QueueKind.Library to
+            object : QueueKindResolver {
+                override suspend fun length(
+                    dao: com.subtracks.data.db.QueueDao,
+                    entry: QueueEntry,
+                ) = dao.libraryLength(entry.sourceId, entry.refId)
+
+                override suspend fun rows(
+                    dao: com.subtracks.data.db.QueueDao,
+                    entry: QueueEntry,
+                    offset: Long,
+                    limit: Int,
+                ) = dao.librarySongs(entry.sourceId, entry.refId, offset, limit)
+            },
     )
 
 private fun resolverFor(kind: QueueKind): QueueKindResolver = queueKindResolvers.getValue(kind)
@@ -459,6 +474,11 @@ class QueueRepository(
 
     fun starredEntry(sourceId: Long) = QueueEntry(position = 0, sourceId = sourceId, kind = QueueKind.Starred, refId = "")
 
+    fun libraryEntry(
+        sourceId: Long,
+        spec: SongListSpec,
+    ) = QueueEntry(position = 0, sourceId = sourceId, kind = QueueKind.Library, refId = spec.encode())
+
     suspend fun sourceName(
         kind: QueueKind,
         sourceId: Long,
@@ -509,6 +529,10 @@ class QueueRepository(
             }
 
             QueueKind.Starred -> {
+                null
+            }
+
+            QueueKind.Library -> {
                 null
             }
         }
@@ -980,6 +1004,7 @@ class QueueRepository(
             QueueKind.Genre -> OrderKey(row.song.id)
             QueueKind.Downloaded -> OrderKey(row.song.id)
             QueueKind.Starred -> OrderKey(row.song.id)
+            QueueKind.Library -> OrderKey(row.song.id)
             QueueKind.Song -> OrderKey(row.song.id)
         }
 

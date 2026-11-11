@@ -4,18 +4,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.ListDownloadStatus
 import com.subtracks.data.model.Playlist
+import com.subtracks.data.model.SongDownload
 import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.ArtistSort
 import com.subtracks.data.prefs.LibraryListTab
 import com.subtracks.data.prefs.ListQuery
 import com.subtracks.data.prefs.PlaylistSort
+import com.subtracks.data.prefs.SongSort
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.LibraryRepository
@@ -113,6 +117,43 @@ class LibraryViewModel(
                     }
             }.cachedIn(viewModelScope)
 
+    /** What the Songs list shows; playing from it queues the same spec, so the queue follows the list. */
+    val songListSpec: StateFlow<SongListSpec> =
+        combine(
+            listQueries.getValue(LibraryListTab.Songs),
+            searches.getValue(LibraryListTab.Songs),
+            sourceRepository.offline,
+            userPreferences.sortNameMode(),
+        ) { query, search, offline, mode ->
+            SongListSpec(
+                sort = query.songSort(),
+                descending = query.descending,
+                starred = query.starred,
+                downloaded = query.downloaded || offline,
+                search = search,
+                sortNameMode = mode,
+            )
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, SongListSpec())
+
+    val songs: Flow<PagingData<AlbumSongItem>> =
+        libraryRepository.activeSourceId
+            .filterNotNull()
+            .flatMapLatest { sourceId -> songListSpec.flatMapLatest { spec -> libraryRepository.songs(sourceId, spec) } }
+            .cachedIn(viewModelScope)
+
+    val songDownloads: StateFlow<Map<String, SongDownload>> = downloadRepository.states()
+
+    /** Plays the Songs list as shown, starting at the tapped row. */
+    fun playSongs(index: Int) {
+        val spec = songListSpec.value
+        viewModelScope.launch { playbackController.playLibrarySongs(activeSourceId.first(), spec, index.toLong()) }
+    }
+
+    fun shuffleSongs() {
+        val spec = songListSpec.value
+        viewModelScope.launch { playbackController.shuffleLibrarySongs(activeSourceId.first(), spec) }
+    }
+
     val offline: StateFlow<Boolean> = sourceRepository.offline
 
     fun setOffline(enabled: Boolean) = sourceRepository.setOfflineMode(enabled)
@@ -157,7 +198,11 @@ class LibraryViewModel(
             LibraryListTab.Albums -> albumDownloads
             LibraryListTab.Artists -> artistDownloads
             LibraryListTab.Playlists -> playlistDownloads
+            LibraryListTab.Songs -> noListDownloads
         }
+
+    // Song rows show each song's own download state (songDownloads) rather than a list status.
+    private val noListDownloads: StateFlow<Map<String, ListDownloadStatus>> = MutableStateFlow(emptyMap())
 
     suspend fun downloadedBytes(
         list: DownloadList,
@@ -213,6 +258,8 @@ internal fun ListQuery.albumSort(): AlbumSort = AlbumSort.entries.firstOrNull { 
 internal fun ListQuery.artistSort(): ArtistSort = ArtistSort.entries.firstOrNull { it.name == sort } ?: ArtistSort.Name
 
 internal fun ListQuery.playlistSort(): PlaylistSort = PlaylistSort.entries.firstOrNull { it.name == sort } ?: PlaylistSort.Name
+
+internal fun ListQuery.songSort(): SongSort = SongSort.entries.firstOrNull { it.name == sort } ?: SongSort.Name
 
 data class PlaySortAvailability(
     val frequent: Boolean,

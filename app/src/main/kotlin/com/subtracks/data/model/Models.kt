@@ -331,6 +331,10 @@ data class PlaylistSong(
             value = ["sourceId", "starred", "sortName", "id"],
             orders = [Index.Order.ASC, Index.Order.DESC, Index.Order.ASC, Index.Order.ASC],
         ),
+        // The Songs list's title, artist and recently added sorts.
+        Index(name = "index_songs_sortName", value = ["sourceId", "sortName", "id"]),
+        Index(name = "index_songs_artistSort", value = ["sourceId", "artistSort"]),
+        Index(name = "index_songs_created", value = ["sourceId", "created", "id"]),
     ],
 )
 data class Song(
@@ -523,7 +527,8 @@ data class DiscKey(
     val disc: Long,
 )
 
-enum class QueueKind { Playlist, Album, Song, Artist, Genre, Downloaded, Starred }
+// Library is the Library's Songs list; its refId is an encoded SongListSpec (sort, filters, search).
+enum class QueueKind { Playlist, Album, Song, Artist, Genre, Downloaded, Starred, Library }
 
 @Entity(
     tableName = "queue_entries",

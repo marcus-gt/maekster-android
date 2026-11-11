@@ -27,6 +27,8 @@ enum class ArtistSort { Name, AlbumCount, Starred, Frequent, Recent }
 
 enum class PlaylistSort { Name, Added, Updated }
 
+enum class SongSort { Name, Artist, Album, Added }
+
 enum class LibraryListTab(
     val key: String,
     val defaultSort: String,
@@ -35,6 +37,9 @@ enum class LibraryListTab(
     Albums("albums", AlbumSort.Name.name, true),
     Artists("artists", ArtistSort.Name.name, true),
     Playlists("playlists", PlaylistSort.Name.name, false),
+
+    // Not "songs": an older Subtracks songs tab stored its own sorts under that key, which must not carry over.
+    Songs("library_songs", SongSort.Name.name, true),
 }
 
 enum class StarredFilter { Any, Starred, NotStarred }

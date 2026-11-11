@@ -74,3 +74,18 @@ interfaces with fakes for tests. Keep UI state separate from networking and pers
 - Licensing: this repo is GPL-3.0; the iOS app is MPL-2.0 and some assets have their own licences (for
   example Lexend is OFL). Review licensing and attribution before copying any source text, string or asset.
 - Never commit or push unless explicitly asked.
+
+## Development sessions and handoffs
+
+- Before starting, read `docs/ANDROID_ROADMAP.md` and the handoff for the subtask in `docs/handoffs/`, if one exists.
+- Work on one well-defined subtask (for example one part of a roadmap slice) at a time, and do not start the
+  next one without explicit direction.
+- Keep one concise handoff per subtask, `docs/handoffs/<slice>-<topic>.md` (for example `M2.4-songs.md`), of
+  about 60 lines: status (complete, partial or blocked), what was built, key files, decisions, tests and emulator
+  checks with results, open bugs and unverified behaviour, git state, and the recommended next task.
+- Update the handoff before ending a session, including when the subtask is unfinished.
+- Update roadmap statuses only for real progress.
+- Run the checks above and, where practical, try the change on the emulator. In handoffs and reports, keep what
+  was verified separate from what is assumed or untested.
+- Keep implementation detail in handoffs and `docs/`, not in this file.
+- Prefer a fresh session between completed subtasks to keep context and cost down.

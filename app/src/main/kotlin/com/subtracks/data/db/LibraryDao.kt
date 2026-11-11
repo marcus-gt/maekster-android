@@ -25,6 +25,7 @@ import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongArtistRef
 import com.subtracks.data.model.SongDownload
+import com.subtracks.data.model.SongSearch
 import com.subtracks.data.model.Source
 import kotlinx.coroutines.flow.Flow
 
@@ -670,6 +671,18 @@ interface LibraryDao {
 
     @RawQuery(observedEntities = [Playlist::class])
     fun playlistsPaging(query: RoomRawQuery): PagingSource<Int, Playlist>
+
+    @RawQuery(observedEntities = [Song::class, Album::class, SongSearch::class])
+    fun songsPaging(query: RoomRawQuery): PagingSource<Int, AlbumSongItem>
+
+    @RawQuery(observedEntities = [Song::class, Album::class, SongDownload::class, SongSearch::class])
+    fun downloadedSongsPaging(query: RoomRawQuery): PagingSource<Int, AlbumSongItem>
+
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM song_downloads sd JOIN songs ON songs.sourceId = sd.sourceId AND songs.id = sd.songId " +
+            "WHERE sd.sourceId = :sourceId AND sd.status = 'Completed')",
+    )
+    fun hasDownloadedSongs(sourceId: Long): Flow<Boolean>
 
     // These observe every table the statements read; the sets match what Room inferred for the
     // old downloaded @Query methods, so download and library writes invalidate as before.

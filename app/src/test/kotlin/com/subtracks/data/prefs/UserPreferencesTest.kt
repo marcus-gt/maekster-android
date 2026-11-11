@@ -51,6 +51,21 @@ class UserPreferencesTest {
         }
 
     @Test
+    fun theSongsListIgnoresTheOldSubtracksSongsTabQuery() =
+        runTest {
+            val file = File.createTempFile("user-prefs", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            store.edit { it[stringPreferencesKey("list_query_songs")] = "Added|0|1|0" }
+            val prefs = UserPreferences(store)
+
+            assertEquals(ListQuery("Name"), prefs.listQuery(LibraryListTab.Songs).first())
+            prefs.setListQuery(LibraryListTab.Songs, ListQuery("Artist", descending = true))
+            assertEquals(ListQuery("Artist", descending = true), prefs.listQuery(LibraryListTab.Songs).first())
+
+            file.delete()
+        }
+
+    @Test
     fun theSortNameModeRoundTrips() =
         runTest {
             val file = File.createTempFile("user-prefs", ".preferences_pb").apply { delete() }

@@ -67,6 +67,8 @@ class MigrationsTest {
                 assertEquals(1, indexColumn(migrated, "index_albums_recent", "played").descending)
                 assertEquals("NOCASE", indexColumn(migrated, "index_songs_starred", "sortName").collation)
                 assertEquals(1, indexColumn(migrated, "index_songs_starred", "starred").descending)
+                assertEquals("NOCASE", indexColumn(migrated, "index_songs_sortName", "sortName").collation)
+                assertEquals("NOCASE", indexColumn(migrated, "index_songs_artistSort", "artistSort").collation)
                 assertEquals("NOCASE", indexColumn(migrated, "index_artists_name", "sortName").collation)
                 assertEquals(1, indexColumn(migrated, "index_artists_albumCount", "albumCount").descending)
                 assertEquals(1, indexColumn(migrated, "index_artists_starred", "starred").descending)

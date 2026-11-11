@@ -1,6 +1,7 @@
 package com.subtracks.playback
 
 import com.subtracks.UiMessage
+import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.model.ArtistRef
 import com.subtracks.data.model.AudioEncoding
 import com.subtracks.data.model.CoverArtRef
@@ -273,6 +274,18 @@ class PlaybackController(
     fun shuffleStarred(sourceId: Long) = shuffleContext(queueRepository.starredEntry(sourceId))
 
     fun shuffleDownloaded(sourceId: Long) = shuffleContext(queueRepository.downloadedEntry(sourceId))
+
+    /** Plays the Library's Songs list as shown (sorted, filtered, searched) from [startOrdinal]. */
+    fun playLibrarySongs(
+        sourceId: Long,
+        spec: SongListSpec,
+        startOrdinal: Long,
+    ) = playContext(queueRepository.libraryEntry(sourceId, spec), startOrdinal)
+
+    fun shuffleLibrarySongs(
+        sourceId: Long,
+        spec: SongListSpec,
+    ) = shuffleContext(queueRepository.libraryEntry(sourceId, spec))
 
     private fun playContext(
         entry: QueueEntry,

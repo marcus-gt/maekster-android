@@ -31,6 +31,7 @@
     <string name="resources_album_name">Albums</string>
     <string name="resources_artist_name">Artists</string>
     <string name="resources_playlist_name">Playlists</string>
+    <string name="resources_song_name">Songs</string>
     <string name="resources_filter_album">Album</string>
     <string name="resources_filter_artist">Artist</string>
     <string name="artist_type_artist">Artist</string>
@@ -181,6 +182,7 @@
     <string name="albums_empty">No albums yet.\nSync with your server to fill your library.</string>
     <string name="artists_empty">No artists yet.</string>
     <string name="playlists_empty">No playlists yet.</string>
+    <string name="songs_empty">No songs yet.\nSync with your server to fill your library.</string>
     <string name="sync">Sync</string>
     <string name="list_options">List options</string>
     <string name="search">Search</string>
@@ -253,6 +255,7 @@
     <string name="context_kind_genre">genre</string>
     <string name="context_kind_downloads">downloads</string>
     <string name="context_kind_starred">favorites</string>
+    <string name="context_kind_songs">songs</string>
     <string name="repeat_off">Repeat off</string>
     <string name="repeat_all">Repeat all</string>
     <string name="repeat_one">Repeat one</string>
