@@ -34,6 +34,7 @@ object SubsonicXml {
             coverArt = attrs.attr("coverArt").ifEmpty { null },
             artistImageUrl = attrs.attr("artistImageUrl").ifEmpty { null },
             sortName = attrs.attr("sortName").takeIf { it.isNotBlank() } ?: attrs.attr("name"),
+            musicBrainzId = attrs.attr("musicBrainzId").ifBlank { null },
         )
 
     internal fun albumDraft(
@@ -54,6 +55,9 @@ object SubsonicXml {
             year = attrs.longAttr("year"),
             starred = attrs.dateAttr("starred"),
             songCount = attrs.longAttr("songCount") ?: 0L,
+            musicBrainzId = attrs.attr("musicBrainzId").ifBlank { null },
+            // Only OpenSubsonic servers say; null means unknown, not "not a compilation".
+            compilation = attrs.getValue("isCompilation")?.let { it == "1" || it.equals("true", ignoreCase = true) },
         )
 
     internal fun song(
@@ -83,6 +87,12 @@ object SubsonicXml {
             created = attrs.dateAttr("created") ?: 0L,
             playCount = attrs.longAttr("playCount") ?: 0L,
             played = attrs.dateAttr("played"),
+            musicBrainzId = attrs.attr("musicBrainzId").ifBlank { null },
+            suffix = attrs.attr("suffix").ifBlank { null }?.lowercase(),
+            bitRate = attrs.positiveLongAttr("bitRate"),
+            bitDepth = attrs.positiveLongAttr("bitDepth"),
+            samplingRate = attrs.positiveLongAttr("samplingRate"),
+            channelCount = attrs.positiveLongAttr("channelCount"),
         )
 
     internal fun songChild(
@@ -109,10 +119,21 @@ object SubsonicXml {
     ) {
         when (name) {
             "discTitles" -> if (level == 1) entity.addDiscTitle(attrs)
+            "recordLabels" -> if (level == 1) entity.addLabel(attrs)
             "artists" -> if (level == 1) entity.addArtists(attrs)
             "artist" -> if (level == 2) entity.addNestedArtist(attrs)
             else -> if (level == 1) entity.clearArtists()
         }
+    }
+
+    /** Album children whose value is element text rather than attributes: OpenSubsonic `releaseTypes`. */
+    internal fun albumChildText(
+        entity: AlbumDraft,
+        name: String,
+        text: String,
+        level: Int,
+    ) {
+        if (name == "releaseTypes" && level == 1) entity.addReleaseType(text)
     }
 
     internal fun playlist(
@@ -155,9 +176,10 @@ object SubsonicXml {
         entityTag: String,
         create: (Attributes) -> T,
         onChild: (T, String, Attributes, Int) -> Unit = { _, _, _, _ -> },
+        onChildText: (T, String, String, Int) -> Unit = { _, _, _, _ -> },
         onEnd: (T) -> Unit,
     ) {
-        parse(input, EntityHandler(entityTag, create, onChild, onEnd, stopAfterFirst = false))
+        parse(input, EntityHandler(entityTag, create, onChild, onEnd, stopAfterFirst = false, onChildText = onChildText))
     }
 
     internal fun containsEntity(
@@ -191,9 +213,30 @@ internal class AlbumDraft(
     var starred: Long? = null,
     var songCount: Long = 0L,
     val discTitles: MutableMap<Long, String> = mutableMapOf(),
+    var musicBrainzId: String? = null,
+    var compilation: Boolean? = null,
 ) {
     private val artists = mutableListOf<ArtistRef>()
     private var artistContainer = false
+    private val labels = mutableListOf<String>()
+    private val releaseTypes = mutableListOf<String>()
+
+    fun addLabel(attrs: Attributes) {
+        attrs
+            .attr("name")
+            .trim()
+            .takeIf { it.isNotEmpty() && it !in labels }
+            ?.let { labels += it }
+    }
+
+    // Release types are raw tags ("album" and "Album" both occur on Navidrome), so they are stored lowercase.
+    fun addReleaseType(text: String) {
+        text
+            .trim()
+            .lowercase()
+            .takeIf { it.isNotEmpty() && it !in releaseTypes }
+            ?.let { releaseTypes += it }
+    }
 
     fun addDiscTitle(attrs: Attributes) {
         val disc = attrs.longAttr("disc") ?: return
@@ -236,6 +279,10 @@ internal class AlbumDraft(
             discTitles = discTitles.toMap(),
             artists = refs,
             sortName = sortName?.takeIf { it.isNotBlank() } ?: name,
+            musicBrainzId = musicBrainzId,
+            compilation = compilation,
+            labels = labels.toList(),
+            releaseTypes = releaseTypes.toList(),
         )
     }
 }
@@ -263,6 +310,12 @@ internal class SongDraft(
     private var trackPeak: Float? = null,
     private var albumPeak: Float? = null,
     private val genres: MutableList<String> = mutableListOf(),
+    private val musicBrainzId: String? = null,
+    private val suffix: String? = null,
+    private val bitRate: Long? = null,
+    private val bitDepth: Long? = null,
+    private val samplingRate: Long? = null,
+    private val channelCount: Long? = null,
 ) {
     private val artists = mutableListOf<ArtistRef>()
     private var nestedArtists: MutableList<ArtistRef>? = null
@@ -325,6 +378,12 @@ internal class SongDraft(
             genres = genres.toList(),
             artists = refs,
             sortName = sortName?.takeIf { it.isNotBlank() } ?: title,
+            musicBrainzId = musicBrainzId,
+            suffix = suffix,
+            bitRate = bitRate,
+            bitDepth = bitDepth,
+            samplingRate = samplingRate,
+            channelCount = channelCount,
         )
     }
 }
@@ -366,6 +425,9 @@ private fun displayName(
 internal fun Attributes.attr(name: String): String = getValue(name) ?: ""
 
 internal fun Attributes.longAttr(name: String): Long? = attr(name).takeIf { it.isNotEmpty() }?.toLongOrNull()
+
+// Servers send 0 for "unknown" bit rates and depths; storing null keeps 0 from showing as a real value.
+internal fun Attributes.positiveLongAttr(name: String): Long? = longAttr(name)?.takeIf { it > 0 }
 
 internal fun Attributes.boolAttr(name: String): Boolean = attr(name).let { it == "1" || it.equals("true", ignoreCase = true) }
 
@@ -472,9 +534,22 @@ private class EntityHandler<T>(
     private val onChild: (T, String, Attributes, Int) -> Unit,
     private val onEnd: (T) -> Unit,
     private val stopAfterFirst: Boolean,
+    private val onChildText: (T, String, String, Int) -> Unit = { _, _, _, _ -> },
 ) : SubsonicResponseHandler() {
     private var current: T? = null
     private var entityDepth = -1
+
+    // The text of the child element being read, for children whose value is text rather than attributes.
+    private val childText = StringBuilder()
+    private var childTextDepth = -1
+
+    override fun characters(
+        ch: CharArray,
+        start: Int,
+        length: Int,
+    ) {
+        if (childTextDepth >= 0) childText.append(ch, start, length)
+    }
 
     var found = false
         private set
@@ -492,6 +567,8 @@ private class EntityHandler<T>(
             }
         } else if (depth > entityDepth) {
             onChild(active, name, attributes, depth - entityDepth)
+            childText.setLength(0)
+            childTextDepth = depth
         }
     }
 
@@ -500,6 +577,11 @@ private class EntityHandler<T>(
         depth: Int,
     ) {
         val active = current ?: return
+        if (depth == childTextDepth) {
+            onChildText(active, name, childText.toString(), depth - entityDepth)
+            childText.setLength(0)
+            childTextDepth = -1
+        }
         if (name == entityTag && depth == entityDepth) {
             onEnd(active)
             found = true

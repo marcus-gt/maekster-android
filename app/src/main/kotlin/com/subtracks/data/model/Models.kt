@@ -121,6 +121,7 @@ data class Artist(
     @ColumnInfo(defaultValue = "0") val songCount: Long = 0,
     @ColumnInfo(collate = ColumnInfo.NOCASE, defaultValue = "''") val sortName: String = name,
     @ColumnInfo(defaultValue = "1") val credited: Boolean = true,
+    val musicBrainzId: String? = null,
 )
 
 @Entity(
@@ -204,6 +205,12 @@ data class Album(
     @ColumnInfo(defaultValue = "''") val artists: List<ArtistRef> = emptyList(),
     @ColumnInfo(collate = ColumnInfo.NOCASE, defaultValue = "''") val sortName: String = name,
     @ColumnInfo(collate = ColumnInfo.NOCASE, defaultValue = "''") val albumArtistSort: String = albumArtist.orEmpty(),
+    val musicBrainzId: String? = null,
+    // OpenSubsonic only; null when the server does not say.
+    val compilation: Boolean? = null,
+    // Synced into album_labels and album_release_types, in the server's order.
+    @Ignore val labels: List<String> = emptyList(),
+    @Ignore val releaseTypes: List<String> = emptyList(),
 ) {
     val artistRefs: List<ArtistRef>
         get() =
@@ -350,6 +357,13 @@ data class Song(
     @ColumnInfo(defaultValue = "''") val artists: List<ArtistRef> = emptyList(),
     @ColumnInfo(collate = ColumnInfo.NOCASE, defaultValue = "''") val sortName: String = title,
     @ColumnInfo(collate = ColumnInfo.NOCASE, defaultValue = "''") val artistSort: String = artist.orEmpty(),
+    val musicBrainzId: String? = null,
+    // The file's format details as the server reports them; null when unknown.
+    val suffix: String? = null,
+    val bitRate: Long? = null,
+    val bitDepth: Long? = null,
+    val samplingRate: Long? = null,
+    val channelCount: Long? = null,
 ) {
     val artistRefs: List<ArtistRef>
         get() =
@@ -400,6 +414,45 @@ data class AlbumArtistRef(
     val position: Long,
     val artistId: String,
     val name: String,
+)
+
+@Entity(
+    tableName = "album_labels",
+    primaryKeys = ["sourceId", "albumId", "position"],
+    foreignKeys = [
+        ForeignKey(
+            entity = Album::class,
+            parentColumns = ["sourceId", "id"],
+            childColumns = ["sourceId", "albumId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("sourceId", "name")],
+)
+data class AlbumLabel(
+    val sourceId: Long,
+    val albumId: String,
+    val position: Long,
+    @ColumnInfo(collate = ColumnInfo.NOCASE) val name: String,
+)
+
+@Entity(
+    tableName = "album_release_types",
+    primaryKeys = ["sourceId", "albumId", "position"],
+    foreignKeys = [
+        ForeignKey(
+            entity = Album::class,
+            parentColumns = ["sourceId", "id"],
+            childColumns = ["sourceId", "albumId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+)
+data class AlbumReleaseType(
+    val sourceId: Long,
+    val albumId: String,
+    val position: Long,
+    val type: String,
 )
 
 @Entity(

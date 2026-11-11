@@ -751,6 +751,35 @@ val MIGRATION_39_40 =
         }
     }
 
+// Extended metadata (M2.2): MusicBrainz IDs, file format details, the compilation flag, and album labels and
+// release types. All nullable or empty until the next sync fills them; nothing is backfilled.
+val MIGRATION_40_41 =
+    object : Migration(40, 41) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL("ALTER TABLE `artists` ADD COLUMN `musicBrainzId` TEXT")
+            connection.execSQL("ALTER TABLE `albums` ADD COLUMN `musicBrainzId` TEXT")
+            connection.execSQL("ALTER TABLE `albums` ADD COLUMN `compilation` INTEGER")
+            listOf("musicBrainzId" to "TEXT", "suffix" to "TEXT", "bitRate" to "INTEGER", "bitDepth" to "INTEGER")
+                .plus(listOf("samplingRate" to "INTEGER", "channelCount" to "INTEGER"))
+                .forEach { (column, type) -> connection.execSQL("ALTER TABLE `songs` ADD COLUMN `$column` $type") }
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `album_labels` (`sourceId` INTEGER NOT NULL, `albumId` TEXT NOT NULL, " +
+                    "`position` INTEGER NOT NULL, `name` TEXT NOT NULL COLLATE NOCASE, " +
+                    "PRIMARY KEY(`sourceId`, `albumId`, `position`), FOREIGN KEY(`sourceId`, `albumId`) " +
+                    "REFERENCES `albums`(`sourceId`, `id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            connection.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_album_labels_sourceId_name` ON `album_labels` (`sourceId`, `name`)",
+            )
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `album_release_types` (`sourceId` INTEGER NOT NULL, `albumId` TEXT NOT NULL, " +
+                    "`position` INTEGER NOT NULL, `type` TEXT NOT NULL, " +
+                    "PRIMARY KEY(`sourceId`, `albumId`, `position`), FOREIGN KEY(`sourceId`, `albumId`) " +
+                    "REFERENCES `albums`(`sourceId`, `id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+        }
+    }
+
 internal fun artistSearchTriggersOptimized(connection: SQLiteConnection): Boolean {
     val triggers = mutableListOf<String>()
     connection.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name IN (?, ?)").use { statement ->
@@ -831,4 +860,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_37_38,
         MIGRATION_38_39,
         MIGRATION_39_40,
+        MIGRATION_40_41,
     )

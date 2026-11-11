@@ -111,6 +111,7 @@ class SubsonicSource(
                     tag = "album",
                     create = { SubsonicXml.albumDraft(id, it) },
                     onChild = SubsonicXml::albumChild,
+                    onChildText = SubsonicXml::albumChildText,
                 ).collect { batch ->
                     raw += batch.size
                     val accepted = batch.filter { it.id.isNotEmpty() }
@@ -331,6 +332,7 @@ class SubsonicSource(
         tag: String,
         create: (Attributes) -> T,
         onChild: (T, String, Attributes, Int) -> Unit = { _, _, _, _ -> },
+        onChildText: (T, String, String, Int) -> Unit = { _, _, _, _ -> },
     ): Flow<List<T>> =
         channelFlow {
             val buffer = ArrayList<T>(PAGE_SIZE)
@@ -349,6 +351,7 @@ class SubsonicSource(
                     entityTag = tag,
                     create = create,
                     onChild = onChild,
+                    onChildText = onChildText,
                     onEnd = { entity ->
                         buffer += entity
                         if (buffer.size >= PAGE_SIZE) flush()

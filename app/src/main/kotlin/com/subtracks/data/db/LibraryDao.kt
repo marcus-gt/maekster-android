@@ -173,7 +173,7 @@ internal val DOWNLOADED_ARTIST_ART_UPDATE_SQL =
 internal const val ARTIST_COLUMNS_TAIL =
     "artists.starred, artists.coverArt, artists.artistImageUrl, artists.coverArts, " +
         "artists.downloadedCoverArts, artists.playCount, artists.played, artists.songCount, " +
-        "artists.sortName, artists.credited"
+        "artists.sortName, artists.credited, artists.musicBrainzId"
 
 internal const val ARTIST_COLUMNS =
     "artists.sourceId, artists.id, artists.name, artists.albumCount, $ARTIST_COLUMNS_TAIL"
@@ -946,6 +946,18 @@ interface LibraryDao {
         sourceId: Long,
         albumId: String,
     ): Flow<List<Disc>>
+
+    @Query("SELECT name FROM album_labels WHERE sourceId = :sourceId AND albumId = :albumId ORDER BY position")
+    fun albumLabels(
+        sourceId: Long,
+        albumId: String,
+    ): Flow<List<String>>
+
+    @Query("SELECT type FROM album_release_types WHERE sourceId = :sourceId AND albumId = :albumId ORDER BY position")
+    fun albumReleaseTypes(
+        sourceId: Long,
+        albumId: String,
+    ): Flow<List<String>>
 
     @Query("SELECT * FROM playlists WHERE sourceId = :sourceId AND id = :playlistId")
     fun playlist(

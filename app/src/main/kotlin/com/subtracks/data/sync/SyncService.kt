@@ -7,6 +7,8 @@ import androidx.sqlite.SQLiteStatement
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumArtistRef
+import com.subtracks.data.model.AlbumLabel
+import com.subtracks.data.model.AlbumReleaseType
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistRef
 import com.subtracks.data.model.ArtistRefsCodec
@@ -304,6 +306,14 @@ class SyncService(
             albums.flatMap { album ->
                 album.artistPositions().map { (position, ref) -> AlbumArtistRef(album.sourceId, album.id, position, ref.id, ref.name) }
             }
+        val labels =
+            albums.flatMap { album ->
+                album.labels.mapIndexed { position, name -> AlbumLabel(album.sourceId, album.id, position.toLong(), name) }
+            }
+        val releaseTypes =
+            albums.flatMap { album ->
+                album.releaseTypes.mapIndexed { position, type -> AlbumReleaseType(album.sourceId, album.id, position.toLong(), type) }
+            }
         return db.useWriterConnection { connection ->
             connection.immediateTransaction {
                 val before = connection.totalChanges()
@@ -321,11 +331,37 @@ class SyncService(
                     }
                 }
                 connection.upsertChanged("album_artists", albumArtistKey, artists) { it.columns() }
-                (connection.totalChanges() != before).also { changed ->
-                    if (changed) connection.markCreditsStale(albums.first().sourceId)
+                // Labels and release types change no credits, so they do not count towards marking them stale.
+                val creditsChanged = connection.totalChanges() != before
+                connection.replacePositional("album_labels", albums, labels, { it.labels.size }) { it.columns() }
+                connection.replacePositional("album_release_types", albums, releaseTypes, { it.releaseTypes.size }) {
+                    it.columns()
                 }
+                if (creditsChanged) connection.markCreditsStale(albums.first().sourceId)
+                connection.totalChanges() != before
             }
         }
+    }
+
+    // An album's rows in a positional child table: drop those past its new count, then upsert the rest.
+    private suspend fun <T> PooledConnection.replacePositional(
+        table: String,
+        albums: List<Album>,
+        rows: List<T>,
+        count: (Album) -> Int,
+        columns: (T) -> List<Pair<String, Any?>>,
+    ) {
+        usePrepared("DELETE FROM $table WHERE sourceId = ? AND albumId = ? AND position >= ?") { statement ->
+            albums.forEach { album ->
+                statement.bind(1, album.sourceId)
+                statement.bind(2, album.id)
+                statement.bind(3, count(album).toLong())
+                statement.step()
+                statement.reset()
+                statement.clearBindings()
+            }
+        }
+        upsertChanged(table, albumArtistKey, rows, emptySet(), columns)
     }
 
     private suspend fun deleteStaleDiscs(stale: Collection<DiscKey>) {
@@ -467,6 +503,7 @@ private fun Artist.columns(): List<Pair<String, Any?>> =
         "coverArt" to coverArt,
         "artistImageUrl" to artistImageUrl,
         "sortName" to sortName,
+        "musicBrainzId" to musicBrainzId,
     )
 
 private fun Album.columns(): List<Pair<String, Any?>> =
@@ -485,6 +522,24 @@ private fun Album.columns(): List<Pair<String, Any?>> =
         "artists" to ArtistRefsCodec.encode(artistRefs),
         "sortName" to sortName,
         "albumArtistSort" to albumArtistSort,
+        "musicBrainzId" to musicBrainzId,
+        "compilation" to compilation?.let { if (it) 1L else 0L },
+    )
+
+private fun AlbumLabel.columns(): List<Pair<String, Any?>> =
+    listOf(
+        "sourceId" to sourceId,
+        "albumId" to albumId,
+        "position" to position,
+        "name" to name,
+    )
+
+private fun AlbumReleaseType.columns(): List<Pair<String, Any?>> =
+    listOf(
+        "sourceId" to sourceId,
+        "albumId" to albumId,
+        "position" to position,
+        "type" to type,
     )
 
 private fun AlbumArtistRef.columns(): List<Pair<String, Any?>> =
@@ -536,6 +591,12 @@ private fun Song.columns(): List<Pair<String, Any?>> =
         "artists" to ArtistRefsCodec.encode(artistRefs),
         "sortName" to sortName,
         "artistSort" to artistSort,
+        "musicBrainzId" to musicBrainzId,
+        "suffix" to suffix,
+        "bitRate" to bitRate,
+        "bitDepth" to bitDepth,
+        "samplingRate" to samplingRate,
+        "channelCount" to channelCount,
     )
 
 private fun List<ArtistRef>.positions(): List<Pair<Long, ArtistRef>> =

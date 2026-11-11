@@ -15,6 +15,7 @@ class SubsonicXmlTest {
         tag: String,
         create: (Attributes) -> T,
         onChild: (T, String, Attributes, Int) -> Unit = { _, _, _, _ -> },
+        onChildText: (T, String, String, Int) -> Unit = { _, _, _, _ -> },
     ): List<T> {
         val result = mutableListOf<T>()
         SubsonicXml.readEntities(
@@ -22,6 +23,7 @@ class SubsonicXmlTest {
             entityTag = tag,
             create = create,
             onChild = onChild,
+            onChildText = onChildText,
             onEnd = { result += it },
         )
         return result
@@ -33,6 +35,7 @@ class SubsonicXmlTest {
             tag = "album",
             create = { SubsonicXml.albumDraft(1, it) },
             onChild = SubsonicXml::albumChild,
+            onChildText = SubsonicXml::albumChildText,
         ).map { it.toAlbum() }
 
     private fun songs(xml: String) =
@@ -114,6 +117,91 @@ class SubsonicXmlTest {
         assertEquals("ar1", albums[0].artistId)
         assertEquals("Radiohead", albums[0].albumArtist)
         assertEquals(12L, albums[0].songCount)
+    }
+
+    @Test
+    fun mapsOpenSubsonicAlbumMetadata() {
+        val album =
+            albums(
+                """
+                <subsonic-response status="ok" openSubsonic="true">
+                  <albumList2>
+                    <album id="al1" name="Blue Train" artist="John Coltrane" artistId="ar1" songCount="5"
+                      musicBrainzId="0b7f8e1c-1111-2222-3333-444455556666" isCompilation="false">
+                      <recordLabels name="Blue Note"></recordLabels>
+                      <recordLabels name=" "></recordLabels>
+                      <recordLabels name="Blue Note"></recordLabels>
+                      <releaseTypes>Album</releaseTypes>
+                      <releaseTypes> Live </releaseTypes>
+                      <genres name="Jazz"></genres>
+                    </album>
+                  </albumList2>
+                </subsonic-response>
+                """.trimIndent(),
+            ).single()
+
+        assertEquals("0b7f8e1c-1111-2222-3333-444455556666", album.musicBrainzId)
+        assertEquals(false, album.compilation)
+        assertEquals("blank and repeated labels are dropped", listOf("Blue Note"), album.labels)
+        assertEquals("stored lowercase, so album and Album are one type", listOf("album", "live"), album.releaseTypes)
+    }
+
+    @Test
+    fun aClassicServerLeavesTheExtendedAlbumFieldsUnknown() {
+        val album =
+            albums(
+                """
+                <subsonic-response status="ok">
+                  <albumList2><album id="al1" name="Kid A" artist="Radiohead" artistId="ar1" songCount="10"/></albumList2>
+                </subsonic-response>
+                """.trimIndent(),
+            ).single()
+
+        assertNull(album.musicBrainzId)
+        assertNull("not knowing is not the same as not a compilation", album.compilation)
+        assertEquals(emptyList<String>(), album.labels)
+        assertEquals(emptyList<String>(), album.releaseTypes)
+    }
+
+    @Test
+    fun mapsSongFormatDetailsAndTreatsZeroAsUnknown() {
+        val (lossless, unknown) =
+            songs(
+                """
+                <subsonic-response status="ok">
+                  <searchResult3>
+                    <song id="s1" title="Moment's Notice" suffix="FLAC" bitRate="1000" bitDepth="24" samplingRate="96000"
+                      channelCount="2" musicBrainzId="rec-1"/>
+                    <song id="s2" title="Locomotion" suffix="" bitRate="0" bitDepth="0" samplingRate="0" channelCount="0"/>
+                  </searchResult3>
+                </subsonic-response>
+                """.trimIndent(),
+            )
+
+        assertEquals("flac", lossless.suffix)
+        assertEquals(1000L, lossless.bitRate)
+        assertEquals(24L, lossless.bitDepth)
+        assertEquals(96000L, lossless.samplingRate)
+        assertEquals(2L, lossless.channelCount)
+        assertEquals("rec-1", lossless.musicBrainzId)
+        listOf(unknown.suffix, unknown.bitRate, unknown.bitDepth, unknown.samplingRate, unknown.channelCount, unknown.musicBrainzId)
+            .forEach { assertNull(it) }
+    }
+
+    @Test
+    fun mapsArtistMusicBrainzIds() {
+        val artists =
+            parse(
+                """
+                <subsonic-response status="ok"><artists>
+                  <artist id="ar1" name="John Coltrane" musicBrainzId="b625448e"/><artist id="ar2" name="Unknown"/>
+                </artists></subsonic-response>
+                """.trimIndent(),
+                tag = "artist",
+                create = { SubsonicXml.artist(1, it) },
+            )
+
+        assertEquals(listOf("b625448e", null), artists.map { it.musicBrainzId })
     }
 
     @Test

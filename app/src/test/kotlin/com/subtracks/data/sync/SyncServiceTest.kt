@@ -482,6 +482,61 @@ class SyncServiceTest {
         }
 
     @Test
+    fun syncStoresTheExtendedMetadataAndShrinksLabelsAndTypesWithTheServer() =
+        runTest {
+            insertSource()
+            val blueTrain =
+                album("al1").copy(
+                    musicBrainzId = "mbid-album",
+                    compilation = false,
+                    labels = listOf("Blue Note", "Liberty"),
+                    releaseTypes = listOf("Album", "Live"),
+                )
+            val track =
+                song("s1").copy(
+                    musicBrainzId = "mbid-recording",
+                    suffix = "flac",
+                    bitRate = 1000,
+                    bitDepth = 24,
+                    samplingRate = 96000,
+                    channelCount = 2,
+                )
+            val source =
+                FakeMusicSource(
+                    artists = listOf(artist("a1").copy(musicBrainzId = "mbid-artist")),
+                    albums = listOf(blueTrain),
+                    songs = listOf(track),
+                )
+            val dao = db.libraryDao()
+
+            SyncService(db, source).sync()
+
+            assertEquals(listOf("Blue Note", "Liberty"), dao.albumLabels(1, "al1").first())
+            assertEquals(listOf("Album", "Live"), dao.albumReleaseTypes(1, "al1").first())
+            val stored = dao.albumOnce(1, "al1")!!
+            assertEquals("mbid-album", stored.musicBrainzId)
+            assertEquals(false, stored.compilation)
+            val song = dao.songOnce(1, "s1")!!
+            assertEquals(
+                listOf<Any?>("flac", 1000L, 24L, 96000L, 2L, "mbid-recording"),
+                with(song) {
+                    listOf(suffix, bitRate, bitDepth, samplingRate, channelCount, musicBrainzId)
+                },
+            )
+
+            source.albums = listOf(blueTrain.copy(labels = listOf("Blue Note"), releaseTypes = emptyList()))
+            SyncService(db, source).sync()
+
+            assertEquals(listOf("Blue Note"), dao.albumLabels(1, "al1").first())
+            assertEquals(emptyList<String>(), dao.albumReleaseTypes(1, "al1").first())
+
+            source.albums = emptyList()
+            SyncService(db, source).sync()
+
+            assertEquals("a removed album takes its labels along", emptyList<String>(), dao.albumLabels(1, "al1").first())
+        }
+
+    @Test
     fun syncClearsDiscTitlesWhenTheServerStopsSendingThem() =
         runTest {
             insertSource()

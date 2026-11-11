@@ -5,6 +5,8 @@ import androidx.room3.Database
 import androidx.room3.RoomDatabase
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumArtistRef
+import com.subtracks.data.model.AlbumLabel
+import com.subtracks.data.model.AlbumReleaseType
 import com.subtracks.data.model.AlbumSearch
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistBio
@@ -45,6 +47,8 @@ import com.subtracks.data.model.UpNextEntry
         AlbumSearch::class,
         Disc::class,
         AlbumArtistRef::class,
+        AlbumLabel::class,
+        AlbumReleaseType::class,
         Playlist::class,
         PlaylistSearch::class,
         PlaylistSong::class,
@@ -59,7 +63,7 @@ import com.subtracks.data.model.UpNextEntry
         SongDownload::class,
         PendingAction::class,
     ],
-    version = 40,
+    version = 41,
     exportSchema = true,
 )
 @ColumnTypeConverters(

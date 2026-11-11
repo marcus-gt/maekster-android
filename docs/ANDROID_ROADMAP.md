@@ -201,6 +201,15 @@ connections, timeouts, untrusted certificates, failed TLS handshakes and HTTP 40
 to check, for both Test connection and sync; the server form warns under a plain `http://` address; and an address typed
 without a scheme now gets `https://` (D5). With part C, M2.1 is complete apart from the device checks.
 
+**M2.2 status (11 Nov 2026):** done. Schema 41 adds MusicBrainz IDs (artists, albums, songs),
+song `suffix`, `bitRate`, `bitDepth`, `samplingRate` and `channelCount` (0 reads as unknown), album `compilation` (null when
+the server does not say), and the positional child tables `album_labels` and `album_release_types`, written with the album
+like `album_artists` and removed with it. Release types arrive as element text, so the XML entity reader now passes child
+text too; they are stored lowercase because tags vary ("album" and "Album"). Checked against a real Navidrome library
+(18,569 songs): every song has its format details, 70% of albums an MBID, 1,726 albums labels, and the full sync took 10 s
+as before. Navidrome sends `isCompilation` only when true, so the UI should read null as "not a compilation". Not run: the
+integration tests on gonic, LMS and Nextcloud Music, and the 200k-song `queryTiming` measurement.
+
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
   skip to downloaded). Process death during playback, then restore. Lyrics with Navidrome-embedded LRC and LRCLIB fallback.
