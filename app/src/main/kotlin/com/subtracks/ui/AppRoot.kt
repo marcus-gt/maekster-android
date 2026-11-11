@@ -2,10 +2,11 @@ package com.subtracks.ui
 
 import android.net.Uri
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -21,21 +22,30 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -44,10 +54,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -60,9 +73,11 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.subtracks.R
+import com.subtracks.UiMessages
 import com.subtracks.data.model.ArtistRef
 import com.subtracks.data.model.Song
 import com.subtracks.data.repo.DownloadRepository
@@ -82,12 +97,14 @@ import com.subtracks.ui.components.statusBarScrim
 import com.subtracks.ui.downloads.DownloadsRoute
 import com.subtracks.ui.home.HomeListRequest
 import com.subtracks.ui.home.HomeListRoute
+import com.subtracks.ui.home.HomeRoute
 import com.subtracks.ui.home.HomeSection
 import com.subtracks.ui.home.OfflineListKind
 import com.subtracks.ui.library.AlbumDetailRoute
 import com.subtracks.ui.library.ArtistDetailRoute
 import com.subtracks.ui.library.LibraryRoute
 import com.subtracks.ui.library.PlaylistDetailRoute
+import com.subtracks.ui.onboarding.WelcomeScreen
 import com.subtracks.ui.playback.MiniPlayer
 import com.subtracks.ui.playback.NowPlayingRoute
 import com.subtracks.ui.playback.QueueRoute
@@ -122,13 +139,15 @@ private const val FADE_OUT_MS = 150
 private const val EXPAND_FADE = 0.1f
 private const val FLING_VELOCITY = 1000f
 private const val MINI_PLAYER_ANIM_MS = 200
+private const val NAVIGATION_BAR_ANIM_MS = 200
 private const val SCRIM_FADE_START = 0.85f
 
 private object Routes {
-    const val LIBRARY = "library"
+    val HOME = TopLevelTab.Home.root
+    val LIBRARY = TopLevelTab.Library.root
+    val SEARCH = TopLevelTab.Search.root
     const val SETTINGS = "settings"
     const val DOWNLOADS = "downloads"
-    const val SEARCH = "search"
     const val LICENSES = "licenses"
     const val ADD_SERVER = "add-server"
     const val EDIT_SERVER = "edit-server/{sourceId}"
@@ -202,7 +221,14 @@ fun SubtracksRoot(root: RootViewModel = koinViewModel()) {
         }
 
         false -> {
-            AddSourceRoute(onSaved = {}, onBack = null)
+            // No server yet: the welcome screen first, then the server form, with back returning to the welcome.
+            var addingServer by rememberSaveable { mutableStateOf(false) }
+            if (addingServer) {
+                BackHandler { addingServer = false }
+                AddSourceRoute(onSaved = {}, onBack = { addingServer = false })
+            } else {
+                WelcomeScreen(onGetStarted = { addingServer = true })
+            }
         }
 
         true -> {
@@ -224,7 +250,12 @@ private fun MainNavigation() {
             .value
             ?.destination
             ?.route
-    val tabBarVisible = currentRoute == Routes.LIBRARY
+
+    // currentBackStack is restricted to androidx.navigation; it tells which tab root sits under a shared screen.
+    @Suppress("RestrictedApi")
+    val backStack by navController.currentBackStack.collectAsStateWithLifecycle()
+
+    val selectedTab = currentTab(backStack.map { it.destination.route })
     val playbackController = koinInject<PlaybackController>()
     val nowPlayingLauncher = koinInject<NowPlayingLauncher>()
     val libraryRepository = koinInject<LibraryRepository>()
@@ -256,7 +287,7 @@ private fun MainNavigation() {
                 nowPlayingProgress = 0f
             },
             closeQueue = { showingQueue = false },
-            popDetail = { navController.popBackStack(Routes.LIBRARY, inclusive = false) },
+            popDetail = { navController.popBackStack(navController.currentTabNow().root, inclusive = false) },
         )
         if (id != null) previousSourceId = id
     }
@@ -326,20 +357,38 @@ private fun MainNavigation() {
             artistChooser = null
             showingQueue = false
             if (navController.currentDestination?.route in DETAIL_ROUTES) {
-                navController.popBackStack(Routes.LIBRARY, inclusive = false)
+                navController.popBackStack(navController.currentTabNow().root, inclusive = false)
             }
             settleNowPlaying(true)
         }
     }
     val density = LocalDensity.current
-    val navBarInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
     val keyboardUp = WindowInsets.imeAnimationTarget.getBottom(density) > 0
     val showMiniPlayer = playerVisible && !keyboardUp
-    val bottomInset by animateDpAsState(
-        targetValue = if (showMiniPlayer) 0.dp else navBarInset,
-        animationSpec = tween(MINI_PLAYER_ANIM_MS),
-        label = "libraryBottomInset",
-    )
+
+    // The navigation bar slides away while you scroll towards the end of a screen and comes back as you scroll
+    // back, open another screen, switch tabs or close the keyboard. The mini-player and messages follow it down.
+    val barVisibility = rememberNavigationBarVisibility()
+    val screenReader = rememberTouchExplorationEnabled()
+    val barShown = navigationBarShown(!barVisibility.visible, keyboardUp, screenReader)
+    val barFraction = remember { Animatable(1f) }
+    val barGone by remember { derivedStateOf { barFraction.value == 0f } }
+    val topEntryId = backStack.lastOrNull()?.id
+    LaunchedEffect(topEntryId, keyboardUp) { barVisibility.show() }
+    LaunchedEffect(barShown, keyboardUp) {
+        if (keyboardUp) barFraction.snapTo(0f) else barFraction.animateTo(if (barShown) 1f else 0f, tween(NAVIGATION_BAR_ANIM_MS))
+    }
+    val systemNavigationBarPx = WindowInsets.navigationBars.getBottom(density)
+    // The navigation bar pads the system navigation inset itself, so the screens above it need none.
+    val bottomInset = 0.dp
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    var contentHeightPx by remember { mutableIntStateOf(0) }
+    val uiMessages = koinInject<UiMessages>()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val resources = LocalResources.current
+    LaunchedEffect(uiMessages) {
+        uiMessages.messages.collect { message -> snackbarHostState.showSnackbar(message.resolve(resources)) }
+    }
 
     val artwork =
         rememberArtworkColors(
@@ -361,14 +410,10 @@ private fun MainNavigation() {
                     modifier =
                         Modifier
                             .weight(1f)
-                            .then(
-                                if (playerVisible) {
-                                    Modifier.consumeWindowInsets(WindowInsets.navigationBars)
-                                } else {
-                                    Modifier
-                                },
-                            ),
-                    startDestination = Routes.LIBRARY,
+                            .consumeWindowInsets(WindowInsets.navigationBars)
+                            .nestedScroll(barVisibility.nestedScrollConnection)
+                            .onSizeChanged { contentHeightPx = it.height },
+                    startDestination = TopLevelTab.Home.graph,
                     enterTransition = {
                         slideInHorizontally(initialOffsetX = { it / 4 }, animationSpec = tween(NAVIGATION_DURATION_MS)) +
                             fadeIn(tween(NAVIGATION_DURATION_MS))
@@ -386,39 +431,66 @@ private fun MainNavigation() {
                             fadeOut(tween(NAVIGATION_DURATION_MS))
                     },
                 ) {
-                    composable(Routes.LIBRARY) {
-                        LibraryRoute(
-                            onAlbumClick = { album ->
-                                navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                            },
-                            onArtistClick = { artist ->
-                                navigateDetail(
-                                    Routes.ARTIST_DETAIL,
-                                    "artistId",
-                                    artist.id,
-                                    Routes.artist(
+                    navigation(startDestination = Routes.HOME, route = TopLevelTab.Home.graph) {
+                        composable(Routes.HOME) {
+                            HomeRoute(
+                                onAlbumClick = { album ->
+                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                },
+                                onArtistClick = { artist ->
+                                    navigateDetail(
+                                        Routes.ARTIST_DETAIL,
+                                        "artistId",
                                         artist.id,
-                                        artist.coverArt ?: artist.coverArts.firstOrNull(),
-                                    ),
-                                )
-                            },
-                            onPlaylistClick = { playlist ->
-                                navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
-                            },
-                            onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                            onOpenSearch = { navController.navigate(Routes.SEARCH) },
-                            onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                            onViewArtist = { artistId ->
-                                navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                            },
-                            onHomeMore = { section -> navController.navigate(Routes.homeSection(section)) },
-                            onHomeDownloaded = { kind -> navController.navigate(Routes.homeDownloaded(kind)) },
-                            onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
-                            onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
-                            contextMenuHost = contextMenuHost,
-                            setStar = libraryRepository::star,
-                            bottomInset = bottomInset,
-                        )
+                                        Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
+                                    )
+                                },
+                                onPlaylistClick = { playlist ->
+                                    navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
+                                },
+                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { artistId ->
+                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                },
+                                onMore = { section -> navController.navigate(Routes.homeSection(section)) },
+                                onDownloadedMore = { kind -> navController.navigate(Routes.homeDownloaded(kind)) },
+                                onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
+                                onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
+                                contextMenuHost = contextMenuHost,
+                                setStar = libraryRepository::star,
+                                topInset = statusBarTop,
+                                bottomInset = bottomInset,
+                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                            )
+                        }
+                    }
+                    navigation(startDestination = Routes.LIBRARY, route = TopLevelTab.Library.graph) {
+                        composable(Routes.LIBRARY) {
+                            LibraryRoute(
+                                onAlbumClick = { album ->
+                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                },
+                                onArtistClick = { artist ->
+                                    navigateDetail(
+                                        Routes.ARTIST_DETAIL,
+                                        "artistId",
+                                        artist.id,
+                                        Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
+                                    )
+                                },
+                                onPlaylistClick = { playlist ->
+                                    navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
+                                },
+                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { artistId ->
+                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                },
+                                contextMenuHost = contextMenuHost,
+                                setStar = libraryRepository::star,
+                                bottomInset = bottomInset,
+                            )
+                        }
                     }
                     composable(Routes.SETTINGS) {
                         SettingsRoute(
@@ -436,33 +508,33 @@ private fun MainNavigation() {
                             dismissals = contextMenuHost.dismissals,
                         )
                     }
-                    composable(Routes.SEARCH) {
-                        SearchRoute(
-                            onBack = { navController.popBackStack() },
-                            onAlbumClick = { album ->
-                                navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                            },
-                            onArtistClick = { artist ->
-                                navigateDetail(
-                                    Routes.ARTIST_DETAIL,
-                                    "artistId",
-                                    artist.id,
-                                    Routes.artist(
+                    navigation(startDestination = Routes.SEARCH, route = TopLevelTab.Search.graph) {
+                        composable(Routes.SEARCH) {
+                            SearchRoute(
+                                onAlbumClick = { album ->
+                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                },
+                                onArtistClick = { artist ->
+                                    navigateDetail(
+                                        Routes.ARTIST_DETAIL,
+                                        "artistId",
                                         artist.id,
-                                        artist.coverArt ?: artist.coverArts.firstOrNull(),
-                                    ),
-                                )
-                            },
-                            onPlaylistClick = { playlist ->
-                                navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
-                            },
-                            onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                            onViewArtist = { artistId ->
-                                navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                            },
-                            contextMenuHost = contextMenuHost,
-                            setStar = libraryRepository::star,
-                        )
+                                        Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
+                                    )
+                                },
+                                onPlaylistClick = { playlist ->
+                                    navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
+                                },
+                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { artistId ->
+                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                },
+                                contextMenuHost = contextMenuHost,
+                                setStar = libraryRepository::star,
+                                onBack = null,
+                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                            )
+                        }
                     }
                     composable(Routes.LICENSES) {
                         LicensesRoute(onBack = { navController.popBackStack() })
@@ -703,7 +775,7 @@ private fun MainNavigation() {
                         onExpand = { settleNowPlaying(true) },
                         onPlayPause = playbackController::togglePlayPause,
                         onNext = playbackController::next,
-                        progressInset = tabBarVisible,
+                        navigationBarFraction = { 1f - barFraction.value },
                         onExpandDrag = { dragUpPx ->
                             nowPlayingOpen = true
                             settleJob?.cancel()
@@ -713,6 +785,27 @@ private fun MainNavigation() {
                         },
                         onExpandRelease = { velocity -> settleNowPlaying(nowPlayingProgress > 0.05f || velocity < -FLING_VELOCITY) },
                         modifier = Modifier.onGloballyPositioned { miniPlayerTopPx = it.positionInRoot().y },
+                    )
+                }
+
+                if (!barGone) {
+                    MaeksterNavigationBar(
+                        current = selectedTab,
+                        onSelect = { tab ->
+                            focusManager.clearFocus()
+                            barVisibility.show()
+                            navController.selectTab(tab, selectedTab)
+                        },
+                        modifier = Modifier.revealHeight { barFraction.value },
+                    )
+                }
+
+                // With nothing playing and the bar away, keep the screens clear of the system navigation area.
+                if (!playerVisible && !keyboardUp) {
+                    Spacer(
+                        Modifier
+                            .fillMaxWidth()
+                            .layoutHeight { (systemNavigationBarPx * (1f - barFraction.value)).toInt() },
                     )
                 }
             }
@@ -855,6 +948,17 @@ private fun MainNavigation() {
                 null -> {
                     Unit
                 }
+            }
+
+            // Messages appear just above the mini-player and navigation bar, over every screen and overlay.
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(with(density) { contentHeightPx.toDp() }),
+            ) {
+                SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
             }
         }
     }

@@ -46,6 +46,7 @@ fun SearchField(
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
     showClose: Boolean = true,
+    autoFocus: Boolean = true,
 ) {
     val hint = stringResource(R.string.search_input_placeholder)
     val closeLabel = stringResource(R.string.close_search)
@@ -55,7 +56,7 @@ fun SearchField(
             textFieldValue = TextFieldValue(value, selection = TextRange(value.length))
         }
     }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(Unit) { if (autoFocus) focusRequester.requestFocus() }
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,

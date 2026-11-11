@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -37,13 +38,19 @@ import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Replay
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -81,6 +88,7 @@ import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
+import com.subtracks.ui.components.statusBarScrim
 import com.subtracks.ui.library.SongRow
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -104,6 +112,7 @@ enum class HomeSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeRoute(
     onAlbumClick: (Album) -> Unit,
@@ -119,10 +128,12 @@ fun HomeRoute(
     setStar: (StarType, String, Boolean) -> Unit,
     topInset: Dp,
     bottomInset: Dp,
+    onOpenSettings: (() -> Unit)? = null,
     viewModel: HomeViewModel = koinViewModel(),
     playbackController: PlaybackController = koinInject(),
 ) {
     val offline by viewModel.offline.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val playback by playbackController.state.collectAsStateWithLifecycle()
     val actions =
         ItemActions(
@@ -133,6 +144,63 @@ fun HomeRoute(
             viewArtist = onViewArtist,
         )
     val onLongClick: (MenuTarget) -> Unit = { contextMenuHost?.show(it, actions) }
+    val pullToRefreshState = rememberPullToRefreshState()
+    PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = viewModel::sync,
+        state = pullToRefreshState,
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = pullToRefreshState,
+                isRefreshing = refreshing,
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
+            )
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        HomeFeedContent(
+            offline = offline,
+            viewModel = viewModel,
+            playingSongId = playback.item?.id,
+            topInset = topInset,
+            bottomInset = bottomInset,
+            onAlbumClick = onAlbumClick,
+            onArtistClick = onArtistClick,
+            onPlaylistClick = onPlaylistClick,
+            onMore = onMore,
+            onDownloadedMore = onDownloadedMore,
+            onGenreClick = onGenreClick,
+            onDecadeClick = onDecadeClick,
+            onLongClick = onLongClick,
+        )
+        Spacer(Modifier.align(Alignment.TopStart).statusBarScrim())
+        if (onOpenSettings != null) {
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 4.dp, end = 4.dp),
+            ) {
+                Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.navigation_tabs_settings))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeFeedContent(
+    offline: Boolean,
+    viewModel: HomeViewModel,
+    playingSongId: String?,
+    topInset: Dp,
+    bottomInset: Dp,
+    onAlbumClick: (Album) -> Unit,
+    onArtistClick: (Artist) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit,
+    onMore: (HomeSection) -> Unit,
+    onDownloadedMore: (OfflineListKind) -> Unit,
+    onGenreClick: (String) -> Unit,
+    onDecadeClick: (Long) -> Unit,
+    onLongClick: (MenuTarget) -> Unit,
+) {
     if (offline) {
         OfflineHomeScreen(
             albums = viewModel.downloadedAlbums.collectAsLazyPagingItems(),
@@ -141,7 +209,7 @@ fun HomeRoute(
             songs = viewModel.downloadedSongs.collectAsStateWithLifecycle(initialValue = emptyList()).value,
             coverArt = viewModel::coverArt,
             artistArt = { viewModel.artistArt(it) },
-            playingSongId = playback.item?.id,
+            playingSongId = playingSongId,
             topInset = topInset,
             bottomInset = bottomInset,
             onAlbumClick = onAlbumClick,
@@ -157,7 +225,7 @@ fun HomeRoute(
             feed = feed,
             coverArt = viewModel::coverArt,
             artistArt = { viewModel.artistArt(it) },
-            playingSongId = playback.item?.id,
+            playingSongId = playingSongId,
             topInset = topInset,
             bottomInset = bottomInset,
             onAlbumClick = onAlbumClick,

@@ -80,6 +80,9 @@
     <string name="settings_about_verbose_logging">Verbose logging</string>
     <string name="settings_about_verbose_logging_description">Log extra detail for troubleshooting</string>
     <string name="settings_about_version">Version %1$s</string>
+    <string name="onboarding_title">Your music.\nYour rules.</string>
+    <string name="onboarding_body">Stream your library from your own server.\nNo subscriptions. No big tech.</string>
+    <string name="onboarding_get_started">Get started</string>
     <string name="settings_appearance_name">Appearance</string>
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_prompt">Choose when maekster uses its light and dark colours.</string>

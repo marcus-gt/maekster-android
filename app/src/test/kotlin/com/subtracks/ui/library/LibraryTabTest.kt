@@ -8,9 +8,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class LibraryTabTest {
     @Test
-    fun theStoredNameMapsToItsTabAndAnythingElseToHome() {
+    fun theStoredNameMapsToItsTabAndAnythingElseToAlbums() {
         assertEquals(LibraryTab.Playlists, libraryTabFor("Playlists"))
-        assertEquals(LibraryTab.Home, libraryTabFor(null))
-        assertEquals(LibraryTab.Home, libraryTabFor("Books"))
+        assertEquals(LibraryTab.Albums, libraryTabFor(null))
+        assertEquals(LibraryTab.Albums, libraryTabFor("Books"))
+        // Home was a Library page before it became its own tab; a stored "Home" opens the first section.
+        assertEquals(LibraryTab.Albums, libraryTabFor("Home"))
     }
 }

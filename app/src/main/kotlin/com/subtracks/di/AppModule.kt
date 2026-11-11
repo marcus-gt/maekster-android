@@ -2,11 +2,9 @@ package com.subtracks.di
 
 import android.content.Context
 import android.os.Environment
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
 import com.subtracks.R
 import com.subtracks.UiMessage
+import com.subtracks.UiMessages
 import com.subtracks.data.db.createAndroidDatabase
 import com.subtracks.data.download.ArtworkFetcher
 import com.subtracks.data.download.ArtworkStore
@@ -63,10 +61,10 @@ fun appModule(
     context: Context,
     http: OkHttpClient,
 ) = module {
-    val mainHandler = Handler(Looper.getMainLooper())
-    val toast: (UiMessage) -> Unit = { message ->
-        mainHandler.post { Toast.makeText(context, message.resolve(context), Toast.LENGTH_SHORT).show() }
-    }
+    // Repositories report to the user through this queue; the app shell shows each message as a snackbar.
+    val uiMessages = UiMessages()
+    val showMessage: (UiMessage) -> Unit = uiMessages::show
+    single { uiMessages }
     single { createAndroidDatabase(context) }
     single { http }
     single { createUserPreferences(context) }
@@ -81,7 +79,7 @@ fun appModule(
             get(),
             get(),
             networkMode = networkMode(context.applicationContext),
-            showMessage = toast,
+            showMessage = showMessage,
             scope = get(),
         )
     }
@@ -96,9 +94,9 @@ fun appModule(
             scope = get(),
         )
     }
-    single { LibraryRepository(get(), get(), get(), get(), toast, scope = get(named("io"))) }
+    single { LibraryRepository(get(), get(), get(), get(), showMessage, scope = get(named("io"))) }
     single<ArtworkSeedStore> { ArtworkSeedRepository(get()) }
-    single { SyncManager(get(), get(), get(), get(), preferences = get(), showMessage = toast, scope = get()) }
+    single { SyncManager(get(), get(), get(), get(), preferences = get(), showMessage = showMessage, scope = get()) }
     single {
         AutoSync(
             preferences = get(),
@@ -120,7 +118,7 @@ fun appModule(
             downloadsDir = downloadsRoot(context),
             artworkStore = get(),
             artworkFetcher = get(),
-            showMessage = toast,
+            showMessage = showMessage,
             dispatcher = Dispatchers.IO,
             scope = get(named("io")),
         ).also { it.start() }
@@ -128,7 +126,7 @@ fun appModule(
     single(createdAtStart = true) { DownloadNotifier(context.applicationContext, get(), scope = get()).also { it.start() } }
     single(createdAtStart = true) { SyncNotifier(context.applicationContext, get<SyncManager>().status, scope = get()).also { it.start() } }
     single<PlayerConnection> { MediaSessionConnection(context.applicationContext, get(), get()) }
-    single { PlaybackController(get(), get(), get(), get(), showMessage = toast, scope = get(named("playback"))) }
+    single { PlaybackController(get(), get(), get(), get(), showMessage = showMessage, scope = get(named("playback"))) }
     single(createdAtStart = true) {
         val playback = get<PlaybackController>()
         Scrobbler(

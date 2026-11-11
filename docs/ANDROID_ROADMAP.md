@@ -87,13 +87,13 @@ string literals; `MaeksterTheme`, `MaeksterSpacing`, `MaeksterShapes`, `Maekster
 | **M1.3 Navigation shell** | Onboarding welcome; `NavigationBar` with Home, Library, Search (Discover added in M3.2); per-tab back stacks with state restoration; reselect pops to root; Settings top-bar action on every root; mini-player above the bar; the Now Playing overlay kept; snackbar host for `UiMessage` | `st:ui/AppRoot.kt`, new `st:ui/onboarding/*`, `st:ui/home/HomeScreen.kt` (extracted from the pager), `st:di/AppModule.kt` (message flow instead of Toast) | `SourceSwitchResetTest`, `NowPlayingRouteTest`, a new shell navigation test (tab switch keeps stacks), onboarding screenshot |
 | **M1.4 Library hub and Settings grouping** | A Library landing list (Playlists, Albums, Artists; Songs, Genres, Favorites and Downloads arrive in M2); the existing list content as routes; sort and filter in a bottom sheet; Settings split into Server, Application, Playback, Storage, Integrations (empty until M3), About; the server switcher list | `st:ui/library/LibraryScreen.kt`, `AlbumsContent.kt`, `ArtistsContent.kt`, `PlaylistsContent.kt`, `st:ui/settings/*` | `LibraryScreenTest`, `LibraryOptionsTest`, `SettingsScreenTest` updated; every existing setting is still reachable |
 
-**M1.1 status (10 Nov 2026):** implemented, not yet committed. Build, unit tests, ktlint and lint pass; the emulator
+**M1.1 status (10 Nov 2026):** done. Build, unit tests, ktlint and lint pass; the emulator
 and device checks are still open. Deviation: the launcher icons live in `drawable` and `drawable-anydpi-v26`, not
 `mipmap`, because they are all vectors (no bitmap density matters) and `mipmap` folders accept no vector or layer-list
 XML (issue #4 moves them back with rendered PNGs). The Ko-fi "Support the developer" row became a Credits line
 (Subtracks, Minidisc, Cassette). Left for later: `README.md`, `metadata/` store listings and `.github/FUNDING.yml` still describe Subtracks (M4.11).
 
-**M1.2 status (11 Nov 2026):** implemented, not yet committed. `MaeksterTheme` (System/Light/Dark, optional Material You),
+**M1.2 status (11 Nov 2026):** done. `MaeksterTheme` (System/Light/Dark, optional Material You),
 colour, spacing, shape and text-role tokens, `SkeletonBlock`, and the Settings "Appearance" section are in. Deviations from
 the slice text: (1) the playing track's artwork no longer tints the whole app. Subtracks wrapped every screen in
 `ArtworkTheme` and tinted the Library header, tab bar and search button itself, which would have overridden the Light and
@@ -104,6 +104,20 @@ keep Android touch targets. Known gaps left for M1.3/M1.4: cover corners are sti
 navigation bar icons are dark over the dark mini-player in the light theme, and `LibraryScreen` still carries an unused
 artwork parameter. Light-theme `onPrimary` is white on orange (about 3.5:1, large text only, as on iOS), to revisit in M4.9.
 The screenshot set (light, dark, artwork, 2x font) is not recorded yet.
+
+**M1.3 status (11 Nov 2026):** done. Welcome screen before the server form; the compact Material 3
+`ShortNavigationBar` (labels on every tab, accent on the selected one) with Home, Library and Search as nested graphs with saved and restored stacks; reselect pops to the root; back from a tab root
+goes to Home, then exits; Settings action on every tab root; mini-player above the bar; the Now Playing overlay unchanged;
+`UiMessages` queue with a snackbar host replaces every Toast. The Library tab is the old pager without its Home page, with
+the section strip moved to the top (the hub is M1.4). Deviations: the welcome copy is taken from the iOS onboarding (same
+product); "Use Local Files" is not offered (no local music on Android yet). Not done: the onboarding screenshot, scroll to
+top on reselecting a tab root, and the offline-mode button on Home (it lives on the Library tab only). Rotation and process
+death ("Don't keep activities") were not tested on a device yet.
+
+The bar hides while you scroll towards the end of a screen and returns when you scroll back, open a screen, switch tabs or
+close the keyboard; the mini-player and snackbars follow it. It never hides for TalkBack users. This is the Android
+hide-on-scroll pattern rather than the iOS tab bar minimising into floating pills, which would read as an iOS imitation
+(decided with the user on 11 Nov 2026).
 
 - **Data model and migrations:** none in Room. One new DataStore key (theme). A new `applicationId` means a fresh install
   with no import from Subtracks (D1): the user re-adds servers and the library resyncs.

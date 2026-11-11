@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -119,12 +120,12 @@ class LibraryScreenTest {
     }
 
     @Test
-    fun theHomeTabOffersSearch() {
-        var searched = false
+    fun theSectionStripAndItsSettingsActionSitAtTheTop() {
+        var settingsOpened = false
         composeRule.setContent {
             MaeksterTheme {
                 LibraryScreen(
-                    selectedTab = LibraryTab.Home,
+                    selectedTab = LibraryTab.Albums,
                     onTabSelected = {},
                     albums = remember { flowOf(PagingData.empty<Album>()) },
                     artists = remember { flowOf(PagingData.empty<Artist>()) },
@@ -134,15 +135,21 @@ class LibraryScreenTest {
                     onArtistClick = {},
                     onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
-                    onOpenSearch = { searched = true },
+                    onOpenSettings = { settingsOpened = true },
                 )
             }
         }
+        val settings =
+            composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.navigation_tabs_settings))
+        val root = composeRule.onRoot().getUnclippedBoundsInRoot()
+        val screenHeight = root.bottom - root.top
 
-        composeRule.onNodeWithContentDescription("Search").performClick()
-
-        assertTrue("the home tab should expose search", searched)
+        assertTrue(
+            "the Library top bar should sit in the top quarter",
+            settings.getUnclippedBoundsInRoot().top < screenHeight / 4,
+        )
+        settings.performClick()
+        assertTrue("the top bar should open Settings", settingsOpened)
     }
 
     @Test
@@ -424,7 +431,7 @@ class LibraryScreenTest {
     @Test
     @Config(qualifiers = "de-rDE-w320dp-h640dp-xhdpi")
     fun movingToALongTabScrollsItIntoView() {
-        val selectedTab = mutableStateOf(LibraryTab.Home)
+        val selectedTab = mutableStateOf(LibraryTab.Albums)
         var labelWidth = 0f
         composeRule.setContent {
             MaeksterTheme {
@@ -487,14 +494,14 @@ class LibraryScreenTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.runOnIdle { selectedTab.value = LibraryTab.Home }
+        composeRule.runOnIdle { selectedTab.value = LibraryTab.Albums }
         val expectedGap = with(composeRule.density) { TAB_EDGE_GAP.toPx() }
-        composeRule.waitUntil(5_000) { tabBounds(LibraryTab.Home).left <= expectedGap + 1f }
+        composeRule.waitUntil(5_000) { tabBounds(LibraryTab.Albums).left <= expectedGap + 1f }
 
         assertEquals(
             "the first tab should keep a gap from the screen edge",
             expectedGap,
-            tabBounds(LibraryTab.Home).left,
+            tabBounds(LibraryTab.Albums).left,
             1f,
         )
     }

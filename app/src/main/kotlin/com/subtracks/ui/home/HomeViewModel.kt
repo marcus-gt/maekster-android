@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -54,6 +55,12 @@ class HomeViewModel(
     private val syncManager: SyncManager,
     private val playbackController: PlaybackController,
 ) : ViewModel() {
+    /** True while a sync the user asked for is running, so pull to refresh can show it. */
+    val refreshing: StateFlow<Boolean> =
+        syncManager.status
+            .map { it is SyncStatus.Running && !it.silent }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val offline: StateFlow<Boolean> =
         sourceRepository.offline.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 

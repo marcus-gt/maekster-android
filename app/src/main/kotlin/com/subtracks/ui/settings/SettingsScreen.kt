@@ -1,7 +1,6 @@
 package com.subtracks.ui.settings
 
 import android.content.res.Resources
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +69,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.BuildConfig
 import com.subtracks.MaeksterBrand
 import com.subtracks.R
+import com.subtracks.UiMessage
+import com.subtracks.UiMessages
 import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
 import com.subtracks.data.prefs.MAX_REPLAY_GAIN_PREAMP_DB
@@ -88,6 +89,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 private val bitrateOptions = listOf(0, 24, 32, 64, 96, 128, 192, 256, 320)
@@ -117,6 +119,7 @@ fun SettingsRoute(
     onBack: () -> Unit,
     dismissals: Flow<Unit> = emptyFlow(),
     viewModel: SettingsViewModel = koinViewModel(),
+    uiMessages: UiMessages = koinInject(),
 ) {
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val activeSourceId by viewModel.activeSourceId.collectAsStateWithLifecycle()
@@ -192,7 +195,7 @@ fun SettingsRoute(
                         result.getOrNull() == null -> R.string.settings_about_share_logs_empty
                         else -> null
                     }
-                message?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+                message?.let { uiMessages.show(UiMessage(it)) }
             }
         },
         onBack = onBack,

@@ -38,7 +38,6 @@ import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.FilterAltOff
-import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
@@ -131,10 +130,6 @@ import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
 import com.subtracks.ui.components.SearchField
 import com.subtracks.ui.components.rememberPendingDownloadDelete
-import com.subtracks.ui.components.statusBarScrim
-import com.subtracks.ui.home.HomeRoute
-import com.subtracks.ui.home.HomeSection
-import com.subtracks.ui.home.OfflineListKind
 import com.subtracks.ui.theme.ArtworkColors
 import com.subtracks.ui.theme.librarySurfaceColor
 import com.subtracks.ui.theme.playerSurfaceColor
@@ -149,7 +144,6 @@ enum class LibraryTab(
     @param:StringRes val label: Int,
     val icon: ImageVector,
 ) {
-    Home(R.string.navigation_tabs_home, Icons.Rounded.Home),
     Albums(R.string.resources_album_name, Icons.Rounded.Album),
     Artists(R.string.resources_artist_name, Icons.Rounded.Person),
     Playlists(R.string.resources_playlist_name, Icons.AutoMirrored.Rounded.PlaylistPlay),
@@ -163,7 +157,7 @@ data class SortOption(
 
 fun LibraryTab.listTab(): LibraryListTab? = LibraryListTab.entries.firstOrNull { it.name == name }
 
-internal fun libraryTabFor(name: String?): LibraryTab = LibraryTab.entries.firstOrNull { it.name == name } ?: LibraryTab.Home
+internal fun libraryTabFor(name: String?): LibraryTab = LibraryTab.entries.firstOrNull { it.name == name } ?: LibraryTab.Albums
 
 fun sortOptionsFor(
     tab: LibraryTab,
@@ -215,10 +209,6 @@ fun sortOptionsFor(
                 SortOption(PlaylistSort.Updated.name, R.string.resources_sort_by_updated, descendingByDefault = true),
             )
         }
-
-        LibraryTab.Home -> {
-            emptyList()
-        }
     }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -228,13 +218,8 @@ fun LibraryRoute(
     onArtistClick: (Artist) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenSearch: () -> Unit = {},
     onViewAlbum: (String) -> Unit,
     onViewArtist: (String) -> Unit,
-    onHomeMore: (HomeSection) -> Unit = {},
-    onHomeDownloaded: (OfflineListKind) -> Unit = {},
-    onGenreClick: (String) -> Unit = {},
-    onDecadeClick: (Long) -> Unit = {},
     contextMenuHost: ContextMenuHost? = null,
     setStar: (StarType, String, Boolean) -> Unit,
     bottomInset: Dp,
@@ -301,7 +286,6 @@ fun LibraryRoute(
         onPlaylistClick = onPlaylistClick,
         onSync = viewModel::sync,
         onOpenSettings = onOpenSettings,
-        onOpenSearch = onOpenSearch,
         onItemLongClick = {
             focusManager.clearFocus()
             contextMenuHost?.show(it, itemActions)
@@ -340,23 +324,6 @@ fun LibraryRoute(
         artistDownloads = downloads.takeIf { listTab == LibraryListTab.Artists }.orEmpty(),
         playlistDownloads = downloads.takeIf { listTab == LibraryListTab.Playlists }.orEmpty(),
         dismissals = contextMenuHost?.dismissals ?: emptyFlow(),
-        homeContent = { topInset, bottomInset ->
-            HomeRoute(
-                onAlbumClick = onAlbumClick,
-                onArtistClick = onArtistClick,
-                onPlaylistClick = onPlaylistClick,
-                onViewAlbum = onViewAlbum,
-                onViewArtist = onViewArtist,
-                onMore = onHomeMore,
-                onDownloadedMore = onHomeDownloaded,
-                onGenreClick = onGenreClick,
-                onDecadeClick = onDecadeClick,
-                contextMenuHost = contextMenuHost,
-                setStar = setStar,
-                topInset = topInset,
-                bottomInset = bottomInset,
-            )
-        },
     )
 
     PendingDownloadDeleteConfirmation(pendingDelete) { pending ->
@@ -380,7 +347,6 @@ fun LibraryScreen(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     artistArt: (Artist) -> ArtistArt = { ArtistArt() },
-    onOpenSearch: () -> Unit = {},
     offline: Boolean = false,
     onExitOffline: () -> Unit = {},
     onItemLongClick: (MenuTarget) -> Unit = {},
@@ -403,7 +369,6 @@ fun LibraryScreen(
     artistDownloads: Map<String, ListDownloadStatus> = emptyMap(),
     playlistDownloads: Map<String, ListDownloadStatus> = emptyMap(),
     dismissals: Flow<Unit> = emptyFlow(),
-    homeContent: @Composable (topInset: Dp, bottomInset: Dp) -> Unit = { _, _ -> },
 ) {
     val pagerState =
         rememberPagerState(
@@ -433,21 +398,18 @@ fun LibraryScreen(
         if (pagerState.currentPage != selectedTab.ordinal) {
             pagerState.animateScrollToPage(selectedTab.ordinal)
         }
-        if (selectedTab == LibraryTab.Home) {
-            searchActive = false
-        } else if (search.isNotEmpty()) {
-            searchActive = true
-        }
+        if (search.isNotEmpty()) searchActive = true
     }
 
     val density = LocalDensity.current
     val focusManager = LocalFocusManager.current
     val statusBarTop = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
     val filtersActive = listQuery.starred != StarredFilter.Any || listQuery.downloaded || search.isNotEmpty()
-    var tabBarHeightPx by remember { mutableFloatStateOf(with(density) { (TAB_BAR_CONTENT_HEIGHT + bottomInset).toPx() }) }
+    // The section strip sits under the status bar; its measured height includes the status bar.
+    var tabBarHeightPx by remember { mutableFloatStateOf(with(density) { (TAB_BAR_CONTENT_HEIGHT + statusBarTop).toPx() }) }
     val tabBarHeight = with(density) { tabBarHeightPx.toDp() }
-    val listTopInset = statusBarTop
-    val listBottomInset = tabBarHeight + BOTTOM_CLEARANCE
+    val listTopInset = tabBarHeight
+    val listBottomInset = bottomInset + BOTTOM_CLEARANCE
     val headerColor = artwork?.let(::playerSurfaceColor) ?: MaterialTheme.colorScheme.background
     val listOptionsLabel = stringResource(R.string.list_options)
 
@@ -474,7 +436,7 @@ fun LibraryScreen(
                     PullToRefreshDefaults.Indicator(
                         state = pullToRefreshState,
                         isRefreshing = refreshing,
-                        modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = tabBarHeight),
                         containerColor = headerColor,
                         color = artwork?.scheme?.primary ?: MaterialTheme.colorScheme.primary,
                     )
@@ -482,10 +444,6 @@ fun LibraryScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 when (pageTab) {
-                    LibraryTab.Home -> {
-                        homeContent(listTopInset, listBottomInset)
-                    }
-
                     LibraryTab.Albums -> {
                         AlbumsContent(
                             albums.collectAsLazyPagingItems(),
@@ -550,33 +508,25 @@ fun LibraryScreen(
             }
         }
 
-        Spacer(
+        // The section strip is the Library tab's top bar, with the Settings action every tab root carries.
+        Column(
             modifier =
                 Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarScrim(),
-        )
-
-        if (!searchActive) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(headerColor)
-                        .onSizeChanged { tabBarHeightPx = it.height.toFloat() }
-                        .padding(bottom = bottomInset),
-            ) {
-                LibraryTabs(
-                    pagerState = pagerState,
-                    onTabSelected = { tab ->
-                        if (tab == selectedTab) topRequest++ else onTabSelected(tab)
-                    },
-                    onOpenSettings = onOpenSettings,
-                    artwork = artwork,
-                    syncing = syncing,
-                )
-            }
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .background(headerColor)
+                    .onSizeChanged { tabBarHeightPx = it.height.toFloat() }
+                    .statusBarsPadding(),
+        ) {
+            LibraryTabs(
+                pagerState = pagerState,
+                onTabSelected = { tab ->
+                    if (tab == selectedTab) topRequest++ else onTabSelected(tab)
+                },
+                onOpenSettings = onOpenSettings,
+                artwork = artwork,
+                syncing = syncing,
+            )
         }
 
         if (searchActive) {
@@ -602,7 +552,7 @@ fun LibraryScreen(
                     modifier =
                         Modifier
                             .align(Alignment.BottomStart)
-                            .padding(start = 16.dp, bottom = tabBarHeight + 16.dp)
+                            .padding(start = 16.dp, bottom = bottomInset + 16.dp)
                             .size(48.dp),
                 ) {
                     Icon(
@@ -612,41 +562,36 @@ fun LibraryScreen(
                     )
                 }
             }
-            val searchFab = selectedTab == LibraryTab.Home
             FloatingActionButton(
-                onClick = { if (searchFab) onOpenSearch() else showOptions = true },
+                onClick = { showOptions = true },
                 containerColor = fabContainerColor,
                 contentColor = fabContentColor,
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 12.dp),
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = tabBarHeight + 16.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = bottomInset + 16.dp),
             ) {
-                if (searchFab) {
-                    Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search))
-                } else {
-                    Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                        ListOptionsGlyph(
+                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+                    ListOptionsGlyph(
+                        modifier =
+                            Modifier
+                                .size(24.dp)
+                                .semantics { contentDescription = listOptionsLabel },
+                    )
+                    if (filtersActive) {
+                        Box(
                             modifier =
                                 Modifier
-                                    .size(24.dp)
-                                    .semantics { contentDescription = listOptionsLabel },
-                        )
-                        if (filtersActive) {
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 1.dp, y = 2.5.dp)
+                                    .size(11.dp)
+                                    .background(fabContainerColor, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
                             Box(
                                 modifier =
                                     Modifier
-                                        .align(Alignment.TopEnd)
-                                        .offset(x = 1.dp, y = 2.5.dp)
-                                        .size(11.dp)
-                                        .background(fabContainerColor, CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Box(
-                                    modifier =
-                                        Modifier
-                                            .size(7.dp)
-                                            .background(fabContentColor, CircleShape),
-                                )
-                            }
+                                        .size(7.dp)
+                                        .background(fabContentColor, CircleShape),
+                            )
                         }
                     }
                 }

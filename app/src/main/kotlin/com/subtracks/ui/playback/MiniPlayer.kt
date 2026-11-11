@@ -12,9 +12,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,8 +39,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import com.subtracks.R
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.playback.PlaybackState
@@ -52,6 +56,9 @@ import com.subtracks.ui.theme.playerSurfaceColor
 private val PROGRESS_INSET = 8.dp
 private const val PROGRESS_INSET_MS = 260
 
+/** Extra room under the row when it sits directly above the system navigation area. */
+private val NAVIGATION_BAR_GAP = 4.dp
+
 @Composable
 fun MiniPlayer(
     state: PlaybackState,
@@ -63,6 +70,9 @@ fun MiniPlayer(
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
     progressInset: Boolean = false,
+    // How much of the system navigation area to pad under the row: 1 when nothing sits below the mini-player,
+    // 0 when the app's navigation bar does. Read during layout, so the bar can animate it without recomposing.
+    navigationBarFraction: () -> Float = { 1f },
     onExpandDrag: (Float) -> Unit = {},
     onExpandRelease: (Float) -> Unit = {},
 ) {
@@ -79,6 +89,10 @@ fun MiniPlayer(
         animationSpec = tween(PROGRESS_INSET_MS),
         label = "progressCorner",
     )
+
+    val density = LocalDensity.current
+    val navigationBarPx =
+        WindowInsets.navigationBars.getBottom(density) + with(density) { NAVIGATION_BAR_GAP.roundToPx() }
 
     ArtworkTheme(artwork) {
         Surface(
@@ -121,8 +135,8 @@ fun MiniPlayer(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 12.dp),
+                            .bottomPadding { (navigationBarPx * navigationBarFraction().coerceIn(0f, 1f)).toInt() }
+                            .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -185,6 +199,14 @@ fun MiniPlayer(
         }
     }
 }
+
+/** Bottom padding of [paddingPx] pixels, read during layout. */
+private fun Modifier.bottomPadding(paddingPx: () -> Int): Modifier =
+    layout { measurable, constraints ->
+        val padding = paddingPx().coerceAtLeast(0)
+        val placeable = measurable.measure(constraints.offset(vertical = -padding))
+        layout(placeable.width, placeable.height + padding) { placeable.place(0, 0) }
+    }
 
 @Composable
 private fun MiniPlayerProgressBar(

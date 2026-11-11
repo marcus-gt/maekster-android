@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -73,7 +74,6 @@ private val ALL_FILTERS = SearchFilter.entries.toSet()
 
 @Composable
 fun SearchRoute(
-    onBack: () -> Unit,
     onAlbumClick: (Album) -> Unit,
     onArtistClick: (Artist) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
@@ -81,6 +81,8 @@ fun SearchRoute(
     onViewArtist: (String) -> Unit,
     contextMenuHost: ContextMenuHost? = null,
     setStar: (StarType, String, Boolean) -> Unit,
+    onBack: (() -> Unit)? = null,
+    onOpenSettings: (() -> Unit)? = null,
     viewModel: SearchViewModel = koinViewModel(),
     playbackController: PlaybackController = koinInject(),
 ) {
@@ -110,6 +112,7 @@ fun SearchRoute(
         artistArt = { viewModel.artistArt(it) },
         playingSongId = playback.item?.id,
         onBack = onBack,
+        onOpenSettings = onOpenSettings,
         onAlbumClick = {
             focusManager.clearFocus()
             onAlbumClick(it)
@@ -150,7 +153,8 @@ fun SearchScreen(
     coverArt: (String?, Boolean) -> CoverArtRef? = { _, _ -> null },
     artistArt: (Artist) -> ArtistArt = { ArtistArt() },
     playingSongId: String? = null,
-    onBack: () -> Unit = {},
+    onBack: (() -> Unit)? = {},
+    onOpenSettings: (() -> Unit)? = null,
     onAlbumClick: (Album) -> Unit = {},
     onArtistClick: (Artist) -> Unit = {},
     onPlaylistClick: (Playlist) -> Unit = {},
@@ -173,19 +177,30 @@ fun SearchScreen(
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = backLabel)
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = backLabel)
+                        }
                     }
                 },
                 title = {
+                    // As a tab root the field waits for a tap, so switching tabs never raises the keyboard.
                     SearchField(
                         value = query,
                         onValueChange = onQueryChange,
                         onClose = { onQueryChange("") },
                         focusRequester = focusRequester,
                         showClose = query.isNotEmpty(),
+                        autoFocus = onBack != null,
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     )
+                },
+                actions = {
+                    if (onOpenSettings != null) {
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.navigation_tabs_settings))
+                        }
+                    }
                 },
             )
         },
