@@ -1,6 +1,7 @@
 package com.subtracks.ui.settings
 
 import android.content.res.Resources
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,11 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
@@ -27,8 +31,11 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,6 +65,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalUriHandler
@@ -83,6 +91,7 @@ import com.subtracks.data.prefs.ThemeMode
 import com.subtracks.log.Log
 import com.subtracks.ui.components.DismissOnRequest
 import com.subtracks.ui.components.rememberViewportFill
+import com.subtracks.ui.theme.MaeksterSpacing
 import com.subtracks.ui.theme.materialYouSupported
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -96,6 +105,23 @@ private val bitrateOptions = listOf(0, 24, 32, 64, 96, 128, 192, 256, 320)
 private val streamFormats = listOf(null, "mp3", "opus", "ogg", "webm", "aac", "flac")
 
 private const val PROJECT_HOMEPAGE = MaeksterBrand.REPOSITORY_URL
+
+/**
+ * The Settings sub-pages, mirroring the iOS grouping. Servers and About stay on the main page. Integrations joins
+ * once it has something to offer (M3); Android-only settings sit in their natural group.
+ */
+enum class SettingsPage(
+    @param:StringRes val title: Int,
+    @param:StringRes val summary: Int,
+    val icon: ImageVector,
+) {
+    Application(R.string.settings_application_name, R.string.settings_application_summary, Icons.Rounded.Palette),
+    Playback(R.string.settings_music_name, R.string.settings_playback_summary, Icons.Rounded.PlayCircle),
+    Storage(R.string.settings_storage_name, R.string.settings_storage_summary, Icons.Rounded.Storage),
+}
+
+/** The page a route argument names, or null for the main page. */
+internal fun settingsPageFor(name: String?): SettingsPage? = SettingsPage.entries.firstOrNull { it.name == name }
 
 private enum class SettingsDialog {
     WifiQuality,
@@ -118,6 +144,8 @@ fun SettingsRoute(
     onEditServer: (Long) -> Unit,
     onBack: () -> Unit,
     dismissals: Flow<Unit> = emptyFlow(),
+    page: SettingsPage? = null,
+    onOpenPage: (SettingsPage) -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
     uiMessages: UiMessages = koinInject(),
 ) {
@@ -200,6 +228,8 @@ fun SettingsRoute(
         },
         onBack = onBack,
         dismissals = dismissals,
+        page = page,
+        onOpenPage = onOpenPage,
     )
 }
 
@@ -250,6 +280,8 @@ fun SettingsScreen(
     onShareLogs: () -> Unit,
     onBack: () -> Unit,
     dismissals: Flow<Unit> = emptyFlow(),
+    page: SettingsPage? = null,
+    onOpenPage: (SettingsPage) -> Unit = {},
 ) {
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     DismissOnRequest(dismissals) { dialog = null }
@@ -261,7 +293,7 @@ fun SettingsScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.navigation_tabs_settings)) },
+                title = { Text(stringResource(page?.title ?: R.string.navigation_tabs_settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
@@ -274,319 +306,179 @@ fun SettingsScreen(
             state = listState,
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
-            item { SectionHeader(stringResource(R.string.settings_servers_name)) }
-            items(sources.size, key = { sources[it].id }) { index ->
-                val source = sources[index]
-                ListItem(
-                    headlineContent = { Text(source.name) },
-                    supportingContent = {
-                        Text(source.address, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                    leadingContent = {
-                        RadioButton(
-                            selected = source.id == activeSourceId,
-                            onClick = { onSelectSource(source.id) },
-                        )
-                    },
-                    trailingContent = {
-                        IconButton(onClick = { onEditServer(source.id) }) {
-                            Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.edit_source_description, source.name))
-                        }
-                    },
-                    modifier =
-                        Modifier.clickable(
-                            onClickLabel = stringResource(R.string.use_source_description, source.name),
-                        ) { onSelectSource(source.id) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    Button(onClick = onAddServer) {
-                        Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_servers_actions_add))
-                    }
-                }
-            }
-            item { SectionHeader(stringResource(R.string.settings_network_name)) }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_network_options_offline_mode)) },
-                    supportingContent = {
-                        Text(
-                            if (offline) {
-                                stringResource(R.string.settings_network_options_offline_mode_on)
-                            } else {
-                                stringResource(R.string.settings_network_options_offline_mode_off)
-                            },
-                        )
-                    },
-                    trailingContent = {
-                        Switch(checked = offline, onCheckedChange = onOfflineChange)
-                    },
-                    modifier = Modifier.clickable { onOfflineChange(!offline) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_network_options_max_bitrate_wifi_title)) },
-                    supportingContent = { Text(qualityLabel(wifiQuality)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.WifiQuality },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_network_options_max_bitrate_mobile_title)) },
-                    supportingContent = { Text(qualityLabel(mobileQuality)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.MobileQuality },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_sync_auto_title)) },
-                    supportingContent = { Text(syncModeLabel(LocalResources.current, syncMode)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.SyncMode },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.sync_interval)) },
-                    supportingContent = { Text(syncIntervalLabel(LocalResources.current, syncInterval)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.SyncInterval },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.sync_concurrency)) },
-                    supportingContent = { Text(concurrencyLabel(LocalResources.current, syncConcurrency)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.SyncConcurrency },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item { SectionHeader(stringResource(R.string.settings_appearance_name)) }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_theme_title)) },
-                    supportingContent = { Text(themeModeLabel(LocalResources.current, themeMode)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.Theme },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            if (materialYouAvailable) {
-                item {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.settings_material_you_title)) },
-                        supportingContent = { Text(stringResource(R.string.settings_material_you_description)) },
-                        trailingContent = {
-                            Switch(
-                                checked = materialYou,
-                                onCheckedChange = onMaterialYouChange,
-                                colors =
-                                    SwitchDefaults.colors(
-                                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
-                                    ),
-                            )
-                        },
-                        modifier = Modifier.clickable { onMaterialYouChange(!materialYou) },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            when (page) {
+                null -> {
+                    rootItems(
+                        sources = sources,
+                        activeSourceId = activeSourceId,
+                        onSelectSource = onSelectSource,
+                        onEditServer = onEditServer,
+                        onAddServer = onAddServer,
+                        onOpenPage = onOpenPage,
+                        onOpenLicenses = onOpenLicenses,
+                        onOpenHomepage = { runCatching { uriHandler.openUri(PROJECT_HOMEPAGE) } },
                     )
                 }
-            }
-            item { SectionHeader(stringResource(R.string.settings_library_name)) }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_sort_names_title)) },
-                    supportingContent = { Text(sortNameModeLabel(LocalResources.current, sortNameMode)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.SortNames },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item { SectionHeader(stringResource(R.string.settings_music_name)) }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_music_options_scrobble_title)) },
-                    supportingContent = { Text(stringResource(R.string.settings_music_options_scrobble_description_on)) },
-                    trailingContent = {
-                        Switch(
-                            checked = scrobbling,
-                            onCheckedChange = onScrobblingChange,
-                            colors =
-                                SwitchDefaults.colors(
-                                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    uncheckedBorderColor = MaterialTheme.colorScheme.outline,
-                                ),
+
+                SettingsPage.Application -> {
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.settings_network_options_offline_mode),
+                            description =
+                                if (offline) {
+                                    stringResource(R.string.settings_network_options_offline_mode_on)
+                                } else {
+                                    stringResource(R.string.settings_network_options_offline_mode_off)
+                                },
+                            checked = offline,
+                            onCheckedChange = onOfflineChange,
                         )
-                    },
-                    modifier = Modifier.clickable { onScrobblingChange(!scrobbling) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_replay_gain_title)) },
-                    supportingContent = { Text(replayGainModeLabel(LocalResources.current, replayGainMode)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.ReplayGain },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_replay_gain_preamp_title)) },
-                    supportingContent = { Text(replayGainPreampLabel(LocalResources.current, replayGainPreamp)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.ReplayGainPreamp },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_music_options_keep_screen_on_title)) },
-                    supportingContent = { Text(stringResource(R.string.settings_music_options_keep_screen_on_description)) },
-                    trailingContent = {
-                        Switch(
-                            checked = keepScreenOn,
-                            onCheckedChange = onKeepScreenOnChange,
-                            colors =
-                                SwitchDefaults.colors(
-                                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    uncheckedBorderColor = MaterialTheme.colorScheme.outline,
-                                ),
+                    }
+                    item { SectionHeader(stringResource(R.string.settings_appearance_name)) }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.settings_theme_title),
+                            value = themeModeLabel(LocalResources.current, themeMode),
+                            onClick = { dialog = SettingsDialog.Theme },
                         )
-                    },
-                    modifier = Modifier.clickable { onKeepScreenOnChange(!keepScreenOn) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item { SectionHeader(stringResource(R.string.downloads_title)) }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.download_quality)) },
-                    supportingContent = { Text(qualityLabel(downloadQuality)) },
-                    modifier = Modifier.clickable { dialog = SettingsDialog.DownloadQuality },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.download_over_mobile)) },
-                    supportingContent = {
-                        Text(
-                            if (downloadOverMetered) {
-                                stringResource(R.string.download_network_wifi_and_mobile)
-                            } else {
-                                stringResource(R.string.download_network_wifi_only)
-                            },
+                    }
+                    if (materialYouAvailable) {
+                        item {
+                            SwitchRow(
+                                title = stringResource(R.string.settings_material_you_title),
+                                description = stringResource(R.string.settings_material_you_description),
+                                checked = materialYou,
+                                onCheckedChange = onMaterialYouChange,
+                            )
+                        }
+                    }
+                    item { SectionHeader(stringResource(R.string.settings_library_name)) }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.settings_sort_names_title),
+                            value = sortNameModeLabel(LocalResources.current, sortNameMode),
+                            onClick = { dialog = SettingsDialog.SortNames },
                         )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = downloadOverMetered,
-                            onCheckedChange = onDownloadOverMeteredChange,
-                            colors =
-                                SwitchDefaults.colors(
-                                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    uncheckedBorderColor = MaterialTheme.colorScheme.outline,
-                                ),
+                    }
+                    item { SectionHeader(stringResource(R.string.settings_troubleshooting_name)) }
+                    item {
+                        ActionRow(
+                            title = stringResource(R.string.settings_about_actions_share_logs),
+                            icon = Icons.Rounded.Share,
+                            onClick = onShareLogs,
                         )
-                    },
-                    modifier = Modifier.clickable { onDownloadOverMeteredChange(!downloadOverMetered) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.manage_downloads)) },
-                    leadingContent = { Icon(Icons.Rounded.Download, contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onOpenDownloads),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item { SectionHeader(stringResource(R.string.settings_troubleshooting_name)) }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_about_actions_share_logs)) },
-                    leadingContent = { Icon(Icons.Rounded.Share, contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onShareLogs),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_about_verbose_logging)) },
-                    supportingContent = { Text(stringResource(R.string.settings_about_verbose_logging_description)) },
-                    trailingContent = {
-                        Switch(
+                    }
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.settings_about_verbose_logging),
+                            description = stringResource(R.string.settings_about_verbose_logging_description),
                             checked = verboseLogging,
                             onCheckedChange = onVerboseLoggingChange,
-                            colors =
-                                SwitchDefaults.colors(
-                                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    uncheckedBorderColor = MaterialTheme.colorScheme.outline,
-                                ),
                         )
-                    },
-                    modifier = Modifier.clickable { onVerboseLoggingChange(!verboseLogging) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item { SectionHeader(stringResource(R.string.settings_about_name)) }
-            item {
-                ListItem(
-                    headlineContent = { Text(MaeksterBrand.NAME) },
-                    supportingContent = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME))
-                            if (BuildConfig.COMMIT_HASH.isNotEmpty()) {
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    BuildConfig.COMMIT_HASH,
-                                    color = MaterialTheme.colorScheme.outline,
-                                )
-                            }
-                        }
-                    },
-                    leadingContent = { Icon(Icons.Rounded.Info, contentDescription = null) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_about_actions_licenses)) },
-                    leadingContent = { Icon(Icons.Rounded.Description, contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onOpenLicenses),
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_about_actions_project_homepage)) },
-                    supportingContent = { Text(PROJECT_HOMEPAGE) },
-                    leadingContent = { Icon(Icons.Rounded.Language, contentDescription = null) },
-                    modifier = Modifier.clickable { runCatching { uriHandler.openUri(PROJECT_HOMEPAGE) } },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
-            }
-            item {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.settings_about_credits)) },
-                    supportingContent = { Text(stringResource(R.string.settings_about_credits_description)) },
-                    leadingContent = { Icon(Icons.Rounded.Favorite, contentDescription = null) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                )
+                    }
+                }
+
+                SettingsPage.Playback -> {
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.settings_music_options_scrobble_title),
+                            description = stringResource(R.string.settings_music_options_scrobble_description_on),
+                            checked = scrobbling,
+                            onCheckedChange = onScrobblingChange,
+                        )
+                    }
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.settings_music_options_keep_screen_on_title),
+                            description = stringResource(R.string.settings_music_options_keep_screen_on_description),
+                            checked = keepScreenOn,
+                            onCheckedChange = onKeepScreenOnChange,
+                        )
+                    }
+                    item { SectionHeader(stringResource(R.string.settings_streaming_name)) }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.settings_network_options_max_bitrate_wifi_title),
+                            value = qualityLabel(wifiQuality),
+                            onClick = { dialog = SettingsDialog.WifiQuality },
+                        )
+                    }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.settings_network_options_max_bitrate_mobile_title),
+                            value = qualityLabel(mobileQuality),
+                            onClick = { dialog = SettingsDialog.MobileQuality },
+                        )
+                    }
+                    item { SectionHeader(stringResource(R.string.settings_volume_name)) }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.settings_replay_gain_title),
+                            value = replayGainModeLabel(LocalResources.current, replayGainMode),
+                            onClick = { dialog = SettingsDialog.ReplayGain },
+                        )
+                    }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.settings_replay_gain_preamp_title),
+                            value = replayGainPreampLabel(LocalResources.current, replayGainPreamp),
+                            onClick = { dialog = SettingsDialog.ReplayGainPreamp },
+                        )
+                    }
+                }
+
+                SettingsPage.Storage -> {
+                    item { SectionHeader(stringResource(R.string.downloads_title)) }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.download_quality),
+                            value = qualityLabel(downloadQuality),
+                            onClick = { dialog = SettingsDialog.DownloadQuality },
+                        )
+                    }
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.download_over_mobile),
+                            description =
+                                if (downloadOverMetered) {
+                                    stringResource(R.string.download_network_wifi_and_mobile)
+                                } else {
+                                    stringResource(R.string.download_network_wifi_only)
+                                },
+                            checked = downloadOverMetered,
+                            onCheckedChange = onDownloadOverMeteredChange,
+                        )
+                    }
+                    item {
+                        ActionRow(
+                            title = stringResource(R.string.manage_downloads),
+                            icon = Icons.Rounded.Download,
+                            onClick = onOpenDownloads,
+                        )
+                    }
+                    item { SectionHeader(stringResource(R.string.settings_library_sync_name)) }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.settings_sync_auto_title),
+                            value = syncModeLabel(LocalResources.current, syncMode),
+                            onClick = { dialog = SettingsDialog.SyncMode },
+                        )
+                    }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.sync_interval),
+                            value = syncIntervalLabel(LocalResources.current, syncInterval),
+                            onClick = { dialog = SettingsDialog.SyncInterval },
+                        )
+                    }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.sync_concurrency),
+                            value = concurrencyLabel(LocalResources.current, syncConcurrency),
+                            onClick = { dialog = SettingsDialog.SyncConcurrency },
+                        )
+                    }
+                }
             }
             item { Spacer(Modifier.height(fill)) }
         }
@@ -680,6 +572,177 @@ fun SettingsScreen(
             Unit
         }
     }
+}
+
+/** The main page: the server list, a row per sub-page, and About. */
+private fun LazyListScope.rootItems(
+    sources: List<Source>,
+    activeSourceId: Long?,
+    onSelectSource: (Long) -> Unit,
+    onEditServer: (Long) -> Unit,
+    onAddServer: () -> Unit,
+    onOpenPage: (SettingsPage) -> Unit,
+    onOpenLicenses: () -> Unit,
+    onOpenHomepage: () -> Unit,
+) {
+    item { SectionHeader(stringResource(R.string.settings_servers_name)) }
+    items(sources.size, key = { sources[it].id }) { index ->
+        val source = sources[index]
+        ListItem(
+            headlineContent = { Text(source.name) },
+            supportingContent = {
+                Text(source.address, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            },
+            leadingContent = {
+                RadioButton(
+                    selected = source.id == activeSourceId,
+                    onClick = { onSelectSource(source.id) },
+                )
+            },
+            trailingContent = {
+                IconButton(onClick = { onEditServer(source.id) }) {
+                    Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.edit_source_description, source.name))
+                }
+            },
+            modifier =
+                Modifier.clickable(
+                    onClickLabel = stringResource(R.string.use_source_description, source.name),
+                ) { onSelectSource(source.id) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        )
+    }
+    item {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            Button(onClick = onAddServer) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.settings_servers_actions_add))
+            }
+        }
+    }
+    item { Spacer(Modifier.height(MaeksterSpacing.s)) }
+    items(SettingsPage.entries, key = { it.name }) { page ->
+        ListItem(
+            headlineContent = { Text(stringResource(page.title)) },
+            supportingContent = { Text(stringResource(page.summary)) },
+            leadingContent = { Icon(page.icon, contentDescription = null) },
+            trailingContent = {
+                Icon(
+                    Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            modifier = Modifier.clickable { onOpenPage(page) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        )
+    }
+    item { SectionHeader(stringResource(R.string.settings_about_name)) }
+    item {
+        ListItem(
+            headlineContent = { Text(MaeksterBrand.NAME) },
+            supportingContent = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME))
+                    if (BuildConfig.COMMIT_HASH.isNotEmpty()) {
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            BuildConfig.COMMIT_HASH,
+                            color = MaterialTheme.colorScheme.outline,
+                        )
+                    }
+                }
+            },
+            leadingContent = { Icon(Icons.Rounded.Info, contentDescription = null) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        )
+    }
+    item {
+        ActionRow(
+            title = stringResource(R.string.settings_about_actions_licenses),
+            icon = Icons.Rounded.Description,
+            onClick = onOpenLicenses,
+        )
+    }
+    item {
+        ActionRow(
+            title = stringResource(R.string.settings_about_actions_project_homepage),
+            icon = Icons.Rounded.Language,
+            onClick = onOpenHomepage,
+            supporting = PROJECT_HOMEPAGE,
+        )
+    }
+    item {
+        ActionRow(
+            title = stringResource(R.string.settings_about_credits),
+            icon = Icons.Rounded.Favorite,
+            onClick = null,
+            supporting = stringResource(R.string.settings_about_credits_description),
+        )
+    }
+}
+
+/** A setting that opens a dialog; [value] shows its current choice. */
+@Composable
+private fun ValueRow(
+    title: String,
+    value: String,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(value) },
+        modifier = Modifier.clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}
+
+/** An on or off setting; the whole row toggles it, as does the switch. */
+@Composable
+private fun SwitchRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(description) },
+        trailingContent = {
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors =
+                    SwitchDefaults.colors(
+                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                    ),
+            )
+        },
+        modifier = Modifier.clickable { onCheckedChange(!checked) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}
+
+/** A row with a leading icon that runs [onClick], or just informs when it is null. */
+@Composable
+private fun ActionRow(
+    title: String,
+    icon: ImageVector,
+    onClick: (() -> Unit)?,
+    supporting: String? = null,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = supporting?.let { { Text(it) } },
+        leadingContent = { Icon(icon, contentDescription = null) },
+        modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
 }
 
 @Composable

@@ -119,11 +119,16 @@ close the keyboard; the mini-player and snackbars follow it. It never hides for 
 hide-on-scroll pattern rather than the iOS tab bar minimising into floating pills, which would read as an iOS imitation
 (decided with the user on 11 Nov 2026).
 
-**M1.4 status (11 Nov 2026):** in progress, in two parts. Part 1, the Library hub, is done: the
+**M1.4 status (11 Nov 2026):** done, in two parts. Part 1, the Library hub: the
 Library tab opens on a landing list (Playlists, Albums, Artists, in the iOS order, with accent icon tiles); each opens its own
 list screen with back, list search and the sort and filter bottom sheet in its top bar, replacing the pager, the section
 strip and the floating options button. Offline, the landing list hides sections with no downloads, using the downloaded
-lists' own filters. The stored pager tab preference is gone. Part 2, the Settings grouping, is next.
+lists' own filters. The stored pager tab preference is gone. Part 2, the Settings grouping: the main page keeps the server
+switcher list and About, with rows for Application (offline mode, theme, Material You, sort names, troubleshooting logs),
+Playback (scrobbling, keep screen on, streaming quality, ReplayGain) and Storage (downloads, library sync), each its own
+`settings/{page}` route. Every existing setting is reachable (`SettingsScreenTest.everySettingIsOnItsPage`). Deviation:
+Integrations is not shown yet, since an empty page helps no one; it joins with its first integration in M3. Not done: the
+settings screenshots in light and at 2x font, and checking offline mode, list search and light mode on a device.
 
 - **Data model and migrations:** none in Room. One new DataStore key (theme). A new `applicationId` means a fresh install
   with no import from Subtracks (D1): the user re-adds servers and the library resyncs.

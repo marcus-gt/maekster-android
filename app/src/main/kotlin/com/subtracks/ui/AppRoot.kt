@@ -114,7 +114,9 @@ import com.subtracks.ui.playback.QueueRoute
 import com.subtracks.ui.search.SearchRoute
 import com.subtracks.ui.settings.AddSourceRoute
 import com.subtracks.ui.settings.LicensesRoute
+import com.subtracks.ui.settings.SettingsPage
 import com.subtracks.ui.settings.SettingsRoute
+import com.subtracks.ui.settings.settingsPageFor
 import com.subtracks.ui.theme.ArtworkTheme
 import com.subtracks.ui.theme.WhiteStatusBarIcons
 import com.subtracks.ui.theme.rememberArtworkColors
@@ -151,6 +153,7 @@ private object Routes {
     val SEARCH = TopLevelTab.Search.root
     const val LIBRARY_LIST = "library/{list}"
     const val SETTINGS = "settings"
+    const val SETTINGS_PAGE = "settings/{page}"
     const val DOWNLOADS = "downloads"
     const val LICENSES = "licenses"
     const val ADD_SERVER = "add-server"
@@ -176,6 +179,8 @@ private object Routes {
     fun playlist(id: String) = "playlist/${Uri.encode(id)}"
 
     fun libraryList(list: LibraryTab) = "library/${list.name}"
+
+    fun settingsPage(page: SettingsPage) = "settings/${page.name}"
 
     fun editServer(id: Long) = "edit-server/$id"
 
@@ -516,6 +521,22 @@ private fun MainNavigation() {
                             onEditServer = { id -> navController.navigate(Routes.editServer(id)) },
                             onBack = { navController.popBackStack() },
                             dismissals = contextMenuHost.dismissals,
+                            onOpenPage = { page -> navController.navigate(Routes.settingsPage(page)) },
+                        )
+                    }
+                    composable(
+                        route = Routes.SETTINGS_PAGE,
+                        arguments = listOf(navArgument("page") { type = NavType.StringType }),
+                    ) { entry ->
+                        val page = settingsPageFor(entry.arguments?.getString("page")) ?: return@composable
+                        SettingsRoute(
+                            onAddServer = { navController.navigate(Routes.ADD_SERVER) },
+                            onOpenDownloads = { navController.navigate(Routes.DOWNLOADS) },
+                            onOpenLicenses = { navController.navigate(Routes.LICENSES) },
+                            onEditServer = { id -> navController.navigate(Routes.editServer(id)) },
+                            onBack = { navController.popBackStack() },
+                            dismissals = contextMenuHost.dismissals,
+                            page = page,
                         )
                     }
                     composable(Routes.DOWNLOADS) {

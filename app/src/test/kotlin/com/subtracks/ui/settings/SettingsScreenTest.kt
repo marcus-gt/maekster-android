@@ -1,6 +1,9 @@
 package com.subtracks.ui.settings
 
 import androidx.activity.ComponentActivity
+import androidx.annotation.StringRes
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
@@ -12,6 +15,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import com.subtracks.R
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.ThemeMode
@@ -30,10 +34,84 @@ class SettingsScreenTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    private fun text(
+        @StringRes id: Int,
+    ) = composeRule.activity.getString(id)
+
+    @Test
+    fun theMainPageHasTheServersEachPageAndAbout() {
+        val opened = mutableListOf<SettingsPage>()
+        composeRule.setContent { MaeksterTheme { Settings(page = null, onOpenPage = { opened += it }) } }
+        awaitText(text(R.string.settings_servers_actions_add))
+
+        SettingsPage.entries.forEach { page ->
+            scrollTo(text(page.title))
+            composeRule.onNodeWithText(text(page.title)).performClick()
+        }
+        scrollTo(text(R.string.settings_about_actions_licenses))
+
+        assertEquals(SettingsPage.entries, opened)
+        composeRule.onNodeWithText(text(R.string.settings_theme_title)).assertDoesNotExist()
+    }
+
+    @Test
+    fun everySettingIsOnItsPage() {
+        val page = mutableStateOf<SettingsPage?>(null)
+        composeRule.setContent { MaeksterTheme { Settings(page = page.value) } }
+        val expected =
+            mapOf(
+                null to
+                    listOf(
+                        R.string.settings_servers_actions_add,
+                        R.string.settings_about_actions_licenses,
+                        R.string.settings_about_actions_project_homepage,
+                        R.string.settings_about_credits,
+                    ),
+                SettingsPage.Application to
+                    listOf(
+                        R.string.settings_network_options_offline_mode,
+                        R.string.settings_theme_title,
+                        R.string.settings_material_you_title,
+                        R.string.settings_sort_names_title,
+                        R.string.settings_about_actions_share_logs,
+                        R.string.settings_about_verbose_logging,
+                    ),
+                SettingsPage.Playback to
+                    listOf(
+                        R.string.settings_music_options_scrobble_title,
+                        R.string.settings_music_options_keep_screen_on_title,
+                        R.string.settings_network_options_max_bitrate_wifi_title,
+                        R.string.settings_network_options_max_bitrate_mobile_title,
+                        R.string.settings_replay_gain_title,
+                        R.string.settings_replay_gain_preamp_title,
+                    ),
+                SettingsPage.Storage to
+                    listOf(
+                        R.string.download_quality,
+                        R.string.download_over_mobile,
+                        R.string.manage_downloads,
+                        R.string.settings_sync_auto_title,
+                        R.string.sync_interval,
+                        R.string.sync_concurrency,
+                    ),
+            )
+
+        expected.forEach { (shown, labels) ->
+            composeRule.runOnIdle { page.value = shown }
+            composeRule.waitForIdle()
+            labels.forEach { label ->
+                scrollTo(text(label))
+                composeRule.onNodeWithText(text(label)).assertExists()
+            }
+        }
+    }
+
     @Test
     fun theKeepScreenOnRowTurnsTheSettingOn() {
         var requested: Boolean? = null
-        renderSettings(keepScreenOn = false, onKeepScreenOnChange = { requested = it })
+        renderPage(SettingsPage.Playback, "Keep screen on") {
+            Settings(page = SettingsPage.Playback, keepScreenOn = false, onKeepScreenOnChange = { requested = it })
+        }
 
         composeRule.onNodeWithText("Keep screen on").performClick()
         composeRule.waitForIdle()
@@ -44,7 +122,9 @@ class SettingsScreenTest {
     @Test
     fun theKeepScreenOnRowTurnsTheSettingOff() {
         var requested: Boolean? = null
-        renderSettings(keepScreenOn = true, onKeepScreenOnChange = { requested = it })
+        renderPage(SettingsPage.Playback, "Keep screen on") {
+            Settings(page = SettingsPage.Playback, keepScreenOn = true, onKeepScreenOnChange = { requested = it })
+        }
 
         composeRule.onNodeWithText("Keep screen on").performClick()
         composeRule.waitForIdle()
@@ -55,7 +135,9 @@ class SettingsScreenTest {
     @Test
     fun theKeepScreenOnSwitchTurnsTheSettingOn() {
         var requested: Boolean? = null
-        renderSettings(keepScreenOn = false, onKeepScreenOnChange = { requested = it })
+        renderPage(SettingsPage.Playback, "Keep screen on") {
+            Settings(page = SettingsPage.Playback, keepScreenOn = false, onKeepScreenOnChange = { requested = it })
+        }
 
         composeRule
             .onNode(isToggleable() and hasAnySibling(hasText("Keep screen on")), useUnmergedTree = true)
@@ -68,12 +150,9 @@ class SettingsScreenTest {
     @Test
     fun theSortNamesRowChangesTheSortNameMode() {
         var requested: SortNameMode? = null
-        renderSettings(
-            keepScreenOn = false,
-            onKeepScreenOnChange = {},
-            onSortNameModeChange = { requested = it },
-            scrollTo = "Sort names",
-        )
+        renderPage(SettingsPage.Application, "Sort names") {
+            Settings(page = SettingsPage.Application, onSortNameModeChange = { requested = it })
+        }
 
         composeRule.onNodeWithText("Sort names").performClick()
         composeRule.onNodeWithText("Use sort names").performClick()
@@ -86,13 +165,9 @@ class SettingsScreenTest {
     @Test
     fun theThemeRowShowsTheCurrentModeAndChangesIt() {
         var requested: ThemeMode? = null
-        renderSettings(
-            keepScreenOn = false,
-            onKeepScreenOnChange = {},
-            themeMode = ThemeMode.System,
-            onThemeModeChange = { requested = it },
-            scrollTo = "Theme",
-        )
+        renderPage(SettingsPage.Application, "Theme") {
+            Settings(page = SettingsPage.Application, themeMode = ThemeMode.System, onThemeModeChange = { requested = it })
+        }
 
         composeRule.onNodeWithText("Follow system").assertExists()
         composeRule.onNodeWithText("Theme").performClick()
@@ -106,12 +181,9 @@ class SettingsScreenTest {
     @Test
     fun theMaterialYouRowTurnsTheSettingOn() {
         var requested: Boolean? = null
-        renderSettings(
-            keepScreenOn = false,
-            onKeepScreenOnChange = {},
-            onMaterialYouChange = { requested = it },
-            scrollTo = "Material You colours",
-        )
+        renderPage(SettingsPage.Application, "Material You colours") {
+            Settings(page = SettingsPage.Application, onMaterialYouChange = { requested = it })
+        }
 
         composeRule.onNodeWithText("Material You colours").performClick()
         composeRule.waitForIdle()
@@ -121,63 +193,72 @@ class SettingsScreenTest {
 
     @Test
     fun theMaterialYouRowIsHiddenWhereTheDeviceCannotShowIt() {
-        renderSettings(
-            keepScreenOn = false,
-            onKeepScreenOnChange = {},
-            materialYouAvailable = false,
-            scrollTo = "Theme",
-        )
+        renderPage(SettingsPage.Application, "Theme") {
+            Settings(page = SettingsPage.Application, materialYouAvailable = false)
+        }
 
         composeRule.onNodeWithText("Material You colours").assertDoesNotExist()
     }
 
-    private fun renderSettings(
-        keepScreenOn: Boolean,
-        onKeepScreenOnChange: (Boolean) -> Unit,
+    @Composable
+    private fun Settings(
+        page: SettingsPage?,
+        keepScreenOn: Boolean = false,
+        onKeepScreenOnChange: (Boolean) -> Unit = {},
         onSortNameModeChange: (SortNameMode) -> Unit = {},
         themeMode: ThemeMode = ThemeMode.System,
         onThemeModeChange: (ThemeMode) -> Unit = {},
         materialYouAvailable: Boolean = true,
         onMaterialYouChange: (Boolean) -> Unit = {},
-        scrollTo: String = "Keep screen on",
+        onOpenPage: (SettingsPage) -> Unit = {},
     ) {
-        composeRule.setContent {
-            MaeksterTheme {
-                SettingsScreen(
-                    sources = emptyList(),
-                    activeSourceId = null,
-                    wifiQuality = StreamQuality(),
-                    mobileQuality = StreamQuality(),
-                    syncConcurrency = 1,
-                    downloadQuality = StreamQuality(),
-                    downloadOverMetered = false,
-                    scrobbling = false,
-                    keepScreenOn = keepScreenOn,
-                    onSelectSource = {},
-                    onEditServer = {},
-                    onWifiQualityChange = {},
-                    onMobileQualityChange = {},
-                    onSyncConcurrencyChange = {},
-                    onDownloadQualityChange = {},
-                    onDownloadOverMeteredChange = {},
-                    onScrobblingChange = {},
-                    onKeepScreenOnChange = onKeepScreenOnChange,
-                    onSortNameModeChange = onSortNameModeChange,
-                    themeMode = themeMode,
-                    materialYou = false,
-                    materialYouAvailable = materialYouAvailable,
-                    onThemeModeChange = onThemeModeChange,
-                    onMaterialYouChange = onMaterialYouChange,
-                    onAddServer = {},
-                    onOpenDownloads = {},
-                    onOpenLicenses = {},
-                    onShareLogs = {},
-                    onBack = {},
-                )
-            }
-        }
-        awaitText("Add server")
-        composeRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(scrollTo))
+        SettingsScreen(
+            sources = emptyList(),
+            activeSourceId = null,
+            wifiQuality = StreamQuality(),
+            mobileQuality = StreamQuality(),
+            syncConcurrency = 1,
+            downloadQuality = StreamQuality(),
+            downloadOverMetered = false,
+            scrobbling = false,
+            keepScreenOn = keepScreenOn,
+            onSelectSource = {},
+            onEditServer = {},
+            onWifiQualityChange = {},
+            onMobileQualityChange = {},
+            onSyncConcurrencyChange = {},
+            onDownloadQualityChange = {},
+            onDownloadOverMeteredChange = {},
+            onScrobblingChange = {},
+            onKeepScreenOnChange = onKeepScreenOnChange,
+            onSortNameModeChange = onSortNameModeChange,
+            themeMode = themeMode,
+            materialYou = false,
+            materialYouAvailable = materialYouAvailable,
+            onThemeModeChange = onThemeModeChange,
+            onMaterialYouChange = onMaterialYouChange,
+            onAddServer = {},
+            onOpenDownloads = {},
+            onOpenLicenses = {},
+            onShareLogs = {},
+            onBack = {},
+            page = page,
+            onOpenPage = onOpenPage,
+        )
+    }
+
+    private fun renderPage(
+        page: SettingsPage,
+        scrollTo: String,
+        content: @Composable () -> Unit,
+    ) {
+        composeRule.setContent { MaeksterTheme { content() } }
+        awaitText(text(page.title))
+        scrollTo(scrollTo)
+    }
+
+    private fun scrollTo(text: String) {
+        composeRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(text))
     }
 
     private fun awaitText(text: String) {

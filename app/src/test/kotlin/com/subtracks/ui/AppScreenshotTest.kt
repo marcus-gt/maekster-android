@@ -63,6 +63,7 @@ import com.subtracks.ui.playback.QueueRow
 import com.subtracks.ui.playback.QueueScreen
 import com.subtracks.ui.settings.AddSourceScreen
 import com.subtracks.ui.settings.AddSourceState
+import com.subtracks.ui.settings.SettingsPage
 import com.subtracks.ui.settings.SettingsScreen
 import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.artworkColorsFromSeed
@@ -386,7 +387,7 @@ class AppScreenshotTest {
 
     @Test
     fun replayGainPreampDialog() {
-        setSettingsContent()
+        setSettingsContent(page = SettingsPage.Playback)
         composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Preamp"))
         composeRule.onAllNodesWithText("Preamp")[0].performClick()
         composeRule.waitForIdle()
@@ -394,7 +395,7 @@ class AppScreenshotTest {
         composeRule.onRoot().captureRoboImage("src/test/screenshots/replay_gain_preamp.png")
     }
 
-    private fun setSettingsContent() {
+    private fun setSettingsContent(page: SettingsPage? = null) {
         composeRule.setContent {
             MaeksterTheme {
                 SettingsScreen(
@@ -419,6 +420,7 @@ class AppScreenshotTest {
                     onOpenLicenses = {},
                     onShareLogs = {},
                     onBack = {},
+                    page = page,
                 )
             }
         }

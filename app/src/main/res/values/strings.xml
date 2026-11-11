@@ -93,6 +93,14 @@
     <string name="settings_material_you_description">Use your wallpaper\'s colours instead of maekster orange.</string>
     <string name="settings_library_name">Library</string>
     <string name="settings_music_name">Playback</string>
+    <string name="settings_application_name">Application</string>
+    <string name="settings_application_summary">Offline mode, theme, sort names and logs</string>
+    <string name="settings_playback_summary">Scrobbling, streaming quality and ReplayGain</string>
+    <string name="settings_storage_name">Storage</string>
+    <string name="settings_storage_summary">Downloads and library sync</string>
+    <string name="settings_streaming_name">Streaming</string>
+    <string name="settings_volume_name">Volume</string>
+    <string name="settings_library_sync_name">Library sync</string>
     <string name="settings_music_options_scrobble_description_on">Send now playing and play counts</string>
     <string name="settings_music_options_scrobble_title">Scrobble to server</string>
     <string name="settings_replay_gain_mode_album">Album gain</string>
@@ -114,7 +122,6 @@
     <string name="sort_name_mode_sort_name">Use sort names</string>
     <string name="sort_name_mode_name">Use regular names</string>
     <string name="sort_name_mode_non_latin">Non-Latin names only</string>
-    <string name="settings_network_name">Network</string>
     <string name="settings_network_options_max_bitrate_mobile_title">Stream quality: Mobile</string>
     <string name="settings_network_options_max_bitrate_wifi_title">Stream quality: Wi-Fi</string>
     <string name="settings_network_options_offline_mode">Offline mode</string>
