@@ -182,6 +182,7 @@ class DownloadRepository(
                                 path = enginePath(row.sourceId, row.songId),
                                 title = title,
                                 allowMetered = sourceRepository.downloadsAllowedOverMetered(),
+                                headers = sourceRepository.headersFor(url),
                             ),
                         )
                     } catch (e: CancellationException) {

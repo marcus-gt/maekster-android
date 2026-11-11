@@ -22,6 +22,9 @@ class SystemDownloadEngine(
                 // one of those; the platform otherwise permits it by default.
                 .setAllowedOverMetered(request.allowMetered)
                 .setAllowedOverRoaming(request.allowMetered)
+        // DownloadManager sends these on every hop, so a redirect to another host would get them too, and nothing
+        // here can stop that. They are only added when the download starts at the server's own origin.
+        request.headers.forEach { download.addRequestHeader(it.name, it.value) }
         return manager().enqueue(download)
     }
 

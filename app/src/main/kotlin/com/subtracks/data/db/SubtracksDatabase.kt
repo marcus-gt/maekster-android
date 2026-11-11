@@ -28,6 +28,7 @@ import com.subtracks.data.model.SongDownload
 import com.subtracks.data.model.SongGenre
 import com.subtracks.data.model.SongSearch
 import com.subtracks.data.model.Source
+import com.subtracks.data.model.SourceHeader
 import com.subtracks.data.model.StringListConverter
 import com.subtracks.data.model.SubsonicSource
 import com.subtracks.data.model.UpNextEntry
@@ -36,6 +37,7 @@ import com.subtracks.data.model.UpNextEntry
     entities = [
         Source::class,
         SubsonicSource::class,
+        SourceHeader::class,
         Artist::class,
         ArtistBio::class,
         ArtistSearch::class,
@@ -57,7 +59,7 @@ import com.subtracks.data.model.UpNextEntry
         SongDownload::class,
         PendingAction::class,
     ],
-    version = 39,
+    version = 40,
     exportSchema = true,
 )
 @ColumnTypeConverters(

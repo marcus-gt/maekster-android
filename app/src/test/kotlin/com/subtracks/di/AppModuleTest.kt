@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.cancelAndJoinBlocking
+import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.playback.PlaybackController
 import kotlinx.coroutines.CoroutineScope
@@ -54,7 +55,9 @@ class AppModuleTest {
     @Test
     fun theModuleResolvesThePlaybackGraph() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        koin = startKoin { modules(appModule(context, OkHttpClient())) }.koin
+        val serverHeaders = ServerHeaders()
+        val http = OkHttpClient.Builder().addNetworkInterceptor(serverHeaders.interceptor()).build()
+        koin = startKoin { modules(appModule(context, http, serverHeaders)) }.koin
 
         val downloads = koin.get<DownloadRepository>()
         val controller = koin.get<PlaybackController>()

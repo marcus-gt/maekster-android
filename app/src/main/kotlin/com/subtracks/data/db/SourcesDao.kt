@@ -3,8 +3,10 @@ package com.subtracks.data.db
 import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.Query
+import androidx.room3.Transaction
 import androidx.room3.Upsert
 import com.subtracks.data.model.Source
+import com.subtracks.data.model.SourceHeader
 import com.subtracks.data.model.SubsonicSource
 import kotlinx.coroutines.flow.Flow
 
@@ -102,6 +104,32 @@ interface SourcesDao {
 
     @Query("SELECT sourceId, passwordCiphertext FROM subsonic_sources WHERE passwordCiphertext IS NOT NULL")
     fun sealedPasswords(): Flow<List<SealedPassword>>
+
+    @Query("SELECT * FROM source_headers WHERE sourceId = :sourceId ORDER BY position")
+    suspend fun headersOnce(sourceId: Long): List<SourceHeader>
+
+    @Query(
+        "SELECT h.* FROM source_headers h JOIN sources s ON s.id = h.sourceId WHERE s.isActive = 1 ORDER BY h.position",
+    )
+    fun activeHeaders(): Flow<List<SourceHeader>>
+
+    @Query("SELECT * FROM source_headers ORDER BY sourceId, position")
+    fun allHeaders(): Flow<List<SourceHeader>>
+
+    @Query("DELETE FROM source_headers WHERE sourceId = :sourceId")
+    suspend fun deleteHeaders(sourceId: Long)
+
+    @Insert
+    suspend fun insertHeaders(headers: List<SourceHeader>)
+
+    @Transaction
+    suspend fun replaceHeaders(
+        sourceId: Long,
+        headers: List<SourceHeader>,
+    ) {
+        deleteHeaders(sourceId)
+        if (headers.isNotEmpty()) insertHeaders(headers)
+    }
 
     @Query("DELETE FROM sources WHERE id = :id")
     suspend fun deleteSourceRow(id: Long)

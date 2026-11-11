@@ -8,11 +8,17 @@ import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.download.ArtworkStore
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Source
+import com.subtracks.data.model.SourceHeader
 import com.subtracks.data.model.SubsonicConfig
 import com.subtracks.data.model.SubsonicSource
 import com.subtracks.data.model.artistImageKey
 import com.subtracks.data.model.coverArtKey
+import com.subtracks.data.net.HeaderEntry
+import com.subtracks.data.net.HeaderValidator
 import com.subtracks.data.net.NetworkMode
+import com.subtracks.data.net.OriginScopedHeadersInterceptor
+import com.subtracks.data.net.ScopedHeaders
+import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.security.CredentialStore
@@ -31,7 +37,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -44,6 +49,7 @@ class SourceRepository(
     private val prefs: UserPreferences,
     private val artworkStore: ArtworkStore,
     private val credentials: CredentialStore,
+    private val serverHeaders: ServerHeaders = ServerHeaders(),
     networkMode: Flow<NetworkMode> = flowOf(NetworkMode.Wifi),
     private val showMessage: (UiMessage) -> Unit = {},
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
@@ -126,6 +132,10 @@ class SourceRepository(
                     showMessage(UiMessage(R.string.server_needs_sign_in, listOf(config.name)))
                 }
                 lastNeededSignIn = needsSignIn
+                // Before the source is built, so its first request already carries them.
+                serverHeaders.set(
+                    config?.takeIf { !needsSignIn }?.let { ScopedHeaders(normalizeAddress(it.address), it.headers) },
+                )
                 active =
                     config?.let {
                         ActiveSource(it.id, if (needsSignIn) null else it.toMusicSource(quality, concurrency))
@@ -149,21 +159,22 @@ class SourceRepository(
     suspend fun activeSourceIdOnce(): Long? = db.sourcesDao().activeSourceIdOnce()
 
     fun activeConfig(): Flow<SubsonicConfig?> =
-        db
-            .sourcesDao()
-            .activeSubsonicConfig()
-            .map { it?.open() }
-            .flowOn(Dispatchers.Default)
+        combine(db.sourcesDao().activeSubsonicConfig(), db.sourcesDao().activeHeaders()) { config, headers ->
+            config?.open(headers)
+        }.flowOn(Dispatchers.Default)
 
-    suspend fun sourceConfigOnce(id: Long): SubsonicConfig? = db.sourcesDao().subsonicConfigOnce(id)?.open()
+    suspend fun sourceConfigOnce(id: Long): SubsonicConfig? {
+        val dao = db.sourcesDao()
+        return dao.subsonicConfigOnce(id)?.open(dao.headersOnce(id))
+    }
 
-    /** The servers whose stored password can no longer be decrypted, so the user must enter it again. */
+    /** The servers whose stored password or a header value can no longer be decrypted, so the user must re-enter it. */
     fun sourcesNeedingSignIn(): Flow<Set<Long>> =
-        db
-            .sourcesDao()
-            .sealedPasswords()
-            .map { sealed -> sealed.filter { credentials.decrypt(it.passwordCiphertext) == null }.map { it.sourceId }.toSet() }
-            .flowOn(Dispatchers.Default)
+        combine(db.sourcesDao().sealedPasswords(), db.sourcesDao().allHeaders()) { sealed, headers ->
+            val passwords = sealed.filter { credentials.decrypt(it.passwordCiphertext) == null }.map { it.sourceId }
+            val values = headers.filter { credentials.decrypt(it.valueCiphertext) == null }.map { it.sourceId }
+            (passwords + values).toSet()
+        }.flowOn(Dispatchers.Default)
 
     /**
      * Moves every plaintext password left from before encryption into the [CredentialStore]. Each ciphertext is
@@ -182,18 +193,24 @@ class SourceRepository(
         }
     }
 
-    private fun StoredSubsonicConfig.open(): SubsonicConfig {
+    private fun StoredSubsonicConfig.open(stored: List<SourceHeader>): SubsonicConfig {
         val secret = if (passwordCiphertext != null) credentials.decrypt(passwordCiphertext) else password
+        val headers = stored.map { header -> credentials.decrypt(header.valueCiphertext)?.let { HeaderEntry(header.name, it) } }
+        val sealedAway = secret == null || headers.any { it == null }
         return SubsonicConfig(
             id = id,
             name = name,
             address = address,
             username = username,
-            password = secret.orEmpty(),
+            password = secret.takeUnless { sealedAway }.orEmpty(),
             useTokenAuth = useTokenAuth,
-            needsSignIn = secret == null,
+            needsSignIn = sealedAway,
+            headers = if (sealedAway) emptyList() else headers.filterNotNull(),
         )
     }
+
+    /** The headers to send with a request to [url]; for DownloadManager, which cannot run an OkHttp interceptor. */
+    fun headersFor(url: String): List<HeaderEntry> = serverHeaders.forUrl(url)
 
     fun coverArt(
         coverArt: String?,
@@ -263,7 +280,9 @@ class SourceRepository(
         username: String,
         password: String,
         useTokenAuth: Boolean,
+        headers: List<HeaderEntry> = emptyList(),
     ): Long {
+        requireValidHeaders(headers)
         val dao = db.sourcesDao()
         val id =
             dao.insertSource(
@@ -275,6 +294,7 @@ class SourceRepository(
                 ),
             )
         dao.upsertSubsonicSource(sealed(id, username, password, useTokenAuth))
+        dao.replaceHeaders(id, sealedHeaders(id, headers))
         dao.setActiveSource(id)
         return id
     }
@@ -288,11 +308,26 @@ class SourceRepository(
         username: String,
         password: String,
         useTokenAuth: Boolean,
+        headers: List<HeaderEntry> = emptyList(),
     ) {
+        requireValidHeaders(headers)
         val dao = db.sourcesDao()
         if (dao.sourceOnce(id) == null) return
         dao.updateSourceDetails(id, name.trim(), normalizeAddress(address))
         dao.upsertSubsonicSource(sealed(id, username, password, useTokenAuth))
+        dao.replaceHeaders(id, sealedHeaders(id, headers))
+    }
+
+    private fun requireValidHeaders(headers: List<HeaderEntry>) {
+        val problem = HeaderValidator.problem(headers)
+        require(problem == null) { "Invalid custom header: $problem" }
+    }
+
+    private fun sealedHeaders(
+        sourceId: Long,
+        headers: List<HeaderEntry>,
+    ) = headers.mapIndexed { position, header ->
+        SourceHeader(sourceId, position, header.name, credentials.encrypt(header.value))
     }
 
     // Only the ciphertext is stored; the plaintext column stays empty.
@@ -320,6 +355,7 @@ class SourceRepository(
         username: String,
         password: String,
         useTokenAuth: Boolean,
+        headers: List<HeaderEntry> = emptyList(),
     ): Result<Boolean> =
         if (_offline.value) {
             Result.failure(UiException(UiMessage(R.string.sync_offline), "Offline mode is on"))
@@ -327,14 +363,15 @@ class SourceRepository(
             withContext(Dispatchers.IO) {
                 var fellBack = false
                 runCatching {
-                    client(address, username, password, useTokenAuth) { fellBack = true }.check("ping")
+                    client(address, username, password, useTokenAuth, headersOverride = headers) { fellBack = true }
+                        .check("ping")
                 }.map { fellBack }
             }
         }
 
     suspend fun activeMusicSource(): MusicSource? {
         if (_offline.value) return null
-        val config = db.sourcesDao().activeSubsonicConfigOnce()?.open() ?: return null
+        val config = activeConfig().first() ?: return null
         if (config.needsSignIn) return null
         return config.toMusicSource(quality.value, prefs.syncConcurrency().first())
     }
@@ -344,7 +381,7 @@ class SourceRepository(
         artistId: String,
     ): String? {
         check(!_offline.value) { "Offline mode is on" }
-        val config = db.sourcesDao().subsonicConfigOnce(sourceId)?.open() ?: error("No configured source")
+        val config = sourceConfigOnce(sourceId) ?: error("No configured source")
         check(!config.needsSignIn) { "The source needs signing in" }
         return config.toMusicSource(quality.value, prefs.syncConcurrency().first()).artistBiography(artistId)
     }
@@ -382,15 +419,30 @@ class SourceRepository(
         username: String,
         password: String,
         useTokenAuth: Boolean,
+        // The headers typed into the server form, for testing a connection before they are saved.
+        headersOverride: List<HeaderEntry>? = null,
         onTokenAuthUnsupported: () -> Unit = {},
     ) = SubsonicClient(
         baseUrl = normalizeAddress(address).toHttpUrl(),
         username = username,
         password = password,
         useTokenAuth = useTokenAuth,
-        http = http,
+        http = headersOverride?.let { withHeaders(normalizeAddress(address), it) } ?: http,
         onTokenAuthUnsupported = onTokenAuthUnsupported,
     )
+
+    // The shared client sends the active server's saved headers; this one sends [headers] instead.
+    private fun withHeaders(
+        address: String,
+        headers: List<HeaderEntry>,
+    ): OkHttpClient {
+        val scoped = ScopedHeaders(address, headers)
+        return http
+            .newBuilder()
+            .apply { networkInterceptors().removeAll { it is OriginScopedHeadersInterceptor } }
+            .addNetworkInterceptor(OriginScopedHeadersInterceptor { scoped })
+            .build()
+    }
 
     private fun normalizeAddress(address: String): String {
         val trimmed = address.trim()

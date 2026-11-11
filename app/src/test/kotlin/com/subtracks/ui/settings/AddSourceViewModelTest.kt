@@ -24,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -183,6 +184,71 @@ class AddSourceViewModelTest {
             val config = sourceRepository.sourceConfigOnce(sourceId)!!
             assertFalse(config.needsSignIn)
             assertEquals("s3cret", config.password)
+        }
+
+    @Test
+    fun anInvalidHeaderStopsTheSave() =
+        runBlocking {
+            val viewModel = viewModel()
+            viewModel.setName("nav")
+            viewModel.setAddress(server.url("/").toString())
+            viewModel.addHeader()
+            val id =
+                viewModel.state.value.headers
+                    .single()
+                    .id
+            viewModel.setHeaderName(id, "Bad Name")
+            viewModel.setHeaderValue(id, "x")
+
+            var saved = false
+            viewModel.save { saved = true }
+
+            assertTrue(viewModel.state.value.headersError)
+            assertFalse(saved)
+            assertTrue("nothing is stored", sourceRepository.sources().first().isEmpty())
+        }
+
+    @Test
+    fun headersFromTheFormAreSavedAndShownWhenEditing() =
+        runBlocking {
+            val viewModel = viewModel()
+            viewModel.setName("nav")
+            viewModel.setAddress(server.url("/").toString())
+            viewModel.addHeader()
+            viewModel.addHeader()
+            val (first, empty) = viewModel.state.value.headers
+            viewModel.setHeaderName(first.id, " CF-Access-Client-Id ")
+            viewModel.setHeaderValue(first.id, "client ")
+            var saved = false
+            viewModel.save { saved = true }
+            await { saved }
+
+            val sourceId =
+                sourceRepository
+                    .sources()
+                    .first()
+                    .single()
+                    .id
+            val editing = viewModel(sourceId)
+            await {
+                editing.state.value.headers
+                    .isNotEmpty()
+            }
+
+            assertEquals("the empty row is dropped and both fields are trimmed", 1, editing.state.value.headers.size)
+            assertEquals(
+                "CF-Access-Client-Id",
+                editing.state.value.headers
+                    .single()
+                    .name,
+            )
+            assertEquals(
+                "client",
+                editing.state.value.headers
+                    .single()
+                    .value,
+            )
+            assertTrue(empty.name.isEmpty())
         }
 
     private fun viewModel(sourceId: Long? = null): AddSourceViewModel {

@@ -14,7 +14,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,9 +48,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
+import com.subtracks.data.net.HeaderValidator
 import com.subtracks.ui.components.DismissOnRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -69,12 +75,125 @@ fun AddSourceRoute(
         onUsernameChange = viewModel::setUsername,
         onPasswordChange = viewModel::setPassword,
         onTokenAuthChange = viewModel::setTokenAuth,
+        onAddHeader = viewModel::addHeader,
+        onRemoveHeader = viewModel::removeHeader,
+        onHeaderNameChange = viewModel::setHeaderName,
+        onHeaderValueChange = viewModel::setHeaderValue,
         onTest = viewModel::testConnection,
         onSave = { viewModel.save(onSaved) },
         onDelete = { viewModel.delete(onSaved) },
         onBack = onBack,
         dismissals = dismissals,
     )
+}
+
+/**
+ * The server's custom headers, for a reverse proxy that wants an access token. Values are hidden until revealed.
+ * A row's problem shows as soon as there is one; [showErrors] also marks rows still empty after a save attempt.
+ */
+@Composable
+private fun CustomHeaders(
+    headers: List<HeaderDraft>,
+    showErrors: Boolean,
+    onAdd: () -> Unit,
+    onRemove: (Long) -> Unit,
+    onNameChange: (Long, String) -> Unit,
+    onValueChange: (Long, String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.settings_servers_headers_title), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.settings_servers_headers_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val names = headers.map { it.name.trim().lowercase() }
+        headers.forEachIndexed { index, header ->
+            val duplicate = header.name.isNotBlank() && names.indexOf(names[index]) != index
+            HeaderRow(
+                header = header,
+                nameError = headerNameError(header, duplicate, showErrors)?.let { stringResource(it) },
+                valueError =
+                    if (HeaderValidator.isValidValue(header.value.trim())) null else stringResource(R.string.header_error_invalid_value),
+                onRemove = { onRemove(header.id) },
+                onNameChange = { onNameChange(header.id, it) },
+                onValueChange = { onValueChange(header.id, it) },
+            )
+        }
+        TextButton(onClick = onAdd) {
+            Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(stringResource(R.string.settings_servers_headers_add), modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+private fun headerNameError(
+    header: HeaderDraft,
+    duplicate: Boolean,
+    showErrors: Boolean,
+): Int? {
+    val name = header.name.trim()
+    return when {
+        name.isEmpty() -> if (showErrors && header.value.isNotBlank()) R.string.header_error_invalid_name else null
+        !HeaderValidator.isValidName(name) -> R.string.header_error_invalid_name
+        HeaderValidator.isReserved(name) -> R.string.header_error_reserved
+        duplicate -> R.string.header_error_duplicate
+        else -> null
+    }
+}
+
+@Composable
+private fun HeaderRow(
+    header: HeaderDraft,
+    nameError: String?,
+    valueError: String?,
+    onRemove: () -> Unit,
+    onNameChange: (String) -> Unit,
+    onValueChange: (String) -> Unit,
+) {
+    var revealed by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = header.name,
+                onValueChange = onNameChange,
+                label = { Text(stringResource(R.string.settings_servers_headers_name)) },
+                singleLine = true,
+                isError = nameError != null,
+                supportingText = nameError?.let { { Text(it) } },
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onRemove) {
+                Icon(
+                    Icons.Rounded.RemoveCircleOutline,
+                    contentDescription = stringResource(R.string.settings_servers_headers_remove, header.name),
+                )
+            }
+        }
+        OutlinedTextField(
+            value = header.value,
+            onValueChange = onValueChange,
+            label = { Text(stringResource(R.string.settings_servers_headers_value)) },
+            singleLine = true,
+            isError = valueError != null,
+            supportingText = valueError?.let { { Text(it) } },
+            visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Password),
+            trailingIcon = {
+                IconButton(onClick = { revealed = !revealed }) {
+                    Icon(
+                        if (revealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                        contentDescription =
+                            stringResource(
+                                if (revealed) R.string.settings_servers_headers_hide else R.string.settings_servers_headers_show,
+                            ),
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(end = 48.dp),
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,6 +211,10 @@ fun AddSourceScreen(
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
     dismissals: Flow<Unit> = emptyFlow(),
+    onAddHeader: () -> Unit = {},
+    onRemoveHeader: (Long) -> Unit = {},
+    onHeaderNameChange: (Long, String) -> Unit = { _, _ -> },
+    onHeaderValueChange: (Long, String) -> Unit = { _, _ -> },
 ) {
     val nameFocus = remember { FocusRequester() }
     val addressFocus = remember { FocusRequester() }
@@ -264,6 +387,14 @@ fun AddSourceScreen(
                         ),
                 )
             }
+            CustomHeaders(
+                headers = state.headers,
+                showErrors = state.headersError,
+                onAdd = onAddHeader,
+                onRemove = onRemoveHeader,
+                onNameChange = onHeaderNameChange,
+                onValueChange = onHeaderValueChange,
+            )
         }
     }
 

@@ -43,6 +43,27 @@ data class SubsonicSource(
     val passwordCiphertext: String? = null,
 )
 
+/** A custom HTTP header for a server, in the order the user listed them. The value is sealed like the password. */
+@Entity(
+    tableName = "source_headers",
+    primaryKeys = ["sourceId", "position"],
+    foreignKeys = [
+        ForeignKey(
+            entity = Source::class,
+            parentColumns = ["id"],
+            childColumns = ["sourceId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("sourceId")],
+)
+data class SourceHeader(
+    val sourceId: Long,
+    val position: Int,
+    val name: String,
+    val valueCiphertext: String,
+)
+
 data class ArtistRef(
     val id: String,
     val name: String,

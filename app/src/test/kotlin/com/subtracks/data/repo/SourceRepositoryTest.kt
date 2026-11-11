@@ -11,9 +11,12 @@ import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.download.ArtworkStore
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Source
+import com.subtracks.data.model.SourceHeader
 import com.subtracks.data.model.SubsonicSource
 import com.subtracks.data.model.artistImageKey
 import com.subtracks.data.model.coverArtKey
+import com.subtracks.data.net.HeaderEntry
+import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.prefs.fakeUserPreferences
@@ -56,6 +59,7 @@ class SourceRepositoryTest {
     private val messages = ArrayList<String>()
     private lateinit var resources: Resources
     private val credentials = FakeCredentialStore()
+    private val serverHeaders = ServerHeaders()
 
     private fun newRepository(scope: CoroutineScope) =
         SourceRepository(
@@ -64,6 +68,7 @@ class SourceRepositoryTest {
             prefs,
             artwork,
             credentials,
+            serverHeaders,
             showMessage = { messages += it.resolve(resources) },
             scope = scope,
         )
@@ -402,6 +407,58 @@ class SourceRepositoryTest {
 
             assertEquals(emptySet<Long>(), repository.sourcesNeedingSignIn().first())
             assertEquals("s3cret", repository.sourceConfigOnce(id)!!.password)
+        }
+
+    @Test
+    fun customHeadersAreSealedAndReachOnlyTheActiveServer() =
+        runBlocking {
+            val token = HeaderEntry("CF-Access-Client-Secret", "s3cret")
+            val id = repository.addSource("nav", "https://music.example", "u", "p", false, listOf(token))
+
+            val stored = db.sourcesDao().headersOnce(id)
+            assertEquals(listOf("CF-Access-Client-Secret"), stored.map { it.name })
+            assertFalse(stored.single().valueCiphertext.contains("s3cret"))
+            assertEquals(listOf(token), repository.sourceConfigOnce(id)!!.headers)
+
+            withTimeout(TEST_TIMEOUT_MS) { while (repository.headersFor("https://music.example/rest/ping").isEmpty()) delay(10) }
+            assertEquals(listOf(token), repository.headersFor("https://music.example/rest/stream?id=1"))
+            assertEquals(emptyList<HeaderEntry>(), repository.headersFor("https://cdn.example/art.jpg"))
+
+            repository.updateSource(id, "nav", "https://music.example", "u", "p", false, emptyList())
+            withTimeout(TEST_TIMEOUT_MS) { while (repository.headersFor("https://music.example/rest/ping").isNotEmpty()) delay(10) }
+            assertEquals(emptyList<SourceHeader>(), db.sourcesDao().headersOnce(id))
+        }
+
+    @Test
+    fun testingAConnectionSendsTheHeadersFromTheForm() =
+        runBlocking {
+            withServer { server ->
+                server.enqueue(MockResponse().setBody(OK))
+
+                repository.ping(server.url("/").toString(), "u", "p", false, listOf(HeaderEntry("X-Proxy-Token", "abc"))).getOrThrow()
+
+                assertEquals("abc", server.takeRequest().getHeader("X-Proxy-Token"))
+            }
+        }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun aHeaderTheStackSetsItselfIsRefused() =
+        runTest {
+            repository.addSource("nav", "https://music.example", "u", "p", false, listOf(HeaderEntry("Host", "x")))
+        }
+
+    @Test
+    fun aHeaderValueThatCanNoLongerBeReadAlsoNeedsSignIn() =
+        runTest {
+            val id = repository.addSource("nav", "https://music.example", "u", "p", false, listOf(HeaderEntry("X-Token", "t")))
+            val stored = db.sourcesDao().headersOnce(id).single()
+            db.sourcesDao().replaceHeaders(id, listOf(stored.copy(valueCiphertext = "lost")))
+
+            val config = repository.sourceConfigOnce(id)!!
+            assertTrue(config.needsSignIn)
+            assertEquals("no secret leaks out half-opened", "", config.password)
+            assertEquals(emptyList<HeaderEntry>(), config.headers)
+            assertEquals(setOf(id), repository.sourcesNeedingSignIn().first())
         }
 
     private suspend fun insertLegacySource(password: String): Long {

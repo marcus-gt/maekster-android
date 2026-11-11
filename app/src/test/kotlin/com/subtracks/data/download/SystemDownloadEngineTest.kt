@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.DownloadError
+import com.subtracks.data.net.HeaderEntry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -74,6 +75,23 @@ class SystemDownloadEngineTest {
             "destination $path is not under the source/song downloads directory",
             path.endsWith("/Music/downloads/7/song-9"),
         )
+    }
+
+    @Test
+    fun theServersCustomHeadersAreSentWithTheDownload() {
+        val id =
+            engine.enqueue(
+                EngineRequest(
+                    uri = "https://server.example/rest/download?id=s1",
+                    path = "downloads/1/s1",
+                    title = "s1",
+                    headers = listOf(HeaderEntry("X-Proxy-Token", "t0ken")),
+                ),
+            )
+
+        val headers = shadowOf(shadowOf(downloadManager).getRequest(id)).requestHeaders.associate { it.first to it.second }
+        assertEquals("t0ken", headers["X-Proxy-Token"])
+        assertTrue("the user agent stays", headers.containsKey("User-Agent"))
     }
 
     @Test

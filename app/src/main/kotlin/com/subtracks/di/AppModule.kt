@@ -12,6 +12,7 @@ import com.subtracks.data.download.DownloadEngine
 import com.subtracks.data.download.DownloadNotifier
 import com.subtracks.data.download.OkHttpArtworkFetcher
 import com.subtracks.data.download.SystemDownloadEngine
+import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.net.networkAvailable
 import com.subtracks.data.net.networkMode
 import com.subtracks.data.prefs.UserPreferences
@@ -63,6 +64,8 @@ import java.io.File
 fun appModule(
     context: Context,
     http: OkHttpClient,
+    // The same holder [http] reads in its network interceptor, so SourceRepository's updates reach every request.
+    serverHeaders: ServerHeaders,
 ) = module {
     // Repositories report to the user through this queue; the app shell shows each message as a snackbar.
     val uiMessages = UiMessages()
@@ -70,6 +73,7 @@ fun appModule(
     single { uiMessages }
     single { createAndroidDatabase(context) }
     single { http }
+    single { serverHeaders }
     single { createUserPreferences(context) }
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single(named("io")) { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
@@ -83,6 +87,7 @@ fun appModule(
             get(),
             get(),
             credentials = get(),
+            serverHeaders = get(),
             networkMode = networkMode(context.applicationContext),
             showMessage = showMessage,
             scope = get(),

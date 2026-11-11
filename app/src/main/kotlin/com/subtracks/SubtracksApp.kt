@@ -6,6 +6,7 @@ import coil3.SingletonImageLoader
 import coil3.annotation.DelicateCoilApi
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.subtracks.data.LegacyDataCleanup
+import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.ArtworkSeedStore
 import com.subtracks.di.appModule
@@ -15,11 +16,15 @@ import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 
 class SubtracksApp : Application() {
+    // The active server's custom headers, added per network hop and only for that server's origin.
+    private val serverHeaders = ServerHeaders()
+
     private val http =
         UserAgent
             .httpClient()
             .newBuilder()
             .addInterceptor(Log.interceptor())
+            .addNetworkInterceptor(serverHeaders.interceptor())
             .build()
 
     @OptIn(DelicateCoilApi::class)
@@ -31,7 +36,7 @@ class SubtracksApp : Application() {
         SingletonImageLoader.reset()
         val koin =
             startKoin {
-                modules(appModule(this@SubtracksApp, http))
+                modules(appModule(this@SubtracksApp, http, serverHeaders))
             }.koin
         ArtworkSeedCache.install(koin.get<ArtworkSeedStore>(), koin.get<UserPreferences>())
         SingletonImageLoader.setSafe { context ->

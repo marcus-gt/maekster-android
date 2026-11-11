@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.subtracks.MainActivity
 import com.subtracks.R
 import com.subtracks.UserAgent
+import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
@@ -212,6 +213,8 @@ class PlaybackService : MediaSessionService() {
         OkHttpClient
             .Builder()
             .addInterceptor(Log.interceptor())
+            // The server's custom headers, checked per hop so a redirect to another host gets none.
+            .addNetworkInterceptor(GlobalContext.get().get<ServerHeaders>().interceptor())
             .addInterceptor { chain ->
                 val started = SystemClock.elapsedRealtime()
                 val response = chain.proceed(chain.request())

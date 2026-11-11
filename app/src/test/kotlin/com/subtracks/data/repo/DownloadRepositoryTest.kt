@@ -5,6 +5,7 @@ import android.content.res.Resources
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.TEST_TIMEOUT_MS
 import com.subtracks.awaitUntil
 import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.db.SubtracksDatabase
@@ -24,18 +25,22 @@ import com.subtracks.data.model.PlaylistSong
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.data.model.Source
+import com.subtracks.data.model.SourceHeader
 import com.subtracks.data.model.SubsonicSource
 import com.subtracks.data.model.artistImageKey
 import com.subtracks.data.model.coverArtKey
+import com.subtracks.data.net.HeaderEntry
 import com.subtracks.data.prefs.fakeUserPreferences
 import com.subtracks.data.security.FakeCredentialStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -109,6 +114,26 @@ class DownloadRepositoryTest {
         db.close()
         dir.deleteRecursively()
     }
+
+    @Test
+    fun aDownloadFromTheServerCarriesItsCustomHeaders() =
+        runBlocking {
+            seedLibrary()
+            val token = HeaderEntry("X-Proxy-Token", "t0ken")
+            db.sourcesDao().replaceHeaders(1, listOf(SourceHeader(1, 0, token.name, FakeCredentialStore().encrypt(token.value))))
+            withTimeout(TEST_TIMEOUT_MS) {
+                while (sources.headersFor("http://localhost:4533/rest/download").isEmpty()) delay(10)
+            }
+
+            repository.download(1, "s1")
+
+            assertEquals(
+                listOf(token),
+                engine.requests
+                    .single()
+                    .second.headers,
+            )
+        }
 
     @Test
     fun startingADownloadAsksTheEngineForTheOriginalAndRecordsIt() =

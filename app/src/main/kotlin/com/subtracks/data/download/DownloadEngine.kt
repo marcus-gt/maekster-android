@@ -1,12 +1,15 @@
 package com.subtracks.data.download
 
 import com.subtracks.data.model.DownloadError
+import com.subtracks.data.net.HeaderEntry
 
 data class EngineRequest(
     val uri: String,
     val path: String,
     val title: String,
     val allowMetered: Boolean = false,
+    // The server's custom headers, already limited to [uri]'s origin.
+    val headers: List<HeaderEntry> = emptyList(),
 )
 
 enum class EngineStatus { Pending, Running, Completed, Failed }

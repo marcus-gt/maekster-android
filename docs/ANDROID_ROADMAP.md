@@ -190,8 +190,13 @@ Toast-based messaging (snackbars, M1.3).
 and `SourceRepository` seals new and edited passwords and moves old plaintext across at startup, verifying before it clears.
 A password that no longer decrypts marks the server "needs sign-in" (a message, a note in the Settings server list, and the
 edit form asks again). Checked on the emulator: an existing server migrated to a `v1:` ciphertext with the plaintext
-cleared, and streaming still worked. The plaintext column stays (always empty) until a later table rebuild. Next: part B,
-custom headers per server; part C, log redaction, typed connection errors, the HTTP warning and the `https://` default.
+cleared, and streaming still worked. The plaintext column stays (always empty) until a later table rebuild. Part B, custom
+headers per server, is done: schema 40 adds `source_headers` (values sealed), the server form
+has a Custom headers section with inline validation, and one `ServerHeaders` holder feeds a network interceptor on the API,
+Coil and Media3 clients, so only requests to the server's own origin get them, redirects included (MockWebServer tests).
+Downloads pass them to DownloadManager, which re-sends them on any redirect, including to another host; a download engine on
+OkHttp would close that gap. Not checked: a real header-protected server (the Caddy or nginx check below). Next: part C, log
+redaction, typed connection errors, the HTTP warning and the `https://` default.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
