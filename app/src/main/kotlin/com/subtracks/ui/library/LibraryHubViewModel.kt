@@ -1,7 +1,12 @@
 package com.subtracks.ui.library
 
+import androidx.annotation.StringRes
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.subtracks.R
 import com.subtracks.data.prefs.LibraryListTab
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
@@ -17,12 +22,30 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-/** The Library landing list's entries, in order. Songs, Genres, Favorites and Downloads join them in M2. */
-internal val LIBRARY_HUB_ENTRIES = listOf(LibraryTab.Playlists, LibraryTab.Albums, LibraryTab.Artists)
+/** An entry on the Library landing list: one of the library's lists, or a page such as Favorites. */
+enum class LibraryHubEntry(
+    @param:StringRes val label: Int,
+    val icon: ImageVector,
+    val list: LibraryTab? = null,
+) {
+    Playlists(LibraryTab.Playlists.label, LibraryTab.Playlists.icon, LibraryTab.Playlists),
+    Albums(LibraryTab.Albums.label, LibraryTab.Albums.icon, LibraryTab.Albums),
+    Artists(LibraryTab.Artists.label, LibraryTab.Artists.icon, LibraryTab.Artists),
+    Favorites(R.string.resources_filter_starred, Icons.Rounded.Favorite),
+}
 
-/** The entries to show offline: only the lists that have something downloaded. */
-internal fun offlineLibraryEntries(downloaded: Set<LibraryListTab>): List<LibraryTab> =
-    LIBRARY_HUB_ENTRIES.filter { it.listTab() in downloaded }
+/** The entries in the iOS order. Songs, Genres, Labels and Downloads join them later in M2. */
+internal val LIBRARY_HUB_ENTRIES = LibraryHubEntry.entries.toList()
+
+/**
+ * The entries to show offline: the lists with something downloaded, and Favorites while anything is downloaded
+ * (offline it lists only downloaded favorites).
+ */
+internal fun offlineLibraryEntries(downloaded: Set<LibraryListTab>): List<LibraryHubEntry> =
+    LIBRARY_HUB_ENTRIES.filter { entry ->
+        val list = entry.list?.listTab()
+        if (list != null) list in downloaded else downloaded.isNotEmpty()
+    }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryHubViewModel(
@@ -33,7 +56,7 @@ class LibraryHubViewModel(
     val offline: StateFlow<Boolean> = sourceRepository.offline
 
     /** Every entry online; only the lists with downloads offline. Null until known, so nothing flashes. */
-    val entries: StateFlow<List<LibraryTab>?> =
+    val entries: StateFlow<List<LibraryHubEntry>?> =
         combine(libraryRepository.activeSourceId.filterNotNull(), sourceRepository.offline) { sourceId, offline ->
             sourceId to offline
         }.flatMapLatest { (sourceId, offline) ->

@@ -12,7 +12,10 @@ import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
+import com.subtracks.data.prefs.AlbumSort
+import com.subtracks.data.prefs.ArtistSort
 import com.subtracks.data.prefs.PlaylistSort
+import com.subtracks.data.prefs.StarredFilter
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.playback.PlaybackController
@@ -22,6 +25,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -35,7 +39,17 @@ data class HomeListRequest(
     val genre: String? = null,
     val decade: Long? = null,
     val downloaded: OfflineListKind? = null,
+    val favorites: FavoriteKind? = null,
 )
+
+/** The three lists on the Favorites page. */
+enum class FavoriteKind(
+    @param:StringRes val title: Int,
+) {
+    Songs(R.string.search_songs),
+    Albums(R.string.resources_album_name),
+    Artists(R.string.resources_artist_name),
+}
 
 enum class OfflineListKind(
     @param:StringRes val title: Int,
@@ -55,15 +69,26 @@ class HomeListViewModel(
 ) : ViewModel() {
     private val sourceId = libraryRepository.activeSourceId.filterNotNull()
 
+    // Favorite songs are the same list as Home's recent favorites: newest first, played as the favorites queue.
+    private val favoriteSongs =
+        request.section == HomeSection.RecentlyStarredSongs || request.favorites == FavoriteKind.Songs
+
+    // Offline, favorites show only what is downloaded, like every other list.
+    private val sourceAndOffline = combine(sourceId, sourceRepository.offline) { id, offline -> id to offline }
+
     val canShuffle: Boolean =
         request.genre != null ||
-            request.section == HomeSection.RecentlyStarredSongs ||
+            favoriteSongs ||
             request.downloaded == OfflineListKind.Songs
 
     val albums: Flow<PagingData<Album>> =
-        sourceId
-            .flatMapLatest { id ->
+        sourceAndOffline
+            .flatMapLatest { (id, offline) ->
                 when {
+                    request.favorites == FavoriteKind.Albums -> {
+                        libraryRepository.albums(id, AlbumSort.Starred, false, StarredFilter.Starred, "", offline)
+                    }
+
                     request.downloaded == OfflineListKind.Albums -> {
                         libraryRepository.downloadedAlbumsPage(id)
                     }
@@ -95,8 +120,11 @@ class HomeListViewModel(
             }.cachedIn(viewModelScope)
 
     val artists: Flow<PagingData<Artist>> =
-        sourceId
-            .flatMapLatest { id ->
+        sourceAndOffline
+            .flatMapLatest { (id, offline) ->
+                if (request.favorites == FavoriteKind.Artists) {
+                    return@flatMapLatest libraryRepository.artists(id, ArtistSort.Starred, false, StarredFilter.Starred, "", offline)
+                }
                 when (request.section) {
                     HomeSection.RecentlyPlayedArtists -> {
                         libraryRepository.homeRecentlyPlayedArtists(id)
@@ -138,7 +166,7 @@ class HomeListViewModel(
                 when {
                     request.downloaded == OfflineListKind.Songs -> libraryRepository.downloadedSongsPage(id)
                     request.genre != null -> libraryRepository.songsByGenre(id, request.genre)
-                    request.section == HomeSection.RecentlyStarredSongs -> libraryRepository.starredSongs(id)
+                    favoriteSongs -> libraryRepository.starredSongs(id)
                     else -> flowOf(PagingData.empty<AlbumSongItem>())
                 }
             }.cachedIn(viewModelScope)
@@ -174,7 +202,7 @@ class HomeListViewModel(
                 viewModelScope.playDownloadedList(libraryRepository, playbackController, song)
             }
 
-            request.section == HomeSection.RecentlyStarredSongs -> {
+            favoriteSongs -> {
                 viewModelScope.playStarredList(
                     libraryRepository,
                     playbackController,
@@ -191,7 +219,7 @@ class HomeListViewModel(
     fun shuffle() {
         val genre = request.genre
         val downloaded = request.downloaded
-        val starred = request.section == HomeSection.RecentlyStarredSongs
+        val starred = favoriteSongs
         viewModelScope.launch {
             val id = sourceId.first()
             when {

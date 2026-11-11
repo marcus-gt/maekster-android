@@ -147,7 +147,7 @@ class LibraryRepositoryTest {
                 assertTrue(repository.setStar(StarType.Song, "s1", true).isFailure)
 
                 assertNull(starred())
-                assertEquals(listOf("Could not update star"), messages)
+                assertEquals(listOf("Couldn't update Favorites"), messages)
             }
         }
 
@@ -163,7 +163,7 @@ class LibraryRepositoryTest {
                 assertTrue(repository.setStar(StarType.Song, "s1", false).isFailure)
 
                 assertEquals(starredAt, starred())
-                assertEquals(listOf("Could not update star"), messages)
+                assertEquals(listOf("Couldn't update Favorites"), messages)
             }
         }
 

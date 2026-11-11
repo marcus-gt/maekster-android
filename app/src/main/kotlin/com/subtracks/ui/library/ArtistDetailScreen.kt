@@ -36,11 +36,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -909,7 +909,7 @@ private fun ArtistActions(
         enabled = onToggleStar != null,
     ) {
         Icon(
-            imageVector = if (starred) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+            imageVector = if (starred) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
             contentDescription =
                 stringResource(
                     if (starred) R.string.actions_unstar else R.string.actions_star,

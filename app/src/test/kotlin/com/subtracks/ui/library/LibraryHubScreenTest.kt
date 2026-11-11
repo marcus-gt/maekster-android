@@ -12,6 +12,7 @@ import com.subtracks.R
 import com.subtracks.data.prefs.LibraryListTab
 import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -22,17 +23,17 @@ class LibraryHubScreenTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
-    private fun label(tab: LibraryTab) = composeRule.activity.getString(tab.label)
+    private fun label(entry: LibraryHubEntry) = composeRule.activity.getString(entry.label)
 
     @Test
-    fun eachEntryOpensItsList() {
-        val opened = mutableListOf<LibraryTab>()
+    fun eachEntryOpensItsPage() {
+        val opened = mutableListOf<LibraryHubEntry>()
         composeRule.setContent {
             MaeksterTheme {
                 LibraryHubScreen(
                     entries = LIBRARY_HUB_ENTRIES,
                     offline = false,
-                    onOpenList = { opened += it },
+                    onOpenEntry = { opened += it },
                     onOpenSettings = {},
                 )
             }
@@ -44,8 +45,13 @@ class LibraryHubScreenTest {
     }
 
     @Test
-    fun theEntriesFollowTheIosOrder() {
-        assertEquals(listOf(LibraryTab.Playlists, LibraryTab.Albums, LibraryTab.Artists), LIBRARY_HUB_ENTRIES)
+    fun theEntriesFollowTheIosOrderAndFavoritesIsAPageNotAList() {
+        assertEquals(
+            listOf(LibraryHubEntry.Playlists, LibraryHubEntry.Albums, LibraryHubEntry.Artists, LibraryHubEntry.Favorites),
+            LIBRARY_HUB_ENTRIES,
+        )
+        assertEquals(LibraryTab.Albums, LibraryHubEntry.Albums.list)
+        assertNull(LibraryHubEntry.Favorites.list)
     }
 
     @Test
@@ -56,7 +62,7 @@ class LibraryHubScreenTest {
                 LibraryHubScreen(
                     entries = LIBRARY_HUB_ENTRIES,
                     offline = false,
-                    onOpenList = {},
+                    onOpenEntry = {},
                     onOpenSettings = { settingsOpened = true },
                 )
             }
@@ -68,12 +74,12 @@ class LibraryHubScreenTest {
     }
 
     @Test
-    fun offlineOnlyTheListsWithDownloadsAreOffered() {
+    fun offlineOnlyTheListsWithDownloadsAndFavoritesAreOffered() {
         assertEquals(
-            listOf(LibraryTab.Albums, LibraryTab.Artists),
+            listOf(LibraryHubEntry.Albums, LibraryHubEntry.Artists, LibraryHubEntry.Favorites),
             offlineLibraryEntries(setOf(LibraryListTab.Artists, LibraryListTab.Albums)),
         )
-        assertEquals(emptyList<LibraryTab>(), offlineLibraryEntries(emptySet()))
+        assertEquals(emptyList<LibraryHubEntry>(), offlineLibraryEntries(emptySet()))
     }
 
     @Test
@@ -84,7 +90,7 @@ class LibraryHubScreenTest {
                 LibraryHubScreen(
                     entries = emptyList(),
                     offline = true,
-                    onOpenList = {},
+                    onOpenEntry = {},
                     onOpenSettings = {},
                     onGoOnline = { wentOnline++ },
                 )

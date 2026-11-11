@@ -46,7 +46,7 @@ private val ICON_SIZE = 20.dp
 
 @Composable
 fun LibraryHubRoute(
-    onOpenList: (LibraryTab) -> Unit,
+    onOpenEntry: (LibraryHubEntry) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: LibraryHubViewModel = koinViewModel(),
 ) {
@@ -57,7 +57,7 @@ fun LibraryHubRoute(
     LibraryHubScreen(
         entries = entries,
         offline = offline,
-        onOpenList = onOpenList,
+        onOpenEntry = onOpenEntry,
         onOpenSettings = onOpenSettings,
         syncing = syncing,
         refreshing = refreshing,
@@ -73,9 +73,9 @@ fun LibraryHubRoute(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryHubScreen(
-    entries: List<LibraryTab>,
+    entries: List<LibraryHubEntry>,
     offline: Boolean,
-    onOpenList: (LibraryTab) -> Unit,
+    onOpenEntry: (LibraryHubEntry) -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     syncing: Boolean = false,
@@ -113,7 +113,7 @@ fun LibraryHubScreen(
                     contentPadding = PaddingValues(vertical = MaeksterSpacing.s),
                 ) {
                     items(entries, key = { it.name }) { entry ->
-                        LibraryHubRow(entry = entry, onClick = { onOpenList(entry) })
+                        LibraryHubRow(entry = entry, onClick = { onOpenEntry(entry) })
                     }
                 }
             }
@@ -123,7 +123,7 @@ fun LibraryHubScreen(
 
 @Composable
 private fun LibraryHubRow(
-    entry: LibraryTab,
+    entry: LibraryHubEntry,
     onClick: () -> Unit,
 ) {
     Row(

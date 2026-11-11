@@ -61,6 +61,7 @@ import com.subtracks.ui.components.ArtistArt
 import com.subtracks.ui.components.ArtistIcon
 import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.components.CoverArt
+import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
@@ -87,6 +88,7 @@ fun HomeListRoute(
     setStar: (StarType, String, Boolean) -> Unit,
     viewModel: HomeListViewModel = koinViewModel { parametersOf(request) },
     playbackController: PlaybackController = koinInject(),
+    topBarExtra: (@Composable () -> Unit)? = null,
 ) {
     val playback by playbackController.state.collectAsStateWithLifecycle()
     val genresState = if (request.section == HomeSection.Genres) viewModel.genres.collectAsStateWithLifecycle() else null
@@ -121,6 +123,7 @@ fun HomeListRoute(
         onShuffle = if (viewModel.canShuffle) viewModel::shuffle else null,
         onGenreClick = onGenreClick,
         onDecadeClick = onDecadeClick,
+        topBarExtra = topBarExtra,
     )
 }
 
@@ -147,6 +150,8 @@ fun HomeListScreen(
     onShuffle: (() -> Unit)? = null,
     onGenreClick: (String) -> Unit = {},
     onDecadeClick: (Long) -> Unit = {},
+    // Shown under the top bar, such as the Favorites page's Songs, Albums and Artists switcher.
+    topBarExtra: (@Composable () -> Unit)? = null,
 ) {
     val now = remember { System.currentTimeMillis() }
     val resources = LocalResources.current
@@ -155,22 +160,25 @@ fun HomeListScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text(request.title) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
-                    }
-                },
-                modifier =
-                    if (onShuffle != null) {
-                        Modifier.clickable(onClickLabel = stringResource(R.string.scroll_to_top)) {
-                            scope.launch { songListState.animateScrollToItem(0) }
+            Column {
+                TopAppBar(
+                    title = { Text(request.title) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
                         }
-                    } else {
-                        Modifier
                     },
-            )
+                    modifier =
+                        if (onShuffle != null) {
+                            Modifier.clickable(onClickLabel = stringResource(R.string.scroll_to_top)) {
+                                scope.launch { songListState.animateScrollToItem(0) }
+                            }
+                        } else {
+                            Modifier
+                        },
+                )
+                topBarExtra?.invoke()
+            }
         },
         floatingActionButton = {
             if (onShuffle != null && songs.itemCount > 0) {
@@ -178,6 +186,25 @@ fun HomeListScreen(
             }
         },
     ) { padding ->
+        val favorites = request.favorites
+        if (favorites != null) {
+            FavoritesContent(
+                kind = favorites,
+                albums = albums,
+                artists = artists,
+                songs = songs,
+                coverArt = coverArt,
+                artistArt = artistArt,
+                playingSongId = playingSongId,
+                onAlbumClick = onAlbumClick,
+                onArtistClick = onArtistClick,
+                onSongClick = onSongClick,
+                onLongClick = onLongClick,
+                songListState = songListState,
+                modifier = Modifier.padding(padding),
+            )
+            return@Scaffold
+        }
         val downloaded = request.downloaded
         if (downloaded != null) {
             when (downloaded) {
@@ -315,6 +342,48 @@ private fun <T> PlainList(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickable { onClick(item) },
             )
+        }
+    }
+}
+
+/** One list of the Favorites page, newest favorite first, with a hint when it is empty. */
+@Composable
+private fun FavoritesContent(
+    kind: FavoriteKind,
+    albums: LazyPagingItems<Album>,
+    artists: LazyPagingItems<Artist>,
+    songs: LazyPagingItems<AlbumSongItem>,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    artistArt: (Artist) -> ArtistArt,
+    playingSongId: String?,
+    onAlbumClick: (Album) -> Unit,
+    onArtistClick: (Artist) -> Unit,
+    onSongClick: (Song) -> Unit,
+    onLongClick: (MenuTarget) -> Unit,
+    songListState: LazyListState,
+    modifier: Modifier = Modifier,
+) {
+    val shown: LazyPagingItems<*> =
+        when (kind) {
+            FavoriteKind.Songs -> songs
+            FavoriteKind.Albums -> albums
+            FavoriteKind.Artists -> artists
+        }
+    if (shown.itemCount == 0 && shown.loadState.refresh is LoadState.NotLoading) {
+        EmptyState(text = stringResource(R.string.favorites_empty), modifier = modifier)
+        return
+    }
+    when (kind) {
+        FavoriteKind.Songs -> {
+            SongsList(songs, coverArt, playingSongId, onSongClick, onLongClick, songListState, modifier)
+        }
+
+        FavoriteKind.Albums -> {
+            AlbumsList(albums, coverArt, { it.albumArtist }, onAlbumClick, onLongClick, modifier)
+        }
+
+        FavoriteKind.Artists -> {
+            ArtistsList(artists, artistArt, { null }, onArtistClick, onLongClick, modifier)
         }
     }
 }

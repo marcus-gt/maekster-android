@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.PlayCircle
@@ -33,8 +35,6 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.ShuffleOn
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -592,7 +592,7 @@ fun NowPlayingScreen(
                             }
                             IconButton(onClick = { onToggleStar?.invoke() }, enabled = onToggleStar != null) {
                                 Icon(
-                                    imageVector = if (starred) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                                    imageVector = if (starred) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                     contentDescription = stringResource(if (starred) R.string.actions_unstar else R.string.actions_star),
                                     tint =
                                         if (starred) {

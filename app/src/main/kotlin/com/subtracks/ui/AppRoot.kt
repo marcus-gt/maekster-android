@@ -102,6 +102,7 @@ import com.subtracks.ui.home.HomeSection
 import com.subtracks.ui.home.OfflineListKind
 import com.subtracks.ui.library.AlbumDetailRoute
 import com.subtracks.ui.library.ArtistDetailRoute
+import com.subtracks.ui.library.FavoritesRoute
 import com.subtracks.ui.library.LibraryHubRoute
 import com.subtracks.ui.library.LibraryListRoute
 import com.subtracks.ui.library.LibraryTab
@@ -152,6 +153,9 @@ private object Routes {
     val LIBRARY = TopLevelTab.Library.root
     val SEARCH = TopLevelTab.Search.root
     const val LIBRARY_LIST = "library/{list}"
+
+    // Not under library/, which LIBRARY_LIST would match.
+    const val FAVORITES = "favorites"
     const val SETTINGS = "settings"
     const val SETTINGS_PAGE = "settings/{page}"
     const val DOWNLOADS = "downloads"
@@ -478,8 +482,32 @@ private fun MainNavigation() {
                     navigation(startDestination = Routes.LIBRARY, route = TopLevelTab.Library.graph) {
                         composable(Routes.LIBRARY) {
                             LibraryHubRoute(
-                                onOpenList = { list -> navController.navigate(Routes.libraryList(list)) },
+                                onOpenEntry = { entry ->
+                                    navController.navigate(entry.list?.let(Routes::libraryList) ?: Routes.FAVORITES)
+                                },
                                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                            )
+                        }
+                        composable(Routes.FAVORITES) {
+                            FavoritesRoute(
+                                onBack = { navController.popBackStack() },
+                                onAlbumClick = { album ->
+                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                },
+                                onArtistClick = { artist ->
+                                    navigateDetail(
+                                        Routes.ARTIST_DETAIL,
+                                        "artistId",
+                                        artist.id,
+                                        Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
+                                    )
+                                },
+                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { artistId ->
+                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                },
+                                setStar = libraryRepository::star,
+                                contextMenuHost = contextMenuHost,
                             )
                         }
                         composable(

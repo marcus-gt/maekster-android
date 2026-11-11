@@ -203,11 +203,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     private fun starButton(isStarred: Boolean): CommandButton =
-        CommandButton
-            .Builder(if (isStarred) CommandButton.ICON_STAR_FILLED else CommandButton.ICON_STAR_UNFILLED)
-            .setSessionCommand(STAR_COMMAND)
-            .setDisplayName(getString(if (isStarred) R.string.actions_unstar else R.string.actions_star))
-            .build()
+        favoriteButton(isStarred, getString(if (isStarred) R.string.actions_unstar else R.string.actions_star))
 
     private fun streamingClient(): OkHttpClient =
         OkHttpClient
@@ -238,11 +234,21 @@ class PlaybackService : MediaSessionService() {
         session = null
         super.onDestroy()
     }
-
-    private companion object {
-        val STAR_COMMAND = SessionCommand("com.subtracks.STAR", Bundle.EMPTY)
-    }
 }
+
+// The command keeps its old name so controllers that already know it keep working.
+internal val STAR_COMMAND = SessionCommand("com.subtracks.STAR", Bundle.EMPTY)
+
+/** The notification's favorite button: a filled heart once the track is a favorite, an outline before. */
+internal fun favoriteButton(
+    isFavorite: Boolean,
+    displayName: String,
+): CommandButton =
+    CommandButton
+        .Builder(if (isFavorite) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED)
+        .setSessionCommand(STAR_COMMAND)
+        .setDisplayName(displayName)
+        .build()
 
 // Process-scoped so it is never released while a loader thread is still committing to it, and so
 // a recreated service does not try to lock the directory a second time.

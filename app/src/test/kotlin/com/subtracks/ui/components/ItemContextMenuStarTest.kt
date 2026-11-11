@@ -63,10 +63,10 @@ class ItemContextMenuStarTest {
         }
 
         composeRule.mainClock.autoAdvance = false
-        composeRule.onNodeWithText("Star").performClick()
+        composeRule.onNodeWithText("Add to Favorites").performClick()
         composeRule.mainClock.advanceTimeBy(100)
 
-        composeRule.onNodeWithText("Unstar").assertIsDisplayed()
+        composeRule.onNodeWithText("Remove from Favorites").assertIsDisplayed()
         assertEquals(true, starred)
         assertFalse("the menu should stay open so the new icon is visible", dismissed)
 

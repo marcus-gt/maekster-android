@@ -83,7 +83,7 @@ class LibraryOptionsTest {
         composeRule.waitForIdle()
         assertEquals("Added", query.sort)
 
-        composeRule.onAllNodesWithText("Starred")[1].performClick()
+        composeRule.onAllNodesWithText("Favorites")[1].performClick()
         composeRule.waitForIdle()
         assertEquals(StarredFilter.Starred, query.starred)
 

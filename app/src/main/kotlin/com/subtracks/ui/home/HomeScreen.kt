@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Category
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LibraryAdd
@@ -39,7 +40,6 @@ import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -579,7 +579,7 @@ private val HomeSection.icon: ImageVector
             HomeSection.MostPlayedArtists -> Icons.Rounded.LocalFireDepartment
             HomeSection.Genres -> Icons.Rounded.Category
             HomeSection.Decades -> Icons.Rounded.CalendarMonth
-            HomeSection.RecentlyStarredSongs -> Icons.Rounded.Star
+            HomeSection.RecentlyStarredSongs -> Icons.Rounded.Favorite
             HomeSection.RecentlyAddedAlbums -> Icons.Rounded.LibraryAdd
             HomeSection.Rediscover -> Icons.Rounded.Replay
         }

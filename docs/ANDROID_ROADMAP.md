@@ -210,6 +210,14 @@ text too; they are stored lowercase because tags vary ("album" and "Album"). Che
 as before. Navidrome sends `isCompilation` only when true, so the UI should read null as "not a compilation". Not run: the
 integration tests on gonic, LMS and Nextcloud Music, and the 200k-song `queryTiming` measurement.
 
+**M2.3 status (11 Nov 2026):** done. Hearts replace stars in item menus, Now Playing, the artist
+page, the Home section and the media notification (Media3 `ICON_HEART_*`), and the wording follows iOS ("Add to Favorites",
+"Favorites"); the server's star API and the stored `starred` columns are unchanged. The Library landing list gains a Favorites
+entry (`LibraryHubEntry`, since it is a page rather than a list) opening favorite songs, albums or artists, newest first, through
+a switcher; songs play and shuffle as the favorites queue, and offline shows only downloaded favorites. It reuses the Home list
+screen with a `favorites` request. iOS's letter index on Favorites is left for the M2.4 letter rail. Not done: the Favorites
+screenshot.
+
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
   skip to downloaded). Process death during playback, then restore. Lyrics with Navidrome-embedded LRC and LRCLIB fallback.

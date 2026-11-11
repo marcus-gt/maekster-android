@@ -21,11 +21,11 @@ import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Cancel
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -505,7 +505,8 @@ private fun MenuItem(
     )
 }
 
-private fun starIcon(starred: Long?): ImageVector = if (starred == null) Icons.Rounded.StarBorder else Icons.Rounded.Star
+// Favorites are hearts, as on iOS; the server calls them stars.
+private fun starIcon(starred: Long?): ImageVector = if (starred == null) Icons.Rounded.FavoriteBorder else Icons.Rounded.Favorite
 
 @Composable
 private fun starLabel(starred: Long?): String =
