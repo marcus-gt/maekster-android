@@ -460,6 +460,36 @@ class LibraryDaoTest {
         }
 
     @Test
+    fun eachListReportsWhetherItHasACompletedDownload() =
+        runTest {
+            val sourceId = source()
+            val dao = db.libraryDao()
+            dao.upsertAlbums(listOf(album(sourceId, "al-1", "Album", year = 2000, starred = null)))
+            dao.upsertArtists(listOf(artist(sourceId, "ar-1", "Artist", albumCount = 1)))
+            dao.upsertSongs(listOf(song(sourceId, "s1", "One", starred = null), song(sourceId, "s2", "Two", starred = null)))
+            dao.upsertPlaylists(listOf(playlist(sourceId, "pl-1", "Playlist", created = 0, changed = 0)))
+            dao.upsertPlaylistSongs(listOf(PlaylistSong(sourceId, "pl-1", "s2", 0)))
+
+            suspend fun lists() =
+                listOf(
+                    dao.hasDownloadedAlbums(sourceId, starredFilter = 0, search = "").first(),
+                    dao.hasDownloadedArtists(sourceId, starredFilter = 0, search = "").first(),
+                    dao.hasDownloadedPlaylists(sourceId, search = "").first(),
+                )
+
+            assertEquals(listOf(false, false, false), lists())
+
+            db.downloadDao().upsert(SongDownload(sourceId, "s1", DownloadStatus.Queued))
+            assertEquals("an unfinished download does not count", listOf(false, false, false), lists())
+
+            db.downloadDao().upsert(SongDownload(sourceId, "s1", DownloadStatus.Completed))
+            assertEquals("a song outside every playlist leaves Playlists empty", listOf(true, true, false), lists())
+
+            db.downloadDao().upsert(SongDownload(sourceId, "s2", DownloadStatus.Completed))
+            assertEquals(listOf(true, true, true), lists())
+        }
+
+    @Test
     fun theDownloadedFilterKeepsOnlyEntitiesWithACompletedDownload() =
         runTest {
             val sourceId = source()

@@ -17,13 +17,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.subtracks.R
 import com.subtracks.data.model.Album
-import com.subtracks.data.model.Artist
-import com.subtracks.data.model.Playlist
 import com.subtracks.data.prefs.ListQuery
 import com.subtracks.data.prefs.StarredFilter
 import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.library.ALBUM_COVER_TAG
-import com.subtracks.ui.library.LibraryScreen
+import com.subtracks.ui.library.LibraryListScreen
 import com.subtracks.ui.library.LibraryTab
 import com.subtracks.ui.library.PlaySortAvailability
 import com.subtracks.ui.library.sortOptionsFor
@@ -48,18 +46,12 @@ class LibraryOptionsTest {
         var query by mutableStateOf(ListQuery("Name"))
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
                     albums = remember { flowOf(PagingData.from(albums())) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                     coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
+                    onBack = {},
                     listQuery = query,
                     sortOptions = sortOptionsFor(LibraryTab.Albums),
                     starredSupported = true,
@@ -105,18 +97,12 @@ class LibraryOptionsTest {
         val host = ContextMenuHost()
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
                     albums = remember { flowOf(PagingData.from(albums())) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                     coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
+                    onBack = {},
                     sortOptions = sortOptionsFor(LibraryTab.Albums),
                     starredSupported = true,
                     dismissals = host.dismissals,

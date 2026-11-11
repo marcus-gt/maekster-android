@@ -40,6 +40,7 @@ import com.subtracks.ui.home.HomeListViewModel
 import com.subtracks.ui.home.HomeViewModel
 import com.subtracks.ui.library.AlbumDetailViewModel
 import com.subtracks.ui.library.ArtistDetailViewModel
+import com.subtracks.ui.library.LibraryHubViewModel
 import com.subtracks.ui.library.LibraryViewModel
 import com.subtracks.ui.library.PlaylistDetailViewModel
 import com.subtracks.ui.playback.QueueViewModel
@@ -141,6 +142,7 @@ fun appModule(
     single { NowPlayingLauncher() }
     viewModel { RootViewModel(get()) }
     viewModel { LibraryViewModel(get(), get(), get(), get(), get(), get()) }
+    viewModel { LibraryHubViewModel(get(), get(), get()) }
     viewModel { HomeViewModel(get(), get(), get(), get()) }
     viewModel { params -> HomeListViewModel(get(), get(), get(), params.get()) }
     viewModel { SearchViewModel(get(), get(), get()) }

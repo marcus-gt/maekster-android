@@ -22,6 +22,7 @@ import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.Song
 import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.ArtistSort
+import com.subtracks.data.prefs.LibraryListTab
 import com.subtracks.data.prefs.PlaylistSort
 import com.subtracks.data.prefs.StarredFilter
 import com.subtracks.data.prefs.UserPreferences
@@ -58,6 +59,22 @@ class LibraryRepository(
     fun hasAlbumPlayCount(sourceId: Long): Flow<Boolean> = db.libraryDao().hasAlbumPlayCount(sourceId)
 
     fun hasAlbumPlayed(sourceId: Long): Flow<Boolean> = db.libraryDao().hasAlbumPlayed(sourceId)
+
+    /** The Library lists with something downloaded, so the Library can hide the empty ones while offline. */
+    fun downloadedLists(sourceId: Long): Flow<Set<LibraryListTab>> {
+        val dao = db.libraryDao()
+        return combine(
+            dao.hasDownloadedAlbums(sourceId, StarredFilter.Any.ordinal, search = ""),
+            dao.hasDownloadedArtists(sourceId, StarredFilter.Any.ordinal, search = ""),
+            dao.hasDownloadedPlaylists(sourceId, search = ""),
+        ) { albums, artists, playlists ->
+            buildSet {
+                if (albums) add(LibraryListTab.Albums)
+                if (artists) add(LibraryListTab.Artists)
+                if (playlists) add(LibraryListTab.Playlists)
+            }
+        }
+    }
 
     fun recentlyPlayedAlbums(
         sourceId: Long,

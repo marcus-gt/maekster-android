@@ -117,11 +117,6 @@ class LibraryViewModel(
 
     fun setOffline(enabled: Boolean) = sourceRepository.setOfflineMode(enabled)
 
-    val syncing: StateFlow<Boolean> =
-        syncManager.status
-            .map { it is SyncStatus.Running }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
     val refreshing: StateFlow<Boolean> =
         syncManager.status
             .map { it is SyncStatus.Running && !it.silent }
@@ -181,16 +176,6 @@ class LibraryViewModel(
     }
 
     fun listQuery(tab: LibraryListTab): StateFlow<ListQuery> = listQueries.getValue(tab)
-
-    val selectedTab: StateFlow<LibraryTab?> =
-        userPreferences
-            .libraryTab()
-            .map(::libraryTabFor)
-            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
-    fun selectTab(tab: LibraryTab) {
-        viewModelScope.launch { userPreferences.setLibraryTab(tab.name) }
-    }
 
     fun setListQuery(
         tab: LibraryListTab,

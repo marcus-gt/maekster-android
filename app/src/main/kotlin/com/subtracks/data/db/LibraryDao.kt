@@ -398,6 +398,29 @@ interface LibraryDao {
     @Query("SELECT EXISTS(SELECT 1 FROM albums WHERE sourceId = :sourceId AND played IS NOT NULL)")
     fun hasAlbumPlayed(sourceId: Long): Flow<Boolean>
 
+    // Whether each Library list has anything to show offline. They use the downloaded lists' own filters (with no
+    // search or starred filter), so an entry is hidden exactly when its list would be empty. The flows observe songs
+    // and downloads, so collect them only while offline, when neither a sync nor a download writes.
+    @Query("SELECT EXISTS(SELECT 1 $ALBUMS_FILTER_DOWNLOADED)")
+    fun hasDownloadedAlbums(
+        sourceId: Long,
+        starredFilter: Int,
+        search: String,
+    ): Flow<Boolean>
+
+    @Query("SELECT EXISTS(SELECT 1 $ARTISTS_FILTER_DOWNLOADED)")
+    fun hasDownloadedArtists(
+        sourceId: Long,
+        starredFilter: Int,
+        search: String,
+    ): Flow<Boolean>
+
+    @Query("SELECT EXISTS(SELECT 1 $PLAYLISTS_FILTER_DOWNLOADED)")
+    fun hasDownloadedPlaylists(
+        sourceId: Long,
+        search: String,
+    ): Flow<Boolean>
+
     @Query(
         "SELECT * FROM albums WHERE sourceId = :sourceId AND played IS NOT NULL " +
             "ORDER BY played DESC, sortName COLLATE NOCASE, id LIMIT :limit",

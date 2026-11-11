@@ -4,7 +4,6 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -13,11 +12,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.model.Album
-import com.subtracks.data.model.Artist
-import com.subtracks.data.model.Playlist
 import com.subtracks.data.prefs.ListQuery
 import com.subtracks.ui.library.ALBUM_COVER_TAG
-import com.subtracks.ui.library.LibraryScreen
+import com.subtracks.ui.library.LibraryListScreen
 import com.subtracks.ui.library.LibraryTab
 import com.subtracks.ui.library.sortOptionsFor
 import com.subtracks.ui.theme.MaeksterTheme
@@ -40,18 +37,12 @@ class LibrarySearchScreenshotTest {
     fun librarySearch() {
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
                     albums = remember { flowOf(PagingData.from(albums())) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                     coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
+                    onBack = {},
                     listQuery = ListQuery("Name"),
                     sortOptions = sortOptionsFor(LibraryTab.Albums),
                     starredSupported = true,
@@ -61,13 +52,13 @@ class LibrarySearchScreenshotTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithTag(ALBUM_COVER_TAG).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithContentDescription("List options").performClick()
-        composeRule.mainClock.advanceTimeBy(1_000)
-        composeRule.waitForIdle()
-        composeRule.onAllNodesWithText("Search this list")[0].performClick()
+        composeRule.onNodeWithContentDescription("Search this list").performClick()
         composeRule.mainClock.advanceTimeBy(1_000)
         composeRule.waitForIdle()
         composeRule.onRoot().captureRoboImage("src/test/screenshots/library_search.png")
+        // Close the field so its cursor blink does not outlive the test and stall later Compose tests in this JVM.
+        composeRule.onNodeWithContentDescription("Close search").performClick()
+        composeRule.waitForIdle()
     }
 
     private fun albums() =

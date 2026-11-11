@@ -119,6 +119,12 @@ close the keyboard; the mini-player and snackbars follow it. It never hides for 
 hide-on-scroll pattern rather than the iOS tab bar minimising into floating pills, which would read as an iOS imitation
 (decided with the user on 11 Nov 2026).
 
+**M1.4 status (11 Nov 2026):** in progress, in two parts. Part 1, the Library hub, is done: the
+Library tab opens on a landing list (Playlists, Albums, Artists, in the iOS order, with accent icon tiles); each opens its own
+list screen with back, list search and the sort and filter bottom sheet in its top bar, replacing the pager, the section
+strip and the floating options button. Offline, the landing list hides sections with no downloads, using the downloaded
+lists' own filters. The stored pager tab preference is gone. Part 2, the Settings grouping, is next.
+
 - **Data model and migrations:** none in Room. One new DataStore key (theme). A new `applicationId` means a fresh install
   with no import from Subtracks (D1): the user re-adds servers and the library resyncs.
 - **Manual emulator checks:** cold start without a server shows the welcome; add the Navidrome demo; tabs keep their

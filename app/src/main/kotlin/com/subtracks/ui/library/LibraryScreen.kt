@@ -3,34 +3,20 @@ package com.subtracks.ui.library
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
+import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.ArrowDownward
@@ -41,67 +27,36 @@ import androidx.compose.material.icons.rounded.FilterAltOff
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.boundsInParent
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.PagingData
@@ -111,7 +66,6 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
-import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.ListDownloadStatus
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.prefs.AlbumSort
@@ -130,16 +84,14 @@ import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
 import com.subtracks.ui.components.SearchField
 import com.subtracks.ui.components.rememberPendingDownloadDelete
-import com.subtracks.ui.theme.ArtworkColors
-import com.subtracks.ui.theme.librarySurfaceColor
-import com.subtracks.ui.theme.playerSurfaceColor
+import com.subtracks.ui.theme.MaeksterSpacing
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
+/** The library's lists, each opened from the Library landing list. */
 enum class LibraryTab(
     @param:StringRes val label: Int,
     val icon: ImageVector,
@@ -157,6 +109,7 @@ data class SortOption(
 
 fun LibraryTab.listTab(): LibraryListTab? = LibraryListTab.entries.firstOrNull { it.name == name }
 
+/** The list a route argument names; anything unknown opens Albums. */
 internal fun libraryTabFor(name: String?): LibraryTab = LibraryTab.entries.firstOrNull { it.name == name } ?: LibraryTab.Albums
 
 fun sortOptionsFor(
@@ -211,13 +164,13 @@ fun sortOptionsFor(
         }
     }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryRoute(
+fun LibraryListRoute(
+    list: LibraryTab,
+    onBack: () -> Unit,
     onAlbumClick: (Album) -> Unit,
     onArtistClick: (Artist) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
-    onOpenSettings: () -> Unit,
     onViewAlbum: (String) -> Unit,
     onViewArtist: (String) -> Unit,
     contextMenuHost: ContextMenuHost? = null,
@@ -226,37 +179,14 @@ fun LibraryRoute(
     viewModel: LibraryViewModel = koinViewModel(),
     playbackController: PlaybackController = koinInject(),
 ) {
-    // Wait for the stored tab before composing: the pager latches its initial page, so starting on
-    // the default and scrolling to the stored one would flash and, worse, report the default back.
-    val selectedTab = viewModel.selectedTab.collectAsStateWithLifecycle().value ?: return
-    var previousTabName by remember { mutableStateOf(selectedTab.name) }
-    val previousTab = LibraryTab.entries.firstOrNull { it.name == previousTabName } ?: LibraryTab.Albums
-    val syncing by viewModel.syncing.collectAsStateWithLifecycle()
+    val listTab = list.listTab() ?: return
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
-    val listTab = selectedTab.listTab()
-    LaunchedEffect(selectedTab) {
-        if (previousTab != selectedTab) {
-            previousTab.listTab()?.let { viewModel.setSearch(it, "") }
-            previousTabName = selectedTab.name
-        }
-    }
-    val listQueryState = listTab?.let { viewModel.listQuery(it).collectAsStateWithLifecycle() }
-    val listQuery = listQueryState?.value ?: ListQuery("")
+    val listQuery by viewModel.listQuery(listTab).collectAsStateWithLifecycle()
     val offline by viewModel.offline.collectAsStateWithLifecycle()
     val playSort by viewModel.playSortAvailability.collectAsStateWithLifecycle()
     val displayQuery = if (offline) listQuery.copy(downloaded = true) else listQuery
-    val searchState = listTab?.let { viewModel.search(it).collectAsStateWithLifecycle() }
-    val search = searchState?.value.orEmpty()
-    val resetKeys =
-        LibraryTab.entries
-            .mapNotNull { tab ->
-                val tabList = tab.listTab() ?: return@mapNotNull null
-                val query by viewModel.listQuery(tabList).collectAsStateWithLifecycle()
-                val term by viewModel.search(tabList).collectAsStateWithLifecycle()
-                tab to "${query.sort}|${query.descending}|${query.starred}|${query.downloaded || offline}|$term"
-            }.toMap()
-    val downloadsState = listTab?.let { viewModel.downloads(it).collectAsStateWithLifecycle() }
-    val downloads = downloadsState?.value ?: emptyMap()
+    val search by viewModel.search(listTab).collectAsStateWithLifecycle()
+    val downloads by viewModel.downloads(listTab).collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val pendingDelete = rememberPendingDownloadDelete(contextMenuHost?.dismissals ?: emptyFlow(), viewModel::downloadedBytes)
     val itemActions =
@@ -268,38 +198,32 @@ fun LibraryRoute(
             viewAlbum = onViewAlbum,
             viewArtist = onViewArtist,
         )
-    LibraryScreen(
-        selectedTab = selectedTab,
-        onTabSelected = { tab -> if (viewModel.selectedTab.value != tab) viewModel.selectTab(tab) },
-        syncing = syncing,
+    LibraryListScreen(
+        list = list,
         refreshing = refreshing,
         bottomInset = bottomInset,
-        // The tab screens follow the app theme. Only artwork-led surfaces take the playing track's colours.
-        artwork = null,
-        albums = viewModel.albums,
-        artists = viewModel.artists,
-        playlists = viewModel.playlists,
+        albums = if (list == LibraryTab.Albums) viewModel.albums else emptyFlow(),
+        artists = if (list == LibraryTab.Artists) viewModel.artists else emptyFlow(),
+        playlists = if (list == LibraryTab.Playlists) viewModel.playlists else emptyFlow(),
         coverArt = viewModel::coverArt,
         artistArt = { viewModel.artistArt(it) },
         onAlbumClick = onAlbumClick,
         onArtistClick = onArtistClick,
         onPlaylistClick = onPlaylistClick,
         onSync = viewModel::sync,
-        onOpenSettings = onOpenSettings,
+        onBack = onBack,
         onItemLongClick = {
             focusManager.clearFocus()
             contextMenuHost?.show(it, itemActions)
         },
         listQuery = displayQuery,
-        resetKeys = resetKeys,
+        resetKey = "${listQuery.sort}|${listQuery.descending}|${listQuery.starred}|${listQuery.downloaded || offline}|$search",
         offline = offline,
         onExitOffline = { viewModel.setOffline(false) },
-        sortOptions = sortOptionsFor(selectedTab, playSort),
-        starredSupported = listTab?.supportsStarred == true,
-        onSortChange = { sort -> listTab?.let { viewModel.setListQuery(it, listQuery.copy(sort = sort)) } },
-        onToggleSortDirection = {
-            listTab?.let { viewModel.setListQuery(it, listQuery.copy(descending = !listQuery.descending)) }
-        },
+        sortOptions = sortOptionsFor(list, playSort),
+        starredSupported = listTab.supportsStarred,
+        onSortChange = { sort -> viewModel.setListQuery(listTab, listQuery.copy(sort = sort)) },
+        onToggleSortDirection = { viewModel.setListQuery(listTab, listQuery.copy(descending = !listQuery.descending)) },
         onCycleStarred = {
             val next =
                 when (listQuery.starred) {
@@ -307,22 +231,16 @@ fun LibraryRoute(
                     StarredFilter.Starred -> StarredFilter.NotStarred
                     StarredFilter.NotStarred -> StarredFilter.Any
                 }
-            listTab?.let { viewModel.setListQuery(it, listQuery.copy(starred = next)) }
+            viewModel.setListQuery(listTab, listQuery.copy(starred = next))
         },
         onClearFilters = {
-            listTab?.let {
-                viewModel.setListQuery(it, listQuery.copy(starred = StarredFilter.Any, downloaded = false))
-                viewModel.setSearch(it, "")
-            }
+            viewModel.setListQuery(listTab, listQuery.copy(starred = StarredFilter.Any, downloaded = false))
+            viewModel.setSearch(listTab, "")
         },
         search = search,
-        onSearchChange = { value -> listTab?.let { viewModel.setSearch(it, value) } },
-        onToggleDownloaded = {
-            listTab?.let { viewModel.setListQuery(it, listQuery.copy(downloaded = !listQuery.downloaded)) }
-        },
-        albumDownloads = downloads.takeIf { listTab == LibraryListTab.Albums }.orEmpty(),
-        artistDownloads = downloads.takeIf { listTab == LibraryListTab.Artists }.orEmpty(),
-        playlistDownloads = downloads.takeIf { listTab == LibraryListTab.Playlists }.orEmpty(),
+        onSearchChange = { value -> viewModel.setSearch(listTab, value) },
+        onToggleDownloaded = { viewModel.setListQuery(listTab, listQuery.copy(downloaded = !listQuery.downloaded)) },
+        downloads = downloads,
         dismissals = contextMenuHost?.dismissals ?: emptyFlow(),
     )
 
@@ -331,30 +249,33 @@ fun LibraryRoute(
     }
 }
 
+/**
+ * One library list (albums, artists or playlists) pushed from the Library landing list. Its top bar carries
+ * search and the sort and filter sheet; only the flow for [list] is collected.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(
-    selectedTab: LibraryTab,
-    onTabSelected: (LibraryTab) -> Unit,
-    albums: Flow<PagingData<Album>>,
-    artists: Flow<PagingData<Artist>>,
-    playlists: Flow<PagingData<Playlist>>,
+fun LibraryListScreen(
+    list: LibraryTab,
     coverArt: (String?, Boolean) -> CoverArtRef?,
-    onAlbumClick: (Album) -> Unit,
-    onArtistClick: (Artist) -> Unit,
-    onPlaylistClick: (Playlist) -> Unit,
     onSync: () -> Unit,
-    onOpenSettings: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    // Lists not passed in show as settled and empty rather than loading forever.
+    albums: Flow<PagingData<Album>> = remember { flowOf(PagingData.empty()) },
+    artists: Flow<PagingData<Artist>> = remember { flowOf(PagingData.empty()) },
+    playlists: Flow<PagingData<Playlist>> = remember { flowOf(PagingData.empty()) },
+    onAlbumClick: (Album) -> Unit = {},
+    onArtistClick: (Artist) -> Unit = {},
+    onPlaylistClick: (Playlist) -> Unit = {},
     artistArt: (Artist) -> ArtistArt = { ArtistArt() },
     offline: Boolean = false,
     onExitOffline: () -> Unit = {},
     onItemLongClick: (MenuTarget) -> Unit = {},
-    syncing: Boolean = false,
     refreshing: Boolean = false,
     bottomInset: Dp = 0.dp,
     listQuery: ListQuery = ListQuery(""),
-    resetKeys: Map<LibraryTab, Any?> = emptyMap(),
+    resetKey: Any? = null,
     sortOptions: List<SortOption> = emptyList(),
     starredSupported: Boolean = false,
     onSortChange: (String) -> Unit = {},
@@ -364,236 +285,124 @@ fun LibraryScreen(
     onClearFilters: () -> Unit = {},
     search: String = "",
     onSearchChange: (String) -> Unit = {},
-    artwork: ArtworkColors? = null,
-    albumDownloads: Map<String, ListDownloadStatus> = emptyMap(),
-    artistDownloads: Map<String, ListDownloadStatus> = emptyMap(),
-    playlistDownloads: Map<String, ListDownloadStatus> = emptyMap(),
+    downloads: Map<String, ListDownloadStatus> = emptyMap(),
     dismissals: Flow<Unit> = emptyFlow(),
 ) {
-    val pagerState =
-        rememberPagerState(
-            initialPage = selectedTab.ordinal,
-            pageCount = { LibraryTab.entries.size },
-        )
     var showOptions by rememberSaveable { mutableStateOf(false) }
     var searchActive by rememberSaveable { mutableStateOf(false) }
-    var topRequest by remember { mutableIntStateOf(0) }
     val searchFocus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
     val closeSearch = {
         searchActive = false
         onSearchChange("")
     }
 
-    // Search mode is left open so the typed query survives; MainNavigation dismisses the keyboard.
+    // Search stays open while a query is typed, so the query survives opening a result and coming back.
     DismissOnRequest(dismissals) { showOptions = false }
     BackHandler(enabled = searchActive, onBack = closeSearch)
+    LaunchedEffect(Unit) { if (search.isNotEmpty()) searchActive = true }
 
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { page ->
-            onTabSelected(LibraryTab.entries[page])
-        }
-    }
-
-    LaunchedEffect(selectedTab) {
-        if (pagerState.currentPage != selectedTab.ordinal) {
-            pagerState.animateScrollToPage(selectedTab.ordinal)
-        }
-        if (search.isNotEmpty()) searchActive = true
-    }
-
-    val density = LocalDensity.current
-    val focusManager = LocalFocusManager.current
-    val statusBarTop = with(density) { WindowInsets.statusBars.getTop(this).toDp() }
     val filtersActive = listQuery.starred != StarredFilter.Any || listQuery.downloaded || search.isNotEmpty()
-    // The section strip sits under the status bar; its measured height includes the status bar.
-    var tabBarHeightPx by remember { mutableFloatStateOf(with(density) { (TAB_BAR_CONTENT_HEIGHT + statusBarTop).toPx() }) }
-    val tabBarHeight = with(density) { tabBarHeightPx.toDp() }
-    val listTopInset = tabBarHeight
-    val listBottomInset = bottomInset + BOTTOM_CLEARANCE
-    val headerColor = artwork?.let(::playerSurfaceColor) ?: MaterialTheme.colorScheme.background
-    val listOptionsLabel = stringResource(R.string.list_options)
+    val listBottomInset = bottomInset + MaeksterSpacing.l
+    val open = { action: () -> Unit ->
+        focusManager.clearFocus()
+        action()
+    }
 
-    Box(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .background(artwork?.let(::librarySurfaceColor) ?: MaterialTheme.colorScheme.background),
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            beyondViewportPageCount = 1,
-        ) { page ->
-            val pageTab = LibraryTab.entries[page]
-            val resetKey = resetKeys[pageTab]
-            val scrollToTopKey = if (pageTab == selectedTab) topRequest else null
-            val pullToRefreshState = rememberPullToRefreshState()
-            PullToRefreshBox(
-                isRefreshing = refreshing,
-                onRefresh = onSync,
-                state = pullToRefreshState,
-                indicator = {
-                    PullToRefreshDefaults.Indicator(
-                        state = pullToRefreshState,
-                        isRefreshing = refreshing,
-                        modifier = Modifier.align(Alignment.TopCenter).padding(top = tabBarHeight),
-                        containerColor = headerColor,
-                        color = artwork?.scheme?.primary ?: MaterialTheme.colorScheme.primary,
-                    )
-                },
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                when (pageTab) {
-                    LibraryTab.Albums -> {
-                        AlbumsContent(
-                            albums.collectAsLazyPagingItems(),
-                            coverArt,
-                            listBottomInset,
-                            {
-                                focusManager.clearFocus()
-                                onAlbumClick(it)
-                            },
-                            onLongClick = onItemLongClick,
-                            filtered = filtersActive,
-                            onClearFilters = onClearFilters,
-                            resetKey = resetKey,
-                            topInset = listTopInset,
-                            onSync = onSync,
-                            downloadStatuses = albumDownloads,
-                            scrollToTopKey = scrollToTopKey,
-                        )
-                    }
-
-                    LibraryTab.Artists -> {
-                        ArtistsContent(
-                            artists.collectAsLazyPagingItems(),
-                            coverArt,
-                            listBottomInset,
-                            {
-                                focusManager.clearFocus()
-                                onArtistClick(it)
-                            },
-                            onLongClick = onItemLongClick,
-                            filtered = filtersActive,
-                            onClearFilters = onClearFilters,
-                            resetKey = resetKey,
-                            topInset = listTopInset,
-                            onSync = onSync,
-                            downloadStatuses = artistDownloads,
-                            scrollToTopKey = scrollToTopKey,
-                            artistArt = artistArt,
-                        )
-                    }
-
-                    LibraryTab.Playlists -> {
-                        PlaylistsContent(
-                            playlists.collectAsLazyPagingItems(),
-                            coverArt,
-                            listBottomInset,
-                            {
-                                focusManager.clearFocus()
-                                onPlaylistClick(it)
-                            },
-                            onLongClick = onItemLongClick,
-                            filtered = filtersActive,
-                            onClearFilters = onClearFilters,
-                            resetKey = resetKey,
-                            topInset = listTopInset,
-                            onSync = onSync,
-                            downloadStatuses = playlistDownloads,
-                            scrollToTopKey = scrollToTopKey,
-                        )
-                    }
-                }
-            }
-        }
-
-        // The section strip is the Library tab's top bar, with the Settings action every tab root carries.
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .background(headerColor)
-                    .onSizeChanged { tabBarHeightPx = it.height.toFloat() }
-                    .statusBarsPadding(),
-        ) {
-            LibraryTabs(
-                pagerState = pagerState,
-                onTabSelected = { tab ->
-                    if (tab == selectedTab) topRequest++ else onTabSelected(tab)
-                },
-                onOpenSettings = onOpenSettings,
-                artwork = artwork,
-                syncing = syncing,
-            )
-        }
-
-        if (searchActive) {
-            SearchField(
-                value = search,
-                onValueChange = onSearchChange,
-                onClose = closeSearch,
-                focusRequester = searchFocus,
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-            )
-        }
-
-        if (!searchActive) {
-            val fabContainerColor = artwork?.scheme?.primary ?: MaterialTheme.colorScheme.surfaceContainerHigh
-            val fabContentColor = artwork?.scheme?.onPrimary ?: MaterialTheme.colorScheme.onBackground
-            if (offline) {
-                FilledTonalIconButton(
-                    onClick = onExitOffline,
+    Scaffold(
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            if (searchActive) {
+                SearchField(
+                    value = search,
+                    onValueChange = onSearchChange,
+                    onClose = closeSearch,
+                    focusRequester = searchFocus,
                     modifier =
                         Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 16.dp, bottom = bottomInset + 16.dp)
-                            .size(48.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.CloudOff,
-                        contentDescription = stringResource(R.string.offline_mode_status),
-                        modifier = Modifier.size(24.dp).offset(y = (-0.75).dp),
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = MaeksterSpacing.m, vertical = MaeksterSpacing.s),
+                )
+            } else {
+                TopAppBar(
+                    title = { Text(stringResource(list.label)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
+                        }
+                    },
+                    actions = {
+                        if (offline) {
+                            IconButton(onClick = onExitOffline) {
+                                Icon(Icons.Rounded.CloudOff, contentDescription = stringResource(R.string.offline_mode_status))
+                            }
+                        }
+                        IconButton(onClick = { searchActive = true }) {
+                            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search_this_list))
+                        }
+                        IconButton(onClick = { showOptions = true }) {
+                            BadgedBox(badge = { if (filtersActive) Badge() }) {
+                                Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = stringResource(R.string.list_options))
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                )
+            }
+        },
+    ) { padding ->
+        PullToRefreshBox(
+            isRefreshing = refreshing,
+            onRefresh = onSync,
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            when (list) {
+                LibraryTab.Albums -> {
+                    AlbumsContent(
+                        albums.collectAsLazyPagingItems(),
+                        coverArt,
+                        listBottomInset,
+                        { open { onAlbumClick(it) } },
+                        onLongClick = onItemLongClick,
+                        filtered = filtersActive,
+                        onClearFilters = onClearFilters,
+                        resetKey = resetKey,
+                        onSync = onSync,
+                        downloadStatuses = downloads,
                     )
                 }
-            }
-            FloatingActionButton(
-                onClick = { showOptions = true },
-                containerColor = fabContainerColor,
-                contentColor = fabContentColor,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 12.dp),
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = bottomInset + 16.dp),
-            ) {
-                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                    ListOptionsGlyph(
-                        modifier =
-                            Modifier
-                                .size(24.dp)
-                                .semantics { contentDescription = listOptionsLabel },
+
+                LibraryTab.Artists -> {
+                    ArtistsContent(
+                        artists.collectAsLazyPagingItems(),
+                        coverArt,
+                        listBottomInset,
+                        { open { onArtistClick(it) } },
+                        onLongClick = onItemLongClick,
+                        filtered = filtersActive,
+                        onClearFilters = onClearFilters,
+                        resetKey = resetKey,
+                        onSync = onSync,
+                        downloadStatuses = downloads,
+                        artistArt = artistArt,
                     )
-                    if (filtersActive) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .align(Alignment.TopEnd)
-                                    .offset(x = 1.dp, y = 2.5.dp)
-                                    .size(11.dp)
-                                    .background(fabContainerColor, CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(7.dp)
-                                        .background(fabContentColor, CircleShape),
-                            )
-                        }
-                    }
+                }
+
+                LibraryTab.Playlists -> {
+                    PlaylistsContent(
+                        playlists.collectAsLazyPagingItems(),
+                        coverArt,
+                        listBottomInset,
+                        { open { onPlaylistClick(it) } },
+                        onLongClick = onItemLongClick,
+                        filtered = filtersActive,
+                        onClearFilters = onClearFilters,
+                        resetKey = resetKey,
+                        onSync = onSync,
+                        downloadStatuses = downloads,
+                    )
                 }
             }
         }
@@ -602,7 +411,6 @@ fun LibraryScreen(
     if (showOptions) {
         ModalBottomSheet(
             onDismissRequest = { showOptions = false },
-            dragHandle = null,
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             ListOptionsSheet(
@@ -646,7 +454,7 @@ private fun ListOptionsSheet(
             shape = RoundedCornerShape(8.dp),
             color = Color.Transparent,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 12.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -765,298 +573,6 @@ private fun ListOptionsSheet(
                                 }
                             }
                         },
-                )
-            }
-        }
-    }
-}
-
-private val BOTTOM_CLEARANCE = 80.dp
-private val TAB_BAR_CONTENT_HEIGHT = 52.dp
-private val TAB_STRIP_LEADING_GAP = 8.dp
-private val TAB_ICON_SIZE = 24.dp
-private val TAB_VERTICAL_PADDING = 6.dp
-private val TOUCH_TARGET = 48.dp
-private const val LIST_OPTIONS_WEIGHT = 0.11f
-private val LIST_OPTIONS_BAR_WIDTHS = listOf(1f, 0.62f, 0.34f)
-
-@Composable
-private fun ListOptionsGlyph(modifier: Modifier = Modifier) {
-    val color = LocalContentColor.current
-    Canvas(modifier) {
-        val thickness = size.height * LIST_OPTIONS_WEIGHT
-        val gap = size.height / (LIST_OPTIONS_BAR_WIDTHS.size + 1)
-        LIST_OPTIONS_BAR_WIDTHS.forEachIndexed { index, widthFraction ->
-            val y = gap * (index + 1)
-            drawLine(
-                color = color,
-                start = Offset(0f, y),
-                end = Offset(size.width * widthFraction, y),
-                strokeWidth = thickness,
-                cap = StrokeCap.Round,
-            )
-        }
-    }
-}
-
-@Suppress("FrequentlyChangingValue")
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-internal fun LibraryTabs(
-    pagerState: PagerState,
-    onTabSelected: (LibraryTab) -> Unit,
-    onOpenSettings: () -> Unit,
-    artwork: ArtworkColors?,
-    syncing: Boolean = false,
-) {
-    val indicatorStretch = 18.dp
-    val density = LocalDensity.current
-    val layoutDirection = LocalLayoutDirection.current
-    val bounds = remember { mutableStateMapOf<Int, Rect>() }
-    val page = pagerState.currentPage
-    val fraction = pagerState.currentPageOffsetFraction
-    val raw = abs(fraction).coerceIn(0f, 1f)
-    val transition = raw * raw * (3f - 2f * raw)
-    var travel by remember { mutableIntStateOf(1) }
-    LaunchedEffect(Unit) {
-        var previous = pagerState.currentPage + pagerState.currentPageOffsetFraction
-        snapshotFlow { pagerState.currentPage + pagerState.currentPageOffsetFraction }.collect { current ->
-            if (current != previous) {
-                travel = if (current > previous) 1 else -1
-                previous = current
-            }
-        }
-    }
-
-    val current = bounds[page]
-    val neighbour = current?.let { bounds[if (fraction >= 0f) page + 1 else page - 1] }
-    val step = if (neighbour != null) transition else 0f
-    val stretch = with(density) { indicatorStretch.toPx() } * step
-    val leading = stretch * 2f
-    val trailing = stretch * 0.25f
-    val leftExtra = if (travel > 0) trailing else leading
-    val rightExtra = if (travel > 0) leading else trailing
-    val indicatorLeft = current?.let { it.left + ((neighbour?.left ?: it.left) - it.left) * step - leftExtra }
-    val indicatorRight = current?.let { it.right + ((neighbour?.right ?: it.right) - it.right) * step + rightExtra }
-
-    val headerColor = artwork?.let(::playerSurfaceColor) ?: MaterialTheme.colorScheme.background
-    val indicatorColor = artwork?.scheme?.primary ?: MaterialTheme.colorScheme.onBackground
-    val tabContentHeightPx = with(density) { (TAB_ICON_SIZE + TAB_VERTICAL_PADDING * 2).toPx() }
-
-    val scrollState = rememberScrollState()
-    var viewportWidth by remember { mutableIntStateOf(0) }
-    var contentWidth by remember { mutableIntStateOf(0) }
-    var revealed by remember { mutableStateOf(false) }
-    val leadingGap = with(density) { TAB_STRIP_LEADING_GAP.toPx() }
-    LaunchedEffect(pagerState.settledPage, viewportWidth, contentWidth, layoutDirection, bounds[pagerState.settledPage]) {
-        if (viewportWidth == 0) return@LaunchedEffect
-        val settled = bounds[pagerState.settledPage] ?: return@LaunchedEffect
-        val start = if (layoutDirection == LayoutDirection.Rtl) contentWidth - settled.right else leadingGap + settled.left
-        val end = if (layoutDirection == LayoutDirection.Rtl) contentWidth - settled.left else leadingGap + settled.right
-        val target =
-            when {
-                start - leadingGap < scrollState.value -> start - leadingGap
-                end > scrollState.value + viewportWidth -> end - viewportWidth
-                else -> null
-            }
-        if (target != null) {
-            val offset = target.roundToInt().coerceIn(0, scrollState.maxValue)
-            if (revealed) scrollState.animateScrollTo(offset) else scrollState.scrollTo(offset)
-        }
-        revealed = true
-    }
-
-    Box(Modifier.fillMaxWidth()) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .background(headerColor)
-                    .padding(top = 2.dp, end = 8.dp, bottom = 2.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .onSizeChanged { viewportWidth = it.width }
-                            .horizontalScroll(scrollState)
-                            .onSizeChanged { contentWidth = it.width },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Spacer(Modifier.width(TAB_STRIP_LEADING_GAP))
-                    Box(
-                        modifier =
-                            Modifier
-                                .drawBehind {
-                                    if (current != null &&
-                                        indicatorLeft != null &&
-                                        indicatorRight != null &&
-                                        indicatorRight > indicatorLeft
-                                    ) {
-                                        val height = tabContentHeightPx.coerceAtMost(current.height)
-                                        drawRoundRect(
-                                            color = indicatorColor,
-                                            topLeft = Offset(indicatorLeft, current.top + (current.height - height) / 2f),
-                                            size = Size(indicatorRight - indicatorLeft, height),
-                                            cornerRadius = CornerRadius(8.dp.toPx()),
-                                        )
-                                    }
-                                },
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            LibraryTab.entries.forEachIndexed { index, tab ->
-                                TabButton(
-                                    tab = tab,
-                                    artwork = artwork,
-                                    progress =
-                                        when (index) {
-                                            page -> 1f - transition
-                                            page + (if (fraction >= 0f) 1 else -1) -> transition
-                                            else -> 0f
-                                        },
-                                    indicatorLeft = indicatorLeft,
-                                    indicatorRight = indicatorRight,
-                                    onClick = { onTabSelected(tab) },
-                                    modifier =
-                                        Modifier.onGloballyPositioned { coordinates ->
-                                            bounds[index] = coordinates.boundsInParent()
-                                        },
-                                )
-                            }
-                        }
-                    }
-                }
-                IconButton(onClick = onOpenSettings) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = stringResource(R.string.navigation_tabs_settings),
-                            tint = MaterialTheme.colorScheme.onBackground,
-                        )
-                        if (syncing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TabButton(
-    tab: LibraryTab,
-    artwork: ArtworkColors?,
-    progress: Float,
-    indicatorLeft: Float?,
-    indicatorRight: Float?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val selectedContent = artwork?.scheme?.onPrimary ?: MaterialTheme.colorScheme.background
-    val paddingStart = with(LocalDensity.current) { 8.dp.toPx() }
-    var tabLeft by remember { mutableFloatStateOf(0f) }
-    val clipStart = indicatorLeft?.minus(tabLeft + paddingStart)
-    val clipEnd = indicatorRight?.minus(tabLeft + paddingStart)
-    Box(
-        modifier =
-            modifier
-                .onGloballyPositioned { tabLeft = it.boundsInParent().left }
-                .clickable(onClick = onClick)
-                .height(TOUCH_TARGET),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier.padding(start = 8.dp, end = 16.dp, top = TAB_VERTICAL_PADDING, bottom = TAB_VERTICAL_PADDING),
-        ) {
-            if (clipStart != null && clipEnd != null) {
-                Box(
-                    modifier =
-                        Modifier.drawWithContent {
-                            val hole =
-                                Path().apply {
-                                    addRect(Rect(clipStart, 0f, clipEnd, size.height))
-                                }
-                            clipPath(hole, clipOp = ClipOp.Difference) {
-                                this@drawWithContent.drawContent()
-                            }
-                        },
-                ) {
-                    TabContent(tab, progress, MaterialTheme.colorScheme.onBackground)
-                }
-                Box(
-                    modifier =
-                        Modifier
-                            .clearAndSetSemantics {}
-                            .drawWithContent {
-                                clipRect(clipStart, 0f, clipEnd, size.height) {
-                                    this@drawWithContent.drawContent()
-                                }
-                            },
-                ) {
-                    TabContent(tab, progress, selectedContent)
-                }
-            } else {
-                TabContent(tab, progress, MaterialTheme.colorScheme.onBackground)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TabContent(
-    tab: LibraryTab,
-    progress: Float,
-    color: Color,
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-            imageVector = tab.icon,
-            contentDescription = stringResource(tab.label),
-            tint = color,
-            modifier =
-                Modifier.size(TAB_ICON_SIZE).graphicsLayer {
-                    if (tab == LibraryTab.Playlists) {
-                        scaleX = 1.12f
-                        scaleY = 1.12f
-                        translationX = 1.5.dp.toPx()
-                    }
-                },
-        )
-        Box(
-            modifier =
-                Modifier
-                    .clipToBounds()
-                    .clearAndSetSemantics {}
-                    .layout { measurable, _ ->
-                        val placeable = measurable.measure(Constraints())
-                        val width = (placeable.width * progress).roundToInt()
-                        layout(width, placeable.height) {
-                            placeable.place(0, 0)
-                        }
-                    },
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(tab.label),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = color,
-                    maxLines = 1,
-                    softWrap = false,
                 )
             }
         }

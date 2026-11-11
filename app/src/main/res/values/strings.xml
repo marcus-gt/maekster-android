@@ -188,6 +188,8 @@
     <string name="filter_downloaded">Downloaded</string>
     <string name="close_search">Close search</string>
     <string name="offline_mode_status">Offline mode; tap to go online</string>
+    <string name="library_offline_empty">Nothing downloaded yet.\nDownload albums or playlists to listen offline.</string>
+    <string name="library_go_online">Go online</string>
     <string name="shuffle_artist">Shuffle artist</string>
 
     <string name="status_playing">Playing</string>

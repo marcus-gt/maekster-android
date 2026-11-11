@@ -1,11 +1,8 @@
 package com.subtracks.ui
 
 import androidx.activity.ComponentActivity
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -17,11 +14,6 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
-import androidx.compose.ui.test.swipeLeft
-import androidx.compose.ui.test.swipeRight
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.LoadStates
 import androidx.paging.PagingData
@@ -32,11 +24,9 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.Playlist
 import com.subtracks.ui.library.ALBUM_COVER_TAG
-import com.subtracks.ui.library.LibraryScreen
+import com.subtracks.ui.library.LibraryListScreen
 import com.subtracks.ui.library.LibraryTab
-import com.subtracks.ui.library.LibraryTabs
 import com.subtracks.ui.theme.MaeksterTheme
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
@@ -57,23 +47,17 @@ class LibraryScreenTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun pullingDownRefreshesAndSettingsOpens() {
+    fun pullingDownRefreshesAndBackLeavesTheList() {
         var synced = false
-        var settingsOpened = false
+        var wentBack = false
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
                     albums = remember { flowOf(PagingData.from(albums())) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                     coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = { synced = true },
-                    onOpenSettings = { settingsOpened = true },
+                    onBack = { wentBack = true },
                 )
             }
         }
@@ -81,32 +65,49 @@ class LibraryScreenTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithTag(ALBUM_COVER_TAG).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onRoot().performTouchInput { swipeDown(durationMillis = 600) }
+        // Start below the top bar, which does not scroll, so the drag reaches the list.
+        composeRule.onRoot().performTouchInput { swipeDown(startY = centerY, endY = bottom, durationMillis = 600) }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithContentDescription("Settings").performClick()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.navigation_back)).performClick()
 
         assertTrue("pulling down should trigger a sync", synced)
-        assertTrue("the settings control should open settings", settingsOpened)
+        assertTrue("the back arrow should leave the list", wentBack)
     }
 
     @Test
-    fun anEmptyTabOffersSync() {
+    fun theTopBarNamesTheListAndSitsAtTheTop() {
+        composeRule.setContent {
+            MaeksterTheme {
+                LibraryListScreen(
+                    list = LibraryTab.Playlists,
+                    coverArt = { _, _ -> null },
+                    onSync = {},
+                    onBack = {},
+                )
+            }
+        }
+        val options = composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.list_options))
+        val root = composeRule.onRoot().getUnclippedBoundsInRoot()
+
+        composeRule.onNodeWithText(composeRule.activity.getString(LibraryTab.Playlists.label)).assertExists()
+        assertTrue(
+            "the list options should sit in the top bar",
+            options.getUnclippedBoundsInRoot().top < (root.bottom - root.top) / 4,
+        )
+    }
+
+    @Test
+    fun anEmptyListOffersSync() {
         var synced = false
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
                     albums = remember { flowOf(PagingData.empty<Album>(settledLoadStates)) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                     coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = { synced = true },
-                    onOpenSettings = {},
+                    onBack = {},
                 )
             }
         }
@@ -120,70 +121,30 @@ class LibraryScreenTest {
     }
 
     @Test
-    fun theSectionStripAndItsSettingsActionSitAtTheTop() {
-        var settingsOpened = false
-        composeRule.setContent {
-            MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
-                    albums = remember { flowOf(PagingData.empty<Album>()) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
-                    coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
-                    onSync = {},
-                    onOpenSettings = { settingsOpened = true },
-                )
-            }
-        }
-        val settings =
-            composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.navigation_tabs_settings))
-        val root = composeRule.onRoot().getUnclippedBoundsInRoot()
-        val screenHeight = root.bottom - root.top
-
-        assertTrue(
-            "the Library top bar should sit in the top quarter",
-            settings.getUnclippedBoundsInRoot().top < screenHeight / 4,
-        )
-        settings.performClick()
-        assertTrue("the top bar should open Settings", settingsOpened)
-    }
-
-    @Test
-    fun theVisibleTabAndItsNeighbourCollectTheirPagingFlows() {
+    fun onlyTheShownListCollectsItsPagingFlow() {
         val collected = CopyOnWriteArrayList<String>()
-        val albums =
-            flow<PagingData<Album>> {
-                collected += "albums"
-                emit(PagingData.from(albums()))
-            }
-        val artists =
-            flow<PagingData<Artist>> {
-                collected += "artists"
-                emit(PagingData.empty())
-            }
-        val playlists =
-            flow<PagingData<Playlist>> {
-                collected += "playlists"
-                emit(PagingData.empty())
-            }
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
-                    albums = albums,
-                    artists = artists,
-                    playlists = playlists,
+                LibraryListScreen(
+                    list = LibraryTab.Artists,
+                    albums =
+                        flow<PagingData<Album>> {
+                            collected += "albums"
+                            emit(PagingData.empty())
+                        },
+                    artists =
+                        flow<PagingData<Artist>> {
+                            collected += "artists"
+                            emit(PagingData.from(artists()))
+                        },
+                    playlists =
+                        flow<PagingData<Playlist>> {
+                            collected += "playlists"
+                            emit(PagingData.empty())
+                        },
                     coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
+                    onBack = {},
                 )
             }
         }
@@ -191,60 +152,34 @@ class LibraryScreenTest {
         composeRule.waitUntil(timeoutMillis = 5_000) { collected.contains("artists") }
         composeRule.waitForIdle()
 
-        assertEquals(listOf("albums", "artists"), collected.toList())
+        assertEquals(listOf("artists"), collected.toList())
     }
 
     @Test
-    fun switchingAwayAndBackReCollectsAndRendersTheTab() {
-        val collected = CopyOnWriteArrayList<String>()
-        val albums =
-            flow<PagingData<Album>> {
-                collected += "albums"
-                emit(PagingData.from(albums()))
-            }
-        val artists =
-            flow<PagingData<Artist>> {
-                collected += "artists"
-                emit(PagingData.from(artists()))
-            }
-        val playlists =
-            flow<PagingData<Playlist>> {
-                collected += "playlists"
-                emit(PagingData.empty())
-            }
-        val selectedTab = mutableStateOf(LibraryTab.Albums)
+    fun theSearchActionOpensAndClosesTheListSearch() {
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = selectedTab.value,
-                    onTabSelected = { selectedTab.value = it },
-                    albums = albums,
-                    artists = artists,
-                    playlists = playlists,
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
+                    albums = remember { flowOf(PagingData.from(albums())) },
                     coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
+                    onBack = {},
                 )
             }
         }
+        val searchLabel = composeRule.activity.getString(R.string.search_this_list)
+        val closeLabel = composeRule.activity.getString(R.string.close_search)
 
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithTag(ALBUM_COVER_TAG).fetchSemanticsNodes().isNotEmpty()
-        }
+        composeRule.onNodeWithContentDescription(searchLabel).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithContentDescription(closeLabel).assertExists()
 
-        composeRule.onRoot().performTouchInput { swipeLeft() }
-        composeRule.waitUntil(timeoutMillis = 5_000) { collected.contains("artists") }
-
-        composeRule.onRoot().performTouchInput { swipeRight() }
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithTag(ALBUM_COVER_TAG).fetchSemanticsNodes().isNotEmpty()
-        }
-
-        assertTrue("returning to a tab should render its content", collected.contains("albums"))
-        assertTrue("the tab that was shown should collect its flow", collected.contains("artists"))
+        // Closing also stops the focused field's cursor blink, which would otherwise outlive the test and stall
+        // frame dispatch for the next Compose tests in this JVM.
+        composeRule.onNodeWithContentDescription(closeLabel).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithContentDescription(searchLabel).assertExists()
     }
 
     @Test
@@ -255,18 +190,13 @@ class LibraryScreenTest {
         composeRule.setContent {
             if (show.value) {
                 MaeksterTheme {
-                    LibraryScreen(
-                        selectedTab = LibraryTab.Albums,
-                        onTabSelected = {},
+                    LibraryListScreen(
+                        list = LibraryTab.Albums,
                         albums = remember { flowOf(PagingData.from(albums())) },
-                        artists = remember { flowOf(PagingData.empty<Artist>()) },
-                        playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                         coverArt = { _, _ -> null },
                         onAlbumClick = { opened = it },
-                        onArtistClick = {},
-                        onPlaylistClick = {},
                         onSync = {},
-                        onOpenSettings = {},
+                        onBack = {},
                         search = search.value,
                         onSearchChange = { search.value = it },
                     )
@@ -288,22 +218,17 @@ class LibraryScreenTest {
     }
 
     @Test
-    fun backClosesTheListSearchInsteadOfLeavingTheApp() {
+    fun backClosesTheListSearchBeforeLeavingTheList() {
         val search = mutableStateOf("xyz")
+        var wentBack = false
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
                     albums = remember { flowOf(PagingData.from(albums())) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                     coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
+                    onBack = { wentBack = true },
                     search = search.value,
                     onSearchChange = { search.value = it },
                 )
@@ -320,219 +245,20 @@ class LibraryScreenTest {
 
         assertEquals("back should clear the list search", "", search.value)
         composeRule.onNodeWithContentDescription(closeLabel).assertDoesNotExist()
+        assertFalse("back should close the search first", wentBack)
         assertFalse("back should not leave the app", composeRule.activity.isFinishing)
     }
 
     @Test
-    fun theTabRowReflowsInOneDirectionDuringASwitch() {
-        val pagerState = PagerState(currentPage = 1, pageCount = { LibraryTab.entries.size })
-        composeRule.setContent {
-            MaeksterTheme {
-                LibraryTabs(
-                    pagerState = pagerState,
-                    onTabSelected = {},
-                    onOpenSettings = {},
-                    artwork = null,
-                )
-            }
-        }
-        composeRule.waitForIdle()
-
-        val samples =
-            (0..10).map { step ->
-                composeRule.runOnIdle { pagerState.requestScrollToPage(1, step * 0.05f) }
-                composeRule.waitForIdle()
-                composeRule
-                    .onNodeWithContentDescription(composeRule.activity.getString(LibraryTab.Playlists.label))
-                    .fetchSemanticsNode()
-                    .boundsInRoot.left
-            }
-
-        val monotonic =
-            samples.zipWithNext().all { (a, b) -> b >= a } ||
-                samples.zipWithNext().all { (a, b) -> b <= a }
-        assertTrue("the tab row should reflow in one direction, but the icons moved $samples", monotonic)
-    }
-
-    @Test
-    @Config(qualifiers = "de-rDE-w320dp-h640dp-xhdpi")
-    fun aLongTabKeepsTheGearFullSizeAndScrollsIntoView() {
-        var labelWidth = 0f
-        composeRule.setContent {
-            MaeksterTheme {
-                labelWidth =
-                    rememberTextMeasurer()
-                        .measure(
-                            AnnotatedString(composeRule.activity.getString(LibraryTab.Playlists.label)),
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            softWrap = false,
-                        ).size.width
-                        .toFloat()
-                LibraryTabs(
-                    pagerState =
-                        remember {
-                            PagerState(
-                                currentPage = LibraryTab.Playlists.ordinal,
-                                pageCount = { LibraryTab.entries.size },
-                            )
-                        },
-                    onTabSelected = {},
-                    onOpenSettings = {},
-                    artwork = null,
-                )
-            }
-        }
-        composeRule.waitForIdle()
-
-        composeRule
-            .onNodeWithContentDescription(composeRule.activity.getString(R.string.navigation_tabs_settings))
-            .assertWidthIsEqualTo(40.dp)
-        assertTabFullyVisible(LibraryTab.Playlists, labelWidth)
-    }
-
-    @Test
-    @Config(qualifiers = "ar-rEG-w320dp-h640dp-xhdpi")
-    fun aLongTabScrollsIntoViewInRtl() {
-        var labelWidth = 0f
-        composeRule.setContent {
-            MaeksterTheme {
-                labelWidth =
-                    rememberTextMeasurer()
-                        .measure(
-                            AnnotatedString(composeRule.activity.getString(LibraryTab.Playlists.label)),
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            softWrap = false,
-                        ).size.width
-                        .toFloat()
-                LibraryTabs(
-                    pagerState =
-                        remember {
-                            PagerState(
-                                currentPage = LibraryTab.Playlists.ordinal,
-                                pageCount = { LibraryTab.entries.size },
-                            )
-                        },
-                    onTabSelected = {},
-                    onOpenSettings = {},
-                    artwork = null,
-                )
-            }
-        }
-        composeRule.waitForIdle()
-
-        composeRule
-            .onNodeWithContentDescription(composeRule.activity.getString(R.string.navigation_tabs_settings))
-            .assertWidthIsEqualTo(40.dp)
-        assertTabFullyVisible(LibraryTab.Playlists, labelWidth)
-    }
-
-    @Test
-    @Config(qualifiers = "de-rDE-w320dp-h640dp-xhdpi")
-    fun movingToALongTabScrollsItIntoView() {
-        val selectedTab = mutableStateOf(LibraryTab.Albums)
-        var labelWidth = 0f
-        composeRule.setContent {
-            MaeksterTheme {
-                labelWidth =
-                    rememberTextMeasurer()
-                        .measure(
-                            AnnotatedString(composeRule.activity.getString(LibraryTab.Playlists.label)),
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            softWrap = false,
-                        ).size.width
-                        .toFloat()
-                LibraryScreen(
-                    selectedTab = selectedTab.value,
-                    onTabSelected = { selectedTab.value = it },
-                    albums = remember { flowOf(PagingData.empty<Album>()) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
-                    coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
-                    onSync = {},
-                    onOpenSettings = {},
-                )
-            }
-        }
-        composeRule.waitForIdle()
-
-        composeRule.runOnIdle { selectedTab.value = LibraryTab.Playlists }
-        val expected = with(composeRule.density) { TAB_LABEL_CHROME.toPx() } + labelWidth
-        composeRule.waitUntil(5_000) { tabBounds(LibraryTab.Playlists).width >= expected - 1f }
-
-        composeRule
-            .onNodeWithContentDescription(composeRule.activity.getString(R.string.navigation_tabs_settings))
-            .assertWidthIsEqualTo(40.dp)
-        assertTabFullyVisible(LibraryTab.Playlists, labelWidth)
-    }
-
-    @Test
-    @Config(qualifiers = "de-rDE-w320dp-h640dp-xhdpi")
-    fun returningToTheFirstTabLeavesAGapAtTheEdge() {
-        val selectedTab = mutableStateOf(LibraryTab.Playlists)
-        composeRule.setContent {
-            MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = selectedTab.value,
-                    onTabSelected = { selectedTab.value = it },
-                    albums = remember { flowOf(PagingData.empty<Album>()) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
-                    coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
-                    onSync = {},
-                    onOpenSettings = {},
-                )
-            }
-        }
-        composeRule.waitForIdle()
-
-        composeRule.runOnIdle { selectedTab.value = LibraryTab.Albums }
-        val expectedGap = with(composeRule.density) { TAB_EDGE_GAP.toPx() }
-        composeRule.waitUntil(5_000) { tabBounds(LibraryTab.Albums).left <= expectedGap + 1f }
-
-        assertEquals(
-            "the first tab should keep a gap from the screen edge",
-            expectedGap,
-            tabBounds(LibraryTab.Albums).left,
-            1f,
-        )
-    }
-
-    private fun assertTabFullyVisible(
-        tab: LibraryTab,
-        labelWidth: Float,
-    ) {
-        val bounds = tabBounds(tab)
-        val expected = with(composeRule.density) { TAB_LABEL_CHROME.toPx() } + labelWidth
-        assertEquals("the selected tab should be shown in full, but was $bounds", expected, bounds.width, 1f)
-    }
-
-    @Test
-    @Config(qualifiers = "de-rDE-w320dp-h640dp-xhdpi")
     fun theOfflineIndicatorGoesOnline() {
         var exited = false
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Playlists,
-                    onTabSelected = {},
-                    albums = remember { flowOf(PagingData.empty<Album>()) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
+                LibraryListScreen(
+                    list = LibraryTab.Playlists,
                     coverArt = { _, _ -> null },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
+                    onBack = {},
                     offline = true,
                     onExitOffline = { exited = true },
                 )
@@ -545,12 +271,6 @@ class LibraryScreenTest {
             .performClick()
         assertTrue("the offline indicator should leave offline mode", exited)
     }
-
-    private fun tabBounds(tab: LibraryTab) =
-        composeRule
-            .onNodeWithContentDescription(composeRule.activity.getString(tab.label))
-            .fetchSemanticsNode()
-            .boundsInRoot
 
     private val settledLoadStates =
         LoadStates(
@@ -588,6 +308,3 @@ class LibraryScreenTest {
             )
         }
 }
-
-private val TAB_LABEL_CHROME = 56.dp
-private val TAB_EDGE_GAP = 8.dp

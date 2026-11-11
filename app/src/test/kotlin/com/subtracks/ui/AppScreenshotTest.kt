@@ -54,7 +54,7 @@ import com.subtracks.ui.library.ALBUM_COVER_TAG
 import com.subtracks.ui.library.ARTIST_NAME_SCRIM_TAG
 import com.subtracks.ui.library.AlbumDetailScreen
 import com.subtracks.ui.library.ArtistDetailScreen
-import com.subtracks.ui.library.LibraryScreen
+import com.subtracks.ui.library.LibraryListScreen
 import com.subtracks.ui.library.LibraryTab
 import com.subtracks.ui.library.PlaylistDetailScreen
 import com.subtracks.ui.playback.MiniPlayer
@@ -118,19 +118,12 @@ class AppScreenshotTest {
         val albums = (1..60).map { Fixtures.albums.first().copy(id = "scrolled-$it", name = "Album $it") }
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
                     albums = remember { flowOf(PagingData.from(albums)) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                     coverArt = { id, _ -> id?.let { CoverArtRef(it, "test:$it") } },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
-                    artwork = artworkColorsFromSeed(Color.rgb(120, 80, 200)),
+                    onBack = {},
                 )
             }
         }
@@ -145,20 +138,13 @@ class AppScreenshotTest {
         val ids = Fixtures.albums.take(3).map { it.id }
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = LibraryTab.Albums,
-                    onTabSelected = {},
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
                     albums = remember { flowOf(PagingData.from(Fixtures.albums)) },
-                    artists = remember { flowOf(PagingData.empty<Artist>()) },
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                     coverArt = { id, _ -> id?.let { CoverArtRef(it, "test:$it") } },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
-                    artwork = artworkColorsFromSeed(Color.rgb(120, 80, 200)),
-                    albumDownloads =
+                    onBack = {},
+                    downloads =
                         mapOf(
                             ids[0] to ListDownloadStatus(total = 10, downloaded = 10),
                             ids[1] to ListDownloadStatus(total = 10, downloaded = 4, downloading = 1),
@@ -200,19 +186,12 @@ class AppScreenshotTest {
             MaeksterTheme {
                 val artwork = artworkColorsFromSeed(seed)
                 Column(Modifier.fillMaxSize()) {
-                    LibraryScreen(
-                        selectedTab = LibraryTab.Albums,
-                        onTabSelected = {},
+                    LibraryListScreen(
+                        list = LibraryTab.Albums,
                         albums = remember { flowOf(PagingData.from(Fixtures.albums)) },
-                        artists = remember { flowOf(PagingData.from(Fixtures.artists)) },
-                        playlists = remember { flowOf(PagingData.from(Fixtures.playlists)) },
                         coverArt = { id, _ -> id?.let { CoverArtRef(it, "test:$it") } },
-                        onAlbumClick = {},
-                        onArtistClick = {},
-                        onPlaylistClick = {},
                         onSync = {},
-                        onOpenSettings = {},
-                        artwork = artwork,
+                        onBack = {},
                         modifier = Modifier.weight(1f),
                     )
                     MiniPlayer(
@@ -610,9 +589,8 @@ class AppScreenshotTest {
     private fun setLibraryContent(tab: LibraryTab) {
         composeRule.setContent {
             MaeksterTheme {
-                LibraryScreen(
-                    selectedTab = tab,
-                    onTabSelected = {},
+                LibraryListScreen(
+                    list = tab,
                     albums = remember { flowOf(PagingData.from(Fixtures.albums)) },
                     artists = remember { flowOf(PagingData.from(Fixtures.artists)) },
                     playlists = remember { flowOf(PagingData.from(Fixtures.playlists)) },
@@ -627,12 +605,8 @@ class AppScreenshotTest {
                                     .map { CoverArtRef(it, "test:$it") },
                         )
                     },
-                    onAlbumClick = {},
-                    onArtistClick = {},
-                    onPlaylistClick = {},
                     onSync = {},
-                    onOpenSettings = {},
-                    artwork = artworkColorsFromSeed(Color.rgb(120, 80, 200)),
+                    onBack = {},
                 )
             }
         }

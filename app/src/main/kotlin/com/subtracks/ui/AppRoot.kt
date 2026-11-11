@@ -102,8 +102,11 @@ import com.subtracks.ui.home.HomeSection
 import com.subtracks.ui.home.OfflineListKind
 import com.subtracks.ui.library.AlbumDetailRoute
 import com.subtracks.ui.library.ArtistDetailRoute
-import com.subtracks.ui.library.LibraryRoute
+import com.subtracks.ui.library.LibraryHubRoute
+import com.subtracks.ui.library.LibraryListRoute
+import com.subtracks.ui.library.LibraryTab
 import com.subtracks.ui.library.PlaylistDetailRoute
+import com.subtracks.ui.library.libraryTabFor
 import com.subtracks.ui.onboarding.WelcomeScreen
 import com.subtracks.ui.playback.MiniPlayer
 import com.subtracks.ui.playback.NowPlayingRoute
@@ -146,6 +149,7 @@ private object Routes {
     val HOME = TopLevelTab.Home.root
     val LIBRARY = TopLevelTab.Library.root
     val SEARCH = TopLevelTab.Search.root
+    const val LIBRARY_LIST = "library/{list}"
     const val SETTINGS = "settings"
     const val DOWNLOADS = "downloads"
     const val LICENSES = "licenses"
@@ -170,6 +174,8 @@ private object Routes {
     ) = "artist/${Uri.encode(id)}?coverArt=${Uri.encode(coverArt.orEmpty())}"
 
     fun playlist(id: String) = "playlist/${Uri.encode(id)}"
+
+    fun libraryList(list: LibraryTab) = "library/${list.name}"
 
     fun editServer(id: Long) = "edit-server/$id"
 
@@ -466,7 +472,18 @@ private fun MainNavigation() {
                     }
                     navigation(startDestination = Routes.LIBRARY, route = TopLevelTab.Library.graph) {
                         composable(Routes.LIBRARY) {
-                            LibraryRoute(
+                            LibraryHubRoute(
+                                onOpenList = { list -> navController.navigate(Routes.libraryList(list)) },
+                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                            )
+                        }
+                        composable(
+                            route = Routes.LIBRARY_LIST,
+                            arguments = listOf(navArgument("list") { type = NavType.StringType }),
+                        ) { entry ->
+                            LibraryListRoute(
+                                list = libraryTabFor(entry.arguments?.getString("list")),
+                                onBack = { navController.popBackStack() },
                                 onAlbumClick = { album ->
                                     navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
                                 },
@@ -481,7 +498,6 @@ private fun MainNavigation() {
                                 onPlaylistClick = { playlist ->
                                     navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
                                 },
-                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                                 onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
                                 onViewArtist = { artistId ->
                                     navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))

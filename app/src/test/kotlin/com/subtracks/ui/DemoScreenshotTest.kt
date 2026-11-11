@@ -52,7 +52,7 @@ import com.subtracks.ui.home.HomeFeed
 import com.subtracks.ui.home.HomeScreen
 import com.subtracks.ui.library.AlbumDetailScreen
 import com.subtracks.ui.library.ArtistDetailScreen
-import com.subtracks.ui.library.LibraryScreen
+import com.subtracks.ui.library.LibraryListScreen
 import com.subtracks.ui.library.LibraryTab
 import com.subtracks.ui.library.sortOptionsFor
 import com.subtracks.ui.playback.MiniPlayer
@@ -158,7 +158,6 @@ class DemoScreenshotTest {
                                 AlbumsScreen(
                                     demo.albums,
                                     demo.coverArt,
-                                    demo.artwork(demo.nowPlayingAlbum.coverArt),
                                     modifier = Modifier.weight(1f),
                                 )
                                 demo.MiniPlayerOverlay(demo.nowPlayingSong, demo.nowPlayingAlbum, progressInset = true)
@@ -211,19 +210,12 @@ class DemoScreenshotTest {
 
                         Screen.Artists -> {
                             Column(Modifier.fillMaxSize()) {
-                                LibraryScreen(
-                                    selectedTab = LibraryTab.Artists,
-                                    onTabSelected = {},
-                                    albums = remember { flowOf(PagingData.empty<Album>()) },
+                                LibraryListScreen(
+                                    list = LibraryTab.Artists,
                                     artists = remember { flowOf(PagingData.from(demo.artists)) },
-                                    playlists = remember { flowOf(PagingData.empty<Playlist>()) },
                                     coverArt = demo.coverArt,
-                                    onAlbumClick = {},
-                                    onArtistClick = {},
-                                    onPlaylistClick = {},
                                     onSync = {},
-                                    onOpenSettings = {},
-                                    artwork = demo.artwork(demo.nowPlayingAlbum.coverArt),
+                                    onBack = {},
                                     artistArt = demo::artistArt,
                                     modifier = Modifier.weight(1f),
                                 )
@@ -260,25 +252,17 @@ class DemoScreenshotTest {
     private fun AlbumsScreen(
         albums: List<Album>,
         coverArt: (String?, Boolean) -> CoverArtRef?,
-        artwork: ArtworkColors,
         modifier: Modifier = Modifier,
     ) {
-        LibraryScreen(
-            selectedTab = LibraryTab.Albums,
-            onTabSelected = {},
+        LibraryListScreen(
+            list = LibraryTab.Albums,
             albums = remember { flowOf(PagingData.from(albums)) },
-            artists = remember { flowOf(PagingData.empty<Artist>()) },
-            playlists = remember { flowOf(PagingData.empty<Playlist>()) },
             coverArt = coverArt,
-            onAlbumClick = {},
-            onArtistClick = {},
-            onPlaylistClick = {},
             onSync = {},
-            onOpenSettings = {},
+            onBack = {},
             listQuery = ListQuery("Name"),
             sortOptions = sortOptionsFor(LibraryTab.Albums),
             starredSupported = true,
-            artwork = artwork,
             modifier = modifier,
         )
     }
