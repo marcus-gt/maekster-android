@@ -173,6 +173,32 @@ class LogFileStore(
 }
 
 private val URL_USERINFO = Regex("([a-zA-Z][a-zA-Z0-9+.\\-]*://)[^/@\\s]+@")
-private val URL_PARAM = Regex("([?&](?:u|p|s|t)=)[^&\\s]+")
 
-internal fun redactLogs(input: String): String = input.replace(URL_USERINFO, "$1REDACTED@").replace(URL_PARAM, "$1REDACTED")
+// Subsonic credentials (u, p, s, t), the OpenSubsonic API key, and any token parameter.
+private val URL_PARAM = Regex("([?&](?:u|p|s|t|apiKey|token)=)[^&\\s]+", RegexOption.IGNORE_CASE)
+
+// The credential after an HTTP auth scheme, wherever it appears (a header dump, an exception message).
+private val AUTH_SCHEME = Regex("\\b(Bearer|Basic)\\s+[A-Za-z0-9._~+/=-]+", RegexOption.IGNORE_CASE)
+
+// Shorter values would redact ordinary words; real passwords and tokens are longer.
+private const val MIN_SECRET_LENGTH = 4
+
+@Volatile
+private var knownSecrets: List<String> = emptyList()
+
+/**
+ * Secrets to strip from every log line wherever they appear: the active server's password and custom header values.
+ * Replaces the previous set; longest first, so a secret containing another is removed whole.
+ */
+internal fun setRedactedSecrets(secrets: Collection<String>) {
+    knownSecrets = secrets.filter { it.length >= MIN_SECRET_LENGTH }.distinct().sortedByDescending { it.length }
+}
+
+internal fun redactLogs(input: String): String {
+    val patterns =
+        input
+            .replace(URL_USERINFO, "$1REDACTED@")
+            .replace(URL_PARAM, "$1REDACTED")
+            .replace(AUTH_SCHEME, "$1 REDACTED")
+    return knownSecrets.fold(patterns) { text, secret -> text.replace(secret, "REDACTED") }
+}

@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
 import com.subtracks.data.net.HeaderValidator
+import com.subtracks.data.repo.isPlainHttp
 import com.subtracks.ui.components.DismissOnRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -337,7 +338,20 @@ fun AddSourceScreen(
                 placeholder = { Text(stringResource(R.string.server_address_placeholder)) },
                 singleLine = true,
                 isError = state.addressError,
-                supportingText = if (state.addressError) ({ Text(stringResource(R.string.required)) }) else null,
+                supportingText =
+                    when {
+                        state.addressError -> {
+                            { Text(stringResource(R.string.required)) }
+                        }
+
+                        state.address.isNotBlank() && isPlainHttp(state.address) -> {
+                            { Text(stringResource(R.string.server_address_plain_http), color = MaterialTheme.colorScheme.tertiary) }
+                        }
+
+                        else -> {
+                            null
+                        }
+                    },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                 modifier = Modifier.fillMaxWidth().focusRequester(addressFocus),
             )

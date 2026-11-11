@@ -119,6 +119,19 @@ class AddSourceViewModelTest {
     }
 
     @Test
+    fun aServerThatCannotBeFoundSaysSo() {
+        val viewModel = viewModel()
+        viewModel.setAddress("https://does-not-exist.invalid/")
+        viewModel.setUsername("u")
+        viewModel.setPassword("p")
+
+        viewModel.testConnection()
+        await { !viewModel.state.value.busy && viewModel.state.value.isError }
+
+        assertEquals("Can't find this server. Check the address and your connection.", viewModel.state.value.message)
+    }
+
+    @Test
     fun aSuccessfulPingClearsAnEarlierError() {
         val viewModel = viewModel()
         viewModel.setAddress(server.url("/").toString())

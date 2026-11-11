@@ -17,6 +17,19 @@ open class SubsonicException(
     val uiMessage: UiMessage? = null,
 ) : Exception(message)
 
+/** The server, or a proxy in front of it, answered with an HTTP error before any Subsonic response. */
+class HttpStatusException(
+    val status: Int,
+) : SubsonicException(-1, "HTTP $status", httpStatusMessage(status))
+
+internal fun httpStatusMessage(status: Int): UiMessage =
+    when (status) {
+        401, 403 -> UiMessage(R.string.error_http_denied, listOf(status))
+        404 -> UiMessage(R.string.error_http_not_found)
+        in 500..599 -> UiMessage(R.string.error_http_server, listOf(status))
+        else -> UiMessage(R.string.error_http, listOf(status))
+    }
+
 class SubsonicClient(
     private val baseUrl: HttpUrl,
     private val username: String,
@@ -89,7 +102,7 @@ class SubsonicClient(
         timeoutMs?.let { call.timeout().timeout(it, TimeUnit.MILLISECONDS) }
         call.execute().use { response ->
             if (!response.isSuccessful) {
-                throw SubsonicException(-1, "HTTP ${response.code}", UiMessage(R.string.error_http, listOf(response.code)))
+                throw HttpStatusException(response.code)
             }
             return body(response.body.byteStream())
         }

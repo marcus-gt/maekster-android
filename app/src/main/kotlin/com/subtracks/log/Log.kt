@@ -39,6 +39,9 @@ object Log {
         fileStore?.setMinLevel(if (enabled) LogLevel.VERBOSE else defaultFileLevel)
     }
 
+    /** The active server's secrets (password, header values), removed from every line written from now on. */
+    fun setSecrets(secrets: Collection<String>) = setRedactedSecrets(secrets)
+
     fun v(
         tag: String,
         message: String,

@@ -146,7 +146,7 @@ class SourceRepositoryTest {
             assertEquals(2, sources.size)
             val edited = sources.first { it.id == id }
             assertEquals("renamed", edited.name)
-            assertEquals("http://c.example/", edited.address)
+            assertEquals("an address without a scheme gets https", "https://c.example/", edited.address)
             assertFalse("editing must not change which source is active", edited.isActive)
             val config = repository.sourceConfigOnce(id)!!
             assertEquals("u3", config.username)

@@ -132,6 +132,8 @@ class SourceRepository(
                     showMessage(UiMessage(R.string.server_needs_sign_in, listOf(config.name)))
                 }
                 lastNeededSignIn = needsSignIn
+                // Before the source is built, so nothing it logs can show them.
+                Log.setSecrets(listOfNotNull(config?.password) + config?.headers.orEmpty().map { it.value })
                 // Before the source is built, so its first request already carries them.
                 serverHeaders.set(
                     config?.takeIf { !needsSignIn }?.let { ScopedHeaders(normalizeAddress(it.address), it.headers) },
@@ -444,14 +446,23 @@ class SourceRepository(
             .build()
     }
 
-    private fun normalizeAddress(address: String): String {
-        val trimmed = address.trim()
-        val withScheme =
-            if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-                trimmed
-            } else {
-                "http://$trimmed"
-            }
-        return withScheme.trimEnd('/') + "/"
-    }
+    private fun normalizeAddress(address: String): String = normalizeServerAddress(address)
 }
+
+/**
+ * The address as stored: trimmed, with one trailing slash, and `https://` when no scheme was typed (D5), so a bare host
+ * never falls back to plain HTTP silently. Typing `http://` keeps plain HTTP, for servers on the home network.
+ */
+internal fun normalizeServerAddress(address: String): String {
+    val trimmed = address.trim()
+    val withScheme =
+        if (trimmed.startsWith("http://", ignoreCase = true) || trimmed.startsWith("https://", ignoreCase = true)) {
+            trimmed
+        } else {
+            "https://$trimmed"
+        }
+    return withScheme.trimEnd('/') + "/"
+}
+
+/** Whether [address] would be reached over plain HTTP, so the password and music travel unencrypted. */
+internal fun isPlainHttp(address: String): Boolean = normalizeServerAddress(address).startsWith("http://", ignoreCase = true)

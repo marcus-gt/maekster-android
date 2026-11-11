@@ -3,11 +3,11 @@ package com.subtracks.data.sync
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.data.db.SubtracksDatabase
+import com.subtracks.data.net.connectionErrorMessage
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.data.source.ServerActionSink
-import com.subtracks.data.source.subsonic.SubsonicException
 import com.subtracks.log.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -105,7 +105,7 @@ class SyncManager(
                         }
 
                         else -> {
-                            (failure as? SubsonicException)?.uiMessage
+                            connectionErrorMessage(failure)
                                 ?: UiMessage(R.string.sync_failed_detail, listOf(failure.message ?: ""))
                         }
                     }

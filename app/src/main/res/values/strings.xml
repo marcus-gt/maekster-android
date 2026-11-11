@@ -353,7 +353,16 @@
     <string name="error_download_nothing_left">Nothing left to download from this list</string>
     <string name="error_download_stopped">The download stopped unexpectedly</string>
     <string name="error_download_inactive_source">Can\'t download from a source that isn\'t active</string>
-    <string name="error_server_unexpected">Unexpected response from the server</string>
+    <string name="error_server_unexpected">The server didn\'t answer like a Subsonic server. Check the address, or whether a proxy in front of it wants a sign-in.</string>
+    <string name="error_http_denied">Access refused (HTTP %1$d). If a proxy protects the server, check the custom headers.</string>
+    <string name="error_http_not_found">No Subsonic server at this address (HTTP 404). Check the address and its path.</string>
+    <string name="error_http_server">The server had a problem (HTTP %1$d). Try again later.</string>
+    <string name="error_connection_unknown_host">Can\'t find this server. Check the address and your connection.</string>
+    <string name="error_connection_refused">Can\'t reach the server. Check that it\'s running and that the port is right.</string>
+    <string name="error_connection_timeout">The server took too long to answer.</string>
+    <string name="error_connection_certificate">The server\'s certificate isn\'t trusted by this device.</string>
+    <string name="error_connection_tls">Couldn\'t open a secure connection. If the server only speaks plain HTTP, start the address with http://.</string>
+    <string name="server_address_plain_http">Plain HTTP: your password and music travel unencrypted. Fine on your own network; use https:// anywhere else.</string>
     <string name="error_server_unknown">Unknown error</string>
     <string name="error_server_malformed">Malformed response from the server</string>
     <string name="error_server_truncated">Truncated response from the server</string>

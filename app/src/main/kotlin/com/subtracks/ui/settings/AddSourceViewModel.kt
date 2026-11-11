@@ -4,12 +4,11 @@ import android.content.res.Resources
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.subtracks.R
-import com.subtracks.UiException
 import com.subtracks.data.net.HeaderEntry
 import com.subtracks.data.net.HeaderValidator
+import com.subtracks.data.net.connectionErrorMessage
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.SourceRepository
-import com.subtracks.data.source.subsonic.SubsonicException
 import com.subtracks.data.sync.SyncManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -160,8 +159,8 @@ class AddSourceViewModel(
                                 }
                             },
                             { error ->
-                                val ui = (error as? UiException)?.uiMessage ?: (error as? SubsonicException)?.uiMessage
-                                ui?.resolve(resources) ?: resources.getString(R.string.connection_failed, error.message)
+                                connectionErrorMessage(error)?.resolve(resources)
+                                    ?: resources.getString(R.string.connection_failed, error.message)
                             },
                         ),
                     isError = result.isFailure,

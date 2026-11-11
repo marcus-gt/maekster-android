@@ -195,8 +195,11 @@ headers per server, is done: schema 40 adds `source_headers` (values sealed), th
 has a Custom headers section with inline validation, and one `ServerHeaders` holder feeds a network interceptor on the API,
 Coil and Media3 clients, so only requests to the server's own origin get them, redirects included (MockWebServer tests).
 Downloads pass them to DownloadManager, which re-sends them on any redirect, including to another host; a download engine on
-OkHttp would close that gap. Not checked: a real header-protected server (the Caddy or nginx check below). Next: part C, log
-redaction, typed connection errors, the HTTP warning and the `https://` default.
+OkHttp would close that gap. Not checked: a real header-protected server (the Caddy or nginx check below). Part C is done: logs also redact `apiKey` and `token` parameters, `Bearer`/`Basic` credentials and, wherever they appear,
+the active server's password and header values (`Log.setSecrets`); `connectionErrorMessage` turns unknown hosts, refused
+connections, timeouts, untrusted certificates, failed TLS handshakes and HTTP 401/403/404/5xx into messages that say what
+to check, for both Test connection and sync; the server form warns under a plain `http://` address; and an address typed
+without a scheme now gets `https://` (D5). With part C, M2.1 is complete apart from the device checks.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
