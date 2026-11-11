@@ -730,6 +730,15 @@ val MIGRATION_37_38 =
         }
     }
 
+// The ciphertext column only. Encrypting needs the Keystore, so SourceRepository moves each plaintext password
+// across at startup, verifying the ciphertext before it clears the plaintext.
+val MIGRATION_38_39 =
+    object : Migration(38, 39) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL("ALTER TABLE `subsonic_sources` ADD COLUMN `passwordCiphertext` TEXT")
+        }
+    }
+
 internal fun artistSearchTriggersOptimized(connection: SQLiteConnection): Boolean {
     val triggers = mutableListOf<String>()
     connection.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name IN (?, ?)").use { statement ->
@@ -808,4 +817,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_35_36,
         MIGRATION_36_37,
         MIGRATION_37_38,
+        MIGRATION_38_39,
     )

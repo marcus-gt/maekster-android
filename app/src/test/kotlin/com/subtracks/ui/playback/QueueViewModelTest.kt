@@ -21,6 +21,7 @@ import com.subtracks.data.prefs.fakeUserPreferences
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
+import com.subtracks.data.security.FakeCredentialStore
 import com.subtracks.playback.FakePlayerConnection
 import com.subtracks.playback.FakePlayerHandle
 import com.subtracks.playback.PlaybackController
@@ -69,7 +70,14 @@ class QueueViewModelTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = createTestDatabase()
         sources =
-            SourceRepository(db, OkHttpClient(), fakeUserPreferences(), ArtworkStore(File(context.cacheDir, "art")), scope = repoScope)
+            SourceRepository(
+                db,
+                OkHttpClient(),
+                fakeUserPreferences(),
+                ArtworkStore(File(context.cacheDir, "art")),
+                FakeCredentialStore(),
+                scope = repoScope,
+            )
         queues = QueueRepository(db)
         val artwork = ArtworkStore(File(context.cacheDir, "art"))
         downloadsDir = File(context.cacheDir, "downloads-${System.nanoTime()}")

@@ -151,6 +151,7 @@ fun SettingsRoute(
 ) {
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val activeSourceId by viewModel.activeSourceId.collectAsStateWithLifecycle()
+    val needsSignIn by viewModel.needsSignIn.collectAsStateWithLifecycle()
     val wifiQuality by viewModel.wifiQuality.collectAsStateWithLifecycle()
     val mobileQuality by viewModel.mobileQuality.collectAsStateWithLifecycle()
     val syncConcurrency by viewModel.syncConcurrency.collectAsStateWithLifecycle()
@@ -172,6 +173,7 @@ fun SettingsRoute(
     SettingsScreen(
         sources = sources,
         activeSourceId = activeSourceId,
+        needsSignIn = needsSignIn,
         wifiQuality = wifiQuality,
         mobileQuality = mobileQuality,
         syncConcurrency = syncConcurrency,
@@ -282,6 +284,7 @@ fun SettingsScreen(
     dismissals: Flow<Unit> = emptyFlow(),
     page: SettingsPage? = null,
     onOpenPage: (SettingsPage) -> Unit = {},
+    needsSignIn: Set<Long> = emptySet(),
 ) {
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     DismissOnRequest(dismissals) { dialog = null }
@@ -311,6 +314,7 @@ fun SettingsScreen(
                     rootItems(
                         sources = sources,
                         activeSourceId = activeSourceId,
+                        needsSignIn = needsSignIn,
                         onSelectSource = onSelectSource,
                         onEditServer = onEditServer,
                         onAddServer = onAddServer,
@@ -578,6 +582,7 @@ fun SettingsScreen(
 private fun LazyListScope.rootItems(
     sources: List<Source>,
     activeSourceId: Long?,
+    needsSignIn: Set<Long>,
     onSelectSource: (Long) -> Unit,
     onEditServer: (Long) -> Unit,
     onAddServer: () -> Unit,
@@ -591,7 +596,11 @@ private fun LazyListScope.rootItems(
         ListItem(
             headlineContent = { Text(source.name) },
             supportingContent = {
-                Text(source.address, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (source.id in needsSignIn) {
+                    Text(stringResource(R.string.server_needs_sign_in_short), color = MaterialTheme.colorScheme.error)
+                } else {
+                    Text(source.address, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
             },
             leadingContent = {
                 RadioButton(

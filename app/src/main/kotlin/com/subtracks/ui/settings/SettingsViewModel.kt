@@ -25,6 +25,9 @@ class SettingsViewModel(
     val sources: StateFlow<List<Source>> =
         sourceRepository.sources().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val needsSignIn: StateFlow<Set<Long>> =
+        sourceRepository.sourcesNeedingSignIn().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
     val activeSourceId: StateFlow<Long?> =
         sourceRepository.activeSourceId().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 

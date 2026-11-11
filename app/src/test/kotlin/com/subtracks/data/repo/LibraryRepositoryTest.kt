@@ -19,6 +19,7 @@ import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.StarredFilter
 import com.subtracks.data.prefs.fakeUserPreferences
+import com.subtracks.data.security.FakeCredentialStore
 import com.subtracks.data.source.StarType
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -65,7 +66,14 @@ class LibraryRepositoryTest {
         db = createTestDatabase()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         sourceRepository =
-            SourceRepository(db, OkHttpClient(), fakeUserPreferences(), ArtworkStore(File(context.cacheDir, "art")), scope = scope)
+            SourceRepository(
+                db,
+                OkHttpClient(),
+                fakeUserPreferences(),
+                ArtworkStore(File(context.cacheDir, "art")),
+                FakeCredentialStore(),
+                scope = scope,
+            )
         repository =
             LibraryRepository(
                 db,

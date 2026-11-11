@@ -12,6 +12,7 @@ import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.NetworkServerActionSink
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
+import com.subtracks.data.security.FakeCredentialStore
 import com.subtracks.playback.FakePlayerConnection
 import com.subtracks.playback.FakePlayerHandle
 import com.subtracks.playback.PlaybackController
@@ -41,7 +42,8 @@ class ViewModelRepositoryFixture {
     val artworkStore = ArtworkStore(File(context.cacheDir, "art-${System.nanoTime()}"))
     val downloadEngine = FakeDownloadEngine()
     val downloadsDir = File(context.cacheDir, "downloads-${System.nanoTime()}")
-    val sourceRepository = SourceRepository(db, OkHttpClient(), fakeUserPreferences(), artworkStore, scope = repoScope)
+    val sourceRepository =
+        SourceRepository(db, OkHttpClient(), fakeUserPreferences(), artworkStore, FakeCredentialStore(), scope = repoScope)
     val downloadRepository =
         DownloadRepository(
             db,

@@ -27,6 +27,8 @@ data class AddSourceState(
     val addressError: Boolean = false,
     val isEditing: Boolean = false,
     val canDelete: Boolean = false,
+    // The saved password could not be decrypted; the user has to type it again.
+    val needsSignIn: Boolean = false,
 )
 
 internal fun AddSourceState.validated(): AddSourceState =
@@ -58,6 +60,7 @@ class AddSourceViewModel(
                         username = config.username,
                         password = config.password,
                         useTokenAuth = config.useTokenAuth,
+                        needsSignIn = config.needsSignIn,
                     )
                 }
             }

@@ -186,6 +186,13 @@ Toast-based messaging (snackbars, M1.3).
 | **M2.10 Downloads and storage** | A Storage page (downloads by album and playlist, clear, quality, metered toggle), the existing scratch stream cache (D7: a persistent LRU replay cache is deferred to issue #2), artwork cache clear, library counts plus resync; Downloads screen states; offline Home card | `st:ui/downloads/*`, `st:ui/settings/*`, `st:data/repo/DownloadRepository.kt` | None | `DownloadRepositoryTest` shared-song removal, `DownloadsScreenTest` |
 | **M2.11 Restoration and playback settings** | Swipe-away: keep playing if playing, stop only when paused (C11, D8); stream quality presets plus Custom; restore edge cases (deleted song, changed source) | `st:playback/PlaybackService.kt`, settings UI | None | `PlaybackControllerTest` restore cases; manual process-death test |
 
+**M2.1 status (11 Nov 2026):** in progress, in three parts. Part A, the encrypted password, is done: `CredentialStore` (Keystore AES-256-GCM, a fake for tests), schema 39 adds `subsonic_sources.passwordCiphertext`,
+and `SourceRepository` seals new and edited passwords and moves old plaintext across at startup, verifying before it clears.
+A password that no longer decrypts marks the server "needs sign-in" (a message, a note in the Settings server list, and the
+edit form asks again). Checked on the emulator: an existing server migrated to a `v1:` ciphertext with the plaintext
+cleared, and streaming still worked. The plaintext column stays (always empty) until a later table rebuild. Next: part B,
+custom headers per server; part C, log redaction, typed connection errors, the HTTP warning and the `https://` default.
+
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
   skip to downloaded). Process death during playback, then restore. Lyrics with Navidrome-embedded LRC and LRCLIB fallback.

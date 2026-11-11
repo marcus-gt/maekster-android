@@ -138,6 +138,28 @@ class MigrationsTest {
         }
 
     @Test
+    fun theCiphertextColumnArrivesEmptyAndThePlaintextSurvivesUntilItIsSealed() =
+        runTest {
+            driver.open(":memory:").use { migrated ->
+                applySchema(migrated, 38)
+                migrated.execSQL(
+                    "INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)",
+                )
+                migrated.execSQL(
+                    "INSERT INTO subsonic_sources (sourceId, username, password, useTokenAuth) VALUES (1, 'u', 'p', 1)",
+                )
+
+                MIGRATION_38_39.migrate(migrated)
+
+                assertEquals("p", text(migrated, "SELECT password FROM subsonic_sources WHERE sourceId = 1"))
+                assertEquals(
+                    1L,
+                    long(migrated, "SELECT COUNT(*) FROM subsonic_sources WHERE sourceId = 1 AND passwordCiphertext IS NULL"),
+                )
+            }
+        }
+
+    @Test
     fun theArtistBioTableStoresTheLatestBiography() =
         runTest {
             driver.open(":memory:").use { migrated ->

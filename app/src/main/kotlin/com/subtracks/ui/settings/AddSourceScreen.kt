@@ -231,6 +231,13 @@ fun AddSourceScreen(
                 label = { Text(stringResource(R.string.settings_servers_fields_password)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
+                isError = state.needsSignIn && state.password.isEmpty(),
+                supportingText =
+                    if (state.needsSignIn) {
+                        { Text(stringResource(R.string.settings_servers_fields_password_reenter)) }
+                    } else {
+                        null
+                    },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(

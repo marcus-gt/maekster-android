@@ -305,6 +305,9 @@
     <string name="delete_server_body">%1$s and its downloaded songs will be removed from this device.</string>
     <string name="connection_ok">Connection OK</string>
     <string name="connection_token_fallback">Server does not support token auth; using the password instead</string>
+    <string name="server_needs_sign_in">Sign in to %1$s again. Its saved password can\'t be read on this device.</string>
+    <string name="server_needs_sign_in_short">Needs sign-in. Edit to enter the password.</string>
+    <string name="settings_servers_fields_password_reenter">Enter the password again. The saved one can\'t be read on this device.</string>
     <string name="connection_failed">Failed: %1$s</string>
     <string name="save_failed">Could not save: %1$s</string>
     <string name="active_server_delete_error">The active server can\'t be deleted; switch to another server first</string>

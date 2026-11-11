@@ -21,6 +21,7 @@ import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
+import com.subtracks.data.security.FakeCredentialStore
 import com.subtracks.data.source.ServerActionSink
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.FakePlayerConnection
@@ -81,7 +82,7 @@ class NowPlayingRouteTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val artworkStore = ArtworkStore(File(context.cacheDir, "art"))
         db = createTestDatabase()
-        val sources = SourceRepository(db, OkHttpClient(), prefs, artworkStore, scope = repoScope)
+        val sources = SourceRepository(db, OkHttpClient(), prefs, artworkStore, FakeCredentialStore(), scope = repoScope)
         val queues = QueueRepository(db)
         downloads =
             DownloadRepository(

@@ -14,6 +14,7 @@ import com.subtracks.data.prefs.fakeUserPreferences
 import com.subtracks.data.repo.NetworkServerActionSink
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
+import com.subtracks.data.security.FakeCredentialStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,7 +58,14 @@ class SyncManagerTest {
         db = createTestDatabase()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         sourceRepository =
-            SourceRepository(db, OkHttpClient(), fakeUserPreferences(), ArtworkStore(File(context.cacheDir, "art")), scope = scope)
+            SourceRepository(
+                db,
+                OkHttpClient(),
+                fakeUserPreferences(),
+                ArtworkStore(File(context.cacheDir, "art")),
+                FakeCredentialStore(),
+                scope = scope,
+            )
         queueRepository = QueueRepository(db)
         preferences = fakeUserPreferences()
         manager =

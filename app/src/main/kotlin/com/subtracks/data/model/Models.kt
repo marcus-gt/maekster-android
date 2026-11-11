@@ -36,8 +36,11 @@ data class Source(
 data class SubsonicSource(
     @PrimaryKey val sourceId: Long,
     val username: String,
+    // Legacy plaintext, kept only until SourceRepository moves it into passwordCiphertext; then empty.
     val password: String,
     val useTokenAuth: Boolean = true,
+    // The password sealed by the CredentialStore. Null only on a row that predates encryption.
+    val passwordCiphertext: String? = null,
 )
 
 data class ArtistRef(

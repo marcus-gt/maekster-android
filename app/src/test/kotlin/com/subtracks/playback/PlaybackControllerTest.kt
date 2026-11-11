@@ -32,6 +32,7 @@ import com.subtracks.data.prefs.fakeUserPreferences
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
+import com.subtracks.data.security.FakeCredentialStore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +92,7 @@ class PlaybackControllerTest {
                 OkHttpClient(),
                 prefs,
                 ArtworkStore(File(context.cacheDir, "art")),
+                FakeCredentialStore(),
                 networkMode = networkMode,
                 scope = repoScope,
             )

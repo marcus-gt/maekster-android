@@ -5,9 +5,34 @@ import androidx.room3.Insert
 import androidx.room3.Query
 import androidx.room3.Upsert
 import com.subtracks.data.model.Source
-import com.subtracks.data.model.SubsonicConfig
 import com.subtracks.data.model.SubsonicSource
 import kotlinx.coroutines.flow.Flow
+
+/** A server's connection details as stored; SourceRepository opens the password before anything uses it. */
+data class StoredSubsonicConfig(
+    val id: Long,
+    val name: String,
+    val address: String,
+    val username: String,
+    val password: String,
+    val passwordCiphertext: String?,
+    val useTokenAuth: Boolean,
+)
+
+data class LegacyPassword(
+    val sourceId: Long,
+    val password: String,
+)
+
+data class SealedPassword(
+    val sourceId: Long,
+    val passwordCiphertext: String,
+)
+
+private const val CONFIG_COLUMNS =
+    "s.id AS id, s.name AS name, s.address AS address, c.username AS username, c.password AS password, " +
+        "c.passwordCiphertext AS passwordCiphertext, c.useTokenAuth AS useTokenAuth " +
+        "FROM sources s JOIN subsonic_sources c ON c.sourceId = s.id"
 
 @Dao
 interface SourcesDao {
@@ -57,6 +82,27 @@ interface SourcesDao {
     @Query("UPDATE subsonic_sources SET useTokenAuth = 0 WHERE sourceId = :sourceId")
     suspend fun disableTokenAuth(sourceId: Long)
 
+    /** Rows still holding a plaintext password, from before encryption. */
+    @Query("SELECT sourceId, password FROM subsonic_sources WHERE passwordCiphertext IS NULL AND password != ''")
+    suspend fun legacyPasswords(): List<LegacyPassword>
+
+    /**
+     * Stores [ciphertext] and clears the plaintext in one statement, and only while the row still holds
+     * [plaintext], so an edit made meanwhile is never overwritten. Returns the number of rows changed.
+     */
+    @Query(
+        "UPDATE subsonic_sources SET passwordCiphertext = :ciphertext, password = '' " +
+            "WHERE sourceId = :sourceId AND passwordCiphertext IS NULL AND password = :plaintext",
+    )
+    suspend fun sealLegacyPassword(
+        sourceId: Long,
+        plaintext: String,
+        ciphertext: String,
+    ): Int
+
+    @Query("SELECT sourceId, passwordCiphertext FROM subsonic_sources WHERE passwordCiphertext IS NOT NULL")
+    fun sealedPasswords(): Flow<List<SealedPassword>>
+
     @Query("DELETE FROM sources WHERE id = :id")
     suspend fun deleteSourceRow(id: Long)
 
@@ -65,27 +111,12 @@ interface SourcesDao {
     @Query("UPDATE sources SET isActive = (id = :sourceId)")
     suspend fun setActiveSource(sourceId: Long)
 
-    @Query(
-        "SELECT s.id AS id, s.name AS name, s.address AS address, c.username AS username, " +
-            "c.password AS password, c.useTokenAuth AS useTokenAuth " +
-            "FROM sources s JOIN subsonic_sources c ON c.sourceId = s.id " +
-            "WHERE s.isActive = 1 LIMIT 1",
-    )
-    fun activeSubsonicConfig(): Flow<SubsonicConfig?>
+    @Query("SELECT $CONFIG_COLUMNS WHERE s.isActive = 1 LIMIT 1")
+    fun activeSubsonicConfig(): Flow<StoredSubsonicConfig?>
 
-    @Query(
-        "SELECT s.id AS id, s.name AS name, s.address AS address, c.username AS username, " +
-            "c.password AS password, c.useTokenAuth AS useTokenAuth " +
-            "FROM sources s JOIN subsonic_sources c ON c.sourceId = s.id " +
-            "WHERE s.isActive = 1 LIMIT 1",
-    )
-    suspend fun activeSubsonicConfigOnce(): SubsonicConfig?
+    @Query("SELECT $CONFIG_COLUMNS WHERE s.isActive = 1 LIMIT 1")
+    suspend fun activeSubsonicConfigOnce(): StoredSubsonicConfig?
 
-    @Query(
-        "SELECT s.id AS id, s.name AS name, s.address AS address, c.username AS username, " +
-            "c.password AS password, c.useTokenAuth AS useTokenAuth " +
-            "FROM sources s JOIN subsonic_sources c ON c.sourceId = s.id " +
-            "WHERE s.id = :sourceId LIMIT 1",
-    )
-    suspend fun subsonicConfigOnce(sourceId: Long): SubsonicConfig?
+    @Query("SELECT $CONFIG_COLUMNS WHERE s.id = :sourceId LIMIT 1")
+    suspend fun subsonicConfigOnce(sourceId: Long): StoredSubsonicConfig?
 }

@@ -24,6 +24,8 @@ import com.subtracks.data.repo.NetworkServerActionSink
 import com.subtracks.data.repo.PendingServerActionSink
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
+import com.subtracks.data.security.CredentialStore
+import com.subtracks.data.security.KeystoreCredentialStore
 import com.subtracks.data.source.ServerActionSink
 import com.subtracks.data.sync.AutoSync
 import com.subtracks.data.sync.SyncManager
@@ -73,12 +75,14 @@ fun appModule(
     single(named("io")) { CoroutineScope(SupervisorJob() + Dispatchers.IO) }
     single(named("playback")) { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
     single(createdAtStart = true) { get<UserPreferences>().verboseLogging().onEach(Log::setVerbose).launchIn(get()) }
+    single<CredentialStore> { KeystoreCredentialStore() }
     single {
         SourceRepository(
             get(),
             get(),
             get(),
             get(),
+            credentials = get(),
             networkMode = networkMode(context.applicationContext),
             showMessage = showMessage,
             scope = get(),

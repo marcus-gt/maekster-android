@@ -28,6 +28,7 @@ import com.subtracks.data.model.SubsonicSource
 import com.subtracks.data.model.artistImageKey
 import com.subtracks.data.model.coverArtKey
 import com.subtracks.data.prefs.fakeUserPreferences
+import com.subtracks.data.security.FakeCredentialStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -86,7 +87,7 @@ class DownloadRepositoryTest {
         db = createTestDatabase()
         artwork = ArtworkStore(File(context.cacheDir, "art-${System.nanoTime()}"))
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        sources = SourceRepository(db, OkHttpClient(), prefs, artwork, scope = scope)
+        sources = SourceRepository(db, OkHttpClient(), prefs, artwork, FakeCredentialStore(), scope = scope)
         engine = FakeDownloadEngine()
         dir = File(context.cacheDir, "downloads-${System.nanoTime()}")
         repository =

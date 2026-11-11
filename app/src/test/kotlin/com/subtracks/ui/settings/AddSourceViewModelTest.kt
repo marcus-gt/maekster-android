@@ -15,6 +15,7 @@ import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.NetworkServerActionSink
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
+import com.subtracks.data.security.FakeCredentialStore
 import com.subtracks.data.sync.SyncManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +51,7 @@ class AddSourceViewModelTest {
     private lateinit var downloadRepository: DownloadRepository
     private lateinit var server: MockWebServer
     private val repoScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val credentials = FakeCredentialStore()
     private val createdViewModels = mutableListOf<AddSourceViewModel>()
 
     @Before
@@ -58,7 +60,8 @@ class AddSourceViewModelTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = createTestDatabase()
         val artwork = ArtworkStore(File(context.cacheDir, "art-${System.nanoTime()}"))
-        sourceRepository = SourceRepository(db, OkHttpClient(), fakeUserPreferences(), artwork, scope = repoScope)
+        sourceRepository =
+            SourceRepository(db, OkHttpClient(), fakeUserPreferences(), artwork, credentials, scope = repoScope)
         downloadRepository =
             DownloadRepository(
                 db,
@@ -147,6 +150,39 @@ class AddSourceViewModelTest {
             assertTrue(state.isError)
             assertTrue(state.message!!.contains("active server can't be deleted"))
             assertNotNull("the active source must survive the refused delete", db.sourcesDao().sourceOnce(sourceId))
+        }
+
+    @Test
+    fun editingAServerShowsItsSavedPassword() =
+        runBlocking {
+            val sourceId = sourceRepository.addSource("nav", server.url("/").toString(), "u", "s3cret", false)
+            val viewModel = viewModel(sourceId)
+            await { viewModel.state.value.username == "u" }
+
+            assertEquals("s3cret", viewModel.state.value.password)
+            assertFalse(viewModel.state.value.needsSignIn)
+        }
+
+    @Test
+    fun aPasswordThatCannotBeReadAsksForItAgainAndSavingItFixesTheServer() =
+        runBlocking {
+            val sourceId = sourceRepository.addSource("nav", server.url("/").toString(), "u", "s3cret", false)
+            credentials.loseKey()
+            val viewModel = viewModel(sourceId)
+            await { viewModel.state.value.username == "u" }
+
+            assertTrue(viewModel.state.value.needsSignIn)
+            assertEquals("", viewModel.state.value.password)
+
+            viewModel.setName("nav")
+            viewModel.setPassword("s3cret")
+            var saved = false
+            viewModel.save { saved = true }
+            await { saved }
+
+            val config = sourceRepository.sourceConfigOnce(sourceId)!!
+            assertFalse(config.needsSignIn)
+            assertEquals("s3cret", config.password)
         }
 
     private fun viewModel(sourceId: Long? = null): AddSourceViewModel {

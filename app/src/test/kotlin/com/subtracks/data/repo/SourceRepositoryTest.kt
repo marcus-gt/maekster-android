@@ -10,11 +10,14 @@ import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.download.ArtworkStore
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.Source
+import com.subtracks.data.model.SubsonicSource
 import com.subtracks.data.model.artistImageKey
 import com.subtracks.data.model.coverArtKey
 import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.prefs.fakeUserPreferences
+import com.subtracks.data.security.FakeCredentialStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,6 +55,18 @@ class SourceRepositoryTest {
     private lateinit var scope: CoroutineScope
     private val messages = ArrayList<String>()
     private lateinit var resources: Resources
+    private val credentials = FakeCredentialStore()
+
+    private fun newRepository(scope: CoroutineScope) =
+        SourceRepository(
+            db,
+            OkHttpClient(),
+            prefs,
+            artwork,
+            credentials,
+            showMessage = { messages += it.resolve(resources) },
+            scope = scope,
+        )
 
     @Before
     fun setUp() {
@@ -61,8 +76,7 @@ class SourceRepositoryTest {
         artwork = ArtworkStore(File(context.cacheDir, "art-${System.nanoTime()}"))
         prefs = fakeUserPreferences()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        repository =
-            SourceRepository(db, OkHttpClient(), prefs, artwork, showMessage = { messages += it.resolve(resources) }, scope = scope)
+        repository = newRepository(scope)
     }
 
     @After
@@ -308,6 +322,94 @@ class SourceRepositoryTest {
             assertEquals(artwork.uri(sourceId, key), repository.artistImage("ar1", url)?.url)
             assertNull(repository.artistImage("ar2", "https://img.example/ar2.jpg"))
         }
+
+    @Test
+    fun theStoredPasswordIsOnlyEverTheCiphertext() =
+        runTest {
+            val id = repository.addSource("nav", "http://a.example", "u", "s3cret", true)
+
+            val row = db.sourcesDao().subsonicSource(id).first()!!
+            assertEquals("the plaintext column stays empty", "", row.password)
+            assertFalse(row.passwordCiphertext!!.contains("s3cret"))
+            assertEquals("s3cret", repository.sourceConfigOnce(id)!!.password)
+
+            repository.updateSource(id, "nav", "http://a.example", "u", "changed", true)
+
+            assertEquals(
+                "",
+                db
+                    .sourcesDao()
+                    .subsonicSource(id)
+                    .first()!!
+                    .password,
+            )
+            assertEquals("changed", repository.sourceConfigOnce(id)!!.password)
+        }
+
+    @Test
+    fun aPlaintextPasswordFromBeforeEncryptionIsSealedAtStartup() =
+        runBlocking {
+            val id = insertLegacySource("old-secret")
+            assertEquals("old-secret", repository.sourceConfigOnce(id)!!.password)
+
+            val restartScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+            try {
+                val restarted = newRepository(restartScope)
+                val row =
+                    withTimeout(TEST_TIMEOUT_MS) {
+                        db.sourcesDao().subsonicSource(id).first { it?.passwordCiphertext != null }!!
+                    }
+
+                assertEquals("the plaintext is cleared once sealed", "", row.password)
+                assertEquals("old-secret", restarted.sourceConfigOnce(id)!!.password)
+            } finally {
+                cancelAndJoinBlocking(restartScope)
+            }
+        }
+
+    @Test
+    fun aCiphertextThatDoesNotOpenToThePasswordLeavesThePlaintextInPlace() =
+        runTest {
+            // Corrupt first, so the repository's own sealing at startup cannot win a race with the insert.
+            credentials.corrupt = true
+            val id = insertLegacySource("old-secret")
+
+            repository.sealLegacyPasswords()
+
+            val row = db.sourcesDao().subsonicSource(id).first()!!
+            assertEquals("old-secret", row.password)
+            assertNull(row.passwordCiphertext)
+        }
+
+    @Test
+    fun aPasswordThatCanNoLongerBeReadMarksTheServerAsNeedingSignIn() =
+        runBlocking {
+            val id = repository.addSource("nav", "http://a.example/", "u", "s3cret", false)
+            awaitActiveSourceId()
+            withTimeout(TEST_TIMEOUT_MS) { while (repository.streamUri("s1", null, StreamQuality()) == null) delay(10) }
+
+            credentials.loseKey()
+            db.sourcesDao().updateSourceDetails(id, "nav", "http://a.example/")
+
+            withTimeout(TEST_TIMEOUT_MS) { repository.activeConfig().first { it?.needsSignIn == true } }
+            withTimeout(TEST_TIMEOUT_MS) { while (repository.streamUri("s1", null, StreamQuality()) != null) delay(10) }
+            assertNull("nothing may connect without the password", repository.activeMusicSource())
+            assertEquals(setOf(id), repository.sourcesNeedingSignIn().first())
+            withTimeout(TEST_TIMEOUT_MS) { while (messages.isEmpty()) delay(10) }
+            assertTrue(messages.single().contains("nav"))
+
+            repository.updateSource(id, "nav", "http://a.example/", "u", "s3cret", false)
+
+            assertEquals(emptySet<Long>(), repository.sourcesNeedingSignIn().first())
+            assertEquals("s3cret", repository.sourceConfigOnce(id)!!.password)
+        }
+
+    private suspend fun insertLegacySource(password: String): Long {
+        val dao = db.sourcesDao()
+        val id = dao.insertSource(Source(name = "legacy", address = "http://a.example/", createdAt = 0))
+        dao.upsertSubsonicSource(SubsonicSource(sourceId = id, username = "u", password = password))
+        return id
+    }
 
     private suspend fun awaitActiveSourceId(): Long = withTimeout(TEST_TIMEOUT_MS) { repository.activeSource.first { it != null }!! }
 
