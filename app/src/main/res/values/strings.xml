@@ -32,6 +32,8 @@
     <string name="resources_artist_name">Artists</string>
     <string name="resources_playlist_name">Playlists</string>
     <string name="resources_song_name">Songs</string>
+    <string name="resources_genre_name">Genres</string>
+    <string name="resources_label_name">Labels</string>
     <string name="resources_filter_album">Album</string>
     <string name="resources_filter_artist">Artist</string>
     <string name="artist_type_artist">Artist</string>
@@ -56,6 +58,7 @@
     <string name="resources_sort_by_title">Title</string>
     <string name="resources_sort_by_updated">Updated</string>
     <string name="resources_sort_by_year">Year</string>
+    <string name="resources_sort_by_album_count">Most albums</string>
 
     <plurals name="resources_album_count">
         <item quantity="one">%1$d album</item>
@@ -183,6 +186,9 @@
     <string name="artists_empty">No artists yet.</string>
     <string name="playlists_empty">No playlists yet.</string>
     <string name="songs_empty">No songs yet.\nSync with your server to fill your library.</string>
+    <string name="genres_empty">No genres.\nNone of your songs are tagged with a genre.</string>
+    <string name="labels_empty">No labels.\nNone of your albums are tagged with a record label.</string>
+    <string name="collection_albums_empty">No albums here.\nNothing in your library matches.</string>
     <string name="sync">Sync</string>
     <string name="list_options">List options</string>
     <string name="search">Search</string>

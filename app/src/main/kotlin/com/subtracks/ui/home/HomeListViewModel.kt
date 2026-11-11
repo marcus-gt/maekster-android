@@ -7,6 +7,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.subtracks.R
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumCollectionKind
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
@@ -40,6 +41,9 @@ data class HomeListRequest(
     val decade: Long? = null,
     val downloaded: OfflineListKind? = null,
     val favorites: FavoriteKind? = null,
+    // A genre's or a label's albums, opened from the Library's Genres or Labels list.
+    val collection: AlbumCollectionKind? = null,
+    val collectionName: String? = null,
 )
 
 /** The three lists on the Favorites page. */
@@ -95,6 +99,10 @@ class HomeListViewModel(
 
                     request.decade != null -> {
                         libraryRepository.albumsByDecade(id, request.decade)
+                    }
+
+                    request.collection != null && request.collectionName != null -> {
+                        libraryRepository.collectionAlbums(id, request.collection, request.collectionName, offline)
                     }
 
                     request.section == HomeSection.RecentlyPlayedAlbums -> {

@@ -29,6 +29,9 @@ enum class PlaylistSort { Name, Added, Updated }
 
 enum class SongSort { Name, Artist, Album, Added }
 
+/** Genres and record labels sort by name or by how many albums they cover. */
+enum class CollectionSort { Name, AlbumCount }
+
 enum class LibraryListTab(
     val key: String,
     val defaultSort: String,
@@ -40,6 +43,10 @@ enum class LibraryListTab(
 
     // Not "songs": an older Subtracks songs tab stored its own sorts under that key, which must not carry over.
     Songs("library_songs", SongSort.Name.name, true),
+
+    // As on iOS, genres open with the largest first and labels alphabetically.
+    Genres("library_genres", CollectionSort.AlbumCount.name, false),
+    Labels("library_labels", CollectionSort.Name.name, false),
 }
 
 enum class StarredFilter { Any, Starred, NotStarred }

@@ -1,6 +1,7 @@
 package com.subtracks.ui.home
 
 import android.content.res.Resources
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -320,6 +321,7 @@ fun HomeListScreen(
                             onAlbumClick = onAlbumClick,
                             onLongClick = onLongClick,
                             modifier = Modifier.padding(padding),
+                            emptyText = if (request.collection != null) R.string.collection_albums_empty else null,
                         )
                     }
                 }
@@ -437,9 +439,15 @@ private fun AlbumsList(
     onAlbumClick: (Album) -> Unit,
     onLongClick: (MenuTarget) -> Unit,
     modifier: Modifier = Modifier,
+    // Shown once the list has loaded with nothing in it; null keeps the list blank.
+    @StringRes emptyText: Int? = null,
 ) {
     if (albums.itemCount == 0 && albums.loadState.refresh is LoadState.Loading) {
         LoadingState(modifier)
+        return
+    }
+    if (emptyText != null && albums.itemCount == 0 && albums.loadState.refresh is LoadState.NotLoading) {
+        EmptyState(text = stringResource(emptyText), modifier = modifier)
         return
     }
     LazyColumn(
@@ -628,7 +636,7 @@ internal fun albumListInfo(
             playCountLabel(resources, album.playCount)
         }
 
-        request.decade != null -> {
+        request.decade != null || request.collection != null -> {
             album.year?.takeIf { it > 0 }?.toString()
         }
 

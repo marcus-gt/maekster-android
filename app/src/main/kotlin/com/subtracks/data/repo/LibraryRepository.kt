@@ -8,12 +8,17 @@ import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.db.SubtracksDatabase
+import com.subtracks.data.db.albumCollectionsPageQuery
 import com.subtracks.data.db.albumsPageQuery
 import com.subtracks.data.db.artistsPageQuery
+import com.subtracks.data.db.collectionAlbumsQuery
+import com.subtracks.data.db.hasDownloadedCollectionsQuery
 import com.subtracks.data.db.playlistsPageQuery
 import com.subtracks.data.db.rediscoverAlbumsQuery
 import com.subtracks.data.db.songsPageQuery
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumCollectionKind
+import com.subtracks.data.model.AlbumCollectionSummary
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistAlbums
@@ -24,6 +29,7 @@ import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.Song
 import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.ArtistSort
+import com.subtracks.data.prefs.CollectionSort
 import com.subtracks.data.prefs.LibraryListTab
 import com.subtracks.data.prefs.PlaylistSort
 import com.subtracks.data.prefs.StarredFilter
@@ -70,12 +76,18 @@ class LibraryRepository(
             dao.hasDownloadedArtists(sourceId, StarredFilter.Any.ordinal, search = ""),
             dao.hasDownloadedPlaylists(sourceId, search = ""),
             dao.hasDownloadedSongs(sourceId),
-        ) { albums, artists, playlists, songs ->
+            combine(
+                dao.hasDownloadedCollections(hasDownloadedCollectionsQuery(sourceId, AlbumCollectionKind.Genre)),
+                dao.hasDownloadedCollections(hasDownloadedCollectionsQuery(sourceId, AlbumCollectionKind.Label)),
+            ) { genres, labels -> genres to labels },
+        ) { albums, artists, playlists, songs, (genres, labels) ->
             buildSet {
                 if (albums) add(LibraryListTab.Albums)
                 if (artists) add(LibraryListTab.Artists)
                 if (playlists) add(LibraryListTab.Playlists)
                 if (songs) add(LibraryListTab.Songs)
+                if (genres) add(LibraryListTab.Genres)
+                if (labels) add(LibraryListTab.Labels)
             }
         }
     }
@@ -286,6 +298,30 @@ class LibraryRepository(
             val query = songsPageQuery(sourceId, spec)
             if (spec.downloaded) dao.downloadedSongsPaging(query) else dao.songsPaging(query)
         }
+
+    /** The Genres or Labels list. Offline ([downloaded]) it counts only what has a download. */
+    fun albumCollections(
+        sourceId: Long,
+        kind: AlbumCollectionKind,
+        sort: CollectionSort,
+        descending: Boolean,
+        search: String,
+        downloaded: Boolean,
+    ): Flow<PagingData<AlbumCollectionSummary>> =
+        pager(60) {
+            db.libraryDao().albumCollectionsPaging(
+                albumCollectionsPageQuery(sourceId, kind, sort, descending, search, downloaded),
+            )
+        }
+
+    /** The albums in one genre or from one label. */
+    fun collectionAlbums(
+        sourceId: Long,
+        kind: AlbumCollectionKind,
+        name: String,
+        downloaded: Boolean,
+    ): Flow<PagingData<Album>> =
+        pager(40) { db.libraryDao().collectionAlbumsPaging(collectionAlbumsQuery(sourceId, kind, name, downloaded)) }
 
     fun album(
         sourceId: Long,

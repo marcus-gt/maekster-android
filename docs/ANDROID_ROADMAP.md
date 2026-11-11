@@ -227,6 +227,13 @@ reference and reads the same SQL as the list, so nothing is copied. Schema 42 ad
 sorts. Checked on the emulator against the real library (`docs/handoffs/M2.4-songs.md`). Not run: offline with real
 downloads, and the 200k-song `queryTiming` measurement.
 
+**M2.4 Part C status (12 Nov 2026):** done. Genres and Labels open paged album collections from the Library hub,
+with album counts, artwork, name/count sorting, in-list search and downloaded filtering. Membership and offline availability
+come entirely from Room; genres include every song tag and labels include every album label, grouped case-insensitively
+with distinct album counts. Collections show albums newest first. No schema or dependency change. Database and UI tests,
+normal/2× font renders, build and lint pass. Pixel 9 API 37 verified genre sorting and genre/label → albums → album detail.
+API 35 and offline with real downloads remain unverified; see `docs/handoffs/M2.4-genres-labels.md`. Part D remains pending.
+
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
   skip to downloaded). Process death during playback, then restore. Lyrics with Navidrome-embedded LRC and LRCLIB fallback.

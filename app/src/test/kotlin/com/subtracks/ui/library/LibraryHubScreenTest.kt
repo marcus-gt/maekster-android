@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.R
 import com.subtracks.data.prefs.LibraryListTab
@@ -39,7 +40,7 @@ class LibraryHubScreenTest {
             }
         }
 
-        LIBRARY_HUB_ENTRIES.forEach { composeRule.onNodeWithText(label(it)).performClick() }
+        LIBRARY_HUB_ENTRIES.forEach { composeRule.onNodeWithText(label(it)).performScrollTo().performClick() }
 
         assertEquals(LIBRARY_HUB_ENTRIES, opened)
     }
@@ -52,6 +53,8 @@ class LibraryHubScreenTest {
                 LibraryHubEntry.Albums,
                 LibraryHubEntry.Artists,
                 LibraryHubEntry.Songs,
+                LibraryHubEntry.Genres,
+                LibraryHubEntry.Labels,
                 LibraryHubEntry.Favorites,
             ),
             LIBRARY_HUB_ENTRIES,

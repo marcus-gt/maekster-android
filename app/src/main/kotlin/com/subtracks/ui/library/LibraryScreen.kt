@@ -21,11 +21,13 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.FilterAltOff
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Piano
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Badge
@@ -64,6 +66,8 @@ import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.subtracks.R
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumCollectionKind
+import com.subtracks.data.model.AlbumCollectionSummary
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.BulkDownloadAction
@@ -74,6 +78,7 @@ import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.ArtistSort
+import com.subtracks.data.prefs.CollectionSort
 import com.subtracks.data.prefs.LibraryListTab
 import com.subtracks.data.prefs.ListQuery
 import com.subtracks.data.prefs.PlaylistSort
@@ -106,7 +111,18 @@ enum class LibraryTab(
     Artists(R.string.resources_artist_name, Icons.Rounded.Person),
     Playlists(R.string.resources_playlist_name, Icons.AutoMirrored.Rounded.PlaylistPlay),
     Songs(R.string.resources_song_name, Icons.Rounded.MusicNote),
+    Genres(R.string.resources_genre_name, Icons.Rounded.Piano),
+    Labels(R.string.resources_label_name, Icons.Rounded.Business),
 }
+
+/** The album grouping a Genres or Labels list opens; null for the other lists. */
+val LibraryTab.collectionKind: AlbumCollectionKind?
+    get() =
+        when (this) {
+            LibraryTab.Genres -> AlbumCollectionKind.Genre
+            LibraryTab.Labels -> AlbumCollectionKind.Label
+            else -> null
+        }
 
 data class SortOption(
     val value: String,
@@ -162,6 +178,13 @@ fun sortOptionsFor(
             }
         }
 
+        LibraryTab.Genres, LibraryTab.Labels -> {
+            listOf(
+                SortOption(CollectionSort.Name.name, R.string.resources_sort_by_name),
+                SortOption(CollectionSort.AlbumCount.name, R.string.resources_sort_by_album_count, descendingByDefault = true),
+            )
+        }
+
         LibraryTab.Songs -> {
             listOf(
                 SortOption(SongSort.Name.name, R.string.resources_sort_by_title),
@@ -192,6 +215,7 @@ fun LibraryListRoute(
     contextMenuHost: ContextMenuHost? = null,
     setStar: (StarType, String, Boolean) -> Unit,
     bottomInset: Dp,
+    onCollectionClick: (AlbumCollectionKind, String) -> Unit = { _, _ -> },
     viewModel: LibraryViewModel = koinViewModel(),
     playbackController: PlaybackController = koinInject(),
 ) {
@@ -226,6 +250,13 @@ fun LibraryListRoute(
         artists = if (list == LibraryTab.Artists) viewModel.artists else emptyFlow(),
         playlists = if (list == LibraryTab.Playlists) viewModel.playlists else emptyFlow(),
         songs = if (list == LibraryTab.Songs) viewModel.songs else emptyFlow(),
+        collections =
+            when (list) {
+                LibraryTab.Genres -> viewModel.genres
+                LibraryTab.Labels -> viewModel.labels
+                else -> emptyFlow()
+            },
+        onCollectionClick = onCollectionClick,
         onSongClick = { _, index -> viewModel.playSongs(index) },
         onShuffleSongs = viewModel::shuffleSongs,
         onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
@@ -294,6 +325,9 @@ fun LibraryListScreen(
     artists: Flow<PagingData<Artist>> = remember { flowOf(PagingData.empty()) },
     playlists: Flow<PagingData<Playlist>> = remember { flowOf(PagingData.empty()) },
     songs: Flow<PagingData<AlbumSongItem>> = remember { flowOf(PagingData.empty()) },
+    // The Genres or Labels list, whichever [list] is.
+    collections: Flow<PagingData<AlbumCollectionSummary>> = remember { flowOf(PagingData.empty()) },
+    onCollectionClick: (AlbumCollectionKind, String) -> Unit = { _, _ -> },
     onSongClick: (Song, Int) -> Unit = { _, _ -> },
     onShuffleSongs: () -> Unit = {},
     onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
@@ -439,6 +473,21 @@ fun LibraryListScreen(
                         onToggleFavorite = onToggleFavorite,
                         playingSongId = playingSongId,
                         downloads = songDownloads,
+                        filtered = filtersActive,
+                        onClearFilters = onClearFilters,
+                        resetKey = resetKey,
+                        onSync = onSync,
+                    )
+                }
+
+                LibraryTab.Genres, LibraryTab.Labels -> {
+                    val kind = checkNotNull(list.collectionKind)
+                    AlbumCollectionsContent(
+                        items = collections.collectAsLazyPagingItems(),
+                        coverArt = coverArt,
+                        bottomInset = listBottomInset,
+                        emptyText = if (kind == AlbumCollectionKind.Genre) R.string.genres_empty else R.string.labels_empty,
+                        onClick = { collection -> open { onCollectionClick(kind, collection.name) } },
                         filtered = filtersActive,
                         onClearFilters = onClearFilters,
                         resetKey = resetKey,

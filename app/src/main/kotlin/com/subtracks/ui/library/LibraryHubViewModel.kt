@@ -32,10 +32,12 @@ enum class LibraryHubEntry(
     Albums(LibraryTab.Albums.label, LibraryTab.Albums.icon, LibraryTab.Albums),
     Artists(LibraryTab.Artists.label, LibraryTab.Artists.icon, LibraryTab.Artists),
     Songs(LibraryTab.Songs.label, LibraryTab.Songs.icon, LibraryTab.Songs),
+    Genres(LibraryTab.Genres.label, LibraryTab.Genres.icon, LibraryTab.Genres),
+    Labels(LibraryTab.Labels.label, LibraryTab.Labels.icon, LibraryTab.Labels),
     Favorites(R.string.resources_filter_starred, Icons.Rounded.Favorite),
 }
 
-/** The entries in the iOS order. Genres, Labels and Downloads join them later in M2. */
+/** The entries in the iOS order. Downloads joins them later in M2. */
 internal val LIBRARY_HUB_ENTRIES = LibraryHubEntry.entries.toList()
 
 /**

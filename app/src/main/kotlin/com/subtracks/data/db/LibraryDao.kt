@@ -11,6 +11,8 @@ import androidx.room3.Upsert
 import androidx.room3.paging.PagingSourceDaoReturnTypeConverter
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumArtistRef
+import com.subtracks.data.model.AlbumCollectionSummary
+import com.subtracks.data.model.AlbumLabel
 import com.subtracks.data.model.AlbumSearch
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
@@ -25,6 +27,7 @@ import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongArtistRef
 import com.subtracks.data.model.SongDownload
+import com.subtracks.data.model.SongGenre
 import com.subtracks.data.model.SongSearch
 import com.subtracks.data.model.Source
 import kotlinx.coroutines.flow.Flow
@@ -674,6 +677,15 @@ interface LibraryDao {
 
     @RawQuery(observedEntities = [Song::class, Album::class, SongSearch::class])
     fun songsPaging(query: RoomRawQuery): PagingSource<Int, AlbumSongItem>
+
+    @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, AlbumLabel::class, SongDownload::class])
+    fun albumCollectionsPaging(query: RoomRawQuery): PagingSource<Int, AlbumCollectionSummary>
+
+    @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, AlbumLabel::class, SongDownload::class])
+    fun collectionAlbumsPaging(query: RoomRawQuery): PagingSource<Int, Album>
+
+    @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, AlbumLabel::class, SongDownload::class])
+    fun hasDownloadedCollections(query: RoomRawQuery): Flow<Boolean>
 
     @RawQuery(observedEntities = [Song::class, Album::class, SongDownload::class, SongSearch::class])
     fun downloadedSongsPaging(query: RoomRawQuery): PagingSource<Int, AlbumSongItem>

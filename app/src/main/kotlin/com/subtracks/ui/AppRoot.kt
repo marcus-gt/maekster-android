@@ -78,6 +78,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.subtracks.R
 import com.subtracks.UiMessages
+import com.subtracks.data.model.AlbumCollectionKind
 import com.subtracks.data.model.ArtistRef
 import com.subtracks.data.model.Song
 import com.subtracks.data.repo.DownloadRepository
@@ -156,6 +157,7 @@ private object Routes {
 
     // Not under library/, which LIBRARY_LIST would match.
     const val FAVORITES = "favorites"
+    const val COLLECTION = "collection/{kind}/{name}"
     const val SETTINGS = "settings"
     const val SETTINGS_PAGE = "settings/{page}"
     const val DOWNLOADS = "downloads"
@@ -183,6 +185,11 @@ private object Routes {
     fun playlist(id: String) = "playlist/${Uri.encode(id)}"
 
     fun libraryList(list: LibraryTab) = "library/${list.name}"
+
+    fun collection(
+        kind: AlbumCollectionKind,
+        name: String,
+    ) = "collection/${kind.name}/${Uri.encode(name)}"
 
     fun settingsPage(page: SettingsPage) = "settings/${page.name}"
 
@@ -538,6 +545,36 @@ private fun MainNavigation() {
                                 contextMenuHost = contextMenuHost,
                                 setStar = libraryRepository::star,
                                 bottomInset = bottomInset,
+                                onCollectionClick = { kind, name -> navController.navigate(Routes.collection(kind, name)) },
+                            )
+                        }
+                        composable(
+                            route = Routes.COLLECTION,
+                            arguments =
+                                listOf(
+                                    navArgument("kind") { type = NavType.StringType },
+                                    navArgument("name") { type = NavType.StringType },
+                                ),
+                        ) { entry ->
+                            val kind =
+                                AlbumCollectionKind.entries.firstOrNull { it.name == entry.arguments?.getString("kind") }
+                                    ?: return@composable
+                            val name = entry.arguments?.getString("name") ?: return@composable
+                            HomeListRoute(
+                                request = HomeListRequest(title = name, collection = kind, collectionName = name),
+                                onBack = { navController.popBackStack() },
+                                onAlbumClick = { album ->
+                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                },
+                                onArtistClick = {},
+                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { artistId ->
+                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                },
+                                onGenreClick = {},
+                                onDecadeClick = {},
+                                contextMenuHost = contextMenuHost,
+                                setStar = libraryRepository::star,
                             )
                         }
                     }
