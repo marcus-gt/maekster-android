@@ -337,7 +337,13 @@ Part E is done: queue rows form one continuous list with a single Playing from l
 the manual Clear up next action is there too. No repeated context or Up next headings. Cursor opening
 uses direct row indices; internal drag boundaries and bounded loading are retained. UI regression with
 mutation, full build/tests/lint/recording and normal/2× font renders pass.
-See `docs/handoffs/M2.7-continuous-queue.md`. Next: bounded context Clear upcoming, source labels or recovery.
+See `docs/handoffs/M2.7-continuous-queue.md`.
+Part F is done at the repository layer: unshuffled Clear upcoming keeps history/current track by trimming
+reference ranges, including manual-block boundaries. Queue rows and cursor update atomically; no songs
+are resolved. Tests cover offsets, duplicates, position/mode preservation, no-ops, shuffle rejection and
+a synthetic billion-track range, with an off-by-one mutation. Full build/tests/format/lint pass.
+No UI action yet; shuffled truncation and controller/Undo/UI integration remain open.
+See `docs/handoffs/M2.7-clear-upcoming-repository.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

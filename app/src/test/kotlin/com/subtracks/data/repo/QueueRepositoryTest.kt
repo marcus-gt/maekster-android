@@ -44,6 +44,107 @@ class QueueRepositoryTest {
     }
 
     @Test
+    fun clearUpcomingKeepsTheCurrentContextTrackAndItsPosition() =
+        runTest {
+            seedLibrary()
+            repository.replace(
+                listOf(repository.albumEntry(1, "al1"), repository.albumEntry(1, "al2")),
+                upNext = listOf(repository.albumEntry(1, "al2")),
+                upNextAnchor = 1,
+            )
+            repository.setCursor(1)
+            repository.setPosition(12345)
+            repository.setRepeat(2)
+            assertTrue(repository.clearUpcoming(repository.snapshot(), 1))
+
+            val after = repository.snapshot()
+            assertEquals(listOf("s1", "s2"), resolveAll(after))
+            assertTrue(after.upNext.isEmpty())
+            assertEquals(1L, repository.cursor())
+            assertEquals(12345L, repository.cursorPositionMs())
+            assertEquals(2, repository.modes().repeat)
+            assertEquals(1, after.entries.size)
+        }
+
+    @Test
+    fun clearUpcomingInsideTheManualBlockKeepsItsPrefixAndContextHistory() =
+        runTest {
+            seedLibrary()
+            repository.replace(
+                listOf(repository.albumEntry(1, "al1")),
+                upNext = listOf(repository.albumEntry(1, "al2")),
+                upNextAnchor = 0,
+            )
+            repository.setCursor(1)
+            assertTrue(repository.clearUpcoming(repository.snapshot(), 1))
+            val after = repository.snapshot()
+            assertEquals(listOf("s1", "s4"), resolveAll(after))
+            assertEquals(1L, after.contextSize)
+            assertEquals(1L, after.upNextSize)
+            assertEquals(0L, after.upNextAnchor)
+        }
+
+    @Test
+    fun clearUpcomingAfterTheManualBlockKeepsDuplicatesAndExistingRangeOffsets() =
+        runTest {
+            seedLibrary()
+            repository.replace(
+                listOf(
+                    repository.albumEntry(1, "al1").copy(rangeStart = 1, rangeEnd = 2),
+                    repository.albumEntry(1, "al2"),
+                ),
+                upNext = listOf(repository.albumEntry(1, "al1").copy(rangeStart = 1, rangeEnd = 1)),
+                upNextAnchor = 0,
+            )
+            assertTrue(repository.clearUpcoming(repository.snapshot(), 2))
+            val after = repository.snapshot()
+            assertEquals(listOf("s2", "s2", "s3"), resolveAll(after))
+            assertEquals(
+                1L,
+                after.entries
+                    .single()
+                    .entry.rangeStart,
+            )
+            assertEquals(
+                2L,
+                after.entries
+                    .single()
+                    .entry.rangeEnd,
+            )
+        }
+
+    @Test
+    fun clearUpcomingNoOpsAtTheEndAndRejectsShuffleWithoutWriting() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1")))
+            val before = repository.snapshot()
+            assertFalse(repository.clearUpcoming(before, -1))
+            assertFalse(repository.clearUpcoming(before, before.size))
+            assertFalse(repository.clearUpcoming(before, before.size - 1))
+            repository.setShuffle(42)
+            val shuffled = repository.snapshot()
+            val result = runCatching { repository.clearUpcoming(shuffled, 0) }
+            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+            assertEquals(listOf("s1", "s2", "s3").sorted(), resolveAll(repository.snapshot()).sorted())
+            assertEquals(42L, repository.snapshot().shuffleSeed)
+        }
+
+    @Test
+    fun clearUpcomingRepresentsAHugePrefixAsOneRange() =
+        runTest {
+            seedLibrary()
+            val entry = repository.albumEntry(1, "al1")
+            repository.replace(listOf(entry))
+            val synthetic = QueueSnapshot(listOf(ResolvedQueueEntry(entry, 1_000_000_000)))
+            assertTrue(repository.clearUpcoming(synthetic, 500_000_000))
+            val entries = db.queueDao().entries()
+            assertEquals(1, entries.size)
+            assertEquals(0L, entries.single().rangeStart)
+            assertEquals(500_000_000L, entries.single().rangeEnd)
+        }
+
+    @Test
     fun wholeAlbumEntryResolvesEveryTrackInOrder() =
         runTest {
             seedLibrary()

@@ -741,6 +741,61 @@ class QueueRepository(
         writeUpNext(emptyList())
     }
 
+    /** Keeps history and the current position, trimming reference ranges without resolving songs. */
+    suspend fun clearUpcoming(
+        snapshot: QueueSnapshot,
+        currentPosition: Long,
+    ): Boolean {
+        require(!snapshot.shuffled) { "Shuffled truncation requires preserving the shuffle domain" }
+        if (currentPosition !in 0 until snapshot.size || currentPosition == snapshot.size - 1) return false
+        val inBlock = snapshot.isUpNext(currentPosition)
+        val contextCount = if (inBlock) snapshot.anchorPlay + 1 else snapshot.contextPlay(currentPosition) + 1
+        val blockCount =
+            when {
+                inBlock -> snapshot.upNextIndex(currentPosition) + 1
+                currentPosition <= snapshot.anchorPlay -> 0
+                else -> snapshot.upNextSize
+            }
+        val entries = prefixEntries(snapshot.entries, contextCount)
+        val block = prefixEntries(snapshot.upNext, blockCount)
+        cursorMutex.withLock {
+            db.useWriterConnection { transactor ->
+                transactor.immediateTransaction {
+                    val cursor = cursorRow()
+                    dao.clear()
+                    dao.insert(entries.mapIndexed { index, entry -> entry.copy(id = 0, position = index.toLong()) })
+                    dao.clearUpNext()
+                    dao.insertUpNext(block.mapIndexed { index, entry -> UpNextEntry.from(entry).copy(id = 0, position = index.toLong()) })
+                    dao.setCursor(
+                        cursor.copy(
+                            queuePosition = currentPosition,
+                            positionMs = if (cursor.queuePosition == currentPosition) cursor.positionMs else 0,
+                            upNextAnchor = snapshot.upNextAnchor.coerceAtMost(contextCount - 1),
+                        ),
+                    )
+                }
+            }
+        }
+        queueVersion.incrementAndGet()
+        return true
+    }
+
+    private fun prefixEntries(
+        entries: List<ResolvedQueueEntry>,
+        count: Long,
+    ): List<QueueEntry> {
+        var remaining = count
+        return buildList {
+            for (resolved in entries) {
+                if (remaining <= 0) break
+                if (resolved.length == 0L) continue
+                val keep = minOf(remaining, resolved.length)
+                add(resolved.entry.range(resolved.entry.offset, resolved.entry.offset + keep - 1))
+                remaining -= keep
+            }
+        }
+    }
+
     suspend fun removeUpNextAt(
         snapshot: QueueSnapshot,
         index: Long,
