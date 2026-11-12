@@ -9,3 +9,16 @@ data class AlbumCollectionSummary(
     val albumCount: Long,
     val coverArt: String?,
 )
+
+/**
+ * The collections an album page links to: up to [MAX_GENRES] of its songs' genres, most-tagged first, and its
+ * first record label. Names are stored as synced, so each one matches its Genres or Labels collection.
+ */
+data class AlbumFacets(
+    val genres: List<String> = emptyList(),
+    val label: String? = null,
+) {
+    companion object {
+        const val MAX_GENRES = 3
+    }
+}

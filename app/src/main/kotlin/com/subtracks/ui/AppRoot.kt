@@ -665,6 +665,7 @@ private fun MainNavigation() {
                             },
                             contextMenuHost = contextMenuHost,
                             setStar = libraryRepository::star,
+                            onCollectionClick = { kind, name -> navController.navigate(Routes.collection(kind, name)) },
                         )
                     }
                     composable(

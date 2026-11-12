@@ -240,7 +240,15 @@ at most 27 bucket positions; lists remain paged, with Artists now also using pla
 to actual list order, and an off-by-one mutation fails the test. On review, the Songs rail gained bottom clearance so the
 shuffle button no longer covers a letter (with a test that fails without it). Build, 1,190 tests and lint pass; normal/2x
 font rail renders reviewed. Pixel 9 API 37 verified jumps on all three lists, including a far jump on Songs. Large-library timing, API 35 and real offline downloads remain
-unverified; Favorites/Home lists are unchanged. See `docs/handoffs/M2.4-letter-rail.md`. No later M2.4 subtask has started.
+unverified; Favorites/Home lists are unchanged. See `docs/handoffs/M2.4-letter-rail.md`.
+
+**M2.4 Part E status (12 Nov 2026):** done. The album page shows "year · songs · length" with up to two format badges
+(lossless in the lossless colour) and, below, up to three genre chips (its songs' tags, most tagged first) and the first record
+label. Each chip opens the Part C collection, and offline the genre chips count only downloaded songs, so the collection still holds
+the album. Room only; no schema or dependency change. DAO, UI and format tests (with a mutation check), build, 1,197 tests and
+lint pass. Pixel 9 API 37 verified chips and badges on real albums and both chip kinds opening their collections. Offline with
+real downloads, API 35, TalkBack and 2× font remain unverified; see `docs/handoffs/M2.4-album-chips.md`. Artist discography
+and the playlist footer have not started.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

@@ -292,6 +292,7 @@ fun HeroHeader(
     comment: String? = null,
     onSubtitleClick: (() -> Unit)? = null,
     nameMaxLines: Int = 2,
+    details: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier =
@@ -342,7 +343,15 @@ fun HeroHeader(
             Spacer(Modifier.height(4.dp))
             HeroSubtitle(comment)
         }
-        if (!subtitleIsTarget) Spacer(Modifier.height(20.dp)) else Spacer(Modifier.height(12.dp))
+        if (details != null) {
+            Spacer(Modifier.height(if (subtitleIsTarget) 0.dp else 4.dp))
+            details()
+            Spacer(Modifier.height(20.dp))
+        } else if (!subtitleIsTarget) {
+            Spacer(Modifier.height(20.dp))
+        } else {
+            Spacer(Modifier.height(12.dp))
+        }
         Row(
             modifier = controlsModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,

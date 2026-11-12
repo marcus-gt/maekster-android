@@ -986,6 +986,24 @@ interface LibraryDao {
         albumId: String,
     ): Flow<List<String>>
 
+    // The album page's genre chips: its songs' tags grouped the way the Genres list groups them, most-tagged first.
+    // With downloadedOnly, only downloaded songs count, so each chip's collection offline still holds this album.
+    @Query(
+        "SELECT MIN(sg.genre) FROM song_genres sg " +
+            "JOIN songs ON songs.sourceId = sg.sourceId AND songs.id = sg.songId " +
+            "WHERE songs.sourceId = :sourceId AND songs.albumId = :albumId AND trim(sg.genre) != '' " +
+            "AND (NOT :downloadedOnly OR EXISTS (SELECT 1 FROM song_downloads sd WHERE sd.sourceId = songs.sourceId " +
+            "AND sd.songId = songs.id AND sd.status = 'Completed')) " +
+            "GROUP BY sg.genre COLLATE NOCASE ORDER BY COUNT(DISTINCT sg.songId) DESC, MIN(sg.genre) COLLATE NOCASE " +
+            "LIMIT :limit",
+    )
+    fun albumGenres(
+        sourceId: Long,
+        albumId: String,
+        downloadedOnly: Boolean,
+        limit: Int,
+    ): Flow<List<String>>
+
     @Query("SELECT type FROM album_release_types WHERE sourceId = :sourceId AND albumId = :albumId ORDER BY position")
     fun albumReleaseTypes(
         sourceId: Long,

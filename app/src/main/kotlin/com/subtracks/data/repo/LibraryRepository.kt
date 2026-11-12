@@ -21,6 +21,7 @@ import com.subtracks.data.db.songsPageQuery
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumCollectionKind
 import com.subtracks.data.model.AlbumCollectionSummary
+import com.subtracks.data.model.AlbumFacets
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistAlbums
@@ -432,6 +433,17 @@ class LibraryRepository(
         sourceId: Long,
         albumId: String,
     ): Flow<List<Disc>> = db.libraryDao().discs(sourceId, albumId)
+
+    /** The album page's genre and label chips, from Room only; offline, genres count downloaded songs only. */
+    fun albumFacets(
+        sourceId: Long,
+        albumId: String,
+        offline: Boolean,
+    ): Flow<AlbumFacets> =
+        combine(
+            db.libraryDao().albumGenres(sourceId, albumId, offline, AlbumFacets.MAX_GENRES),
+            db.libraryDao().albumLabels(sourceId, albumId),
+        ) { genres, labels -> AlbumFacets(genres, labels.firstOrNull { it.isNotBlank() }) }
 
     fun albumSongs(
         sourceId: Long,

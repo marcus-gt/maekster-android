@@ -1,6 +1,10 @@
 package com.subtracks.ui.library
 
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -8,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FiberSmartRecord
+import androidx.compose.material.icons.rounded.Business
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,12 +25,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumCollectionKind
+import com.subtracks.data.model.AlbumFacets
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Disc
@@ -37,16 +48,21 @@ import com.subtracks.data.model.SongDownload
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.ArtistChooserSheet
+import com.subtracks.ui.components.AudioFormats
 import com.subtracks.ui.components.CloseWhenDownloadsGone
 import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.components.DismissOnRequest
+import com.subtracks.ui.components.FormatBadge
 import com.subtracks.ui.components.HeroDetailScaffold
 import com.subtracks.ui.components.HeroHeader
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.MenuTarget
+import com.subtracks.ui.components.MetadataChip
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
 import com.subtracks.ui.components.rememberPendingDownloadDelete
 import com.subtracks.ui.theme.ArtworkColors
+import com.subtracks.ui.theme.MaeksterSpacing
+import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.rememberArtworkColors
 import kotlinx.coroutines.flow.emptyFlow
 import org.koin.compose.koinInject
@@ -64,12 +80,14 @@ fun AlbumDetailRoute(
     onViewArtist: (String) -> Unit,
     contextMenuHost: ContextMenuHost? = null,
     setStar: (StarType, String, Boolean) -> Unit,
+    onCollectionClick: ((AlbumCollectionKind, String) -> Unit)? = null,
     viewModel: AlbumDetailViewModel = koinViewModel(key = albumId) { parametersOf(albumId) },
     playbackController: PlaybackController = koinInject(),
 ) {
     val album by viewModel.album.collectAsStateWithLifecycle()
     val songs by viewModel.songs.collectAsStateWithLifecycle()
     val discs by viewModel.discs.collectAsStateWithLifecycle()
+    val facets by viewModel.facets.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
     val downloadStatus by viewModel.downloadStatus.collectAsStateWithLifecycle()
     val offline by viewModel.offline.collectAsStateWithLifecycle()
@@ -101,6 +119,8 @@ fun AlbumDetailRoute(
         album = album,
         songs = songs,
         discs = discs,
+        facets = facets,
+        onCollectionClick = onCollectionClick,
         coverArt = viewModel::coverArt,
         artwork =
             rememberArtworkColors(
@@ -159,6 +179,8 @@ fun AlbumDetailScreen(
     songs: List<Song>,
     modifier: Modifier = Modifier,
     discs: List<Disc> = emptyList(),
+    facets: AlbumFacets = AlbumFacets(),
+    onCollectionClick: ((AlbumCollectionKind, String) -> Unit)? = null,
     coverArt: (String?, Boolean) -> CoverArtRef?,
     artwork: ArtworkColors?,
     downloads: Map<String, SongDownload> = emptyMap(),
@@ -209,17 +231,13 @@ fun AlbumDetailScreen(
         onBack = onBack,
         contentReady = songs.isNotEmpty(),
         header = { controlsModifier, topInset ->
-            val artistName = album?.albumArtist?.takeIf { it.isNotBlank() }
             HeroHeader(
                 art = coverArt(album?.coverArt, false),
                 thumbnailRef = coverArt(album?.coverArt, true),
                 name = album?.name.orEmpty(),
-                subtitle =
-                    listOfNotNull(
-                        artistName,
-                        album?.year?.takeIf { it > 0 }?.toString(),
-                    ).joinToString(" $DOT "),
+                subtitle = album?.albumArtist?.takeIf { it.isNotBlank() }.orEmpty(),
                 onSubtitleClick = onArtistClick,
+                details = if (album != null) ({ AlbumDetails(album.year, songs, facets, onCollectionClick) }) else null,
                 hasSongs = songs.isNotEmpty(),
                 onPlay = onPlay,
                 onShuffle = onShuffle,
@@ -264,6 +282,76 @@ fun AlbumDetailScreen(
         },
         modifier = modifier,
     )
+}
+
+/** "2023 · 10 songs · 38 min" with format badges, then the genre and label chips that open their collections. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AlbumDetails(
+    year: Long?,
+    songs: List<Song>,
+    facets: AlbumFacets,
+    onCollectionClick: ((AlbumCollectionKind, String) -> Unit)?,
+) {
+    val resources = LocalResources.current
+    val summary =
+        remember(year, songs, resources) {
+            listOfNotNull(
+                year?.takeIf { it > 0 }?.toString(),
+                songs.size.takeIf { it > 0 }?.let { resources.getQuantityString(R.plurals.resources_song_count, it, it) },
+                totalDurationText(resources, songs.sumOf { it.duration ?: 0L }),
+            ).joinToString(" $DOT ")
+        }
+    val badges = remember(songs) { AudioFormats.badges(songs.map { it.suffix }) }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(MaeksterSpacing.xs),
+    ) {
+        if (summary.isNotEmpty() || badges.isNotEmpty()) {
+            Row(
+                modifier = Modifier.semantics(mergeDescendants = true) {}.testTag("album-summary"),
+                horizontalArrangement = Arrangement.spacedBy(MaeksterSpacing.s),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (summary.isNotEmpty()) {
+                    Text(
+                        text = summary,
+                        style = MaeksterTheme.text.metadata,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                }
+                badges.forEach { FormatBadge(it) }
+            }
+        }
+        if (onCollectionClick != null && (facets.genres.isNotEmpty() || facets.label != null)) {
+            val openLabel = stringResource(R.string.open_collection_albums)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(MaeksterSpacing.s, Alignment.CenterHorizontally),
+            ) {
+                facets.genres.forEach { genre ->
+                    MetadataChip(
+                        text = genre.trim(),
+                        onClick = { onCollectionClick(AlbumCollectionKind.Genre, genre) },
+                        onClickLabel = openLabel,
+                        modifier = Modifier.testTag("album-chip-genre"),
+                    )
+                }
+                facets.label?.let { label ->
+                    MetadataChip(
+                        text = label.trim(),
+                        onClick = { onCollectionClick(AlbumCollectionKind.Label, label) },
+                        onClickLabel = openLabel,
+                        icon = Icons.Rounded.Business,
+                        iconDescription = stringResource(R.string.record_label),
+                        modifier = Modifier.testTag("album-chip-label"),
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

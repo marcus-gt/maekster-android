@@ -88,6 +88,36 @@ class AlbumCollectionDaoTest {
             assertEquals(listOf("new"), albums(source, AlbumCollectionKind.Label, "indie", downloaded = true))
         }
 
+    @Test
+    fun albumGenreChipsAreItsSongsTagsMostTaggedFirstAndEachOpensACollectionHoldingTheAlbum() =
+        runTest {
+            val source = seed()
+            val other = seed()
+            val dao = db.libraryDao()
+            // "new" holds two Rock songs, one of them also Indie and one blank tag; blanks are skipped.
+            assertEquals(listOf("Rock", "Indie"), dao.albumGenres(source, "new", false, 3).first())
+            assertEquals(listOf("Rock"), dao.albumGenres(source, "new", false, 1).first())
+            assertEquals(listOf("rock"), dao.albumGenres(other, "old", false, 3).first())
+            for (genre in dao.albumGenres(source, "new", false, 3).first()) {
+                assertTrue("$genre should list the album", "new" in albums(source, AlbumCollectionKind.Genre, genre))
+            }
+            assertEquals(listOf("Rock", "rock", "Indie"), dao.albumLabels(source, "new").first())
+        }
+
+    @Test
+    fun offlineAlbumGenreChipsCountOnlyDownloadedSongs() =
+        runTest {
+            val source = seed()
+            val dao = db.libraryDao()
+            assertTrue(dao.albumGenres(source, "new", true, 3).first().isEmpty())
+            db.downloadDao().upsert(SongDownload(source, "new", DownloadStatus.Completed))
+            // Indie is only on the song that is not downloaded, and offline its collection would not hold the album.
+            assertEquals(listOf("Rock"), dao.albumGenres(source, "new", true, 3).first())
+            assertTrue(albums(source, AlbumCollectionKind.Genre, "indie", downloaded = true).isEmpty())
+            db.downloadDao().upsert(SongDownload(source, "extra", DownloadStatus.Completed))
+            assertEquals(listOf("Rock", "Indie"), dao.albumGenres(source, "new", true, 3).first())
+        }
+
     private suspend fun seed(): Long {
         val source = db.sourcesDao().insertSource(Source(name = "test", address = "http://localhost", isActive = false, createdAt = 0))
         db.libraryDao().upsertAlbums(

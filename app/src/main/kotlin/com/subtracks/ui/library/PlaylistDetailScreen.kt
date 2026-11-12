@@ -187,21 +187,6 @@ private fun playlistSummary(
     val songs = if (offline) downloadedSongs else playlist.songCount
     return listOfNotNull(
         context.resources.getQuantityString(R.plurals.resources_song_count, songs.toInt(), songs),
-        formatDuration(context, playlist.duration),
+        totalDurationText(context.resources, playlist.duration),
     ).joinToString(" $DOT ")
-}
-
-private fun formatDuration(
-    context: Context,
-    seconds: Long,
-): String? {
-    if (seconds < 60) return null
-    val totalMinutes = seconds / 60
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
-    return when {
-        hours == 0L -> context.getString(R.string.playlist_duration_minutes, totalMinutes)
-        minutes == 0L -> context.getString(R.string.playlist_duration_hours, hours)
-        else -> context.getString(R.string.playlist_duration_hours_minutes, hours, minutes)
-    }
 }

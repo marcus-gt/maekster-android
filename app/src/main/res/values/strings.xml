@@ -178,6 +178,9 @@
     <string name="more_options">More options</string>
     <string name="open_album">Open album</string>
     <string name="open_artist">Open artist</string>
+    <string name="open_collection_albums">Show all albums</string>
+    <string name="record_label">Record label</string>
+    <string name="format_badge_lossless">%1$s, lossless</string>
     <string name="artist_chooser_title">Artists</string>
     <string name="unknown_artist">Unknown artist</string>
     <string name="unknown_album">Unknown album</string>

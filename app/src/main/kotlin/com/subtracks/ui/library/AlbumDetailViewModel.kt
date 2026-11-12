@@ -3,6 +3,7 @@ package com.subtracks.ui.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumFacets
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Disc
@@ -48,6 +49,11 @@ class AlbumDetailViewModel(
         sourceId
             .flatMapLatest { libraryRepository.albumDiscs(it, albumId) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val facets: StateFlow<AlbumFacets> =
+        combine(sourceId, sourceRepository.offline) { id, offline -> id to offline }
+            .flatMapLatest { (id, offline) -> libraryRepository.albumFacets(id, albumId, offline) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AlbumFacets())
 
     val downloads: StateFlow<Map<String, SongDownload>> = downloadRepository.states()
 
