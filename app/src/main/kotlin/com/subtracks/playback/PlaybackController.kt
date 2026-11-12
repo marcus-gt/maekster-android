@@ -69,6 +69,7 @@ data class PlaybackState(
     val audioEncoding: AudioEncoding? = null,
     val playbackOrigin: PlaybackOrigin? = null,
     val canClearUpcoming: Boolean = false,
+    val waiting: PlaybackWaiting? = null,
 )
 
 private sealed interface QueueUndo {
@@ -160,9 +161,8 @@ class PlaybackController(
     private var pendingShuffle: List<QueueEntry>? = null
     private var positionJob: Job? = null
     private var windowJob: Job? = null
-    private var bufferingJob: Job? = null
     private var stallJob: Job? = null
-    private var showBuffering = false
+    private val waitingIndicator = PlaybackWaitingIndicator(scope) { refresh() }
     private var stalled = false
     private val startLock = Mutex()
 
@@ -1223,12 +1223,10 @@ class PlaybackController(
         playbackIntentVersion++
         networkRetry = null
         windowJob?.cancel()
-        bufferingJob?.cancel()
-        bufferingJob = null
+        waitingIndicator.reset()
         stallJob?.cancel()
         stallJob = null
         stalled = false
-        showBuffering = false
         snapshot = null
         queueSourceId = null
         windowStart = 0
@@ -1695,24 +1693,26 @@ class PlaybackController(
 
     private fun updateBuffering() {
         val player = player
+        val retry = networkRetry
+        val reason =
+            when {
+                player?.playWhenReady != true || player.currentItem == null -> null
+
+                retry != null && retry.sourceId == queueSourceId && retry.position == currentPosition() &&
+                    retry.songId == player.currentItem?.id -> PlaybackWaiting.Reconnecting
+
+                player.isBuffering && player.currentPositionMs == 0L -> PlaybackWaiting.Preparing
+
+                player.isBuffering -> PlaybackWaiting.Buffering
+
+                else -> null
+            }
+        waitingIndicator.update(reason, queueSourceId to currentPosition())
         if (player?.isBuffering != true) {
-            bufferingJob?.cancel()
-            bufferingJob = null
             stallJob?.cancel()
             stallJob = null
             stalled = false
-            showBuffering = false
             return
-        }
-        if (!showBuffering && bufferingJob?.isActive != true) {
-            bufferingJob =
-                scope.launch {
-                    delay(BUFFERING_INDICATOR_DELAY_MS)
-                    if (player.isBuffering) {
-                        showBuffering = true
-                        refresh()
-                    }
-                }
         }
         // A stall is buffering that persists long enough to be a real problem, not a track change.
         if (stallJob?.isActive != true && !stalled) {
@@ -1744,7 +1744,8 @@ class PlaybackController(
                 item = player.currentItem,
                 context = contextAt(position),
                 position = position,
-                isBuffering = showBuffering,
+                isBuffering = player.isBuffering && waitingIndicator.value != null,
+                waiting = waitingIndicator.value,
                 isPlaying = player.playWhenReady && !player.isIdle && !player.isEnded,
                 durationMs = durationMs,
                 hasNext = true,
@@ -1798,7 +1799,6 @@ class PlaybackController(
     private companion object {
         const val POSITION_TICK_MS = 500L
         const val POSITION_SAVE_INTERVAL_MS = 15_000L
-        const val BUFFERING_INDICATOR_DELAY_MS = 1_000L
         const val STALL_WATCHDOG_MS = 15_000L
         const val QUEUE_WINDOW_RADIUS = 25L
         const val WINDOW_SHIFT_DELAY_MS = 400L

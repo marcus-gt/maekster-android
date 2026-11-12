@@ -628,6 +628,7 @@ fun NowPlayingScreen(
                             Text(formatTime(state.durationMs), style = MaterialTheme.typography.bodySmall)
                         }
                         PlaybackFormatLine(state, Modifier.fillMaxWidth().padding(top = 6.dp))
+                        PlaybackWaitingLabel(state.waiting)
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -666,7 +667,7 @@ fun NowPlayingScreen(
                                 )
                             }
                             IconButton(onClick = onPlayPause, modifier = Modifier.size(playButtonSize)) {
-                                if (state.isBuffering && state.isPlaying) {
+                                if (state.waiting != null || (state.isBuffering && state.isPlaying)) {
                                     Box(
                                         modifier =
                                             Modifier
@@ -677,7 +678,13 @@ fun NowPlayingScreen(
                                         CircularProgressIndicator(
                                             color = MaterialTheme.colorScheme.background,
                                             strokeWidth = 4.dp,
-                                            modifier = Modifier.size(playCircleDiameter * 0.65f),
+                                            modifier =
+                                                Modifier
+                                                    .size(playCircleDiameter * 0.65f)
+                                                    .waitingControlSemantics(
+                                                        stringResource(R.string.controls_pause),
+                                                        playbackWaitingStatus(state.waiting),
+                                                    ),
                                         )
                                     }
                                 } else {

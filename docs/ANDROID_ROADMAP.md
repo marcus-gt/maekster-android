@@ -356,6 +356,14 @@ checks prevent unwanted recovery; play intent is rechecked after async window lo
 are not retried. No timer loop or automatic skipping. Mutation/seek regressions and full build/tests/lint
 pass. See `docs/handoffs/M2.7-network-recovery.md`. Shuffled truncation, source labels, explicit waiting
 states/700ms delay, bounded failing-item skips and remaining player styling are still open.
+Part I is done: playback that should be running but is not reports Preparing (buffering at the track start),
+Buffering or Reconnecting (an armed network retry for the same track), shown only once the wait passes 700 ms as
+on iOS. Changing reason within one track wait keeps the delay; a new track restarts it; pause clears it. Now
+Playing shows the status under the format line (polite live region) and the play control a spinner whose
+description stays "Pause" with the status as state; the mini-player spinner follows too. The old 1 s buffering
+delay is replaced. Virtual-time, controller and UI tests with mutations; full build/tests/lint pass.
+See `docs/handoffs/M2.7-waiting-states.md`. Still open: shuffled truncation, persisted source labels, bounded
+failing-item skips and remaining player styling.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

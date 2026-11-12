@@ -1856,6 +1856,23 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun waitingReasonsFollowThePlayerAndPauseClearsThem() {
+        seedAlbum(1, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying }
+        handle.startBuffering()
+        await { controller.state.value.waiting == PlaybackWaiting.Preparing }
+        handle.positionMs = 1000
+        handle.emitEvents()
+        await { controller.state.value.waiting == PlaybackWaiting.Buffering }
+        handle.fail(UiMessage(R.string.playback_error_network))
+        await { controller.state.value.waiting == PlaybackWaiting.Reconnecting }
+        controller.togglePlayPause()
+        await { controller.state.value.waiting == null }
+        assertFalse(handle.playWhenReady)
+    }
+
+    @Test
     fun bufferingIsOnlyReportedAfterItPersists() {
         seedAlbum(1, sourceId = 1)
 

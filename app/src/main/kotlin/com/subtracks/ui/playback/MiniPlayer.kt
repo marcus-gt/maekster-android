@@ -163,11 +163,15 @@ fun MiniPlayer(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onPlayPause, modifier = Modifier.size(48.dp)) {
-                            if (state.isBuffering && state.isPlaying) {
+                            if (state.waiting != null || (state.isBuffering && state.isPlaying)) {
                                 CircularProgressIndicator(
                                     color = MaterialTheme.colorScheme.onSurface,
                                     strokeWidth = 3.dp,
-                                    modifier = Modifier.size(24.dp),
+                                    modifier =
+                                        Modifier.size(24.dp).waitingControlSemantics(
+                                            stringResource(R.string.controls_pause),
+                                            playbackWaitingStatus(state.waiting),
+                                        ),
                                 )
                             } else {
                                 Icon(
