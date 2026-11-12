@@ -359,6 +359,7 @@ fun QueueScreen(
     val undoLabel = stringResource(R.string.undo)
     val queueReordered = stringResource(R.string.queue_reordered)
     val queueRemoved = stringResource(R.string.queue_removed)
+    val queueCleared = stringResource(R.string.queue_up_next_cleared)
 
     // One reorder state per run of rows: sh.calvin.reorderable only targets keys registered with
     // the state that started the drag, so a drag can never reach a row in another run. The context
@@ -445,7 +446,15 @@ fun QueueScreen(
                                             contextTitle
                                                 ?: stringResource(R.string.queue_next_up)
                                         },
-                                    onClear = if (row.upNext) onClearUpNext else null,
+                                    onClear =
+                                        if (row.upNext) {
+                                            {
+                                                onClearUpNext()
+                                                showUndo(queueCleared)
+                                            }
+                                        } else {
+                                            null
+                                        },
                                 )
                             }
                         }

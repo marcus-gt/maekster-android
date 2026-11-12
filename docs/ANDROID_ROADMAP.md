@@ -323,7 +323,11 @@ actual decoder codec, bitrate and sample rate below the scrubber. Origin travels
 the session, so current preferences/download status cannot mislabel a loaded item. Unknown details are
 omitted; no source-file bit depth is claimed for decoded audio. Media-item/controller/UI tests, mutation,
 full build/tests/lint and normal/2× font renders pass. See `docs/handoffs/M2.7-format-line.md`.
-Next: M2.7 queue Clear upcoming and snackbar Undo, or playback recovery as a bounded subtask.
+Part C is done: the existing manual Up next clear action now offers snackbar Undo, restoring queue
+references, shuffle and cursor. Clearing a paused playing block stays paused; Undo restores its position.
+Mutation checks, full build/tests/lint and normal/2× font renders pass.
+See `docs/handoffs/M2.7-clear-up-next-undo.md`. Still open: clearing the context's upcoming tracks,
+continuous queue presentation, persisted source labels and playback recovery.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

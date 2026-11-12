@@ -108,6 +108,16 @@ private data class ReloadUndo(
     override val current: Long? = null
 }
 
+private data class ClearedBlockUndo(
+    override val entries: List<QueueEntry>,
+    override val cursor: Long,
+    override val current: Long?,
+    override val shuffleSeed: Long?,
+    override val upNext: List<QueueEntry>,
+    override val upNextAnchor: Long,
+    val positionMs: Long,
+) : QueueUndo
+
 private data class PendingPlay(
     val entries: List<QueueEntry>,
     val position: Long,
@@ -641,7 +651,15 @@ class PlaybackController(
             windowJob?.cancel()
             if (offline) {
                 queueRepository.setCursor(target)
-                loadWindow(target, autoplay = playing, startPositionMs = 0)
+                val restoredPositionMs =
+                    (undo as? ClearedBlockUndo)?.let {
+                        if (it.current != null && currentPosition() == it.current && player.currentItem?.id == restoredId) {
+                            positionMs
+                        } else {
+                            it.positionMs
+                        }
+                    } ?: 0
+                loadWindow(target, autoplay = playing, startPositionMs = restoredPositionMs)
                 return@withLock
             }
             val canMirror =
@@ -697,7 +715,17 @@ class PlaybackController(
             if (mirrored) {
                 shiftWindowLocked(target)
             } else {
-                loadWindow(target, autoplay = playing, startPositionMs = if (canMirror) positionMs else 0)
+                loadWindow(
+                    target,
+                    autoplay = playing,
+                    startPositionMs =
+                        if (canMirror) {
+                            positionMs
+                        } else {
+                            (undo as? ClearedBlockUndo)?.positionMs
+                                ?: 0
+                        },
+                )
             }
             queueRepository.setCursor(target)
             refresh(target)
@@ -795,9 +823,11 @@ class PlaybackController(
             startLock.withLock {
                 val snapshot = snapshot ?: return@withLock
                 if (snapshot.upNextSize == 0L) return@withLock
-                player ?: return@withLock
+                val player = player ?: return@withLock
                 val current = currentPosition() ?: return@withLock
                 val wasUpNext = snapshot.isUpNext(current)
+                val playing = player.playWhenReady
+                val savedPositionMs = player.currentPositionMs
                 queueRepository.clearUpNext()
                 val updated = readSnapshot()
                 this@PlaybackController.snapshot = updated
@@ -808,8 +838,18 @@ class PlaybackController(
                 val target = contextPlay.coerceIn(0, (updated.size - 1).coerceAtLeast(0))
                 queueRepository.setCursor(target)
                 lastPosition = target
+                lastEdit =
+                    ClearedBlockUndo(
+                        snapshot.entries.map { it.entry },
+                        current,
+                        if (wasUpNext) null else target,
+                        snapshot.shuffleSeed,
+                        snapshot.upNext.map { it.entry },
+                        snapshot.upNextAnchor,
+                        savedPositionMs,
+                    )
                 if (wasUpNext) {
-                    loadWindow(target, autoplay = true)
+                    loadWindow(target, autoplay = playing)
                 } else {
                     rebuildWindow(queueRepository.window(updated, target, QUEUE_WINDOW_RADIUS), target)
                     refresh(target)

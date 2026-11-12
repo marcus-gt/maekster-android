@@ -3,6 +3,7 @@
     <string name="app_name" translatable="false">mækster</string>
     <string name="home_section_favorite_albums">Favorite albums</string>
     <string name="home_pinned">Pinned</string>
+    <string name="queue_up_next_cleared">Up next cleared</string>
     <string name="playback_origin_streaming">Streaming</string>
     <string name="playback_origin_downloaded">Downloaded</string>
     <string name="playback_origin_transcoding">Transcoding</string>

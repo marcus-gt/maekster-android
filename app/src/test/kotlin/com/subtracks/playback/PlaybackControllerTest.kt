@@ -2259,6 +2259,72 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun undoClearingTheBlockRestoresShuffleAndKeepsPausedContextPosition() {
+        seedShuffledQueue(seed = 7L)
+        controller.addToQueue(1, QueueKind.Song, "s1")
+        await { runBlocking { controller.upcomingItem()?.id } == "s1" }
+        val before = runBlocking { queues.snapshot() }
+        val currentId =
+            controller.state.value.item
+                ?.id
+        handle.positionMs = 12345
+        if (handle.playWhenReady) controller.togglePlayPause()
+        await { !handle.playWhenReady }
+        val layout = controller.state.value.layout
+
+        controller.clearUpNext()
+        await { controller.state.value.layout > layout }
+        assertTrue(runBlocking { queues.snapshot().upNext.isEmpty() })
+        runBlocking { controller.undo() }
+
+        val restored = runBlocking { queues.snapshot() }
+        assertEquals(before.shuffleSeed, restored.shuffleSeed)
+        assertEquals(before.upNextAnchor, restored.upNextAnchor)
+        assertEquals(before.upNext.map { it.entry.refId }, restored.upNext.map { it.entry.refId })
+        assertEquals(
+            currentId,
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals(12345L, handle.currentPositionMs)
+        assertFalse(handle.playWhenReady)
+    }
+
+    @Test
+    fun clearingAPausedPlayingBlockStaysPausedAndUndoRestoresItsPosition() {
+        seedAlbum(3, sourceId = 1)
+        seedSong("x1", "al2")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.item != null }
+        controller.addToQueue(1, QueueKind.Song, "x1")
+        await { runBlocking { controller.upcomingItem()?.id } == "x1" }
+        runBlocking { controller.playAt(1) }
+        await {
+            controller.state.value.item
+                ?.id == "x1"
+        }
+        handle.positionMs = 9876
+        controller.togglePlayPause()
+        await { !handle.playWhenReady }
+
+        controller.clearUpNext()
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+        assertFalse(handle.playWhenReady)
+        runBlocking { controller.undo() }
+
+        assertEquals(
+            "x1",
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals(9876L, handle.currentPositionMs)
+        assertFalse(handle.playWhenReady)
+    }
+
+    @Test
     fun clearingTheBlockWhileShuffledKeepsTheCursorOnThePlayingTrack() {
         seedShuffledQueue(seed = 7L)
         val currentId =
