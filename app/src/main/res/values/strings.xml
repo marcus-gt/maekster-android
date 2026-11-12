@@ -219,6 +219,10 @@
     <string name="search">Search</string>
     <string name="search_this_list">Search this list</string>
     <string name="search_songs">Songs</string>
+    <string name="search_scope_all">All</string>
+    <string name="search_top_result">Top result</string>
+    <string name="search_see_all">See all</string>
+    <string name="search_see_all_scope">See all %1$s</string>
     <string name="search_min_length" tools:ignore="PluralsCandidate">Type at least %1$d characters to search.</string>
     <string name="search_no_results">No results for “%1$s”.</string>
     <string name="sort_by">Sort by</string>

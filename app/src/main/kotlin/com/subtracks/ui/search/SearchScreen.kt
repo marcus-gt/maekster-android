@@ -1,6 +1,5 @@
 package com.subtracks.ui.search
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +11,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -24,10 +24,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -35,12 +36,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
 import com.subtracks.data.db.SEARCH_MIN_LENGTH
 import com.subtracks.data.model.Album
-import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Playlist
@@ -61,17 +63,6 @@ import com.subtracks.ui.library.SongRow
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
-enum class SearchFilter(
-    @param:StringRes val label: Int,
-) {
-    Songs(R.string.search_songs),
-    Albums(R.string.resources_album_name),
-    Artists(R.string.resources_artist_name),
-    Playlists(R.string.resources_playlist_name),
-}
-
-private val ALL_FILTERS = SearchFilter.entries.toSet()
-
 @Composable
 fun SearchRoute(
     onAlbumClick: (Album) -> Unit,
@@ -90,7 +81,7 @@ fun SearchRoute(
     val results by viewModel.results.collectAsStateWithLifecycle()
     val playback by playbackController.state.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
-    var filterMask by rememberSaveable { mutableIntStateOf(allFilterMask()) }
+    var scope by rememberSaveable { mutableStateOf(SearchScope.All) }
     val actions =
         ItemActions(
             playNext = { playbackController.playNext(it.sourceId, it.kind, it.refId) },
@@ -103,11 +94,8 @@ fun SearchRoute(
         query = query,
         onQueryChange = viewModel::setQuery,
         results = results,
-        filters = maskToFilters(filterMask),
-        onToggleFilter = { filter ->
-            val next = filterMask xor (1 shl filter.ordinal)
-            if (next != 0) filterMask = next
-        },
+        scope = scope,
+        onScopeChange = { scope = it },
         coverArt = viewModel::coverArt,
         artistArt = { viewModel.artistArt(it) },
         playingSongId = playback.item?.id,
@@ -136,11 +124,6 @@ fun SearchRoute(
     )
 }
 
-internal fun allFilterMask(): Int = SearchFilter.entries.fold(0) { mask, filter -> mask or (1 shl filter.ordinal) }
-
-internal fun maskToFilters(mask: Int): Set<SearchFilter> =
-    SearchFilter.entries.filterTo(mutableSetOf()) { mask and (1 shl it.ordinal) != 0 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -148,8 +131,8 @@ fun SearchScreen(
     onQueryChange: (String) -> Unit,
     results: SearchResults,
     modifier: Modifier = Modifier,
-    filters: Set<SearchFilter> = ALL_FILTERS,
-    onToggleFilter: (SearchFilter) -> Unit = {},
+    scope: SearchScope = SearchScope.All,
+    onScopeChange: (SearchScope) -> Unit = {},
     coverArt: (String?, Boolean) -> CoverArtRef? = { _, _ -> null },
     artistArt: (Artist) -> ArtistArt = { ArtistArt() },
     playingSongId: String? = null,
@@ -164,14 +147,14 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     val backLabel = stringResource(R.string.navigation_back)
     val minLength = stringResource(R.string.search_min_length, SEARCH_MIN_LENGTH)
-    val songsLabel = stringResource(R.string.search_songs)
-    val albumsLabel = stringResource(R.string.resources_album_name)
-    val artistsLabel = stringResource(R.string.resources_artist_name)
-    val playlistsLabel = stringResource(R.string.resources_playlist_name)
-    val showSongs = SearchFilter.Songs in filters && results.songs.isNotEmpty()
-    val showAlbums = SearchFilter.Albums in filters && results.albums.isNotEmpty()
-    val showArtists = SearchFilter.Artists in filters && results.artists.isNotEmpty()
-    val showPlaylists = SearchFilter.Playlists in filters && results.playlists.isNotEmpty()
+    val ranked = remember(results, query, scope) { rankSearch(results, query, scope) }
+    val topLabel = stringResource(R.string.search_top_result)
+    val seeAll = stringResource(R.string.search_see_all)
+    val labels = SearchScope.entries.associateWith { stringResource(it.label) }
+    val seeAllLabels = labels.mapValues { (_, label) -> stringResource(R.string.search_see_all_scope, label.lowercase()) }
+    val row = MatchRowActions(coverArt, artistArt, playingSongId, onAlbumClick, onArtistClick, onPlaylistClick, onSongClick, onLongClick)
+    // A new scope starts at the top of its list rather than wherever the previous one was scrolled.
+    val listState = remember(scope) { LazyListState() }
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -205,7 +188,7 @@ fun SearchScreen(
             )
         },
         bottomBar = {
-            SearchFilterBar(filters = filters, onToggle = onToggleFilter)
+            SearchScopeBar(selected = scope, onSelect = onScopeChange)
         },
     ) { padding ->
         when {
@@ -220,7 +203,7 @@ fun SearchScreen(
                 LoadingState(Modifier.padding(padding))
             }
 
-            !showSongs && !showAlbums && !showArtists && !showPlaylists -> {
+            ranked.isEmpty -> {
                 EmptyState(
                     text = stringResource(R.string.search_no_results, query),
                     modifier = Modifier.padding(padding),
@@ -229,13 +212,27 @@ fun SearchScreen(
 
             else -> {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentPadding = PaddingValues(bottom = 24.dp),
                 ) {
-                    if (showPlaylists) playlistResults(results.playlists, playlistsLabel, coverArt, onPlaylistClick, onLongClick)
-                    if (showArtists) artistResults(results.artists, artistsLabel, artistArt, onArtistClick, onLongClick)
-                    if (showAlbums) albumResults(results.albums, albumsLabel, coverArt, onAlbumClick, onLongClick)
-                    if (showSongs) songResults(results.songs, songsLabel, coverArt, playingSongId, onSongClick, onLongClick)
+                    ranked.top?.let { top ->
+                        resultHeader("top", topLabel)
+                        item(key = "top-${top.key}") { SearchMatchRow(top, row) }
+                    }
+                    for (group in ranked.groups) {
+                        resultHeader(group.scope.name, labels.getValue(group.scope))
+                        items(group.matches, key = { it.key }) { SearchMatchRow(it, row) }
+                        if (group.hasMore) {
+                            item(key = "see-all-${group.scope.name}") {
+                                val description = seeAllLabels.getValue(group.scope)
+                                TextButton(
+                                    onClick = { onScopeChange(group.scope) },
+                                    modifier = Modifier.padding(horizontal = 8.dp).semantics { contentDescription = description },
+                                ) { Text(seeAll) }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -243,9 +240,9 @@ fun SearchScreen(
 }
 
 @Composable
-private fun SearchFilterBar(
-    filters: Set<SearchFilter>,
-    onToggle: (SearchFilter) -> Unit,
+private fun SearchScopeBar(
+    selected: SearchScope,
+    onSelect: (SearchScope) -> Unit,
 ) {
     Row(
         modifier =
@@ -256,18 +253,21 @@ private fun SearchFilterBar(
                 .padding(horizontal = 12.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SearchFilter.entries.forEach { filter ->
+        SearchScope.entries.forEach { scope ->
             FilterChip(
-                selected = filter in filters,
-                onClick = { onToggle(filter) },
-                label = { Text(stringResource(filter.label)) },
+                selected = scope == selected,
+                onClick = { onSelect(scope) },
+                label = { Text(stringResource(scope.label)) },
             )
         }
     }
 }
 
-private fun LazyListScope.resultHeader(title: String) {
-    item(key = "search-header-$title") {
+private fun LazyListScope.resultHeader(
+    key: String,
+    title: String,
+) {
+    item(key = "search-header-$key") {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
@@ -277,89 +277,71 @@ private fun LazyListScope.resultHeader(title: String) {
     }
 }
 
-private fun LazyListScope.songResults(
-    songs: List<AlbumSongItem>,
-    header: String,
-    coverArt: (String?, Boolean) -> CoverArtRef?,
-    playingSongId: String?,
-    onClick: (Song) -> Unit,
-    onLongClick: (MenuTarget) -> Unit,
-) {
-    if (songs.isEmpty()) return
-    resultHeader(header)
-    items(songs, key = { "song-${it.song.id}" }) { item ->
-        SongRow(
-            song = item.song,
-            coverArtId = item.coverArt,
-            coverArt = coverArt,
-            isPlaying = item.song.id == playingSongId,
-            durationSeconds = item.song.duration,
-            modifier =
-                Modifier.combinedClickable(
-                    onClick = { onClick(item.song) },
-                    onLongClick = { onLongClick(MenuTarget.Song(item.song, coverArt(item.coverArt, true))) },
-                ),
-        )
-    }
-}
+private class MatchRowActions(
+    val coverArt: (String?, Boolean) -> CoverArtRef?,
+    val artistArt: (Artist) -> ArtistArt,
+    val playingSongId: String?,
+    val onAlbumClick: (Album) -> Unit,
+    val onArtistClick: (Artist) -> Unit,
+    val onPlaylistClick: (Playlist) -> Unit,
+    val onSongClick: (Song) -> Unit,
+    val onLongClick: (MenuTarget) -> Unit,
+)
 
-private fun LazyListScope.albumResults(
-    albums: List<Album>,
-    header: String,
-    coverArt: (String?, Boolean) -> CoverArtRef?,
-    onClick: (Album) -> Unit,
-    onLongClick: (MenuTarget) -> Unit,
+@Composable
+private fun SearchMatchRow(
+    match: SearchMatch,
+    row: MatchRowActions,
 ) {
-    if (albums.isEmpty()) return
-    resultHeader(header)
-    items(albums, key = { "album-${it.id}" }) { album ->
-        AlbumListRow(
-            album = album,
-            coverArt = coverArt,
-            info = null,
-            onClick = { onClick(album) },
-            onLongClick = { onLongClick(MenuTarget.Album(album, coverArt(album.coverArt, true))) },
-        )
-    }
-}
+    when (match) {
+        is SearchMatch.SongMatch -> {
+            val item = match.item
+            SongRow(
+                song = item.song,
+                coverArtId = item.coverArt,
+                coverArt = row.coverArt,
+                isPlaying = item.song.id == row.playingSongId,
+                durationSeconds = item.song.duration,
+                modifier =
+                    Modifier.combinedClickable(
+                        onClick = { row.onSongClick(item.song) },
+                        onLongClick = { row.onLongClick(MenuTarget.Song(item.song, row.coverArt(item.coverArt, true))) },
+                    ),
+            )
+        }
 
-private fun LazyListScope.artistResults(
-    artists: List<Artist>,
-    header: String,
-    artistArt: (Artist) -> ArtistArt,
-    onClick: (Artist) -> Unit,
-    onLongClick: (MenuTarget) -> Unit,
-) {
-    if (artists.isEmpty()) return
-    resultHeader(header)
-    items(artists, key = { "artist-${it.id}" }) { artist ->
-        val art = artistArt(artist)
-        ArtistListRow(
-            artist = artist,
-            art = art,
-            info = null,
-            onClick = { onClick(artist) },
-            onLongClick = { onLongClick(MenuTarget.Artist(artist, art.primary)) },
-        )
-    }
-}
+        is SearchMatch.AlbumMatch -> {
+            val album = match.album
+            AlbumListRow(
+                album = album,
+                coverArt = row.coverArt,
+                info = null,
+                onClick = { row.onAlbumClick(album) },
+                onLongClick = { row.onLongClick(MenuTarget.Album(album, row.coverArt(album.coverArt, true))) },
+            )
+        }
 
-private fun LazyListScope.playlistResults(
-    playlists: List<Playlist>,
-    header: String,
-    coverArt: (String?, Boolean) -> CoverArtRef?,
-    onClick: (Playlist) -> Unit,
-    onLongClick: (MenuTarget) -> Unit,
-) {
-    if (playlists.isEmpty()) return
-    resultHeader(header)
-    items(playlists, key = { "playlist-${it.id}" }) { playlist ->
-        PlaylistRow(
-            playlist = playlist,
-            coverArt = coverArt,
-            download = null,
-            onClick = { onClick(playlist) },
-            onLongClick = { onLongClick(MenuTarget.Playlist(playlist, coverArt(playlist.coverArt, true))) },
-        )
+        is SearchMatch.ArtistMatch -> {
+            val artist = match.artist
+            val art = row.artistArt(artist)
+            ArtistListRow(
+                artist = artist,
+                art = art,
+                info = null,
+                onClick = { row.onArtistClick(artist) },
+                onLongClick = { row.onLongClick(MenuTarget.Artist(artist, art.primary)) },
+            )
+        }
+
+        is SearchMatch.PlaylistMatch -> {
+            val playlist = match.playlist
+            PlaylistRow(
+                playlist = playlist,
+                coverArt = row.coverArt,
+                download = null,
+                onClick = { row.onPlaylistClick(playlist) },
+                onLongClick = { row.onLongClick(MenuTarget.Playlist(playlist, row.coverArt(playlist.coverArt, true))) },
+            )
+        }
     }
 }

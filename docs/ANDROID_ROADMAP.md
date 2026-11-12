@@ -300,6 +300,10 @@ prefix, then contains, then a match only in another field, in SQL ahead of the 5
 never cut off. Matching is unchanged (FTS5 trigram). The rank folds ASCII case only, not diacritics (iOS folds both).
 DAO tests with a mutation check, build, full unit suite and lint pass. Next: scope chips and a top result (Part B),
 then recent searches per server (Part C). See `docs/handoffs/M2.6-search-ranking.md`.
+Part B is done: single-choice scopes (All, Songs, Albums, Artists, Playlists) replace the type toggles. All leads with
+one Top result across types, then each type in order of its best match, five each with See all. Cross-type ranking
+ports iOS's score with case and diacritic folding. Ranking and screen tests with mutation checks, build and lint pass.
+See `docs/handoffs/M2.6-search-scopes.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

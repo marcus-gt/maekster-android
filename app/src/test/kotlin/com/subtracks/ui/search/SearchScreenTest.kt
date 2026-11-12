@@ -10,11 +10,15 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
@@ -162,7 +166,7 @@ class SearchScreenTest {
     }
 
     @Test
-    fun disablingATypeHidesItsSection() {
+    fun aTypeScopeShowsOnlyThatType() {
         composeRule.setContent {
             MaeksterTheme {
                 SearchScreen(
@@ -173,85 +177,83 @@ class SearchScreenTest {
                             albums = listOf(album("al-1", "Road Album")),
                             songs = listOf(AlbumSongItem(song("s1", "Road Song"), coverArt = null)),
                         ),
-                    filters = setOf(SearchFilter.Albums),
+                    scope = SearchScope.Albums,
                 )
             }
         }
 
         composeRule.onNodeWithText("Road Album").assertIsDisplayed()
         composeRule.onNodeWithText("Road Song").assertDoesNotExist()
+        composeRule.onNodeWithText("Top result").assertDoesNotExist()
     }
 
     @Test
-    fun tappingAFilterChipTogglesIt() {
-        var toggled: SearchFilter? = null
+    fun tappingAScopeChipSelectsIt() {
+        var selected: SearchScope? = null
         composeRule.setContent {
             MaeksterTheme {
                 SearchScreen(
                     query = "ro",
                     onQueryChange = {},
                     results = SearchResults(),
-                    onToggleFilter = { toggled = it },
+                    onScopeChange = { selected = it },
                 )
             }
         }
 
         composeRule.onNodeWithText("Playlists").performClick()
-
-        assertEquals(SearchFilter.Playlists, toggled)
+        assertEquals(SearchScope.Playlists, selected)
+        composeRule.onNodeWithText("All").performClick()
+        assertEquals(SearchScope.All, selected)
     }
 
     @Test
-    fun smallerGroupsAreListedFirst() {
+    fun theBestMatchLeadsAsTheTopResultAndTypesFollowTheirBestMatch() {
         composeRule.setContent {
             MaeksterTheme {
                 SearchScreen(
-                    query = "road",
+                    query = "life",
                     onQueryChange = {},
                     results =
                         SearchResults(
-                            albums = listOf(album("al-1", "Road Album")),
-                            artists = listOf(artist("ar-1", "Road Artist")),
-                            playlists = listOf(playlist("pl-1", "Road Trip")),
-                            songs = listOf(AlbumSongItem(song("s1", "Road Song"), coverArt = null)),
+                            artists = listOf(artist("ar-1", "Lifehouse")),
+                            albums = listOf(album("al-1", "A Day in the Life")),
+                            songs = listOf(AlbumSongItem(song("s1", "Life"), coverArt = null)),
                         ),
                 )
             }
         }
 
-        val playlistTop =
+        fun top(text: String) =
             composeRule
-                .onNodeWithText("Road Trip")
+                .onNodeWithText(text)
                 .fetchSemanticsNode()
                 .boundsInRoot.top
-        val artistTop =
-            composeRule
-                .onNodeWithText("Road Artist")
-                .fetchSemanticsNode()
-                .boundsInRoot.top
-        val albumTop =
-            composeRule
-                .onNodeWithText("Road Album")
-                .fetchSemanticsNode()
-                .boundsInRoot.top
-        val songTop =
-            composeRule
-                .onNodeWithText("Road Song")
-                .fetchSemanticsNode()
-                .boundsInRoot.top
-
-        assertTrue("playlists should come first", playlistTop < artistTop)
-        assertTrue("artists should come before albums", artistTop < albumTop)
-        assertTrue("albums should come before songs", albumTop < songTop)
+        assertTrue(top("Top result") < top("Life"))
+        assertTrue("the exact song leads", top("Life") < top("Lifehouse"))
+        assertTrue("the artist prefix beats the album substring", top("Lifehouse") < top("A Day in the Life"))
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/search_top_result.png")
     }
 
     @Test
-    fun filterMaskRoundTrips() {
-        assertEquals(SearchFilter.entries.toSet(), maskToFilters(allFilterMask()))
+    fun allPreviewsFiveSongsAndSeeAllOpensTheSongsScope() {
+        var selected: SearchScope? = null
+        composeRule.setContent {
+            MaeksterTheme {
+                SearchScreen(
+                    query = "road",
+                    onQueryChange = {},
+                    results = SearchResults(songs = (1..7).map { AlbumSongItem(song("s$it", "Road $it"), coverArt = null) }),
+                    onScopeChange = { selected = it },
+                )
+            }
+        }
 
-        val withoutSongs = allFilterMask() and (1 shl SearchFilter.Songs.ordinal).inv()
-
-        assertEquals(SearchFilter.entries.toSet() - SearchFilter.Songs, maskToFilters(withoutSongs))
+        composeRule.onNodeWithText("Road 6").assertExists()
+        composeRule.onNodeWithText("Road 7").assertDoesNotExist()
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/search_all_preview.png")
+        composeRule.onNodeWithContentDescription("See all songs").performScrollTo().performClick()
+        assertEquals(SearchScope.Songs, selected)
     }
 
     private fun album(
