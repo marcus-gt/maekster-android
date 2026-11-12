@@ -344,6 +344,12 @@ are resolved. Tests cover offsets, duplicates, position/mode preservation, no-op
 a synthetic billion-track range, with an off-by-one mutation. Full build/tests/format/lint pass.
 No UI action yet; shuffled truncation and controller/Undo/UI integration remain open.
 See `docs/handoffs/M2.7-clear-upcoming-repository.md`.
+Part G is done: unshuffled Clear upcoming is available in Queue options, with snackbar Undo only after
+a successful controller edit. It keeps the playing source/position/pause state, trims the bounded player
+window and restores context/manual ranges on Undo. Availability comes from the full queue snapshot;
+shuffle and end-of-queue are guarded. Manual Clear up next remains in the menu. Mutation, controller/UI
+regressions, full build/tests/lint/recording and normal/2× font renders pass.
+See `docs/handoffs/M2.7-clear-upcoming-action.md`. Shuffled truncation, source labels and recovery remain.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

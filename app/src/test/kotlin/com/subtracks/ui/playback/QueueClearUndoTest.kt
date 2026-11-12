@@ -59,7 +59,8 @@ class QueueClearUndoTest {
                 }
             }
         }
-        rule.onNodeWithContentDescription("Clear up next").performClick()
+        rule.onNodeWithContentDescription("Queue options").performClick()
+        rule.onNodeWithText("Clear up next").performClick()
         assertEquals(1, clears)
         rule.onNodeWithText("Up next cleared").assertIsDisplayed()
         rule.onRoot().captureRoboImage(image)

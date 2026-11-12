@@ -3,6 +3,9 @@
     <string name="app_name" translatable="false">mækster</string>
     <string name="home_section_favorite_albums">Favorite albums</string>
     <string name="home_pinned">Pinned</string>
+    <string name="queue_options">Queue options</string>
+    <string name="queue_clear_upcoming">Clear upcoming</string>
+    <string name="queue_upcoming_cleared">Upcoming tracks cleared</string>
     <string name="queue_playing_from">Playing from %1$s</string>
     <string name="queue_up_next_cleared">Up next cleared</string>
     <string name="playback_origin_streaming">Streaming</string>

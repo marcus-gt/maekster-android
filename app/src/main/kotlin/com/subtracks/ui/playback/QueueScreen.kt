@@ -17,8 +17,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -317,6 +319,8 @@ fun QueueRoute(
         shuffle = playback.shuffle,
         contextTitle = sourceTitle.value,
         onClearUpNext = controller::clearUpNext,
+        canClearUpcoming = playback.canClearUpcoming,
+        onClearUpcoming = controller::clearUpcoming,
         coverArt = sourceRepository::coverArt,
         onBack = onBack,
         onPlay = viewModel::play,
@@ -352,6 +356,8 @@ fun QueueScreen(
     shuffle: Boolean = false,
     contextTitle: String? = null,
     onClearUpNext: () -> Unit = {},
+    canClearUpcoming: Boolean = false,
+    onClearUpcoming: suspend () -> Boolean = { false },
 ) {
     val listState = rememberLazyListState()
     val fill = rememberViewportFill(listState)
@@ -362,6 +368,8 @@ fun QueueScreen(
     val queueReordered = stringResource(R.string.queue_reordered)
     val queueRemoved = stringResource(R.string.queue_removed)
     val queueCleared = stringResource(R.string.queue_up_next_cleared)
+    val upcomingCleared = stringResource(R.string.queue_upcoming_cleared)
+    var showOptions by remember { mutableStateOf(false) }
 
     // One reorder state per run of rows: sh.calvin.reorderable only targets keys registered with
     // the state that started the drag, so a drag can never reach a row in another run. The context
@@ -424,12 +432,34 @@ fun QueueScreen(
                     }
                 },
                 actions = {
-                    if (rows.any { it.upNext }) {
-                        IconButton(onClick = {
-                            onClearUpNext()
-                            showUndo(queueCleared)
-                        }) {
-                            Icon(Icons.Rounded.DeleteSweep, contentDescription = stringResource(R.string.queue_clear_up_next))
+                    if (canClearUpcoming || rows.any { it.upNext }) {
+                        Box {
+                            IconButton(onClick = { showOptions = true }) {
+                                Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.queue_options))
+                            }
+                            DropdownMenu(expanded = showOptions, onDismissRequest = { showOptions = false }) {
+                                if (canClearUpcoming) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.queue_clear_upcoming)) },
+                                        onClick = {
+                                            showOptions = false
+                                            scope.launch {
+                                                if (onClearUpcoming()) showUndo(upcomingCleared)
+                                            }
+                                        },
+                                    )
+                                }
+                                if (rows.any { it.upNext }) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.queue_clear_up_next)) },
+                                        onClick = {
+                                            showOptions = false
+                                            onClearUpNext()
+                                            showUndo(queueCleared)
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 },

@@ -65,6 +65,7 @@ data class PlaybackState(
     val layout: Long = 0,
     val audioEncoding: AudioEncoding? = null,
     val playbackOrigin: PlaybackOrigin? = null,
+    val canClearUpcoming: Boolean = false,
 )
 
 private sealed interface QueueUndo {
@@ -108,7 +109,7 @@ private data class ReloadUndo(
     override val current: Long? = null
 }
 
-private data class ClearedBlockUndo(
+private data class ClearedQueueUndo(
     override val entries: List<QueueEntry>,
     override val cursor: Long,
     override val current: Long?,
@@ -652,7 +653,7 @@ class PlaybackController(
             if (offline) {
                 queueRepository.setCursor(target)
                 val restoredPositionMs =
-                    (undo as? ClearedBlockUndo)?.let {
+                    (undo as? ClearedQueueUndo)?.let {
                         if (it.current != null && currentPosition() == it.current && player.currentItem?.id == restoredId) {
                             positionMs
                         } else {
@@ -722,7 +723,7 @@ class PlaybackController(
                         if (canMirror) {
                             positionMs
                         } else {
-                            (undo as? ClearedBlockUndo)?.positionMs
+                            (undo as? ClearedQueueUndo)?.positionMs
                                 ?: 0
                         },
                 )
@@ -818,6 +819,35 @@ class PlaybackController(
             }
         }
 
+    suspend fun clearUpcoming(): Boolean =
+        startLock.withLock {
+            val snapshot = snapshot ?: return@withLock false
+            val player = player ?: return@withLock false
+            val current = currentPosition() ?: return@withLock false
+            if (snapshot.shuffled || current >= snapshot.size - 1) return@withLock false
+            val savedPositionMs = player.currentPositionMs
+            if (!queueRepository.clearUpcoming(snapshot, current)) return@withLock false
+            lastEdit =
+                ClearedQueueUndo(
+                    snapshot.entries.map { it.entry },
+                    current,
+                    current,
+                    snapshot.shuffleSeed,
+                    snapshot.upNext.map { it.entry },
+                    snapshot.upNextAnchor,
+                    savedPositionMs,
+                )
+            windowJob?.cancel()
+            val updated = readSnapshot()
+            this.snapshot = updated
+            layoutVersion++
+            endedHandled = false
+            lastPosition = current
+            rebuildWindow(queueRepository.window(updated, current, QUEUE_WINDOW_RADIUS), current)
+            refresh(current)
+            true
+        }
+
     fun clearUpNext() {
         scope.launch {
             startLock.withLock {
@@ -839,7 +869,7 @@ class PlaybackController(
                 queueRepository.setCursor(target)
                 lastPosition = target
                 lastEdit =
-                    ClearedBlockUndo(
+                    ClearedQueueUndo(
                         snapshot.entries.map { it.entry },
                         current,
                         if (wasUpNext) null else target,
@@ -1647,6 +1677,7 @@ class PlaybackController(
                 layout = layoutVersion,
                 audioEncoding = player.audioEncoding.takeIf { player.currentItem != null },
                 playbackOrigin = player.playbackOrigin.takeIf { player.currentItem != null },
+                canClearUpcoming = snapshot?.let { !it.shuffled && position != null && position < it.size - 1 } == true,
             )
         _positionMs.value = player.currentPositionMs
         if (player.isPlaying) startPositionTicker() else stopPositionTicker()

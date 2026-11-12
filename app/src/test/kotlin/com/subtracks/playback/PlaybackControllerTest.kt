@@ -2259,6 +2259,90 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun clearUpcomingKeepsThePlayingTrackAndUndoRestoresTheWholeQueue() {
+        seedAlbum(60, sourceId = 1)
+        controller.playAlbum(1, "al1", 30)
+        await {
+            controller.state.value.item
+                ?.id == "s31" && controller.state.value.canClearUpcoming
+        }
+        handle.positionMs = 12345
+        handle.operations.clear()
+
+        assertTrue(runBlocking { controller.clearUpcoming() })
+
+        assertEquals(31L, runBlocking { queues.snapshot().size })
+        assertEquals(
+            "s31",
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals(12345L, handle.currentPositionMs)
+        assertTrue(handle.playWhenReady)
+        assertEquals(handle.itemCount - 1, handle.currentIndex)
+        assertFalse(handle.operations.contains("prepare"))
+        assertFalse(controller.state.value.canClearUpcoming)
+        assertFalse(runBlocking { controller.clearUpcoming() })
+        runBlocking { controller.undo() }
+        assertEquals(60L, runBlocking { queues.snapshot().size })
+        assertEquals(
+            "s31",
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals(12345L, handle.currentPositionMs)
+        assertTrue(controller.state.value.canClearUpcoming)
+    }
+
+    @Test
+    fun clearUpcomingInsideAPausedManualBlockKeepsCurrentAndUndoRestoresBothParts() {
+        seedAlbum(3, sourceId = 1)
+        seedSong("x1", "al2")
+        seedSong("x2", "al2")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.item != null }
+        controller.addToQueue(1, QueueKind.Song, "x1")
+        controller.addToQueue(1, QueueKind.Song, "x2")
+        await { runBlocking { queues.snapshot().size } == 5L }
+        runBlocking { controller.playAt(1) }
+        await {
+            controller.state.value.item
+                ?.id == "x1"
+        }
+        controller.togglePlayPause()
+        await { !handle.playWhenReady }
+        handle.positionMs = 9876
+
+        assertTrue(runBlocking { controller.clearUpcoming() })
+        assertEquals(
+            "x1",
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals(2L, runBlocking { queues.snapshot().size })
+        assertFalse(handle.playWhenReady)
+        assertEquals(9876L, handle.currentPositionMs)
+        runBlocking { controller.undo() }
+        assertEquals(5L, runBlocking { queues.snapshot().size })
+        assertEquals(
+            "x1",
+            controller.state.value.item
+                ?.id,
+        )
+        assertFalse(handle.playWhenReady)
+        assertEquals(9876L, handle.currentPositionMs)
+    }
+
+    @Test
+    fun clearUpcomingRejectsShuffleWithoutChangingTheQueue() {
+        seedShuffledQueue(seed = 7L)
+        val before = resolvedIds()
+        assertFalse(controller.state.value.canClearUpcoming)
+        assertFalse(runBlocking { controller.clearUpcoming() })
+        assertEquals(before, resolvedIds())
+    }
+
+    @Test
     fun undoClearingTheBlockRestoresShuffleAndKeepsPausedContextPosition() {
         seedShuffledQueue(seed = 7L)
         controller.addToQueue(1, QueueKind.Song, "s1")
