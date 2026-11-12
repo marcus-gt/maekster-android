@@ -107,6 +107,9 @@ class HomeGridTest {
     fun editorSavesGridAndResetClearsIt() {
         var saved: HomeLayout? = null
         rule.setContent { MaeksterTheme { HomeLayoutDialog(HomeLayout(), { saved = it }, {}) } }
+        val visibility = rule.onNodeWithContentDescription("Your playlists").fetchSemanticsNode().boundsInRoot
+        val layout = rule.onNodeWithContentDescription("Your playlists: Layout: Carousel").fetchSemanticsNode().boundsInRoot
+        assertEquals(visibility.center.y, layout.center.y, 1f)
         rule.onNodeWithContentDescription("Your playlists: Layout: Carousel").performClick()
         rule.onNodeWithContentDescription("Your playlists: Layout: Grid").assertExists()
         rule.onNodeWithText("Save").performClick()

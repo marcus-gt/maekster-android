@@ -1,6 +1,5 @@
 package com.subtracks.ui.settings
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -9,8 +8,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.ViewCarousel
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -73,66 +75,53 @@ internal fun HomeLayoutDialog(
                     val downLabel = stringResource(R.string.settings_home_down)
                     val reorderLabel = stringResource(R.string.settings_home_reorder, title)
                     ReorderableItem(reorderState, key = shelf.name) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                Icon(
-                                    Icons.Rounded.DragHandle,
-                                    contentDescription = reorderLabel,
-                                    modifier =
-                                        Modifier
-                                            .size(48.dp)
-                                            .draggableHandle()
-                                            .semantics {
-                                                customActions =
-                                                    buildList {
-                                                        if (index > 0) {
-                                                            add(
-                                                                CustomAccessibilityAction(upLabel) {
-                                                                    draft = draft.move(shelf, -1)
-                                                                    true
-                                                                },
-                                                            )
-                                                        }
-                                                        if (index <
-                                                            draft.order.lastIndex
-                                                        ) {
-                                                            add(
-                                                                CustomAccessibilityAction(downLabel) {
-                                                                    draft =
-                                                                        draft.move(shelf, 1)
-                                                                    ; true
-                                                                },
-                                                            )
-                                                        }
-                                                    }
-                                            },
-                                )
-                                Text(title, modifier = Modifier.weight(1f))
-                                Switch(
-                                    checked = shelf !in draft.hidden,
-                                    onCheckedChange = { draft = draft.show(shelf, it) },
-                                    modifier = Modifier.semantics { contentDescription = title },
-                                )
-                            }
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Icon(
+                                Icons.Rounded.DragHandle,
+                                contentDescription = reorderLabel,
+                                modifier =
+                                    Modifier.size(48.dp).draggableHandle().semantics {
+                                        customActions =
+                                            buildList {
+                                                if (index > 0) {
+                                                    add(
+                                                        CustomAccessibilityAction(upLabel) {
+                                                            draft = draft.move(shelf, -1)
+                                                            true
+                                                        },
+                                                    )
+                                                }
+                                                if (index < draft.order.lastIndex) {
+                                                    add(
+                                                        CustomAccessibilityAction(downLabel) {
+                                                            draft = draft.move(shelf, 1)
+                                                            true
+                                                        },
+                                                    )
+                                                }
+                                            }
+                                    },
+                            )
+                            Text(title, modifier = Modifier.weight(1f))
                             if (shelf.supportsGrid) {
+                                val grid = shelf in draft.grids
                                 val label =
                                     stringResource(
                                         R.string.settings_home_layout,
-                                        stringResource(
-                                            if (shelf in
-                                                draft.grids
-                                            ) {
-                                                R.string.settings_home_grid
-                                            } else {
-                                                R.string.settings_home_carousel
-                                            },
-                                        ),
+                                        stringResource(if (grid) R.string.settings_home_grid else R.string.settings_home_carousel),
                                     )
-                                TextButton(
-                                    onClick = { draft = draft.grid(shelf, shelf !in draft.grids) },
+                                IconButton(
+                                    onClick = { draft = draft.grid(shelf, !grid) },
                                     modifier = Modifier.semantics { contentDescription = "$title: $label" },
-                                ) { Text(label) }
+                                ) {
+                                    Icon(if (grid) Icons.Rounded.GridView else Icons.Rounded.ViewCarousel, contentDescription = null)
+                                }
                             }
+                            Switch(
+                                checked = shelf !in draft.hidden,
+                                onCheckedChange = { draft = draft.show(shelf, it) },
+                                modifier = Modifier.semantics { contentDescription = title },
+                            )
                         }
                     }
                 }
