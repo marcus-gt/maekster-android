@@ -24,7 +24,7 @@ class UserPreferencesTest {
             val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
             val prefs = UserPreferences(store)
             assertEquals(HomeLayout(), prefs.homeLayout().first())
-            val custom = HomeLayout().move(HomeShelf.FavoriteAlbums, -1).show(HomeShelf.Genres, false)
+            val custom = HomeLayout().move(HomeShelf.FavoriteAlbums, -1).show(HomeShelf.Genres, false).grid(HomeShelf.FavoriteAlbums, true)
             prefs.setHomeLayout(custom)
             assertEquals(custom, UserPreferences(store).homeLayout().first())
             store.edit { it[stringPreferencesKey("home_layout")] = "FavoriteAlbums,FavoriteAlbums,Unknown|Genres,Unknown" }
@@ -36,6 +36,16 @@ class UserPreferencesTest {
             assertEquals(HomeLayout(), prefs.homeLayout().first())
             file.delete()
         }
+
+    @Test
+    fun homeGridCodecSupportsLegacyAndIgnoresUnsupportedShelves() {
+        val legacy = HomeLayout.decode("FavoriteAlbums,YourPlaylists|Genres")
+        assertEquals(emptySet<HomeShelf>(), legacy.grids)
+        val decoded = HomeLayout.decode("FavoriteAlbums|Genres|FavoriteAlbums,YourPlaylists,Unknown,Genres,RecentlyStarredSongs")
+        assertEquals(setOf(HomeShelf.FavoriteAlbums, HomeShelf.YourPlaylists), decoded.grids)
+        assertEquals(decoded, HomeLayout.decode(decoded.encode()))
+        assertEquals(decoded.copy(grids = setOf(HomeShelf.YourPlaylists)), decoded.grid(HomeShelf.FavoriteAlbums, false))
+    }
 
     @Test
     fun homeLayoutCodecRecoversMalformedAndMissingSections() {

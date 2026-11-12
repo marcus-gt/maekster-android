@@ -6,6 +6,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -296,7 +297,7 @@ fun HomeScreen(
             homeTitle()
             for (shelf in layout.visible) {
                 if (shelf == HomeShelf.YourPlaylists) {
-                    yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore)
+                    yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore, shelf in layout.grids)
                     continue
                 }
                 val section = HomeSection.valueOf(shelf.name)
@@ -344,7 +345,7 @@ fun HomeScreen(
                                 HomeShelf.RecentlyPlayedAlbums -> feed.recentlyPlayedAlbums
                                 else -> feed.rediscoverAlbums
                             }
-                        albumRow(section, albums, coverArt, onAlbumClick, onLongClick, onMore)
+                        albumRow(section, albums, coverArt, onAlbumClick, onLongClick, onMore, shelf in layout.grids)
                     }
                 }
             }
@@ -546,10 +547,29 @@ private fun LazyListScope.yourPlaylistsRow(
     onPlaylistClick: (Playlist) -> Unit,
     onLongClick: (MenuTarget) -> Unit,
     onMore: () -> Unit,
+    grid: Boolean = false,
 ) {
     if (playlists.isEmpty()) return
     item(key = "your-playlists-header") {
         HomeSectionHeader(R.string.home_section_your_playlists, Icons.AutoMirrored.Rounded.PlaylistPlay, onMore)
+    }
+    if (grid) {
+        item(key = "your-playlists-grid") {
+            HomeCoverGrid("YourPlaylists-grid") {
+                playlists.forEach { playlist ->
+                    val ref = coverArt(playlist.coverArt, true)
+                    RecentPlaylistCard(
+                        playlist,
+                        ref,
+                        ref,
+                        { onPlaylistClick(playlist) },
+                        { onLongClick(MenuTarget.Playlist(playlist, ref)) },
+                        size = TILE_SIZE,
+                    )
+                }
+            }
+        }
+        return
     }
     item(key = "your-playlists-row") {
         val rowState = rememberLazyListState()
@@ -583,18 +603,19 @@ private fun RecentPlaylistCard(
     thumbnailRef: CoverArtRef?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    size: Dp = PLAYLIST_CARD_SIZE,
 ) {
     val resources = LocalResources.current
     val updated = remember(playlist.changed, resources) { playlistUpdatedText(resources, playlist.changed) }
     val count = playlist.songCount.toInt()
     Column(
-        modifier = Modifier.width(PLAYLIST_CARD_SIZE).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        modifier = Modifier.width(size).combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         CoverArt(
             ref = ref,
             name = playlist.name,
             thumbnailRef = thumbnailRef,
-            modifier = Modifier.size(PLAYLIST_CARD_SIZE).clip(RoundedCornerShape(4.dp)),
+            modifier = Modifier.size(size).clip(RoundedCornerShape(4.dp)),
         )
         Spacer(Modifier.height(8.dp))
         Text(
@@ -743,6 +764,23 @@ internal fun <T> RevealNewFrontItem(
     }
 }
 
+@Composable
+private fun HomeCoverGrid(
+    tag: String,
+    content: @Composable () -> Unit,
+) {
+    FlowRow(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = SECTION_CONTENT_TOP)
+                .testTag(tag),
+        horizontalArrangement = Arrangement.spacedBy(TILE_SPACING),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) { content() }
+}
+
 private fun LazyListScope.albumRow(
     section: HomeSection,
     albums: List<Album>,
@@ -750,10 +788,22 @@ private fun LazyListScope.albumRow(
     onAlbumClick: (Album) -> Unit,
     onLongClick: (MenuTarget) -> Unit,
     onMore: (HomeSection) -> Unit,
+    grid: Boolean = false,
 ) {
     if (albums.isEmpty()) return
     item(key = "${section.name}-header") {
         HomeSectionHeader(section.title, section.icon) { onMore(section) }
+    }
+    if (grid) {
+        item(key = "${section.name}-grid") {
+            HomeCoverGrid("${section.name}-grid") {
+                albums.forEach { album ->
+                    val ref = coverArt(album.coverArt, true)
+                    AlbumTile(album, ref, { onAlbumClick(album) }, { onLongClick(MenuTarget.Album(album, ref)) })
+                }
+            }
+        }
+        return
     }
     item(key = "${section.name}-row") {
         val rowState = rememberLazyListState()

@@ -3,6 +3,9 @@
     <string name="app_name" translatable="false">mækster</string>
     <string name="home_section_favorite_albums">Favorite albums</string>
     <string name="settings_home_sections">Home sections</string>
+    <string name="settings_home_layout">Layout: %1$s</string>
+    <string name="settings_home_grid">Grid</string>
+    <string name="settings_home_carousel">Carousel</string>
     <string name="settings_home_reorder">Reorder %1$s</string>
     <string name="settings_home_reset">Reset to default</string>
     <string name="settings_home_up">Move up</string>

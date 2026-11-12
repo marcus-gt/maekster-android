@@ -273,7 +273,10 @@ include a mutation check. See `docs/handoffs/M2.5-favorite-albums.md`.
 Part C adds show/hide/reorder for existing online Home sections from Application > Home sections, persisted in DataStore,
 with Reset, Save and Cancel. Default order and offline downloaded shelves are unchanged. Build, full unit suite and lint
 pass; the order test fails when Home ignores the saved layout. See `docs/handoffs/M2.5-home-sections.md`.
-Carousel/grid layouts and pins have not started.
+Part D adds per-shelf carousel/grid choices for the six online album/playlist cover shelves in the Home sections editor.
+Choices persist in DataStore and older saved layouts keep carousels. Grids wrap bounded Home data; playlist dates/counts,
+card actions and More remain available. Build, full unit suite, lint and screenshot recording pass; grid and editor
+normal/2× renders reviewed, with a mutation check for the grid. See `docs/handoffs/M2.5-home-grid.md`. Pins have not started.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
