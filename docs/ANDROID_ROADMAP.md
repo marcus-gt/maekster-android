@@ -375,6 +375,10 @@ Part K adds source-label storage: nullable `playback_cursor.sourceLabel` (schema
 replacement and retained by cursor edits. Existing queues migrate with no label; unlabeled replacement
 clears the previous label. Controller, Undo and UI integration remain unfinished.
 See `docs/handoffs/M2.7-source-label-storage.md`.
+Part L captures single-reference source names on normal/shuffled playback start, retains them through
+Undo and prefers the saved title on restoration. Mixed references and older queues retain the existing
+local title fallback. Typed Library/Favorites/Downloads labels and mixed shelf origin labels remain.
+See `docs/handoffs/M2.7-source-label-playback.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

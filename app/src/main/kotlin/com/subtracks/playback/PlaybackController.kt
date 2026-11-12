@@ -378,7 +378,7 @@ class PlaybackController(
             val previousEntry = previous?.entries?.firstOrNull()?.entry
             val same = previousEntry != null && previousEntry.kind == entry.kind && previousEntry.refId == entry.refId
             val avoid = if (same) currentPosition()?.let { previous.flatContext(previous.anchorContextPlay(it)) } else null
-            queueRepository.replace(entries)
+            queueRepository.replace(entries, sourceLabel = sourceLabelFor(entries))
             var snap = queueRepository.snapshot()
             if (snap.contextSize == 0L) {
                 stopLocked()
@@ -660,7 +660,7 @@ class PlaybackController(
             val player = player ?: return@withLock
             val playing = player.playWhenReady
             val positionMs = player.currentPositionMs
-            queueRepository.replace(undo.entries, undo.shuffleSeed, undo.upNext, undo.upNextAnchor)
+            queueRepository.replace(undo.entries, undo.shuffleSeed, undo.upNext, undo.upNextAnchor, queueRepository.sourceLabel())
             shuffleEnabled = undo.shuffleSeed != null
             val restored = readSnapshot()
             this.snapshot = restored
@@ -1160,7 +1160,7 @@ class PlaybackController(
         shuffleEnabled = !disableShuffle && modes.shuffle
         repeatMode = modes.repeat.toRepeatMode()
         player?.setRepeatOne(repeatMode == RepeatMode.One)
-        queueRepository.replace(entries)
+        queueRepository.replace(entries, sourceLabel = sourceLabelFor(entries))
         val snapshot = queueRepository.snapshot()
         this.snapshot = snapshot
         queueSourceId = entries.firstOrNull()?.sourceId
@@ -1730,7 +1730,11 @@ class PlaybackController(
         return QueueContext(entry.kind, entry.sourceId, entry.refId)
     }
 
-    suspend fun sourceTitle(context: QueueContext?): String? = context?.let { queueRepository.sourceName(it.kind, it.sourceId, it.refId) }
+    private suspend fun sourceLabelFor(entries: List<QueueEntry>): String? =
+        entries.singleOrNull()?.let { queueRepository.sourceName(it.kind, it.sourceId, it.refId) }
+
+    suspend fun sourceTitle(context: QueueContext?): String? =
+        queueRepository.sourceLabel() ?: context?.let { queueRepository.sourceName(it.kind, it.sourceId, it.refId) }
 
     private fun updateBuffering() {
         val player = player

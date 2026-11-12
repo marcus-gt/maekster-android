@@ -130,6 +130,42 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun queueSourceLabelIsCapturedAndSurvivesClearAndUndo() {
+        seedAlbum(3, sourceId = 1)
+        runBlocking {
+            db.libraryDao().upsertAlbums(
+                listOf(
+                    Album(
+                        sourceId = 1,
+                        id = "al1",
+                        artistId = "ar1",
+                        name = "Album",
+                        albumArtist = "Artist",
+                        created = 0,
+                        coverArt = null,
+                        genre = null,
+                        year = null,
+                        starred = null,
+                        songCount = 3,
+                    ),
+                ),
+            )
+        }
+        controller.playAlbum(1, "al1", 0)
+        awaitUntil("album starts") {
+            controller.state.value.item
+                ?.id == "s1"
+        }
+        assertEquals("Album", runBlocking { queues.sourceLabel() })
+        runBlocking {
+            controller.clearUpcoming()
+            controller.undo()
+        }
+        assertEquals("Album", runBlocking { queues.sourceLabel() })
+        assertEquals("Album", runBlocking { controller.sourceTitle(null) })
+    }
+
+    @Test
     fun playbackStateTracksTheActualEncodingIncludingUnknownValues() {
         seedAlbum(2, sourceId = 1)
         controller.playAlbum(1, "al1", 0)
