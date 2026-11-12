@@ -77,15 +77,84 @@ interfaces with fakes for tests. Keep UI state separate from networking and pers
 
 ## Development sessions and handoffs
 
-- Before starting, read `docs/ANDROID_ROADMAP.md` and the handoff for the subtask in `docs/handoffs/`, if one exists.
-- Work on one well-defined subtask (for example one part of a roadmap slice) at a time, and do not start the
-  next one without explicit direction.
-- Keep one concise handoff per subtask, `docs/handoffs/<slice>-<topic>.md` (for example `M2.4-songs.md`), of
-  about 60 lines: status (complete, partial or blocked), what was built, key files, decisions, tests and emulator
-  checks with results, open bugs and unverified behaviour, git state, and the recommended next task.
-- Update the handoff before ending a session, including when the subtask is unfinished.
-- Update roadmap statuses only for real progress.
-- Run the checks above and, where practical, try the change on the emulator. In handoffs and reports, keep what
-  was verified separate from what is assumed or untested.
-- Keep implementation detail in handoffs and `docs/`, not in this file.
-- Prefer a fresh session between completed subtasks to keep context and cost down.
+### Shared development workflow
+
+- This repository is developed using both Claude Code and Codex. Both follow the same coding standards,
+  testing requirements, architectural constraints and handoff workflow.
+- Agents share the Git repository, roadmap, architecture documentation and handoff files. All important
+  development context must be recoverable from the repository, without private conversation history or
+  agent-specific memory. Never assume the previous or next session uses the same agent.
+- Only one agent may modify the working directory at a time; coordinate the handover before editing.
+- Commit only with explicit authorization and passing verification. Never push to GitHub without explicit
+  authorization (see Working rules).
+
+### Starting a session
+
+Before making changes:
+
+1. Read `AGENTS.md`, `CLAUDE.md` and the relevant section of `docs/ANDROID_ROADMAP.md`.
+2. Read the relevant handoffs in `docs/handoffs/`.
+3. Inspect Git status, including staged, unstaged and untracked files.
+4. Inspect the latest commit.
+5. Determine whether the previous task was completed or interrupted; use the recovery steps below if interrupted.
+6. Continue the current roadmap subtask unless explicitly instructed otherwise.
+
+Avoid repeating broad architecture investigations when the existing documentation provides sufficient context.
+
+### Handoffs and checkpoints
+
+- Keep one concise, agent-independent handoff per subtask, `docs/handoffs/<slice>-<topic>.md`
+  (for example `M2.4-songs.md`), ideally about 60 lines. Include status, what was implemented, key files,
+  decisions, test and emulator results, known issues, unverified behaviour, remaining work, Git state and
+  the next concrete action (or recommended next task when complete).
+- Maintain the subtask's handoff during implementation: update it at meaningful checkpoints, not only at completion.
+  Mark unfinished work clearly as `IN PROGRESS` or `BLOCKED`; mark completion only when justified.
+- Keep checkpoints lightweight. Update the handoff before ending a session, including unfinished sessions.
+  A new agent must be able to recover the task, actual implementation state, remaining work and verification
+  requirements using only the repository.
+- Never label tests or functionality verified unless they actually were; distinguish verified results from
+  assumptions and untested behaviour in both handoffs and reports.
+
+### Completing a subtask
+
+- Work on one well-defined subtask (for example one part of a roadmap slice) at a time.
+- Run the checks in Working rules and relevant additional tests, plus emulator verification where practical.
+  Record results and any verification gaps in the handoff.
+- Create or update the subtask handoff and update roadmap statuses only for actual progress.
+- Commit if explicitly authorized and verification passes.
+- Stop after completing the subtask; do not automatically start the next one without explicit direction.
+
+### Interrupted tasks and recovery
+
+Either agent may stop unexpectedly because of usage or context limits, expired authentication, IDE
+disconnection or another interruption. A usage limit may prevent a final handoff, so both checkpoints
+and recovery from Git are required.
+
+When taking over interrupted work:
+
+1. Assume potentially valuable unfinished work exists. Inspect `git status`, `git diff`, staged changes,
+   untracked files and recent commits.
+2. Check other Git worktrees and whether changes await acceptance in the IDE agent interface.
+3. Read existing handoffs and inspect the partially implemented code. Reconstruct the actual state from
+   the repository; do not assume the handoff is fully current.
+4. Identify what is finished, partial, broken or untested. If no handoff exists, create one from Git and
+   the source code.
+5. Continue from the interruption, preserving valid existing work. Add missing tests, resolve problems
+   and perform verification.
+6. Complete the originally assigned subtask before moving on.
+
+Safety rules:
+
+- Never automatically discard, revert, reset, clean, stash or overwrite unfinished changes. Never assume
+  uncommitted changes are mistakes.
+- Do not restart from scratch merely because another agent began the implementation.
+- Do not commit incomplete or unverified work merely to create a checkpoint.
+- If continuing existing changes is ambiguous or potentially destructive, explain the problem and request guidance.
+
+### Context and token efficiency
+
+- Prefer one implementation subtask per session and fresh sessions after completed subtasks.
+- Use compaction when continuing a large unfinished task with the same agent.
+- Do not repeatedly load entire repositories or large logs unnecessarily.
+- Keep permanent instructions short and implementation details in handoffs and `docs/`, not in this file.
+- Transition between agents through documentation and Git rather than copying large conversation transcripts.

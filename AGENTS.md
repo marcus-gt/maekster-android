@@ -6,6 +6,20 @@ Guidance for agents (and humans) working in this repository.
 
 A native Android rewrite of Subtracks, a client for Subsonic-compatible servers (Navidrome, gonic, Airsonic, ...), in Kotlin and Jetpack Compose. The `main` history still contains the earlier Flutter app; the native app is being built fresh under `app/` and ships as `com.subtracks`. The aim is a clean, F-Droid-friendly client: free/libre dependencies only, no telemetry.
 
+
+## mækster development instructions
+
+Read and follow CLAUDE.md before starting work.
+
+Use docs/ANDROID_ROADMAP.md for implementation scope
+and docs/FEATURE_PARITY.md for product requirements.
+
+Follow the session handoff workflow defined in CLAUDE.md.
+Read the previous handoff and create or update the current
+subtask's handoff before finishing.
+
+Do not push changes without explicit authorization.
+
 ## Environment
 
 Everything comes from the Nix flake devshell; do not install toolchains by hand.
@@ -60,3 +74,4 @@ Everything comes from the Nix flake devshell; do not install toolchains by hand.
 - lms and Nextcloud Music authenticate the Subsonic API with per-user **API keys** instead of passwords. The harness seeds a key and most tests use `useTokenAuth = false`; `SubsonicAuthIntegrationTest` drives `useTokenAuth = true` and asserts the fallback to plaintext (lms answers code 42, Nextcloud 41).
 - `nix develop` does not source your shell rc files (so tools like atuin are not active); use direnv if you want your normal interactive shell.
 - The store screenshots in `metadata/en-US/images/phoneScreenshots/` must be 24-bit no-alpha PNGs (Play rejects palette and alpha PNGs for screenshots). `:app:demoScreenshots` writes its captures in that form, so copy them across as-is and don't run a palette optimizer over them.
+
