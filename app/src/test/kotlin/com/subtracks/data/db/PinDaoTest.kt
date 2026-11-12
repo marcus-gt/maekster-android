@@ -1,7 +1,14 @@
 package com.subtracks.data.db
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.data.model.Album
+import com.subtracks.data.model.Artist
+import com.subtracks.data.model.DownloadStatus
 import com.subtracks.data.model.PinKind
+import com.subtracks.data.model.Playlist
+import com.subtracks.data.model.PlaylistSong
+import com.subtracks.data.model.Song
+import com.subtracks.data.model.SongDownload
 import com.subtracks.data.model.Source
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -150,6 +157,57 @@ class PinDaoTest {
                 ),
             )
             assertEquals(listOf("Returned", "Album"), page().map { it.name })
+        }
+
+    @Test
+    fun downloadedPinsKeepOnlyPlayableItemsInPinOrder() =
+        runTest {
+            val source = source()
+            val other = source()
+            val library = db.libraryDao()
+            library.upsertAlbums(
+                listOf(
+                    Album(source, "a1", "ar1", "Downloaded album", "One", 0, null, null, null, null, 1),
+                    Album(source, "a2", "ar2", "Queued album", "Two", 0, null, null, null, null, 1),
+                    Album(other, "a2", "ar2", "Other server", "Two", 0, null, null, null, null, 1),
+                ),
+            )
+            library.upsertArtists(listOf(Artist(source, "ar1", "One", 1, null, null), Artist(source, "ar2", "Two", 1, null, null)))
+            library.upsertSongs(
+                listOf(
+                    Song(source, "s1", "a1", "ar1", "Song 1", "Downloaded album", "One", 1, 1, 1, null),
+                    Song(source, "s2", "a2", "ar2", "Song 2", "Queued album", "Two", 1, 1, 1, null),
+                    Song(other, "s2", "a2", "ar2", "Song 2", "Other server", "Two", 1, 1, 1, null),
+                ),
+            )
+            library.upsertPlaylists(
+                listOf(Playlist(source, "p1", "Has download", null, null, 1, 0), Playlist(source, "p2", "Queued only", null, null, 1, 0)),
+            )
+            library.upsertPlaylistSongs(listOf(PlaylistSong(source, "p1", "s1", 0), PlaylistSong(source, "p2", "s2", 0)))
+            db.downloadDao().upsert(SongDownload(source, "s1", DownloadStatus.Completed))
+            db.downloadDao().upsert(SongDownload(source, "s2", DownloadStatus.Queued))
+            db.downloadDao().upsert(SongDownload(other, "s2", DownloadStatus.Completed))
+            val dao = db.pinDao()
+            dao.pin(source, PinKind.Playlist, "p1")
+            dao.pin(source, PinKind.Album, "a2")
+            dao.pin(source, PinKind.Artist, "ar1")
+            dao.pin(source, PinKind.Album, "a1")
+            dao.pin(source, PinKind.Playlist, "p2")
+            dao.pin(source, PinKind.Artist, "ar2")
+
+            suspend fun downloaded(): List<String> {
+                val pagingSource = dao.downloadedPins(source)
+                val result =
+                    pagingSource.load(
+                        androidx.paging.PagingSource.LoadParams
+                            .Refresh(key = null, loadSize = 10, placeholdersEnabled = false),
+                    )
+                pagingSource.invalidate()
+                return (result as androidx.paging.PagingSource.LoadResult.Page).data.map { it.name }
+            }
+            assertEquals(listOf("Has download", "One", "Downloaded album"), downloaded())
+            db.downloadDao().upsert(SongDownload(source, "s2", DownloadStatus.Completed))
+            assertEquals(listOf("Has download", "Queued album", "One", "Downloaded album", "Queued only", "Two"), downloaded())
         }
 
     @Test

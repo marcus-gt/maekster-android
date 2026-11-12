@@ -56,6 +56,23 @@ internal fun PinnedHomeShelf(
 
 internal fun pinGridColumns(width: Dp): Int = ((width.value - 24) / 140).toInt().coerceAtLeast(1)
 
+/** The Pinned shelf as a carousel or a paged grid; nothing when there are no pins. */
+internal fun LazyListScope.pinnedSection(
+    pins: LazyPagingItems<PinnedItem>?,
+    grid: Boolean,
+    columns: Int,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onClick: (PinnedItem) -> Unit,
+    onLongClick: (PinnedItem) -> Unit,
+) {
+    if (pins == null || pins.itemCount == 0) return
+    if (grid) {
+        pinnedGrid(pins, columns, coverArt, onClick, onLongClick)
+    } else {
+        item(key = "pins") { PinnedHomeShelf(pins, coverArt, onClick, onLongClick) }
+    }
+}
+
 internal fun LazyListScope.pinnedGrid(
     pins: LazyPagingItems<PinnedItem>,
     columns: Int,

@@ -75,6 +75,9 @@ class LibraryRepository(
     fun pinnedItems(sourceId: Long): Flow<PagingData<PinnedItem>> =
         Pager(PagingConfig(pageSize = 30, enablePlaceholders = false)) { db.pinDao().resolvedPins(sourceId) }.flow
 
+    fun downloadedPinnedItems(sourceId: Long): Flow<PagingData<PinnedItem>> =
+        Pager(PagingConfig(pageSize = 30, enablePlaceholders = false)) { db.pinDao().downloadedPins(sourceId) }.flow
+
     fun isPinned(ref: PinRef): Flow<Boolean> = db.pinDao().isPinned(ref.sourceId, ref.kind, ref.refId)
 
     suspend fun setPinned(

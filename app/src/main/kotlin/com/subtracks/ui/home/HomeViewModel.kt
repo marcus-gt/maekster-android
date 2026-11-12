@@ -81,6 +81,9 @@ class HomeViewModel(
     val pins: Flow<PagingData<PinnedItem>> =
         activeSource.flatMapLatest { libraryRepository.pinnedItems(it) }.cachedIn(viewModelScope)
 
+    val downloadedPins: Flow<PagingData<PinnedItem>> =
+        activeSource.flatMapLatest { libraryRepository.downloadedPinnedItems(it) }.cachedIn(viewModelScope)
+
     fun withPinTarget(
         item: PinnedItem,
         action: (MenuTarget) -> Unit,

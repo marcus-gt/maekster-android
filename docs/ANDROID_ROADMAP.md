@@ -289,6 +289,11 @@ so a long pin list stays paged and only nearby rows compose; columns fit the wid
 normal/2× renders reviewed and a forced-carousel mutation fails the grid tests. Three order-sensitive paged UI fixtures
 now use replaying flows. Pin ordering and offline Pinned remain.
 See `docs/handoffs/M2.5-pin-grid.md`.
+Part H puts Pinned first on offline Home, in pin order, with the same carousel/grid and hidden choices, showing only
+pins that can play offline (an album or playlist with a completed download, an artist with downloaded songs). iOS
+shows every pin offline; Android keeps its downloaded-only offline rule. iOS has no pin reorder screen, so none was
+added. DAO and UI tests with mutation checks, build, full unit suite and lint pass. M2.5 now lacks only Artist picks,
+which needs M3.2 inputs. See `docs/handoffs/M2.5-offline-pins.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

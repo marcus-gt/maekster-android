@@ -214,8 +214,24 @@ private fun HomeFeedContent(
     onLongClick: (MenuTarget) -> Unit,
     onPlaylistsMore: () -> Unit,
 ) {
+    val layout by viewModel.homeLayout.collectAsStateWithLifecycle()
+    val onPinnedClick: (PinnedItem) -> Unit = { item ->
+        viewModel.withPinTarget(item) { target ->
+            when (target) {
+                is MenuTarget.Album -> onAlbumClick(target.album)
+                is MenuTarget.Artist -> onArtistClick(target.artist)
+                is MenuTarget.Playlist -> onPlaylistClick(target.playlist)
+                is MenuTarget.Song -> Unit
+            }
+        }
+    }
+    val onPinnedLongClick: (PinnedItem) -> Unit = { item -> viewModel.withPinTarget(item, onLongClick) }
     if (offline) {
         OfflineHomeScreen(
+            layout = layout,
+            pins = viewModel.downloadedPins.collectAsLazyPagingItems(),
+            onPinnedClick = onPinnedClick,
+            onPinnedLongClick = onPinnedLongClick,
             albums = viewModel.downloadedAlbums.collectAsLazyPagingItems(),
             artists = viewModel.downloadedArtists.collectAsLazyPagingItems(),
             playlists = viewModel.downloadedPlaylists.collectAsLazyPagingItems(),
@@ -234,22 +250,12 @@ private fun HomeFeedContent(
         )
     } else {
         val feed by viewModel.feed.collectAsStateWithLifecycle()
-        val layout by viewModel.homeLayout.collectAsStateWithLifecycle()
         HomeScreen(
             feed = feed,
             layout = layout,
             pins = viewModel.pins.collectAsLazyPagingItems(),
-            onPinnedClick = { item ->
-                viewModel.withPinTarget(item) { target ->
-                    when (target) {
-                        is MenuTarget.Album -> onAlbumClick(target.album)
-                        is MenuTarget.Artist -> onArtistClick(target.artist)
-                        is MenuTarget.Playlist -> onPlaylistClick(target.playlist)
-                        is MenuTarget.Song -> Unit
-                    }
-                }
-            },
-            onPinnedLongClick = { item -> viewModel.withPinTarget(item, onLongClick) },
+            onPinnedClick = onPinnedClick,
+            onPinnedLongClick = onPinnedLongClick,
             coverArt = viewModel::coverArt,
             artistArt = { viewModel.artistArt(it) },
             playingSongId = playingSongId,
@@ -316,13 +322,7 @@ fun HomeScreen(
                 homeTitle()
                 for (shelf in layout.visible) {
                     if (shelf == HomeShelf.Pinned) {
-                        if (pins != null && pins.itemCount > 0) {
-                            if (HomeShelf.Pinned in layout.grids) {
-                                pinnedGrid(pins, pinColumns, coverArt, onPinnedClick, onPinnedLongClick)
-                            } else {
-                                item(key = "pins") { PinnedHomeShelf(pins, coverArt, onPinnedClick, onPinnedLongClick) }
-                            }
-                        }
+                        pinnedSection(pins, shelf in layout.grids, pinColumns, coverArt, onPinnedClick, onPinnedLongClick)
                         continue
                     }
                     if (shelf == HomeShelf.YourPlaylists) {
@@ -421,27 +421,37 @@ fun OfflineHomeScreen(
     onSongPlay: (Song) -> Unit = {},
     onLongClick: (MenuTarget) -> Unit = {},
     onMore: (OfflineListKind) -> Unit = {},
+    layout: HomeLayout = HomeLayout(),
+    pins: LazyPagingItems<PinnedItem>? = null,
+    onPinnedClick: (PinnedItem) -> Unit = {},
+    onPinnedLongClick: (PinnedItem) -> Unit = {},
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
-        ) {
-            homeTitle()
-            downloadedAlbumRow(albums, coverArt, onAlbumClick, onLongClick) { onMore(OfflineListKind.Albums) }
-            downloadedArtistRow(artists, artistArt, onArtistClick, onLongClick) { onMore(OfflineListKind.Artists) }
-            downloadedPlaylistRow(playlists, coverArt, onPlaylistClick, onLongClick) { onMore(OfflineListKind.Playlists) }
-            songList(
-                key = "downloaded-songs",
-                title = R.string.home_downloaded_songs,
-                icon = Icons.Rounded.MusicNote,
-                songs = songs,
-                coverArt = coverArt,
-                playingSongId = playingSongId,
-                onSongPlay = onSongPlay,
-                onLongClick = onLongClick,
-                onMore = { onMore(OfflineListKind.Songs) },
-            )
+        BoxWithConstraints(modifier.fillMaxSize()) {
+            val pinColumns = pinGridColumns(maxWidth)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
+            ) {
+                homeTitle()
+                if (HomeShelf.Pinned in layout.visible) {
+                    pinnedSection(pins, HomeShelf.Pinned in layout.grids, pinColumns, coverArt, onPinnedClick, onPinnedLongClick)
+                }
+                downloadedAlbumRow(albums, coverArt, onAlbumClick, onLongClick) { onMore(OfflineListKind.Albums) }
+                downloadedArtistRow(artists, artistArt, onArtistClick, onLongClick) { onMore(OfflineListKind.Artists) }
+                downloadedPlaylistRow(playlists, coverArt, onPlaylistClick, onLongClick) { onMore(OfflineListKind.Playlists) }
+                songList(
+                    key = "downloaded-songs",
+                    title = R.string.home_downloaded_songs,
+                    icon = Icons.Rounded.MusicNote,
+                    songs = songs,
+                    coverArt = coverArt,
+                    playingSongId = playingSongId,
+                    onSongPlay = onSongPlay,
+                    onLongClick = onLongClick,
+                    onMore = { onMore(OfflineListKind.Songs) },
+                )
+            }
         }
     }
 }
