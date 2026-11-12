@@ -40,6 +40,15 @@
     <string name="artist_type_album_artist">Album artist</string>
     <string name="artist_section_albums">Albums</string>
     <string name="artist_section_appearances">Appears on</string>
+    <string name="artist_section_eps">EPs</string>
+    <string name="artist_section_singles">Singles</string>
+    <string name="artist_section_live">Live albums</string>
+    <string name="artist_section_compilations">Compilations</string>
+    <string name="artist_section_other">Other releases</string>
+    <string name="artist_section_play">Play %1$s</string>
+    <string name="artist_section_shuffle">Shuffle %1$s</string>
+    <string name="section_expanded">Expanded</string>
+    <string name="section_collapsed">Collapsed</string>
     <string name="artist_bio_empty">No artist bio available.</string>
     <string name="artist_bio_loading">Loading artist bio…</string>
     <string name="artist_bio_unavailable">Artist bio unavailable.</string>

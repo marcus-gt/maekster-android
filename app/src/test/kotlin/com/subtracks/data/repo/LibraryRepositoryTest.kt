@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Resources
 import androidx.paging.PagingDataEvent
 import androidx.paging.PagingDataPresenter
+import androidx.room3.useWriterConnection
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.cancelAndJoinBlocking
@@ -11,11 +12,13 @@ import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.download.ArtworkStore
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumReleaseCategory
 import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.DownloadStatus
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.data.model.Source
+import com.subtracks.data.model.releaseShelves
 import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.StarredFilter
 import com.subtracks.data.prefs.fakeUserPreferences
@@ -272,6 +275,54 @@ class LibraryRepositoryTest {
             assertEquals(listOf("al-0001"), albums.albumCredits.map { it.id })
             assertEquals(listOf("al-0002"), albums.appearances.map { it.id })
             assertEquals(2, albums.count)
+        }
+
+    @Test
+    fun artistAlbumCreditsCarryTheirReleaseTypesAndAppearsOnPlaysOnlyTheCreditedTracks() =
+        runBlocking {
+            val sourceId = 1L
+            db.sourcesDao().upsertSource(
+                Source(id = sourceId, name = "test", address = "http://localhost", isActive = true, createdAt = 0),
+            )
+            db.libraryDao().upsertAlbums(
+                listOf(
+                    seedAlbum(sourceId, 1),
+                    seedAlbum(sourceId, 3),
+                    seedAlbum(sourceId, 2).copy(artistId = "ar2"),
+                ),
+            )
+            db.libraryDao().upsertSongs(
+                listOf(
+                    seedSong(sourceId).copy(albumId = "al-0001"),
+                    seedSong(sourceId).copy(id = "s5", albumId = "al-0003"),
+                    seedSong(sourceId).copy(id = "s2", albumId = "al-0002"),
+                    seedSong(sourceId).copy(id = "s3", albumId = "al-0002", artistId = "ar2"),
+                ),
+            )
+            db.useWriterConnection { connection ->
+                listOf(
+                    "INSERT INTO album_release_types VALUES ($sourceId, 'al-0003', 0, 'album')",
+                    "INSERT INTO album_release_types VALUES ($sourceId, 'al-0003', 1, 'live')",
+                    // Another artist's album: its types are not needed for this page.
+                    "INSERT INTO album_release_types VALUES ($sourceId, 'al-0002', 0, 'single')",
+                ).forEach { sql -> connection.usePrepared(sql) { it.step() } }
+            }
+
+            val albums = repository.artistAlbums(sourceId, "ar1").first()
+
+            assertEquals(
+                mapOf("al-0001" to emptyList(), "al-0003" to listOf("album", "live")),
+                albums.albumCredits.associate { it.id to it.releaseTypes },
+            )
+            assertEquals(
+                listOf(AlbumReleaseCategory.Album, AlbumReleaseCategory.Live),
+                albums.albumCredits.releaseShelves().map { it.category },
+            )
+            assertEquals(listOf("al-0002"), albums.appearances.map { it.id })
+            // Appears On holds the artist's own track on the guest album, not the host's track or the own albums.
+            assertEquals(1L, db.queueDao().artistAppearancesLength(sourceId, "ar1"))
+            assertEquals(listOf("s2"), db.queueDao().artistAppearanceSongs(sourceId, "ar1", 0, 10).map { it.song.id })
+            assertEquals(0L, db.queueDao().artistAppearancesLength(sourceId, "ar2"))
         }
 
     @Test

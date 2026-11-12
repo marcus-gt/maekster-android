@@ -528,7 +528,8 @@ data class DiscKey(
 )
 
 // Library is the Library's Songs list; its refId is an encoded SongListSpec (sort, filters, search).
-enum class QueueKind { Playlist, Album, Song, Artist, Genre, Downloaded, Starred, Library }
+// Stored by name. ArtistAppearances: the artist page's Appears On (credited songs on other artists' albums).
+enum class QueueKind { Playlist, Album, Song, Artist, Genre, Downloaded, Starred, Library, ArtistAppearances }
 
 @Entity(
     tableName = "queue_entries",

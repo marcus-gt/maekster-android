@@ -247,8 +247,15 @@ unverified; Favorites/Home lists are unchanged. See `docs/handoffs/M2.4-letter-r
 label. Each chip opens the Part C collection, and offline the genre chips count only downloaded songs, so the collection still holds
 the album. Room only; no schema or dependency change. DAO, UI and format tests (with a mutation check), build, 1,197 tests and
 lint pass. Pixel 9 API 37 verified chips and badges on real albums and both chip kinds opening their collections. Offline with
-real downloads, API 35, TalkBack and 2× font remain unverified; see `docs/handoffs/M2.4-album-chips.md`. Artist discography
-and the playlist footer have not started.
+real downloads, API 35, TalkBack and 2× font remain unverified; see `docs/handoffs/M2.4-album-chips.md`.
+
+**M2.4 Part F status (12 Nov 2026):** done. The artist page splits its own releases into Albums, EPs, Singles, Live albums,
+Compilations and Other releases (iOS mapping of the synced release types and compilation flag), then Appears on. Each shelf
+folds and has Play (in order) and Shuffle. Shelves queue one album reference per release; Appears on uses a new
+`ArtistAppearances` queue kind that plays only the artist's credited tracks. No copied queue, schema or dependency change. Model,
+repository, controller and screen tests (with a mutation check), build, 1,204 tests and lint pass. Pixel 9 API 37 verified
+Albums and Live albums shelves, shelf Play and folding on a real artist. EP/Single shelves on the emulator, offline, API 35,
+TalkBack and `queryTiming` remain unverified; see `docs/handoffs/M2.4-discography.md`. The playlist footer has not started.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

@@ -121,6 +121,54 @@ class ArtistDetailScreenTest {
     }
 
     @Test
+    fun releasesSplitIntoShelvesThatFoldAndPlayOnTheirOwn() {
+        val played = mutableListOf<Pair<List<String>, Boolean>>()
+        val appearancesPlayed = mutableListOf<Boolean>()
+        composeRule.setContent {
+            MaeksterTheme {
+                ArtistDetailScreen(
+                    artist = Artist(sourceId = 1, id = "ar-1", name = "Radiohead", albumCount = 4, starred = null),
+                    artistName = "Radiohead",
+                    albums =
+                        ArtistAlbums(
+                            albumCredits =
+                                listOf(
+                                    album("al-1", "Creep").copy(releaseTypes = listOf("single")),
+                                    album("al-2", "Kid A"),
+                                    album("al-3", "Karma Police").copy(releaseTypes = listOf("single")),
+                                ),
+                            appearances = listOf(album("al-4", "Guest Album")),
+                        ),
+                    art = null,
+                    coverArt = { _, _ -> null },
+                    onBack = {},
+                    onAlbumClick = {},
+                    onPlayShelf = { albums, shuffled -> played += albums.map { it.id } to shuffled },
+                    onPlayAppearances = { appearancesPlayed += it },
+                )
+            }
+        }
+        val list = composeRule.onNode(hasScrollAction())
+
+        list.performScrollToNode(hasText("SINGLES"))
+        composeRule.onNodeWithContentDescription("Play Singles").performClick()
+        composeRule.onNodeWithContentDescription("Shuffle Albums").performClick()
+        assertEquals(listOf(listOf("al-1", "al-3") to false, listOf("al-2") to true), played)
+
+        // Folding Singles hides its albums but keeps the header; unfolding brings them back.
+        composeRule.onNodeWithTag("discography-Single").assertExists()
+        composeRule.onNodeWithText("SINGLES").performClick()
+        composeRule.onNodeWithText("Creep").assertDoesNotExist()
+        composeRule.onNodeWithText("SINGLES").performClick()
+        list.performScrollToNode(hasText("Creep"))
+        composeRule.onNodeWithText("Creep").assertExists()
+
+        list.performScrollToNode(hasText("APPEARS ON"))
+        composeRule.onNodeWithContentDescription("Shuffle Appears on").performClick()
+        assertEquals(listOf(true), appearancesPlayed)
+    }
+
+    @Test
     fun theTypeAndCountStayBlankUntilTheAlbumsLoad() {
         render(
             artist = Artist(sourceId = 1, id = "ar-1", name = "Radiohead", albumCount = 1, starred = null),

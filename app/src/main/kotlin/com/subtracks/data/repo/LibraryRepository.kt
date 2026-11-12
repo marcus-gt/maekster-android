@@ -417,10 +417,18 @@ class LibraryRepository(
             } else {
                 db.libraryDao().albumsForArtist(sourceId, artistId)
             }
-        return combine(albums, db.libraryDao().albumCreditAlbumIds(sourceId, artistId)) { list, creditIds ->
+        return combine(
+            albums,
+            db.libraryDao().albumCreditAlbumIds(sourceId, artistId),
+            db.libraryDao().artistReleaseTypes(sourceId, artistId),
+        ) { list, creditIds, releaseTypes ->
             val credits = creditIds.toHashSet()
+            val types = releaseTypes.groupBy({ it.albumId }, { it.type })
             val (albumCredits, appearances) = list.partition { it.id in credits }
-            ArtistAlbums(albumCredits = albumCredits, appearances = appearances)
+            ArtistAlbums(
+                albumCredits = albumCredits.map { album -> types[album.id]?.let { album.copy(releaseTypes = it) } ?: album },
+                appearances = appearances,
+            )
         }
     }
 

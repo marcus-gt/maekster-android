@@ -748,7 +748,7 @@ private fun QueueKind.label(): Int =
         QueueKind.Album -> R.string.context_kind_album
         QueueKind.Playlist -> R.string.context_kind_playlist
         QueueKind.Song -> R.string.context_kind_song
-        QueueKind.Artist -> R.string.context_kind_artist
+        QueueKind.Artist, QueueKind.ArtistAppearances -> R.string.context_kind_artist
         QueueKind.Genre -> R.string.context_kind_genre
         QueueKind.Downloaded -> R.string.context_kind_downloads
         QueueKind.Starred -> R.string.context_kind_starred

@@ -2786,6 +2786,42 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun aDiscographyShelfPlaysItsAlbumsInTheListedOrderAsAlbumReferences() {
+        seedArtist()
+        controller.shuffleAlbum(1, "al1")
+        await { controller.state.value.shuffle }
+
+        controller.playAlbums(1, listOf("al2", "al1"), shuffled = false)
+        await {
+            !controller.state.value.shuffle && controller.state.value.item
+                ?.id == "b1"
+        }
+
+        assertEquals(listOf("b1", "b2", "a1", "a2", "a3"), handle.items.map { it.id })
+        assertEquals(
+            QueueKind.Album,
+            controller.state.value.context
+                ?.kind,
+        )
+        assertEquals(
+            "al2",
+            controller.state.value.context
+                ?.refId,
+        )
+        assertEquals(listOf("al2", "al1"), runBlocking { db.queueDao().entries().map { it.refId } })
+    }
+
+    @Test
+    fun shufflingADiscographyShelfShufflesAcrossItsAlbumsOnly() {
+        seedArtist()
+
+        controller.playAlbums(1, listOf("al2"), shuffled = true)
+        await { controller.state.value.shuffle && controller.state.value.item != null }
+
+        assertEquals(setOf("b1", "b2"), handle.items.map { it.id }.toSet())
+    }
+
+    @Test
     fun shuffleGenrePlaysOnlyThatGenresSongs() {
         seedGenre()
 

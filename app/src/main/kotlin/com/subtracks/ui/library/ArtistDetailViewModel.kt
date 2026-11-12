@@ -2,6 +2,7 @@ package com.subtracks.ui.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.subtracks.data.model.Album
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistAlbums
 import com.subtracks.data.model.ArtistBio
@@ -179,6 +180,19 @@ class ArtistDetailViewModel(
         viewModelScope.launch {
             playbackController.shuffleArtist(sourceId.first(), artistId)
         }
+    }
+
+    /** Plays or shuffles one discography shelf: these albums in full, in the order shown. */
+    fun playShelf(
+        albums: List<Album>,
+        shuffled: Boolean,
+    ) {
+        viewModelScope.launch { playbackController.playAlbums(sourceId.first(), albums.map { it.id }, shuffled) }
+    }
+
+    /** Plays or shuffles Appears On: only the tracks crediting this artist. */
+    fun playAppearances(shuffled: Boolean) {
+        viewModelScope.launch { playbackController.playArtistAppearances(sourceId.first(), artistId, shuffled) }
     }
 }
 

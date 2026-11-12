@@ -360,6 +360,20 @@ private val queueKindResolvers =
                     limit: Int,
                 ) = dao.artistSongs(entry.sourceId, entry.refId, offset, limit)
             },
+        QueueKind.ArtistAppearances to
+            object : QueueKindResolver {
+                override suspend fun length(
+                    dao: com.subtracks.data.db.QueueDao,
+                    entry: QueueEntry,
+                ) = dao.artistAppearancesLength(entry.sourceId, entry.refId)
+
+                override suspend fun rows(
+                    dao: com.subtracks.data.db.QueueDao,
+                    entry: QueueEntry,
+                    offset: Long,
+                    limit: Int,
+                ) = dao.artistAppearanceSongs(entry.sourceId, entry.refId, offset, limit)
+            },
         QueueKind.Genre to
             object : QueueKindResolver {
                 override suspend fun length(
@@ -460,6 +474,11 @@ class QueueRepository(
         artistId: String,
     ) = QueueEntry(position = 0, sourceId = sourceId, kind = QueueKind.Artist, refId = artistId)
 
+    fun artistAppearancesEntry(
+        sourceId: Long,
+        artistId: String,
+    ) = QueueEntry(position = 0, sourceId = sourceId, kind = QueueKind.ArtistAppearances, refId = artistId)
+
     fun songEntry(
         sourceId: Long,
         songId: String,
@@ -502,7 +521,7 @@ class QueueRepository(
                     ?.takeIf { it.isNotBlank() }
             }
 
-            QueueKind.Artist -> {
+            QueueKind.Artist, QueueKind.ArtistAppearances -> {
                 library
                     .artist(sourceId, refId)
                     .first()
@@ -1001,6 +1020,7 @@ class QueueRepository(
             QueueKind.Album -> OrderKey(row.song.id, disc = row.song.disc, track = row.song.track)
             QueueKind.Playlist -> OrderKey(row.song.id, position = row.playlistPosition)
             QueueKind.Artist -> OrderKey(row.song.id)
+            QueueKind.ArtistAppearances -> OrderKey(row.song.id)
             QueueKind.Genre -> OrderKey(row.song.id)
             QueueKind.Downloaded -> OrderKey(row.song.id)
             QueueKind.Starred -> OrderKey(row.song.id)

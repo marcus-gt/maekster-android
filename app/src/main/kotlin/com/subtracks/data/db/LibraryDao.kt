@@ -13,6 +13,7 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumArtistRef
 import com.subtracks.data.model.AlbumCollectionSummary
 import com.subtracks.data.model.AlbumLabel
+import com.subtracks.data.model.AlbumReleaseType
 import com.subtracks.data.model.AlbumSearch
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
@@ -973,6 +974,22 @@ interface LibraryDao {
         sourceId: Long,
         artistId: String,
     ): Flow<List<String>> = albumCreditAlbumIds(rawQuery(ALBUM_CREDIT_ALBUM_IDS, mapOf("sourceId" to sourceId, "artistId" to artistId)))
+
+    @RawQuery(observedEntities = [AlbumReleaseType::class, Album::class, AlbumArtistRef::class, Song::class, SongArtistRef::class])
+    fun artistReleaseTypes(query: RoomRawQuery): Flow<List<AlbumReleaseType>>
+
+    /** The release types of the albums filed under the artist (its discography shelves), in each album's order. */
+    fun artistReleaseTypes(
+        sourceId: Long,
+        artistId: String,
+    ): Flow<List<AlbumReleaseType>> =
+        artistReleaseTypes(
+            rawQuery(
+                "SELECT * FROM album_release_types WHERE sourceId = :sourceId AND albumId IN ($ALBUM_CREDIT_ALBUM_IDS) " +
+                    "ORDER BY albumId, position",
+                mapOf("sourceId" to sourceId, "artistId" to artistId),
+            ),
+        )
 
     @Query("SELECT * FROM discs WHERE sourceId = :sourceId AND albumId = :albumId ORDER BY disc")
     fun discs(

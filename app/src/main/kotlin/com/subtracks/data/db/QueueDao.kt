@@ -32,6 +32,9 @@ private const val ARTIST_SONGS_SELECT =
 private const val ARTIST_SONGS_ORDER =
     " ORDER BY albums.id IS NULL, albums.year DESC, albums.sortName COLLATE NOCASE, albums.id, songs.disc, songs.track, songs.id"
 
+// Appears On: albums the artist is only credited on, the same split as LibraryRepository.artistAlbums.
+private val ARTIST_APPEARANCES_FILTER = " AND albums.id IS NOT NULL AND songs.albumId NOT IN ($ALBUM_CREDIT_ALBUM_IDS)"
+
 private const val SONG_SQL =
     "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
         "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
@@ -60,6 +63,33 @@ interface QueueDao {
         offset: Long,
         limit: Int,
     ): List<AlbumSongItem> = SongListSpec.decode(refId)?.let { songItems(songsPageQuery(sourceId, it, offset, limit)) }.orEmpty()
+
+    /** The songs crediting the artist on albums filed under someone else: the artist page's Appears On, in its order. */
+    suspend fun artistAppearancesLength(
+        sourceId: Long,
+        artistId: String,
+    ): Long =
+        count(
+            rawQuery(
+                "SELECT COUNT(*) FROM songs " +
+                    "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
+                    "WHERE songs.sourceId = :sourceId AND songs.id IN $ARTIST_SONG_IDS$ARTIST_APPEARANCES_FILTER",
+                mapOf("sourceId" to sourceId, "artistId" to artistId),
+            ),
+        )
+
+    suspend fun artistAppearanceSongs(
+        sourceId: Long,
+        artistId: String,
+        offset: Long,
+        limit: Int,
+    ): List<AlbumSongItem> =
+        songItems(
+            rawQuery(
+                "$ARTIST_SONGS_SELECT$ARTIST_APPEARANCES_FILTER$ARTIST_SONGS_ORDER LIMIT :limit OFFSET :offset",
+                mapOf("sourceId" to sourceId, "artistId" to artistId, "limit" to limit, "offset" to offset),
+            ),
+        )
 
     @Insert
     suspend fun insert(entries: List<QueueEntry>)

@@ -1,5 +1,6 @@
 package com.subtracks.ui.library
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -36,13 +38,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Audiotrack
+import androidx.compose.material.icons.rounded.Category
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Stadium
+import androidx.compose.material.icons.rounded.Theaters
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -59,6 +69,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -66,6 +77,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -81,6 +93,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextMeasurer
@@ -98,11 +114,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumReleaseCategory
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistAlbums
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.ListDownloadStatus
+import com.subtracks.data.model.releaseShelves
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.ArtistArt
@@ -250,6 +268,8 @@ fun ArtistDetailRoute(
         onExpandBio = viewModel::expandBio,
         onCollapseBio = viewModel::collapseBio,
         onShuffle = viewModel::shuffle,
+        onPlayShelf = viewModel::playShelf,
+        onPlayAppearances = viewModel::playAppearances,
     )
 
     PendingDownloadDeleteConfirmation(pendingDelete) { pending ->
@@ -285,8 +305,13 @@ fun ArtistDetailScreen(
     onExpandBio: () -> Unit = {},
     onCollapseBio: () -> Unit = {},
     onShuffle: () -> Unit = {},
+    onPlayShelf: (List<Album>, Boolean) -> Unit = { _, _ -> },
+    onPlayAppearances: (Boolean) -> Unit = {},
 ) {
     val listState = rememberRestorableLazyGridState(albumsLoaded)
+    val shelves = remember(albums.albumCredits) { albums.albumCredits.releaseShelves() }
+    // Shelves the listener folded away; everything starts expanded, as on iOS.
+    var collapsed by rememberSaveable(stateSaver = CollapsedSaver) { mutableStateOf(emptySet<String>()) }
     val fill = rememberViewportFill(listState)
     val density = LocalDensity.current
     val lineHeight =
@@ -477,11 +502,22 @@ fun ArtistDetailScreen(
                             }
                         }
                     }
-                    if (albums.albumCredits.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            ArtistSectionHeader(stringResource(R.string.artist_section_albums), Icons.Rounded.Album)
+                    shelves.forEachIndexed { shelfIndex, shelf ->
+                        val key = shelf.category.name
+                        item(key = "shelf:$key", span = { GridItemSpan(maxLineSpan) }) {
+                            DiscographyHeader(
+                                text = stringResource(shelf.category.title()),
+                                icon = shelf.category.icon(),
+                                expanded = key !in collapsed,
+                                onToggle = { collapsed = collapsed.toggle(key) },
+                                onPlay = { onPlayShelf(shelf.albums, false) },
+                                onShuffle = { onPlayShelf(shelf.albums, true) },
+                                topGap = if (shelfIndex == 0) 0.dp else 16.dp,
+                                modifier = Modifier.testTag("discography-$key"),
+                            )
                         }
-                        itemsIndexed(albums.albumCredits, key = { _, album -> album.id }) { index, album ->
+                        if (key in collapsed) return@forEachIndexed
+                        itemsIndexed(shelf.albums, key = { _, album -> album.id }) { index, album ->
                             ArtistAlbumCard(
                                 album = album,
                                 index = index,
@@ -496,9 +532,20 @@ fun ArtistDetailScreen(
                         }
                     }
                     if (albums.appearances.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            ArtistSectionHeader(stringResource(R.string.artist_section_appearances), Icons.Rounded.Mic, topGap = 16.dp)
+                        item(key = "shelf:$APPEARS_ON", span = { GridItemSpan(maxLineSpan) }) {
+                            DiscographyHeader(
+                                text = stringResource(R.string.artist_section_appearances),
+                                icon = Icons.Rounded.Mic,
+                                expanded = APPEARS_ON !in collapsed,
+                                onToggle = { collapsed = collapsed.toggle(APPEARS_ON) },
+                                onPlay = { onPlayAppearances(false) },
+                                onShuffle = { onPlayAppearances(true) },
+                                topGap = if (shelves.isEmpty()) 0.dp else 16.dp,
+                                modifier = Modifier.testTag("discography-$APPEARS_ON"),
+                            )
                         }
+                    }
+                    if (albums.appearances.isNotEmpty() && APPEARS_ON !in collapsed) {
                         itemsIndexed(albums.appearances, key = { _, album -> album.id }) { index, album ->
                             ArtistAlbumCard(
                                 album = album,
@@ -866,33 +913,106 @@ internal fun splitBioCollapsed(
     return BioLines(lines, more = true)
 }
 
+private const val APPEARS_ON = "AppearsOn"
+
+private val CollapsedSaver = listSaver<Set<String>, String>(save = { it.toList() }, restore = { it.toSet() })
+
+private fun Set<String>.toggle(key: String): Set<String> = if (key in this) this - key else this + key
+
+@StringRes
+private fun AlbumReleaseCategory.title(): Int =
+    when (this) {
+        AlbumReleaseCategory.Album -> R.string.artist_section_albums
+        AlbumReleaseCategory.EP -> R.string.artist_section_eps
+        AlbumReleaseCategory.Single -> R.string.artist_section_singles
+        AlbumReleaseCategory.Live -> R.string.artist_section_live
+        AlbumReleaseCategory.Compilation -> R.string.artist_section_compilations
+        AlbumReleaseCategory.Other -> R.string.artist_section_other
+    }
+
+private fun AlbumReleaseCategory.icon(): ImageVector =
+    when (this) {
+        AlbumReleaseCategory.Album -> Icons.Rounded.Album
+        AlbumReleaseCategory.EP -> Icons.Rounded.LibraryMusic
+        AlbumReleaseCategory.Single -> Icons.Rounded.Audiotrack
+        AlbumReleaseCategory.Live -> Icons.Rounded.Stadium
+        AlbumReleaseCategory.Compilation -> Icons.Rounded.Category
+        AlbumReleaseCategory.Other -> Icons.Rounded.Theaters
+    }
+
+/**
+ * A discography shelf's header: the title (tap to fold the shelf away, with a chevron that shows which) and
+ * Play and Shuffle for the shelf.
+ */
 @Composable
-private fun ArtistSectionHeader(
+private fun DiscographyHeader(
     text: String,
     icon: ImageVector,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+    modifier: Modifier = Modifier,
     topGap: Dp = 0.dp,
 ) {
+    val chevron by animateFloatAsState(if (expanded) 0f else -90f, tween(SCRIM_FADE_MS), label = "shelfChevron")
+    val state = stringResource(if (expanded) R.string.section_expanded else R.string.section_collapsed)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = topGap, bottom = 4.dp),
+        modifier = modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp, top = topGap),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(16.dp))
-        Text(
-            text = text.uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClick = onToggle)
+                    .semantics(mergeDescendants = true) {
+                        heading()
+                        stateDescription = state
+                    }.padding(horizontal = 12.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(16.dp))
+            Text(
+                text = text.uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Icon(
+                imageVector = Icons.Rounded.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp).size(20.dp).rotate(chevron),
+            )
+        }
+        FilledIconButton(onClick = onPlay, modifier = Modifier.size(40.dp)) {
+            Icon(
+                Icons.Rounded.PlayArrow,
+                contentDescription = stringResource(R.string.artist_section_play, text),
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        FilledTonalIconButton(onClick = onShuffle, modifier = Modifier.size(40.dp)) {
+            Icon(
+                Icons.Rounded.Shuffle,
+                contentDescription = stringResource(R.string.artist_section_shuffle, text),
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 

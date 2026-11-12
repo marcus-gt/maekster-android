@@ -271,6 +271,30 @@ class PlaybackController(
         genre: String,
     ) = shuffleContext(queueRepository.genreEntry(sourceId, genre))
 
+    /**
+     * Plays one artist-page shelf (Albums, EPs, Singles…) in its listed order, or shuffles it: one album reference
+     * per release, so nothing is copied and each album keeps its own "Playing from".
+     */
+    fun playAlbums(
+        sourceId: Long,
+        albumIds: List<String>,
+        shuffled: Boolean,
+    ) {
+        if (albumIds.isEmpty()) return
+        val entries = albumIds.map { queueRepository.albumEntry(sourceId, it) }
+        if (shuffled) shufflePlay(entries) else play(entries, 0, disableShuffle = true)
+    }
+
+    /** Plays or shuffles the artist's Appears On: only the songs crediting them on other artists' albums. */
+    fun playArtistAppearances(
+        sourceId: Long,
+        artistId: String,
+        shuffled: Boolean,
+    ) {
+        val entry = queueRepository.artistAppearancesEntry(sourceId, artistId)
+        if (shuffled) shuffleContext(entry) else playContext(entry, 0, disableShuffle = true)
+    }
+
     fun shuffleStarred(sourceId: Long) = shuffleContext(queueRepository.starredEntry(sourceId))
 
     fun shuffleDownloaded(sourceId: Long) = shuffleContext(queueRepository.downloadedEntry(sourceId))
