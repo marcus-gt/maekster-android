@@ -106,6 +106,7 @@ enum class HomeSection(
     MostPlayedArtists(R.string.home_section_most_played_artists),
     Genres(R.string.home_section_genres),
     Decades(R.string.home_section_decades),
+    FavoriteAlbums(R.string.home_section_favorite_albums),
     RecentlyStarredSongs(R.string.home_section_recently_starred),
     RecentlyAddedAlbums(R.string.home_section_recently_added),
     Rediscover(R.string.home_section_rediscover),
@@ -289,6 +290,7 @@ fun HomeScreen(
         ) {
             homeTitle()
             yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore)
+            albumRow(HomeSection.FavoriteAlbums, feed.favoriteAlbums, coverArt, onAlbumClick, onLongClick, onMore)
             albumRow(
                 HomeSection.RecentlyAddedAlbums,
                 feed.recentlyAddedAlbums,
@@ -628,6 +630,7 @@ private val PLAYLIST_CARD_SIZE = 200.dp
 
 private fun HomeFeed.isEmpty(): Boolean =
     yourPlaylists.isEmpty() &&
+        favoriteAlbums.isEmpty() &&
         recentlyPlayedAlbums.isEmpty() &&
         recentlyPlayedArtists.isEmpty() &&
         mostPlayedAlbums.isEmpty() &&
@@ -677,6 +680,7 @@ private val HomeSection.icon: ImageVector
             HomeSection.MostPlayedArtists -> Icons.Rounded.LocalFireDepartment
             HomeSection.Genres -> Icons.Rounded.Category
             HomeSection.Decades -> Icons.Rounded.CalendarMonth
+            HomeSection.FavoriteAlbums -> Icons.Rounded.Favorite
             HomeSection.RecentlyStarredSongs -> Icons.Rounded.Favorite
             HomeSection.RecentlyAddedAlbums -> Icons.Rounded.LibraryAdd
             HomeSection.Rediscover -> Icons.Rounded.Replay

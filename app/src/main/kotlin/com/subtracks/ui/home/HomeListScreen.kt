@@ -299,6 +299,7 @@ fun HomeListScreen(
 
                 HomeSection.RecentlyPlayedAlbums,
                 HomeSection.MostPlayedAlbums,
+                HomeSection.FavoriteAlbums,
                 HomeSection.RecentlyAddedAlbums,
                 HomeSection.Rediscover,
                 null,

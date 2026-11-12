@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">mækster</string>
+    <string name="home_section_favorite_albums">Favorite albums</string>
     <string name="download_channel_description">Progress while songs download</string>
     <string name="sync_notification_channel">Sync</string>
     <string name="sync_notification_title">Syncing library</string>

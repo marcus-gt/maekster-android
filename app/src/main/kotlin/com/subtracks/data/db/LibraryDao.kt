@@ -472,6 +472,15 @@ interface LibraryDao {
         limit: Int,
     ): Flow<List<Album>>
 
+    @Query(
+        "SELECT * FROM albums WHERE sourceId = :sourceId AND starred IS NOT NULL " +
+            "ORDER BY starred DESC, sortName COLLATE NOCASE, id LIMIT :limit",
+    )
+    fun favoriteAlbums(
+        sourceId: Long,
+        limit: Int,
+    ): Flow<List<Album>>
+
     // Home's Your playlists: most recently changed first, falling back to the creation date when the server sends
     // no change date (as iOS does). Playlists are few, so no index is needed for the expression.
     @Query(

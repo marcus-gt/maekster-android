@@ -123,6 +123,11 @@ class LibraryRepository(
         limit: Int,
     ): Flow<List<Album>> = db.libraryDao().recentlyAddedAlbums(sourceId, limit)
 
+    fun favoriteAlbums(
+        sourceId: Long,
+        limit: Int,
+    ): Flow<List<Album>> = db.libraryDao().favoriteAlbums(sourceId, limit)
+
     fun recentlyChangedPlaylists(
         sourceId: Long,
         limit: Int,

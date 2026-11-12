@@ -32,6 +32,27 @@ class LibraryHomeDaoTest {
     }
 
     @Test
+    fun favoriteAlbumsAreBoundedSourceScopedAndNewestStarFirst() =
+        runTest {
+            val id = source()
+            val other = source()
+            val dao = db.libraryDao()
+            dao.upsertAlbums(
+                listOf(
+                    album(id, "a", "Alpha").copy(starred = 100),
+                    album(id, "b", "Beta").copy(starred = 300),
+                    album(id, "c", "Gamma").copy(starred = 200),
+                    album(id, "d", "Never"),
+                    album(other, "e", "Other").copy(starred = 400),
+                ),
+            )
+            assertEquals(listOf("b", "c"), dao.favoriteAlbums(id, 2).first().map { it.id })
+            assertEquals(listOf("b", "c", "a"), dao.favoriteAlbums(id, 10).first().map { it.id })
+            dao.upsertAlbums(listOf(album(id, "b", "Beta")))
+            assertEquals(listOf("c", "a"), dao.favoriteAlbums(id, 10).first().map { it.id })
+        }
+
+    @Test
     fun recentlyPlayedAlbumsOrderByMostRecentFirstAndLimit() =
         runTest {
             val sourceId = source()

@@ -89,7 +89,7 @@ class HomeListViewModel(
         sourceAndOffline
             .flatMapLatest { (id, offline) ->
                 when {
-                    request.favorites == FavoriteKind.Albums -> {
+                    request.favorites == FavoriteKind.Albums || request.section == HomeSection.FavoriteAlbums -> {
                         libraryRepository.albums(id, AlbumSort.Starred, false, StarredFilter.Starred, "", offline)
                     }
 

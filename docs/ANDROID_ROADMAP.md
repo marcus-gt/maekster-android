@@ -266,8 +266,10 @@ M2.4's 200k-song `queryTiming` measurement is still outstanding across its parts
 **M2.5 status (12 Nov 2026):** in progress. Part A is done: Home opens with "Your playlists" (up to 10, newest change first,
 falling back to the creation date, as on iOS), large covers with an "Updated …" line and the song count; More opens the
 Playlists list. DAO and screen tests (with a mutation check), build, 1,210 tests and lint pass; Pixel 9 API 37 verified the
-shelf, More and opening a playlist. See `docs/handoffs/M2.5-your-playlists.md`. Favorite albums, configurable sections and pins
-have not started.
+shelf, More and opening a playlist. See `docs/handoffs/M2.5-your-playlists.md`.
+Part B adds Favorite albums after Your playlists: up to 10 locally mirrored favorites, newest star first, with album menus
+and More opening a paged favorites list. Build, full unit suite, lint and screenshot recording pass; normal/2× font UI tests
+include a mutation check. See `docs/handoffs/M2.5-favorite-albums.md`. Configurable sections and pins have not started.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
