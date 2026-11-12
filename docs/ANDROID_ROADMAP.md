@@ -328,6 +328,11 @@ references, shuffle and cursor. Clearing a paused playing block stays paused; Un
 Mutation checks, full build/tests/lint and normal/2× font renders pass.
 See `docs/handoffs/M2.7-clear-up-next-undo.md`. Still open: clearing the context's upcoming tracks,
 continuous queue presentation, persisted source labels and playback recovery.
+Part D is done: end-to-start swipe removes queue rows through the existing position-based action and
+snackbar Undo; duplicate songs stay distinct, including in shuffled context. Remove buttons and drag
+handles remain, and swiping is disabled during drag. Gesture regressions fail with swiping disabled;
+full build/tests/lint rerun passes after existing paged screenshot timeouts, and normal/2× font renders
+are reviewed. See `docs/handoffs/M2.7-queue-swipe.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

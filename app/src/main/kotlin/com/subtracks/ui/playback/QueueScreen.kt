@@ -43,6 +43,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -477,33 +478,40 @@ fun QueueScreen(
                                         placementSpec = tween(200),
                                     ),
                             ) { isDragging ->
-                                QueueRowItem(
-                                    row = row,
-                                    isPlaying = row.isPlaying(currentPosition, currentSongId),
-                                    floating = isDragging,
-                                    coverArt = coverArt,
-                                    dragHandle =
-                                        if (!enabled) {
-                                            null
-                                        } else {
-                                            Modifier.draggableHandle(
-                                                onDragStarted = { dragId = row.id },
-                                                onDragStopped = {
-                                                    dragId?.let { id ->
-                                                        rows.dropMoveFor(id)?.let { move ->
-                                                            if (onMove(move.from, move.to)) showUndo(queueReordered)
+                                val remove = {
+                                    onRemove(row.position)
+                                    showUndo(queueRemoved)
+                                }
+                                QueueSwipeRow(
+                                    dragging = isDragging,
+                                    onRemove = remove,
+                                    modifier = Modifier.testTag("queue-row-${row.id}"),
+                                ) {
+                                    QueueRowItem(
+                                        row = row,
+                                        isPlaying = row.isPlaying(currentPosition, currentSongId),
+                                        floating = isDragging,
+                                        coverArt = coverArt,
+                                        dragHandle =
+                                            if (!enabled) {
+                                                null
+                                            } else {
+                                                Modifier.draggableHandle(
+                                                    onDragStarted = { dragId = row.id },
+                                                    onDragStopped = {
+                                                        dragId?.let { id ->
+                                                            rows.dropMoveFor(id)?.let { move ->
+                                                                if (onMove(move.from, move.to)) showUndo(queueReordered)
+                                                            }
                                                         }
-                                                    }
-                                                    dragId = null
-                                                },
-                                            )
-                                        },
-                                    onClick = { onPlay(row.position) },
-                                    onRemove = {
-                                        onRemove(row.position)
-                                        showUndo(queueRemoved)
-                                    },
-                                )
+                                                        dragId = null
+                                                    },
+                                                )
+                                            },
+                                        onClick = { onPlay(row.position) },
+                                        onRemove = remove,
+                                    )
+                                }
                             }
                         }
                     }
