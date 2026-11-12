@@ -349,7 +349,13 @@ a successful controller edit. It keeps the playing source/position/pause state, 
 window and restores context/manual ranges on Undo. Availability comes from the full queue snapshot;
 shuffle and end-of-queue are guarded. Manual Clear up next remains in the menu. Mutation, controller/UI
 regressions, full build/tests/lint/recording and normal/2× font renders pass.
-See `docs/handoffs/M2.7-clear-upcoming-action.md`. Shuffled truncation, source labels and recovery remain.
+See `docs/handoffs/M2.7-clear-upcoming-action.md`.
+Part H is done: network playback errors arm one same-track retry at the saved position when the existing
+network-availability flow notifies an available route. Pause, seek, stop, offline mode and stale source/track
+checks prevent unwanted recovery; play intent is rechecked after async window loading. Refused requests
+are not retried. No timer loop or automatic skipping. Mutation/seek regressions and full build/tests/lint
+pass. See `docs/handoffs/M2.7-network-recovery.md`. Shuffled truncation, source labels, explicit waiting
+states/700ms delay, bounded failing-item skips and remaining player styling are still open.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

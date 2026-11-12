@@ -1,5 +1,6 @@
 package com.subtracks.playback
 
+import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.model.ArtistRef
@@ -20,9 +21,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -125,6 +128,13 @@ private data class PendingPlay(
     val disableShuffle: Boolean,
 )
 
+private data class NetworkRetry(
+    val sourceId: Long,
+    val position: Long,
+    val songId: String,
+    val positionMs: Long,
+)
+
 class PlaybackController(
     private val sourceRepository: SourceRepository,
     private val queueRepository: QueueRepository,
@@ -132,6 +142,7 @@ class PlaybackController(
     private val downloads: DownloadRepository,
     private val showMessage: (UiMessage) -> Unit = {},
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+    networkAvailable: Flow<Boolean> = flowOf(true),
 ) {
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state
@@ -144,6 +155,8 @@ class PlaybackController(
     private var player: PlayerHandle? = null
     private var connecting = false
     private var pendingPlay: PendingPlay? = null
+    private var networkRetry: NetworkRetry? = null
+    private var playbackIntentVersion = 0L
     private var pendingShuffle: List<QueueEntry>? = null
     private var positionJob: Job? = null
     private var windowJob: Job? = null
@@ -171,12 +184,21 @@ class PlaybackController(
 
     init {
         scope.launch {
+            networkAvailable.collect { available -> if (available) retryNetworkPlayback() }
+        }
+        scope.launch {
             sourceRepository.activeSourceId().collect { sourceId ->
-                if (queueSourceId != null && sourceId != queueSourceId) stop()
+                if (queueSourceId != null && sourceId != queueSourceId) {
+                    playbackIntentVersion++
+                    stop()
+                }
             }
         }
         scope.launch {
-            sourceRepository.offline.collect { reloadForOffline() }
+            sourceRepository.offline.collect {
+                if (it) networkRetry = null
+                reloadForOffline()
+            }
         }
         scope.launch {
             sourceRepository.quality.drop(1).collect {
@@ -733,7 +755,17 @@ class PlaybackController(
         }
 
     fun togglePlayPause() {
+        playbackIntentVersion++
         val player = player ?: return
+        networkRetry?.let { retry ->
+            networkRetry = null
+            if (queueSourceId == retry.sourceId && currentPosition() == retry.position && player.currentItem?.id == retry.songId) {
+                player.pause()
+                savePosition()
+                refresh()
+                return
+            }
+        }
         if (player.isEnded) {
             player.seekToIndex(player.currentIndex)
             player.play()
@@ -1034,6 +1066,8 @@ class PlaybackController(
     }
 
     fun seekTo(positionMs: Long) {
+        playbackIntentVersion++
+        networkRetry = null
         player?.seekTo(positionMs)
         lastSavedPositionMs = positionMs
         scope.launch { queueRepository.setPosition(positionMs) }
@@ -1186,6 +1220,8 @@ class PlaybackController(
     private suspend fun stop() = startLock.withLock { stopLocked() }
 
     private fun stopLocked() {
+        playbackIntentVersion++
+        networkRetry = null
         windowJob?.cancel()
         bufferingJob?.cancel()
         bufferingJob = null
@@ -1214,7 +1250,9 @@ class PlaybackController(
         position: Long,
         autoplay: Boolean,
         startPositionMs: Long = 0,
+        autoplayAllowed: () -> Boolean = { true },
     ) {
+        networkRetry = null
         val player = player ?: return
         val snapshot = snapshot ?: return
         downloads.awaitLoaded()
@@ -1248,7 +1286,7 @@ class PlaybackController(
         updating = true
         player.setWindow(window.map { it.playerItem(snapshot) }, startIndex, startPositionMs)
         updating = false
-        if (autoplay) {
+        if (autoplay && autoplayAllowed()) {
             player.prepare()
             player.play()
         }
@@ -1557,14 +1595,53 @@ class PlaybackController(
             }
 
             override fun onEvents() {
+                if (!updating && player?.playWhenReady != true) {
+                    playbackIntentVersion++
+                    networkRetry = null
+                }
                 if (player?.isEnded == true) handleEnded() else endedHandled = false
                 refresh()
             }
 
             override fun onError(message: UiMessage) {
+                val player = player
+                val sourceId = queueSourceId
+                val position = currentPosition()
+                val item = player?.currentItem
+                networkRetry =
+                    if (message.resId == R.string.playback_error_network && !offline &&
+                        player?.playWhenReady == true && sourceId != null && position != null && item != null &&
+                        player.itemUris().getOrNull(player.currentIndex)?.startsWith(FILE_SCHEME) != true
+                    ) {
+                        NetworkRetry(sourceId, position, item.id, player.currentPositionMs)
+                    } else {
+                        null
+                    }
                 showMessage(message)
                 refresh()
             }
+        }
+
+    internal suspend fun retryNetworkPlayback() =
+        startLock.withLock {
+            val retry = networkRetry ?: return@withLock
+            networkRetry = null
+            val player = player ?: return@withLock
+            val activeSourceId = sourceRepository.activeSourceIdOnce()
+            if (offline || !player.playWhenReady || activeSourceId != retry.sourceId || queueSourceId != retry.sourceId ||
+                currentPosition() != retry.position || player.currentItem?.id != retry.songId
+            ) {
+                return@withLock
+            }
+            windowJob?.cancel()
+            endedHandled = false
+            val intentVersion = playbackIntentVersion
+            loadWindow(
+                retry.position,
+                autoplay = true,
+                startPositionMs = retry.positionMs,
+                autoplayAllowed = { playbackIntentVersion == intentVersion && !offline },
+            )
         }
 
     private fun handleEnded() {

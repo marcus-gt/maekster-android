@@ -77,6 +77,7 @@ class PlaybackControllerTest {
     private lateinit var handle: FakePlayerHandle
     private lateinit var controller: PlaybackController
     private val messages = CopyOnWriteArrayList<String>()
+    private val networkAvailable = MutableStateFlow(false)
     private lateinit var resources: Resources
 
     @Before
@@ -117,6 +118,7 @@ class PlaybackControllerTest {
                 downloads,
                 showMessage = { messages += it.resolve(resources) },
                 scope = controllerScope,
+                networkAvailable = networkAvailable,
             )
     }
 
@@ -168,6 +170,107 @@ class PlaybackControllerTest {
             controller.state.value.item == null && controller.state.value.audioEncoding == null &&
                 controller.state.value.playbackOrigin == null
         }
+    }
+
+    @Test
+    fun networkRecoveryRetriesTheSameTrackAtItsSavedPositionOnlyOnce() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying }
+        handle.positionMs = 12345
+        handle.fail(UiMessage(R.string.playback_error_network))
+        handle.operations.clear()
+        networkAvailable.value = true
+        await { handle.operations.contains("prepare") }
+        runBlocking { withContext(dispatcher) { } }
+        assertEquals(
+            "s1",
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals(12345L, handle.currentPositionMs)
+        assertTrue(handle.playWhenReady)
+        val prepares = handle.operations.count { it == "prepare" }
+        networkAvailable.value = false
+        runBlocking { withContext(dispatcher) { } }
+        networkAvailable.value = true
+        runBlocking { withContext(dispatcher) { controller.retryNetworkPlayback() } }
+        assertEquals(prepares, handle.operations.count { it == "prepare" })
+    }
+
+    @Test
+    fun networkRecoveryRespectsPauseWhileWaitingForConnectivity() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying }
+        handle.fail(UiMessage(R.string.playback_error_network))
+        controller.togglePlayPause()
+        await { !handle.playWhenReady }
+        handle.operations.clear()
+        networkAvailable.value = true
+        runBlocking { withContext(dispatcher) { controller.retryNetworkPlayback() } }
+        assertFalse(handle.operations.contains("prepare"))
+        assertFalse(handle.playWhenReady)
+    }
+
+    @Test
+    fun networkRecoveryDoesNotOverwriteAnExplicitSeek() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying }
+        handle.positionMs = 12345
+        handle.fail(UiMessage(R.string.playback_error_network))
+        controller.seekTo(45000)
+        handle.operations.clear()
+        networkAvailable.value = true
+        runBlocking { withContext(dispatcher) { controller.retryNetworkPlayback() } }
+        assertFalse(handle.operations.contains("prepare"))
+        await { runBlocking { queues.cursorPositionMs() } == 45000L }
+    }
+
+    @Test
+    fun networkRecoveryDoesNotRestartATrackAfterTheUserSkips() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying }
+        handle.fail(UiMessage(R.string.playback_error_network))
+        controller.next()
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+        handle.operations.clear()
+        networkAvailable.value = true
+        runBlocking { withContext(dispatcher) { controller.retryNetworkPlayback() } }
+        assertFalse(handle.operations.contains("prepare"))
+        assertEquals(
+            "s2",
+            controller.state.value.item
+                ?.id,
+        )
+    }
+
+    @Test
+    fun networkRecoveryIgnoresServerRefusalsAndOfflineMode() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying }
+        handle.fail(UiMessage(R.string.playback_error_refused))
+        handle.operations.clear()
+        networkAvailable.value = true
+        runBlocking { withContext(dispatcher) { controller.retryNetworkPlayback() } }
+        assertFalse(handle.operations.contains("prepare"))
+
+        networkAvailable.value = false
+        runBlocking { withContext(dispatcher) { } }
+        handle.fail(UiMessage(R.string.playback_error_network))
+        sources.setOfflineMode(true)
+        await { sources.offline.value && controller.state.value.item == null }
+        handle.operations.clear()
+        networkAvailable.value = true
+        runBlocking { withContext(dispatcher) { controller.retryNetworkPlayback() } }
+        assertFalse(handle.operations.contains("prepare"))
+        assertFalse(handle.playWhenReady)
     }
 
     @Test
