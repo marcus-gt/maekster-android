@@ -89,9 +89,9 @@ import com.subtracks.ui.components.AlbumInfoDialog
 import com.subtracks.ui.components.ArtistChooserSheet
 import com.subtracks.ui.components.ArtistInfoDialog
 import com.subtracks.ui.components.ContextMenuHost
-import com.subtracks.ui.components.ItemContextMenu
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
+import com.subtracks.ui.components.PinMenuRoute
 import com.subtracks.ui.components.PlaylistInfoDialog
 import com.subtracks.ui.components.SongInfoDialog
 import com.subtracks.ui.components.statusBarScrim
@@ -986,7 +986,7 @@ private fun MainNavigation() {
             }
 
             contextMenuHost.target?.let { target ->
-                ItemContextMenu(
+                PinMenuRoute(
                     target = target,
                     actions = contextMenuHost.actions,
                     onDismiss = { contextMenuHost.dismiss() },

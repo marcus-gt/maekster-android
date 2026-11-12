@@ -68,7 +68,7 @@ internal fun HomeLayoutDialog(
                             ) {
                                 R.string.home_section_your_playlists
                             } else {
-                                HomeSection.valueOf(shelf.name).title
+                                if (shelf == HomeShelf.Pinned) R.string.home_pinned else HomeSection.valueOf(shelf.name).title
                             },
                         )
                     val upLabel = stringResource(R.string.settings_home_up)

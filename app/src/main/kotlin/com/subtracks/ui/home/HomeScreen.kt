@@ -80,6 +80,7 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.PinnedItem
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
 import com.subtracks.data.prefs.HomeLayout
@@ -236,6 +237,18 @@ private fun HomeFeedContent(
         HomeScreen(
             feed = feed,
             layout = layout,
+            pins = viewModel.pins.collectAsLazyPagingItems(),
+            onPinnedClick = { item ->
+                viewModel.withPinTarget(item) { target ->
+                    when (target) {
+                        is MenuTarget.Album -> onAlbumClick(target.album)
+                        is MenuTarget.Artist -> onArtistClick(target.artist)
+                        is MenuTarget.Playlist -> onPlaylistClick(target.playlist)
+                        is MenuTarget.Song -> Unit
+                    }
+                }
+            },
+            onPinnedLongClick = { item -> viewModel.withPinTarget(item, onLongClick) },
             coverArt = viewModel::coverArt,
             artistArt = { viewModel.artistArt(it) },
             playingSongId = playingSongId,
@@ -275,13 +288,16 @@ fun HomeScreen(
     onDecadeClick: (Long) -> Unit = {},
     onSync: () -> Unit = {},
     layout: HomeLayout = HomeLayout(),
+    pins: LazyPagingItems<PinnedItem>? = null,
+    onPinnedClick: (PinnedItem) -> Unit = {},
+    onPinnedLongClick: (PinnedItem) -> Unit = {},
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        if (feed.loading) {
+        if (feed.loading || (feed.isEmpty() && pins?.itemCount == 0 && pins.loadState.refresh is androidx.paging.LoadState.Loading)) {
             LoadingState(modifier)
             return@CompositionLocalProvider
         }
-        if (feed.isEmpty()) {
+        if (feed.isEmpty() && (pins?.itemCount ?: 0) == 0) {
             EmptyState(
                 text = stringResource(R.string.home_empty),
                 modifier = modifier,
@@ -296,6 +312,12 @@ fun HomeScreen(
         ) {
             homeTitle()
             for (shelf in layout.visible) {
+                if (shelf == HomeShelf.Pinned) {
+                    if (pins != null && pins.itemCount > 0) {
+                        item(key = "pins") { PinnedHomeShelf(pins, coverArt, onPinnedClick, onPinnedLongClick) }
+                    }
+                    continue
+                }
                 if (shelf == HomeShelf.YourPlaylists) {
                     yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore, shelf in layout.grids)
                     continue

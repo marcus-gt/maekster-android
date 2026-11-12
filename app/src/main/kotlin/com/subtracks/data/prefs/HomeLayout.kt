@@ -1,6 +1,7 @@
 package com.subtracks.data.prefs
 
 enum class HomeShelf {
+    Pinned,
     YourPlaylists,
     FavoriteAlbums,
     RecentlyAddedAlbums,

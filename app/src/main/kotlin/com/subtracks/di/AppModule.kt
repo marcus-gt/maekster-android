@@ -38,6 +38,7 @@ import com.subtracks.playback.PlayerConnection
 import com.subtracks.playback.Scrobbler
 import com.subtracks.ui.NowPlayingLauncher
 import com.subtracks.ui.RootViewModel
+import com.subtracks.ui.components.PinMenuViewModel
 import com.subtracks.ui.downloads.DownloadsViewModel
 import com.subtracks.ui.home.HomeListViewModel
 import com.subtracks.ui.home.HomeViewModel
@@ -149,6 +150,7 @@ fun appModule(
         }
     }
     single { NowPlayingLauncher() }
+    viewModel { PinMenuViewModel(get()) }
     viewModel { RootViewModel(get()) }
     viewModel { LibraryViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { LibraryHubViewModel(get(), get(), get()) }

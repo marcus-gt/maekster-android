@@ -31,7 +31,7 @@ class UserPreferencesTest {
             val recovered = prefs.homeLayout().first()
             assertEquals(HomeShelf.entries.size, recovered.order.distinct().size)
             assertEquals(setOf(HomeShelf.Genres), recovered.hidden)
-            assertEquals(HomeShelf.YourPlaylists, recovered.order.first())
+            assertEquals(HomeShelf.Pinned, recovered.order.first())
             prefs.setHomeLayout(HomeLayout())
             assertEquals(HomeLayout(), prefs.homeLayout().first())
             file.delete()
@@ -51,7 +51,7 @@ class UserPreferencesTest {
     fun homeLayoutCodecRecoversMalformedAndMissingSections() {
         assertEquals(HomeLayout(), HomeLayout.decode("broken"))
         assertEquals(HomeLayout(), HomeLayout.decode(null))
-        val custom = HomeLayout().move(HomeShelf.Rediscover, -10).show(HomeShelf.YourPlaylists, false)
+        val custom = HomeLayout().move(HomeShelf.Rediscover, -HomeShelf.entries.lastIndex).show(HomeShelf.YourPlaylists, false)
         assertEquals(custom, HomeLayout.decode(custom.encode()))
         assertEquals(HomeShelf.Rediscover, custom.visible.first())
         assertEquals(custom, custom.move(HomeShelf.Rediscover, -1))

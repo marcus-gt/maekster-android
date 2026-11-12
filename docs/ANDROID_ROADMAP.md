@@ -279,7 +279,11 @@ card actions and More remain available. Build, full unit suite, lint and screens
 normal/2× renders reviewed, with a mutation check for the grid. See `docs/handoffs/M2.5-home-grid.md`.
 Part E adds pin persistence: Room schema 43, typed album/playlist/artist references scoped to server, ordered bounded reads,
 duplicate-safe pin/unpin and source-deletion cascade. This is the storage foundation only; context-menu pin actions and
-Home pins remain unfinished. See `docs/handoffs/M2.5-pin-storage.md`.
+Home pins were left for Part F. See `docs/handoffs/M2.5-pin-storage.md`.
+Part F adds shared Pin/Unpin menu actions for albums, playlists and artists and a paged mixed Pinned carousel on Home.
+Metadata resolves only from Room; missing refs stay stored and reappear when mirrored again. The section can be hidden/reordered.
+Build, full unit suite, lint and focused screenshot recording pass; normal/2× shelf renders reviewed and menu mutation checked.
+Pin grid/order management and offline shelf visibility remain unfinished. See `docs/handoffs/M2.5-pins-ui.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

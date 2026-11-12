@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -201,6 +202,8 @@ fun ItemContextMenu(
     onDismiss: () -> Unit,
     onInfo: ((MenuTarget) -> Unit)? = null,
     onChooseArtists: ((List<ArtistRef>) -> Unit)? = null,
+    pinned: Boolean? = null,
+    onSetPinned: ((Boolean) -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -245,6 +248,11 @@ fun ItemContextMenu(
                     .verticalScroll(rememberScrollState()),
         ) {
             MenuHeader(target)
+            if (target !is MenuTarget.Song && pinned != null && onSetPinned != null) {
+                MenuItem(Icons.Rounded.PushPin, stringResource(if (pinned) R.string.unpin_from_home else R.string.pin_to_home)) {
+                    dismiss { onSetPinned(!pinned) }
+                }
+            }
             when (target) {
                 is MenuTarget.Song -> {
                     queueItems()

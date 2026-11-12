@@ -28,6 +28,8 @@ import com.subtracks.data.model.ArtistAlbums
 import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.Disc
 import com.subtracks.data.model.ListTotals
+import com.subtracks.data.model.PinRef
+import com.subtracks.data.model.PinnedItem
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.Song
@@ -69,6 +71,22 @@ class LibraryRepository(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
     val activeSourceId: Flow<Long?> = sourceRepository.activeSourceId()
+
+    fun pinnedItems(sourceId: Long): Flow<PagingData<PinnedItem>> =
+        Pager(PagingConfig(pageSize = 30, enablePlaceholders = false)) { db.pinDao().resolvedPins(sourceId) }.flow
+
+    fun isPinned(ref: PinRef): Flow<Boolean> = db.pinDao().isPinned(ref.sourceId, ref.kind, ref.refId)
+
+    suspend fun setPinned(
+        ref: PinRef,
+        pinned: Boolean,
+    ) {
+        if (pinned) {
+            db.pinDao().pin(ref.sourceId, ref.kind, ref.refId)
+        } else {
+            db.pinDao().unpin(ref.sourceId, ref.kind, ref.refId)
+        }
+    }
 
     fun hasAlbumPlayCount(sourceId: Long): Flow<Boolean> = db.libraryDao().hasAlbumPlayCount(sourceId)
 

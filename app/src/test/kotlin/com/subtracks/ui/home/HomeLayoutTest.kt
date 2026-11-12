@@ -131,7 +131,7 @@ class HomeLayoutTest {
         handle.performTouchInput { swipe(center, center + Offset(0f, distance), durationMillis = 800) }
         rule.waitForIdle()
         rule.onNodeWithText("Save").performClick()
-        assertEquals(HomeShelf.FavoriteAlbums, saved!!.order.first())
+        assertEquals(HomeShelf.FavoriteAlbums, saved!!.order[1])
         assertTrue(HomeShelf.YourPlaylists in saved.hidden)
     }
 

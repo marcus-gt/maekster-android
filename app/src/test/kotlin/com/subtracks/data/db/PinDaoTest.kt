@@ -74,6 +74,85 @@ class PinDaoTest {
         }
 
     @Test
+    fun resolvedPinsPageLocalMetadataAndRetainMissingReferences() =
+        runTest {
+            val first = source()
+            val second = source()
+            val dao = db.pinDao()
+            val library = db.libraryDao()
+            library.upsertAlbums(
+                listOf(
+                    com.subtracks.data.model
+                        .Album(first, "same", null, "Album", "Artist", 0, "art", null, null, null, 1),
+                    com.subtracks.data.model
+                        .Album(second, "same", null, "Wrong server", null, 0, null, null, null, null, 1),
+                ),
+            )
+            library.upsertPlaylists(
+                listOf(
+                    com.subtracks.data.model.Playlist(
+                        sourceId = first,
+                        id = "same",
+                        name = "Playlist",
+                        comment = null,
+                        coverArt = "plart",
+                        songCount = 1,
+                        created = 0,
+                    ),
+                ),
+            )
+            library.upsertArtists(
+                listOf(
+                    com.subtracks.data.model.Artist(
+                        sourceId = first,
+                        id = "same",
+                        name = "Artist",
+                        albumCount = 1,
+                        starred = null,
+                        coverArt = "arart",
+                    ),
+                ),
+            )
+            dao.pin(first, PinKind.Album, "missing")
+            PinKind.entries.forEach { dao.pin(first, it, "same") }
+
+            suspend fun page(): List<com.subtracks.data.model.PinnedItem> {
+                val pagingSource = dao.resolvedPins(first)
+                val result =
+                    pagingSource.load(
+                        androidx.paging.PagingSource.LoadParams.Refresh(
+                            key = null,
+                            loadSize = 2,
+                            placeholdersEnabled = false,
+                        ),
+                    )
+                pagingSource.invalidate()
+                return (result as androidx.paging.PagingSource.LoadResult.Page).data
+            }
+            assertEquals(listOf("Album", "Playlist"), page().map { it.name })
+            assertEquals(listOf("art", "plart"), page().map { it.coverArt })
+            assertEquals(4, dao.pins(first, 10).first().size)
+            library.upsertAlbums(
+                listOf(
+                    com.subtracks.data.model.Album(
+                        first,
+                        "missing",
+                        null,
+                        "Returned",
+                        null,
+                        0,
+                        null,
+                        null,
+                        null,
+                        null,
+                        1,
+                    ),
+                ),
+            )
+            assertEquals(listOf("Returned", "Album"), page().map { it.name })
+        }
+
+    @Test
     fun deletingServerCascadesOnlyItsPins() =
         runTest {
             val first = source()

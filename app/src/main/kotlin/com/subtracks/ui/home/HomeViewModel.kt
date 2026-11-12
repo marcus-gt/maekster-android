@@ -8,6 +8,8 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.PinKind
+import com.subtracks.data.model.PinnedItem
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
 import com.subtracks.data.prefs.HomeLayout
@@ -20,6 +22,7 @@ import com.subtracks.data.sync.SyncManager
 import com.subtracks.data.sync.SyncStatus
 import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.ArtistArt
+import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.artistArt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -73,6 +77,44 @@ class HomeViewModel(
         sourceRepository.offline.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val activeSource = libraryRepository.activeSourceId.filterNotNull()
+
+    val pins: Flow<PagingData<PinnedItem>> =
+        activeSource.flatMapLatest { libraryRepository.pinnedItems(it) }.cachedIn(viewModelScope)
+
+    fun withPinTarget(
+        item: PinnedItem,
+        action: (MenuTarget) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val target =
+                when (item.kind) {
+                    PinKind.Album -> {
+                        libraryRepository
+                            .album(
+                                item.sourceId,
+                                item.refId,
+                            ).first()
+                            ?.let { MenuTarget.Album(it, coverArt(it.coverArt, true)) }
+                    }
+
+                    PinKind.Playlist -> {
+                        libraryRepository.playlist(item.sourceId, item.refId).first()?.let {
+                            MenuTarget.Playlist(it, coverArt(it.coverArt, true))
+                        }
+                    }
+
+                    PinKind.Artist -> {
+                        libraryRepository
+                            .artist(
+                                item.sourceId,
+                                item.refId,
+                            ).first()
+                            ?.let { MenuTarget.Artist(it, artistArt(it).primary) }
+                    }
+                }
+            if (target != null && libraryRepository.activeSourceId.first() == item.sourceId) action(target)
+        }
+    }
 
     val downloadedAlbums: Flow<PagingData<Album>> =
         activeSource.flatMapLatest { libraryRepository.downloadedAlbumsPage(it) }.cachedIn(viewModelScope)
