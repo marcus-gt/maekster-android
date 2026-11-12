@@ -4,11 +4,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -384,7 +385,7 @@ fun QueueScreen(
 
     LaunchedEffect(listState, ready, generation) {
         if (!ready) return@LaunchedEffect
-        if (initialIndex > 0) listState.scrollToItem(rows.lazyIndexOf(initialIndex))
+        if (initialIndex > 0) listState.scrollToItem(initialIndex.coerceAtMost((rows.size - 1).coerceAtLeast(0)))
         snapshotFlow {
             val info = listState.layoutInfo
             val first = info.visibleItemsInfo.firstOrNull { it.key is Long }?.let { rows.rowIndexOf(it.key) } ?: -1
@@ -408,7 +409,30 @@ fun QueueScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.queue_title)) },
+                title = {
+                    Column {
+                        Text(stringResource(R.string.queue_title))
+                        contextTitle?.takeIf { it.isNotBlank() }?.let {
+                            Text(
+                                stringResource(R.string.queue_playing_from, it),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (rows.any { it.upNext }) {
+                        IconButton(onClick = {
+                            onClearUpNext()
+                            showUndo(queueCleared)
+                        }) {
+                            Icon(Icons.Rounded.DeleteSweep, contentDescription = stringResource(R.string.queue_clear_up_next))
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
@@ -435,30 +459,6 @@ fun QueueScreen(
                 ) {
                     val blockFirst = rows.indexOfFirst { it.upNext }
                     rows.forEachIndexed { index, row ->
-                        if (index == 0 || rows[index - 1].upNext != row.upNext) {
-                            // Keyed by index, not section: the context sits on both sides of the
-                            // block, so a section-based key would duplicate.
-                            item(key = "header-$index") {
-                                QueueSectionHeader(
-                                    label =
-                                        if (row.upNext) {
-                                            stringResource(R.string.queue_up_next)
-                                        } else {
-                                            contextTitle
-                                                ?: stringResource(R.string.queue_next_up)
-                                        },
-                                    onClear =
-                                        if (row.upNext) {
-                                            {
-                                                onClearUpNext()
-                                                showUndo(queueCleared)
-                                            }
-                                        } else {
-                                            null
-                                        },
-                                )
-                            }
-                        }
                         val enabled = row.upNext || !shuffle
                         val section =
                             when {
@@ -522,45 +522,9 @@ fun QueueScreen(
     }
 }
 
-@Composable
-private fun QueueSectionHeader(
-    label: String,
-    onClear: (() -> Unit)? = null,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 4.dp, bottom = 4.dp),
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f),
-        )
-        if (onClear != null) {
-            IconButton(onClick = onClear) {
-                Icon(
-                    Icons.Rounded.DeleteSweep,
-                    contentDescription = stringResource(R.string.queue_clear_up_next),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-    }
-}
-
 private fun List<QueueRow>.rowIndexOf(key: Any?): Int {
     val id = key as? Long ?: return -1
     return indexOfFirst { it.id == id }
-}
-
-private fun List<QueueRow>.lazyIndexOf(rowIndex: Int): Int {
-    if (rowIndex !in indices) return 0
-    var headers = 0
-    for (i in 0..rowIndex) {
-        if (i == 0 || this[i - 1].upNext != this[i].upNext) headers++
-    }
-    return rowIndex + headers
 }
 
 internal fun dropTarget(

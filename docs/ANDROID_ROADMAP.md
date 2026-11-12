@@ -333,6 +333,11 @@ snackbar Undo; duplicate songs stay distinct, including in shuffled context. Rem
 handles remain, and swiping is disabled during drag. Gesture regressions fail with swiping disabled;
 full build/tests/lint rerun passes after existing paged screenshot timeouts, and normal/2× font renders
 are reviewed. See `docs/handoffs/M2.7-queue-swipe.md`.
+Part E is done: queue rows form one continuous list with a single Playing from line in the top bar;
+the manual Clear up next action is there too. No repeated context or Up next headings. Cursor opening
+uses direct row indices; internal drag boundaries and bounded loading are retained. UI regression with
+mutation, full build/tests/lint/recording and normal/2× font renders pass.
+See `docs/handoffs/M2.7-continuous-queue.md`. Next: bounded context Clear upcoming, source labels or recovery.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

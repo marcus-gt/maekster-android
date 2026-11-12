@@ -3,6 +3,7 @@
     <string name="app_name" translatable="false">mækster</string>
     <string name="home_section_favorite_albums">Favorite albums</string>
     <string name="home_pinned">Pinned</string>
+    <string name="queue_playing_from">Playing from %1$s</string>
     <string name="queue_up_next_cleared">Up next cleared</string>
     <string name="playback_origin_streaming">Streaming</string>
     <string name="playback_origin_downloaded">Downloaded</string>
@@ -312,8 +313,6 @@
 
     <string name="queue_title">Queue</string>
     <string name="queue_empty">The queue is empty.</string>
-    <string name="queue_up_next">Up next</string>
-    <string name="queue_next_up">Next up</string>
     <string name="queue_next_from_here">Next from here</string>
     <string name="queue_reordered">Queue reordered</string>
     <string name="queue_removed">Removed from queue</string>
