@@ -10,6 +10,8 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -22,6 +24,8 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
+import com.subtracks.data.model.PinKind
+import com.subtracks.data.model.PinnedItem
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
 import com.subtracks.ui.theme.MaeksterTheme
@@ -254,6 +258,86 @@ class SearchScreenTest {
         composeRule.onRoot().captureRoboImage("src/test/screenshots/search_all_preview.png")
         composeRule.onNodeWithContentDescription("See all songs").performScrollTo().performClick()
         assertEquals(SearchScope.Songs, selected)
+    }
+
+    @Test
+    fun aBlankQueryShowsRecentItemsThatOpenAndClearAfterConfirming() {
+        var opened: PinnedItem? = null
+        var cleared = 0
+        val recent =
+            listOf(
+                PinnedItem(1, PinKind.Album, "al-1", "Recent Album", "Some Artist", null),
+                PinnedItem(1, PinKind.Artist, "ar-1", "Recent Artist", null, null),
+            )
+        composeRule.setContent {
+            MaeksterTheme {
+                SearchScreen(
+                    query = "",
+                    onQueryChange = {},
+                    results = SearchResults(),
+                    recent = recent,
+                    onRecentClick = { opened = it },
+                    onClearRecent = { cleared++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Recent").assertIsDisplayed()
+        composeRule.onNodeWithText("Album · Some Artist").assertIsDisplayed()
+        composeRule.onNodeWithText("Recent Artist").performClick()
+        assertEquals(recent[1], opened)
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/search_recent.png")
+
+        composeRule.onNodeWithText("Clear").performClick()
+        composeRule.onNodeWithText("Clear search history?").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+        assertEquals(0, cleared)
+        composeRule.onNodeWithText("Clear").performClick()
+        composeRule.onAllNodesWithText("Clear").onLast().performClick()
+        assertEquals(1, cleared)
+    }
+
+    @Test
+    fun recentItemsRemainReadableAtLargeFontScale() {
+        composeRule.setContent {
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides
+                    androidx.compose.ui.unit
+                        .Density(density.density, 2f),
+            ) {
+                MaeksterTheme {
+                    SearchScreen(
+                        query = "",
+                        onQueryChange = {},
+                        results = SearchResults(),
+                        recent = listOf(PinnedItem(1, PinKind.Album, "al-1", "Recent Album", "Some Artist", null)),
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("Recent Album").assertIsDisplayed()
+        composeRule.onNodeWithText("Album · Some Artist").assertIsDisplayed()
+        composeRule.onNodeWithText("Clear").assertIsDisplayed()
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/search_recent_large_font.png")
+    }
+
+    @Test
+    fun typingHidesRecentItems() {
+        composeRule.setContent {
+            MaeksterTheme {
+                SearchScreen(
+                    query = "ro",
+                    onQueryChange = {},
+                    results = SearchResults(),
+                    recent = listOf(PinnedItem(1, PinKind.Playlist, "pl-1", "Recent Playlist", null, null)),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Recent Playlist").assertDoesNotExist()
+        composeRule.onNodeWithText("Type at least 3 characters to search.").assertIsDisplayed()
     }
 
     private fun album(

@@ -5,10 +5,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.awaitUntil
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.Artist
+import com.subtracks.data.model.PinKind
+import com.subtracks.data.model.PinRef
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.QueueKind
 import com.subtracks.data.model.Song
 import com.subtracks.ui.ViewModelRepositoryFixture
+import com.subtracks.ui.components.MenuTarget
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
@@ -99,6 +102,33 @@ class SearchViewModelTest {
         assertEquals(1, entries.size)
         assertEquals(QueueKind.Album, entries.first().kind)
         assertEquals("al-1", entries.first().refId)
+    }
+
+    @Test
+    fun openedResultsBecomeRecentAndReopeningOneOpensItAndMovesItUp() {
+        val sourceId =
+            runBlocking {
+                val id = sourceRepository.addSource("nav", "http://localhost/", "u", "p", false)
+                db.libraryDao().upsertAlbums(listOf(album(id, "al-1", "Road Album")))
+                db.libraryDao().upsertArtists(listOf(artist(id, "ar-1", "Road Artist")))
+                id
+            }
+
+        viewModel.recordVisit(PinRef(sourceId, PinKind.Album, "al-1"))
+        runBlocking { withTimeout(5_000) { viewModel.history.first { it.size == 1 } } }
+        viewModel.recordVisit(PinRef(sourceId, PinKind.Artist, "ar-1"))
+        val recent = runBlocking { withTimeout(5_000) { viewModel.history.first { it.size == 2 } } }
+        assertEquals(listOf("Road Artist", "Road Album"), recent.map { it.name })
+
+        var opened: MenuTarget? = null
+        viewModel.openRecent(recent.last()) { opened = it }
+        awaitUntil("the album opens") { opened != null }
+        assertEquals("al-1", (opened as MenuTarget.Album).album.id)
+        val reordered = runBlocking { withTimeout(5_000) { viewModel.history.first { it.first().refId == "al-1" } } }
+        assertEquals(listOf("Road Album", "Road Artist"), reordered.map { it.name })
+
+        viewModel.clearHistory()
+        runBlocking { withTimeout(5_000) { viewModel.history.first { it.isEmpty() } } }
     }
 
     private fun album(

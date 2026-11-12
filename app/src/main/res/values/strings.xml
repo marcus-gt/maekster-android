@@ -223,6 +223,15 @@
     <string name="search_top_result">Top result</string>
     <string name="search_see_all">See all</string>
     <string name="search_see_all_scope">See all %1$s</string>
+    <string name="search_recent">Recent</string>
+    <string name="search_recent_clear">Clear</string>
+    <string name="search_recent_clear_title">Clear search history?</string>
+    <string name="search_recent_clear_message">This removes the albums, artists and playlists you opened from Search on this server.</string>
+    <string name="search_recent_cancel">Cancel</string>
+    <string name="search_recent_album">Album</string>
+    <string name="search_recent_album_by">Album · %1$s</string>
+    <string name="search_recent_artist">Artist</string>
+    <string name="search_recent_playlist">Playlist</string>
     <string name="search_min_length" tools:ignore="PluralsCandidate">Type at least %1$d characters to search.</string>
     <string name="search_no_results">No results for “%1$s”.</string>
     <string name="sort_by">Sort by</string>

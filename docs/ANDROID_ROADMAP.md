@@ -304,6 +304,11 @@ Part B is done: single-choice scopes (All, Songs, Albums, Artists, Playlists) re
 one Top result across types, then each type in order of its best match, five each with See all. Cross-type ranking
 ports iOS's score with case and diacritic folding. Ranking and screen tests with mutation checks, build and lint pass.
 See `docs/handoffs/M2.6-search-scopes.md`.
+Part C is done: as on iOS, Search remembers the albums, artists and playlists opened from it (50 per server,
+newest first) and lists them as Recent when the field is empty, with Clear behind a confirmation. Room schema 44
+adds `search_history` (cascade on server delete, D6); names resolve from the mirror. DAO, ViewModel, screen and
+migration tests with mutation checks. Follow-up found: offline Search (results and history) still covers the whole
+mirror, where iOS shows only what is available offline. See `docs/handoffs/M2.6-search-history.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

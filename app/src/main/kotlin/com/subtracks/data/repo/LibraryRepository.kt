@@ -32,6 +32,7 @@ import com.subtracks.data.model.PinRef
 import com.subtracks.data.model.PinnedItem
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSongItem
+import com.subtracks.data.model.SearchHistoryEntry
 import com.subtracks.data.model.Song
 import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.ArtistSort
@@ -89,6 +90,19 @@ class LibraryRepository(
         } else {
             db.pinDao().unpin(ref.sourceId, ref.kind, ref.refId)
         }
+    }
+
+    fun searchHistory(sourceId: Long): Flow<List<PinnedItem>> = db.searchHistoryDao().recent(sourceId)
+
+    suspend fun recordSearchVisit(
+        ref: PinRef,
+        visitedAt: Long = System.currentTimeMillis(),
+    ) {
+        db.searchHistoryDao().record(SearchHistoryEntry(ref.sourceId, ref.kind, ref.refId, visitedAt))
+    }
+
+    suspend fun clearSearchHistory(sourceId: Long) {
+        db.searchHistoryDao().clear(sourceId)
     }
 
     fun hasAlbumPlayCount(sourceId: Long): Flow<Boolean> = db.libraryDao().hasAlbumPlayCount(sourceId)

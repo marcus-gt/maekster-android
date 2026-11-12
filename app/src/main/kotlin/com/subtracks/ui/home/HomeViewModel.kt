@@ -8,7 +8,6 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
-import com.subtracks.data.model.PinKind
 import com.subtracks.data.model.PinnedItem
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
@@ -24,6 +23,7 @@ import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.ArtistArt
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.artistArt
+import com.subtracks.ui.components.resolveMenuTarget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -89,32 +89,7 @@ class HomeViewModel(
         action: (MenuTarget) -> Unit,
     ) {
         viewModelScope.launch {
-            val target =
-                when (item.kind) {
-                    PinKind.Album -> {
-                        libraryRepository
-                            .album(
-                                item.sourceId,
-                                item.refId,
-                            ).first()
-                            ?.let { MenuTarget.Album(it, coverArt(it.coverArt, true)) }
-                    }
-
-                    PinKind.Playlist -> {
-                        libraryRepository.playlist(item.sourceId, item.refId).first()?.let {
-                            MenuTarget.Playlist(it, coverArt(it.coverArt, true))
-                        }
-                    }
-
-                    PinKind.Artist -> {
-                        libraryRepository
-                            .artist(
-                                item.sourceId,
-                                item.refId,
-                            ).first()
-                            ?.let { MenuTarget.Artist(it, artistArt(it).primary) }
-                    }
-                }
+            val target = resolveMenuTarget(item, libraryRepository, sourceRepository)
             if (target != null && libraryRepository.activeSourceId.first() == item.sourceId) action(target)
         }
     }

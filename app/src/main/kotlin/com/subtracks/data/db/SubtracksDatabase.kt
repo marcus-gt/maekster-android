@@ -26,6 +26,7 @@ import com.subtracks.data.model.PlaylistSearch
 import com.subtracks.data.model.PlaylistSong
 import com.subtracks.data.model.QueueEntry
 import com.subtracks.data.model.QueueKindConverter
+import com.subtracks.data.model.SearchHistoryEntry
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongArtistRef
 import com.subtracks.data.model.SongDownload
@@ -65,8 +66,9 @@ import com.subtracks.data.model.UpNextEntry
         SongDownload::class,
         PendingAction::class,
         Pin::class,
+        SearchHistoryEntry::class,
     ],
-    version = 43,
+    version = 44,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -92,4 +94,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun pendingActionDao(): PendingActionDao
 
     abstract fun pinDao(): PinDao
+
+    abstract fun searchHistoryDao(): SearchHistoryDao
 }
