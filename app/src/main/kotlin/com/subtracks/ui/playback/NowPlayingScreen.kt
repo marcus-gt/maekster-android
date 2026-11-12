@@ -63,6 +63,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.keepScreenOn
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.PlatformTextStyle
@@ -231,11 +232,12 @@ fun NowPlayingRoute(
         )
     val art = controller.coverArt(state.item)
     val thumbnail = controller.coverArt(state.item, thumbnail = true)
+    val titleResources = LocalResources.current
     val queueContext = state.context
     val fallbackTitle = state.item?.album?.takeIf { it.isNotBlank() } ?: stringResource(R.string.navigation_tabs_library)
     val sourceTitle = remember(queueContext) { mutableStateOf(fallbackTitle) }
-    LaunchedEffect(queueContext) {
-        sourceTitle.value = controller.sourceTitle(queueContext)?.takeIf { it.isNotBlank() } ?: fallbackTitle
+    LaunchedEffect(queueContext, titleResources) {
+        sourceTitle.value = controller.sourceTitle(queueContext, titleResources)?.takeIf { it.isNotBlank() } ?: fallbackTitle
     }
 
     fun artFor(item: QueueItem) =

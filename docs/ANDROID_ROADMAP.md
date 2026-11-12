@@ -379,6 +379,10 @@ Part L captures single-reference source names on normal/shuffled playback start,
 Undo and prefers the saved title on restoration. Mixed references and older queues retain the existing
 local title fallback. Typed Library/Favorites/Downloads labels and mixed shelf origin labels remain.
 See `docs/handoffs/M2.7-source-label-playback.md`.
+Part M adds stable collection labels for Songs, Favorites and Downloads, resolved from resources
+in Now Playing and Queue. New queues persist the collection kind; older collection queues use the
+same resource-backed title. Mixed shelf origin labels, shuffled truncation and player styling remain.
+See `docs/handoffs/M2.7-collection-labels.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

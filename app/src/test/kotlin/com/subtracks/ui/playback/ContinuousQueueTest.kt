@@ -33,6 +33,7 @@ class ContinuousQueueTest {
         fontScale: Float,
         count: Int = 4,
         initialIndex: Int = 0,
+        title: String = "Kid A",
     ) {
         val rows =
             (1..count).map { index ->
@@ -49,7 +50,7 @@ class ContinuousQueueTest {
                         currentPosition = initialIndex.toLong(),
                         currentSongId = "s${initialIndex + 1}",
                         initialIndex = initialIndex,
-                        contextTitle = "Kid A",
+                        contextTitle = title,
                         coverArt = { _, _ -> null },
                         onBack = {},
                         onPlay = {},
@@ -81,6 +82,19 @@ class ContinuousQueueTest {
     @Test fun contextAndManualTracksFormOneList() = check(1f, "src/test/screenshots/queue_continuous.png")
 
     @Test fun continuousQueueIsReadableAtLargeFontScale() = check(2f, "src/test/screenshots/queue_continuous_large_font.png")
+
+    private fun checkCollectionTitle(
+        fontScale: Float,
+        image: String,
+    ) {
+        show(fontScale, title = "Favorites")
+        rule.onNodeWithText("Playing from Favorites").assertIsDisplayed()
+        rule.onRoot().captureRoboImage(image)
+    }
+
+    @Test fun collectionTitleIsVisible() = checkCollectionTitle(1f, "src/test/screenshots/queue_collection.png")
+
+    @Test fun collectionTitleIsReadableAtLargeFontScale() = checkCollectionTitle(2f, "src/test/screenshots/queue_collection_large_font.png")
 
     @Test fun openingAtTheCursorUsesRowIndicesWithoutRunHeaders() {
         show(1f, count = 40, initialIndex = 20)

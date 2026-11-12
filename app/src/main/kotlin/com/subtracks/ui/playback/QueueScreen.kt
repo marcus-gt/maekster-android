@@ -45,6 +45,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -299,13 +300,14 @@ fun QueueRoute(
     sourceRepository: SourceRepository = koinInject(),
 ) {
     val playback by controller.state.collectAsStateWithLifecycle()
+    val titleResources = LocalResources.current
     val queueContext = playback.context
     // The item's album keeps the header stable while the async name lookup runs, so it does not
     // flash the fallback when tapping between context and manually queued tracks.
     val fallbackTitle = playback.item?.album?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_next_from_here)
     val sourceTitle = remember(queueContext) { mutableStateOf(fallbackTitle) }
-    LaunchedEffect(queueContext) {
-        sourceTitle.value = controller.sourceTitle(queueContext)?.takeIf { it.isNotBlank() } ?: fallbackTitle
+    LaunchedEffect(queueContext, titleResources) {
+        sourceTitle.value = controller.sourceTitle(queueContext, titleResources)?.takeIf { it.isNotBlank() } ?: fallbackTitle
     }
     LaunchedEffect(playback.shuffle, open) { if (open) viewModel.open() }
     LaunchedEffect(playback.layout) { if (open) viewModel.reconcile() }

@@ -1,5 +1,6 @@
 package com.subtracks.playback
 
+import android.content.res.Resources
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.data.db.SongListSpec
@@ -1731,10 +1732,22 @@ class PlaybackController(
     }
 
     private suspend fun sourceLabelFor(entries: List<QueueEntry>): String? =
-        entries.singleOrNull()?.let { queueRepository.sourceName(it.kind, it.sourceId, it.refId) }
+        entries.singleOrNull()?.let {
+            QueueCollection.forKind(it.kind)?.storedLabel ?: queueRepository.sourceName(it.kind, it.sourceId, it.refId)
+        }
 
-    suspend fun sourceTitle(context: QueueContext?): String? =
-        queueRepository.sourceLabel() ?: context?.let { queueRepository.sourceName(it.kind, it.sourceId, it.refId) }
+    suspend fun sourceTitle(
+        context: QueueContext?,
+        resources: Resources,
+    ): String? {
+        queueRepository.sourceLabel()?.let { label ->
+            return QueueCollection.fromStored(label)?.let { resources.getString(it.title) } ?: label
+        }
+        return context?.let {
+            QueueCollection.forKind(it.kind)?.let { collection -> resources.getString(collection.title) }
+                ?: queueRepository.sourceName(it.kind, it.sourceId, it.refId)
+        }
+    }
 
     private fun updateBuffering() {
         val player = player

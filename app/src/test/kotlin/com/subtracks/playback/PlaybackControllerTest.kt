@@ -11,6 +11,7 @@ import com.subtracks.TEST_TIMEOUT_MS
 import com.subtracks.UiMessage
 import com.subtracks.awaitUntil
 import com.subtracks.cancelAndJoinBlocking
+import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.download.ArtworkStore
@@ -130,6 +131,36 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun collectionSourceTitlesUseTheCollectionRatherThanTheCurrentAlbum() {
+        runBlocking {
+            for ((kind, title) in listOf(
+                QueueKind.Library to "Songs",
+                QueueKind.Starred to "Favorites",
+                QueueKind.Downloaded to "Downloads",
+            )) {
+                assertEquals(title, controller.sourceTitle(QueueContext(kind, 1, ""), resources))
+                queues.replace(emptyList(), sourceLabel = QueueCollection.forKind(kind)!!.storedLabel)
+                assertEquals(title, controller.sourceTitle(QueueContext(QueueKind.Album, 1, "missing"), resources))
+                assertEquals(title, controller.sourceTitle(null, resources))
+                queues.replace(emptyList())
+            }
+        }
+    }
+
+    @Test
+    fun libraryPlaybackPersistsItsCollectionLabelThroughUndo() {
+        seedAlbum(3, sourceId = 1)
+        controller.playLibrarySongs(1, SongListSpec(), 0)
+        awaitUntil("songs start") { controller.state.value.item != null }
+        assertNotNull(runBlocking { queues.sourceLabel() })
+        runBlocking {
+            assertTrue(controller.clearUpcoming())
+            controller.undo()
+        }
+        assertEquals("Songs", runBlocking { controller.sourceTitle(null, resources) })
+    }
+
+    @Test
     fun queueSourceLabelIsCapturedAndSurvivesClearAndUndo() {
         seedAlbum(3, sourceId = 1)
         runBlocking {
@@ -162,7 +193,7 @@ class PlaybackControllerTest {
             controller.undo()
         }
         assertEquals("Album", runBlocking { queues.sourceLabel() })
-        assertEquals("Album", runBlocking { controller.sourceTitle(null) })
+        assertEquals("Album", runBlocking { controller.sourceTitle(null, resources) })
     }
 
     @Test
@@ -1769,7 +1800,7 @@ class PlaybackControllerTest {
                 ?.id == "s2"
         }
 
-        assertEquals("Album", runBlocking { controller.sourceTitle(controller.state.value.context) })
+        assertEquals("Album", runBlocking { controller.sourceTitle(controller.state.value.context, resources) })
     }
 
     @Test
@@ -3278,7 +3309,7 @@ class PlaybackControllerTest {
             controller.state.value.context
                 ?.refId,
         )
-        assertEquals("Artist", runBlocking { controller.sourceTitle(controller.state.value.context) })
+        assertEquals("Artist", runBlocking { controller.sourceTitle(controller.state.value.context, resources) })
         assertEquals(setOf("a1", "a2", "a3", "b1", "b2"), handle.items.map { it.id }.toSet())
     }
 
