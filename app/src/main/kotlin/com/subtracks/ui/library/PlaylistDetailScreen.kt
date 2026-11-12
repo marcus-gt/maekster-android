@@ -1,7 +1,12 @@
 package com.subtracks.ui.library
 
-import android.content.Context
+import android.content.res.Resources
+import android.text.format.DateUtils
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -9,7 +14,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -19,6 +25,7 @@ import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.ListDownloadStatus
+import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.QueueKind
@@ -36,6 +43,8 @@ import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
 import com.subtracks.ui.components.rememberPendingDownloadDelete
 import com.subtracks.ui.theme.ArtworkColors
+import com.subtracks.ui.theme.MaeksterSpacing
+import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.rememberArtworkColors
 import kotlinx.coroutines.flow.emptyFlow
 import org.koin.compose.koinInject
@@ -60,6 +69,7 @@ fun PlaylistDetailRoute(
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
     val downloadStatus by viewModel.downloadStatus.collectAsStateWithLifecycle()
     val offline by viewModel.offline.collectAsStateWithLifecycle()
+    val totals by viewModel.totals.collectAsStateWithLifecycle()
     CloseWhenDownloadsGone(downloadStatus.downloaded, offline, onBack)
     val pendingDelete = rememberPendingDownloadDelete(contextMenuHost?.dismissals ?: emptyFlow()) { _, _ -> viewModel.downloadedBytes() }
     val playback by playbackController.state.collectAsStateWithLifecycle()
@@ -88,7 +98,7 @@ fun PlaylistDetailRoute(
         artwork = rememberArtworkColors(viewModel.coverArt(playlist?.coverArt, true), THEME_TRANSITION_MS, fallbackName = playlist?.name),
         downloads = downloads,
         downloadStatus = downloadStatus,
-        offline = offline,
+        totals = totals,
         onDownloadAction = requestDownloadAction,
         onBack = onBack,
         onSongClick = viewModel::play,
@@ -116,7 +126,7 @@ fun PlaylistDetailScreen(
     modifier: Modifier = Modifier,
     downloads: Map<String, SongDownload> = emptyMap(),
     downloadStatus: ListDownloadStatus = ListDownloadStatus(),
-    offline: Boolean = false,
+    totals: ListTotals? = null,
     onDownloadAction: (BulkDownloadAction) -> Unit = {},
     onBack: () -> Unit,
     onSongClick: (Long) -> Unit,
@@ -127,7 +137,15 @@ fun PlaylistDetailScreen(
     playingSongId: String? = null,
     onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
+    // As on iOS: who made it and when it last changed up top, the count and length under the last track.
+    val subtitle =
+        remember(playlist?.owner, playlist?.changed, resources) {
+            listOfNotNull(
+                playlist?.owner?.takeIf { it.isNotBlank() },
+                playlist?.changed?.takeIf { it > 0 }?.let { updatedText(resources, it) },
+            ).joinToString(" $DOT ")
+        }
     HeroDetailScaffold(
         artwork = artwork,
         title = playlist?.name.orEmpty(),
@@ -138,7 +156,7 @@ fun PlaylistDetailScreen(
                 art = coverArt(playlist?.coverArt, false),
                 thumbnailRef = coverArt(playlist?.coverArt, true),
                 name = playlist?.name.orEmpty(),
-                subtitle = playlistSummary(context, playlist, offline, downloadStatus.downloaded),
+                subtitle = subtitle,
                 comment = playlist?.comment,
                 hasSongs = songs.itemCount > 0,
                 onPlay = onPlay,
@@ -172,21 +190,46 @@ fun PlaylistDetailScreen(
                     )
                 }
             }
+            if (totals != null && totals.songCount > 0 && songs.itemCount > 0) {
+                item(key = "summary") { PlaylistSummary(totals) }
+            }
         },
         modifier = modifier,
     )
 }
 
-private fun playlistSummary(
-    context: Context,
-    playlist: Playlist?,
-    offline: Boolean,
-    downloadedSongs: Long,
+/** "24 songs · 1 hr 32 min" under the last track, counting the songs shown (offline, the downloaded ones). */
+@Composable
+private fun PlaylistSummary(totals: ListTotals) {
+    val resources = LocalResources.current
+    val count = totals.songCount.toInt()
+    Text(
+        text =
+            listOfNotNull(
+                resources.getQuantityString(R.plurals.resources_song_count, count, count),
+                totalDurationText(resources, totals.duration),
+            ).joinToString(" $DOT "),
+        style = MaeksterTheme.text.caption,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = MaeksterSpacing.l, vertical = MaeksterSpacing.l)
+                .testTag(PLAYLIST_SUMMARY_TAG),
+    )
+}
+
+internal const val PLAYLIST_SUMMARY_TAG = "playlistSummary"
+
+private fun updatedText(
+    resources: Resources,
+    changedEpochSeconds: Long,
 ): String {
-    playlist ?: return ""
-    val songs = if (offline) downloadedSongs else playlist.songCount
-    return listOfNotNull(
-        context.resources.getQuantityString(R.plurals.resources_song_count, songs.toInt(), songs),
-        totalDurationText(context.resources, playlist.duration),
-    ).joinToString(" $DOT ")
+    val relative =
+        DateUtils.getRelativeTimeSpanString(
+            changedEpochSeconds * 1000,
+            System.currentTimeMillis(),
+            DateUtils.DAY_IN_MILLIS,
+        )
+    return resources.getString(R.string.playlist_updated, relative)
 }

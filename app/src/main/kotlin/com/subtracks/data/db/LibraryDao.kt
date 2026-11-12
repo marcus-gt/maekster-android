@@ -21,6 +21,7 @@ import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.ArtistSearch
 import com.subtracks.data.model.Disc
 import com.subtracks.data.model.DiscKey
+import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSearch
 import com.subtracks.data.model.PlaylistSong
@@ -1055,6 +1056,19 @@ interface LibraryDao {
         sourceId: Long,
         playlistId: String,
     ): PagingSource<Int, PlaylistSongItem>
+
+    // The playlist footer: the same rows as playlistSongs (or playlistSongsDownloaded), counted rather than loaded.
+    @Query(
+        "SELECT COUNT(*) AS songCount, COALESCE(SUM(songs.duration), 0) AS duration FROM playlist_songs " +
+            "JOIN songs ON songs.sourceId = playlist_songs.sourceId AND songs.id = playlist_songs.songId " +
+            "WHERE playlist_songs.sourceId = :sourceId AND playlist_songs.playlistId = :playlistId " +
+            "AND (NOT :downloadedOnly OR $DOWNLOADED_SONG)",
+    )
+    fun playlistTotals(
+        sourceId: Long,
+        playlistId: String,
+        downloadedOnly: Boolean,
+    ): Flow<ListTotals>
 
     @RawQuery(
         observedEntities = [Album::class, Song::class, SongDownload::class, AlbumArtistRef::class, SongArtistRef::class],

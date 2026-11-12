@@ -289,6 +289,12 @@ data class Playlist(
     @ColumnInfo(defaultValue = "0") val shared: Boolean = false,
 )
 
+/** How many songs a list shows and their total length in seconds (unknown durations count as 0). */
+data class ListTotals(
+    val songCount: Long = 0,
+    val duration: Long = 0,
+)
+
 @Entity(
     tableName = "playlist_songs",
     primaryKeys = ["sourceId", "playlistId", "position"],

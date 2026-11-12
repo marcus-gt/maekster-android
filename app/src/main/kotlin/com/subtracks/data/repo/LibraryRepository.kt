@@ -27,6 +27,7 @@ import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistAlbums
 import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.Disc
+import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.Song
@@ -487,6 +488,13 @@ class LibraryRepository(
                 db.libraryDao().playlistSongs(sourceId, playlistId)
             }
         }
+
+    /** Count and length of the songs the playlist page shows; offline, only the downloaded ones. */
+    fun playlistTotals(
+        sourceId: Long,
+        playlistId: String,
+        downloaded: Boolean,
+    ): Flow<ListTotals> = db.libraryDao().playlistTotals(sourceId, playlistId, downloaded)
 
     private val starLock = Mutex()
 

@@ -8,6 +8,7 @@ import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.ListDownloadStatus
+import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.Song
@@ -46,6 +47,12 @@ class PlaylistDetailViewModel(
         combine(sourceId, sourceRepository.offline) { id, offline -> id to offline }
             .flatMapLatest { (id, offline) -> libraryRepository.playlistSongs(id, playlistId, offline) }
             .cachedIn(viewModelScope)
+
+    /** Null until counted, so the footer doesn't flash "0 songs". */
+    val totals: StateFlow<ListTotals?> =
+        combine(sourceId, sourceRepository.offline) { id, offline -> id to offline }
+            .flatMapLatest { (id, offline) -> libraryRepository.playlistTotals(id, playlistId, offline) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val downloads: StateFlow<Map<String, SongDownload>> =
         downloadRepository.states()

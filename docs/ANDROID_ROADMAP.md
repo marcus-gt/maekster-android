@@ -255,7 +255,13 @@ folds and has Play (in order) and Shuffle. Shelves queue one album reference per
 `ArtistAppearances` queue kind that plays only the artist's credited tracks. No copied queue, schema or dependency change. Model,
 repository, controller and screen tests (with a mutation check), build, 1,204 tests and lint pass. Pixel 9 API 37 verified
 Albums and Live albums shelves, shelf Play and folding on a real artist. EP/Single shelves on the emulator, offline, API 35,
-TalkBack and `queryTiming` remain unverified; see `docs/handoffs/M2.4-discography.md`. The playlist footer has not started.
+TalkBack and `queryTiming` remain unverified; see `docs/handoffs/M2.4-discography.md`.
+
+**M2.4 Part G status (12 Nov 2026):** done, which completes M2.4. A playlist shows "N songs · length" under its last track,
+counted in Room over the rows the list shows (offline, the downloaded ones), and its header now gives the owner and "Updated …"
+as on iOS. DAO and screen tests, build, 1,207 tests and lint pass; Pixel 9 API 37 verified header and footer on a real
+playlist. Offline with real downloads, API 35 and TalkBack remain unverified; see `docs/handoffs/M2.4-playlist-footer.md`.
+M2.4's 200k-song `queryTiming` measurement is still outstanding across its parts. M2.5 has not started.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
