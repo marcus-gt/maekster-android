@@ -64,8 +64,7 @@ data class ResolvedQueueEntry(
  * A shuffled order over a fixed domain of [domain] tracks, plus the domain positions removed since
  * the order was created. The permutation stays fixed and removals are subtracted (sparsely, in
  * memory) rather than re-derived, so editing a shuffled queue keeps the remaining tracks in place.
- * Only the seed and domain are persisted; on restart the removals are gone, so a queue with edits
- * falls back to unshuffled rather than guessing.
+ * Seed, domain and sparse removals are persisted with the queue so edits retain this order on restart.
  */
 class ShuffleState(
     val seed: Long,
@@ -94,6 +93,23 @@ class ShuffleState(
             (removedFlats + domainFlat).sortedArray(),
             (removedSlots + Shuffle.toSequence(seed, domain, domainFlat)).sortedArray(),
         )
+
+    fun encodeRemoved(): String = removedFlats.joinToString(",")
+
+    companion object {
+        fun restore(
+            seed: Long,
+            domain: Long,
+            encoded: String?,
+        ): ShuffleState? {
+            if (domain !in 0..(1L shl 40)) return null
+            if (encoded.isNullOrEmpty()) return ShuffleState(seed, domain)
+            val flats = encoded.split(',').map { it.toLongOrNull() ?: return null }
+            if (flats.any { it !in 0 until domain } || flats.zipWithNext().any { (a, b) -> a >= b }) return null
+            val slots = flats.map { Shuffle.toSequence(seed, domain, it) }.sorted().toLongArray()
+            return ShuffleState(seed, domain, flats.toLongArray(), slots)
+        }
+    }
 
     private fun liveSlot(play: Long): Long {
         var slot = play
@@ -590,11 +606,22 @@ class QueueRepository(
                         if (row != null && row.shuffleEnabled && size > 0L) {
                             when {
                                 state != null && state.seed == row.shuffleSeed && state.domain == row.shuffleSize &&
-                                    state.liveSize == size -> state
+                                    state.liveSize == size -> {
+                                    state
+                                }
 
-                                state == null && row.shuffleSize == size -> ShuffleState(row.shuffleSeed, row.shuffleSize)
+                                state == null -> {
+                                    ShuffleState
+                                        .restore(
+                                            row.shuffleSeed,
+                                            row.shuffleSize,
+                                            row.shuffleRemoved,
+                                        )?.takeIf { it.liveSize == size }
+                                }
 
-                                else -> null
+                                else -> {
+                                    null
+                                }
                             }
                         } else {
                             null
@@ -618,6 +645,7 @@ class QueueRepository(
                     shuffleEnabled = seed != null,
                     shuffleSeed = seed ?: 0L,
                     shuffleSize = size,
+                    shuffleRemoved = null,
                 ),
             )
         }
@@ -820,16 +848,27 @@ class QueueRepository(
             val order = snapshot.shuffle ?: return
             val flat = snapshot.flatContext(play) ?: return
             val predecessor = if (play <= 0L) -1L else snapshot.flatContext(play - 1L) ?: -1L
-            shuffleRemoved = order.withRemoved(order.domainFor(flat))
-            write(compact(removeEntry(snapshot.entries, flat)).map { it.entry })
-            if (cursorRow().upNextAnchor == flat) {
-                // The removed track carried the block; move the anchor to the track before it in
-                // play order so the block stays in place instead of jumping to the canonical
-                // predecessor, which in a shuffled queue is an unrelated position.
-                setUpNextAnchor(if (predecessor > flat) predecessor - 1 else predecessor)
-            } else {
-                adjustAnchorOnRemove(flat)
+            val updatedOrder = order.withRemoved(order.domainFor(flat))
+            val entries = compact(removeEntry(snapshot.entries, flat)).map { it.entry }
+            cursorMutex.withLock {
+                db.useWriterConnection { transactor ->
+                    transactor.immediateTransaction {
+                        val cursor = cursorRow()
+                        val anchor = cursor.upNextAnchor
+                        val adjustedAnchor =
+                            when {
+                                anchor == flat -> if (predecessor > flat) predecessor - 1 else predecessor
+                                anchor > flat -> anchor - 1
+                                else -> anchor
+                            }
+                        dao.clear()
+                        dao.insert(entries.mapIndexed { index, entry -> entry.copy(id = 0, position = index.toLong()) })
+                        dao.setCursor(cursor.copy(shuffleRemoved = updatedOrder.encodeRemoved(), upNextAnchor = adjustedAnchor))
+                    }
+                }
             }
+            shuffleRemoved = updatedOrder
+            queueVersion.incrementAndGet()
         } else {
             val removed = compact(removeEntry(snapshot.entries, play))
             write(removed.map { it.entry })

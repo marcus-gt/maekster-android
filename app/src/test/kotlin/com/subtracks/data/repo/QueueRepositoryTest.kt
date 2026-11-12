@@ -953,6 +953,34 @@ class QueueRepositoryTest {
         }
 
     @Test
+    fun shuffledRemovalsSurviveRepositoryRecreation() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1"), repository.songEntry(1, "s4")))
+            repository.setShuffle(9L)
+            val before = repository.snapshot()
+            val expected = resolveAll(before).filterIndexed { index, _ -> index != 1 }
+            repository.removeAt(before, 1)
+            repository = QueueRepository(db)
+            val restored = repository.snapshot()
+            assertTrue(restored.shuffled)
+            assertEquals(expected, resolveAll(restored))
+            (0 until restored.contextSize).forEach { play ->
+                assertEquals(play, restored.playContext(restored.flatContext(play)!!))
+            }
+            repository.removeAt(restored, 0)
+            repository = QueueRepository(db)
+            assertEquals(expected.drop(1), resolveAll(repository.snapshot()))
+            repository.setShuffle(null)
+            repository.setShuffle(42)
+            repository = QueueRepository(db)
+            val fresh = repository.snapshot()
+            assertTrue(fresh.shuffled)
+            assertEquals(fresh.contextSize, fresh.shuffle!!.domain)
+            assertEquals("", fresh.shuffle.encodeRemoved())
+        }
+
+    @Test
     fun removingAContextTrackWhileShuffledKeepsTheRemainingOrder() =
         runTest {
             seedLibrary()

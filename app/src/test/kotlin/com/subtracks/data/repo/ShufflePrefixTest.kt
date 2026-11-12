@@ -7,6 +7,19 @@ import org.junit.Test
 
 class ShufflePrefixTest {
     @Test
+    fun persistedRemovalDataRejectsInvalidCoordinates() {
+        for (encoded in listOf("x", "-1", "10", "2,2", "3,1", "1,")) {
+            assertNull(ShuffleState.restore(42, 10, encoded))
+        }
+        assertNull(ShuffleState.restore(42, -1, null))
+        assertNull(ShuffleState.restore(42, (1L shl 40) + 1, null))
+        val state = ShuffleState.restore(42, 10, "1,4,8")!!
+        assertEquals("1,4,8", state.encodeRemoved())
+        assertEquals(7L, state.liveSize)
+        (0L until state.liveSize).forEach { assertEquals(it, state.playFor(state.flatFor(it))) }
+    }
+
+    @Test
     fun everyCutKeepsTheOriginalOrderAndRejectsTheTail() {
         for (domain in listOf(1L, 2L, 7L, 16L, 33L)) {
             for (seed in listOf(0L, 42L, -1L, Long.MIN_VALUE)) {

@@ -50,6 +50,30 @@ class MigrationsTest {
         }
 
     @Test
+    fun shuffleRemovalMigrationPreservesTheCursor() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 45)
+                connection.execSQL(
+                    "INSERT INTO playback_cursor (id, queuePosition, positionMs, shuffleEnabled, repeatMode, " +
+                        "shuffleSeed, shuffleSize, upNextAnchor, sourceLabel) VALUES (1, 12, 3456, 1, 2, 42, 100, 7, 'Album')",
+                )
+                MIGRATION_45_46.migrate(connection)
+                connection
+                    .prepare(
+                        "SELECT queuePosition, positionMs, shuffleSeed, sourceLabel, shuffleRemoved FROM playback_cursor",
+                    ).use { row ->
+                        assertTrue(row.step())
+                        assertEquals(12L, row.getLong(0))
+                        assertEquals(3456L, row.getLong(1))
+                        assertEquals(42L, row.getLong(2))
+                        assertEquals("Album", row.getText(3))
+                        assertTrue(row.isNull(4))
+                    }
+            }
+        }
+
+    @Test
     fun everyExportedVersionIsCoveredByAContiguousMigrationChain() {
         val chain = MIGRATIONS.sortedBy { it.startVersion }
         assertEquals(versions.dropLast(1), chain.map { it.startVersion })
