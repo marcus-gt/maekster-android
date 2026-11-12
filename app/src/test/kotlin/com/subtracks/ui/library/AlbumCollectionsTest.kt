@@ -16,7 +16,7 @@ import com.subtracks.R
 import com.subtracks.data.model.AlbumCollectionKind
 import com.subtracks.data.model.AlbumCollectionSummary
 import com.subtracks.ui.theme.MaeksterTheme
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -40,7 +40,7 @@ class AlbumCollectionsTest {
         fontScale: Float,
     ) {
         val opened = mutableListOf<Pair<AlbumCollectionKind, String>>()
-        val rows = flowOf(PagingData.from(listOf(AlbumCollectionSummary("Rock / Pop", 12, null))))
+        val rows = MutableStateFlow(PagingData.from(listOf(AlbumCollectionSummary("Rock / Pop", 12, null))))
         composeRule.setContent {
             val density = LocalDensity.current.density
             CompositionLocalProvider(LocalDensity provides Density(density, fontScale)) {
@@ -65,7 +65,9 @@ class AlbumCollectionsTest {
     fun emptyLabelsExplainMissingMetadata() {
         val settled = androidx.paging.LoadState.NotLoading(endOfPaginationReached = true)
         val rows =
-            flowOf(PagingData.empty<AlbumCollectionSummary>(sourceLoadStates = androidx.paging.LoadStates(settled, settled, settled)))
+            MutableStateFlow(
+                PagingData.empty<AlbumCollectionSummary>(sourceLoadStates = androidx.paging.LoadStates(settled, settled, settled)),
+            )
         composeRule.setContent {
             MaeksterTheme {
                 LibraryListScreen(

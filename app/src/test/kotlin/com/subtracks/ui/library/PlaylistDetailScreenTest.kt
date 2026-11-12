@@ -18,7 +18,7 @@ import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.Song
 import com.subtracks.ui.theme.MaeksterTheme
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -71,7 +71,7 @@ class PlaylistDetailScreenTest {
             MaeksterTheme {
                 PlaylistDetailScreen(
                     playlist = playlist,
-                    songs = remember { flowOf(PagingData.from(items)) }.collectAsLazyPagingItems(),
+                    songs = remember { MutableStateFlow(PagingData.from(items)) }.collectAsLazyPagingItems(),
                     coverArt = { _, _ -> null },
                     artwork = null,
                     totals = totals,

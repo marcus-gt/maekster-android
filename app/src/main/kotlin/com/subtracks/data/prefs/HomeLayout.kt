@@ -17,7 +17,7 @@ enum class HomeShelf {
 
     val supportsGrid: Boolean get() =
         this in
-            setOf(YourPlaylists, FavoriteAlbums, RecentlyAddedAlbums, MostPlayedAlbums, RecentlyPlayedAlbums, Rediscover)
+            setOf(Pinned, YourPlaylists, FavoriteAlbums, RecentlyAddedAlbums, MostPlayedAlbums, RecentlyPlayedAlbums, Rediscover)
 }
 
 data class HomeLayout(

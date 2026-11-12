@@ -4,11 +4,13 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
@@ -44,34 +47,74 @@ internal fun PinnedHomeShelf(
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(pins.itemCount, key = pins.itemKey { it.key }) { index ->
                 pins[index]?.let { item ->
-                    Column(Modifier.width(132.dp).combinedClickable(onClick = { onClick(item) }, onLongClick = { onLongClick(item) })) {
-                        CoverArt(
-                            coverArt(item.coverArt, true),
-                            item.name,
-                            modifier =
-                                Modifier.size(132.dp).clip(
-                                    if (item.kind ==
-                                        PinKind.Artist
-                                    ) {
-                                        CircleShape
-                                    } else {
-                                        RoundedCornerShape(4.dp)
-                                    },
-                                ),
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(item.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        item.subtitle?.let {
-                            Text(
-                                it,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
+                    PinnedTile(item, coverArt, onClick, onLongClick)
                 }
             }
+        }
+    }
+}
+
+internal fun pinGridColumns(width: Dp): Int = ((width.value - 24) / 140).toInt().coerceAtLeast(1)
+
+internal fun LazyListScope.pinnedGrid(
+    pins: LazyPagingItems<PinnedItem>,
+    columns: Int,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onClick: (PinnedItem) -> Unit,
+    onLongClick: (PinnedItem) -> Unit,
+) {
+    item(key = "pins-grid-header") {
+        Text(
+            stringResource(R.string.home_pinned),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp),
+        )
+    }
+    items(count = (pins.itemCount + columns - 1) / columns, key = { "pins-grid-row-$it" }) { row ->
+        Row(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (index in row * columns until minOf((row + 1) * columns, pins.itemCount)) {
+                val item = pins[index]
+                if (item != null) {
+                    PinnedTile(item, coverArt, onClick, onLongClick)
+                } else {
+                    Spacer(Modifier.size(132.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PinnedTile(
+    item: PinnedItem,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onClick: (PinnedItem) -> Unit,
+    onLongClick: (PinnedItem) -> Unit,
+) {
+    Column(Modifier.width(132.dp).combinedClickable(onClick = { onClick(item) }, onLongClick = { onLongClick(item) })) {
+        CoverArt(
+            coverArt(item.coverArt, true),
+            item.name,
+            modifier =
+                Modifier.size(132.dp).clip(
+                    if (item.kind ==
+                        PinKind.Artist
+                    ) {
+                        CircleShape
+                    } else {
+                        RoundedCornerShape(4.dp)
+                    },
+                ),
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(item.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        item.subtitle?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

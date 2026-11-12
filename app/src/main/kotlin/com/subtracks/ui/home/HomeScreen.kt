@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -306,68 +307,75 @@ fun HomeScreen(
             )
             return@CompositionLocalProvider
         }
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
-        ) {
-            homeTitle()
-            for (shelf in layout.visible) {
-                if (shelf == HomeShelf.Pinned) {
-                    if (pins != null && pins.itemCount > 0) {
-                        item(key = "pins") { PinnedHomeShelf(pins, coverArt, onPinnedClick, onPinnedLongClick) }
-                    }
-                    continue
-                }
-                if (shelf == HomeShelf.YourPlaylists) {
-                    yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore, shelf in layout.grids)
-                    continue
-                }
-                val section = HomeSection.valueOf(shelf.name)
-                when (shelf) {
-                    HomeShelf.YourPlaylists -> {
-                        Unit
-                    }
-
-                    HomeShelf.RecentlyPlayedArtists, HomeShelf.MostPlayedArtists -> {
-                        artistRow(
-                            section,
-                            if (shelf ==
-                                HomeShelf.RecentlyPlayedArtists
-                            ) {
-                                feed.recentlyPlayedArtists
+        BoxWithConstraints(modifier.fillMaxSize()) {
+            val pinColumns = pinGridColumns(maxWidth)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
+            ) {
+                homeTitle()
+                for (shelf in layout.visible) {
+                    if (shelf == HomeShelf.Pinned) {
+                        if (pins != null && pins.itemCount > 0) {
+                            if (HomeShelf.Pinned in layout.grids) {
+                                pinnedGrid(pins, pinColumns, coverArt, onPinnedClick, onPinnedLongClick)
                             } else {
-                                feed.mostPlayedArtists
-                            },
-                            coverArt,
-                            artistArt,
-                            onArtistClick,
-                            onLongClick,
-                            onMore,
-                        )
-                    }
-
-                    HomeShelf.RecentlyStarredSongs -> {
-                        homeSongs(section, feed.recentlyStarredSongs, coverArt, playingSongId, onPlayStarred, onLongClick, onMore)
-                    }
-
-                    HomeShelf.Genres -> {
-                        genreBlock(section, feed.genres, onGenreClick, onMore)
-                    }
-
-                    HomeShelf.Decades -> {
-                        decadeRow(section, feed.decades, onDecadeClick, onMore)
-                    }
-
-                    else -> {
-                        val albums =
-                            when (shelf) {
-                                HomeShelf.FavoriteAlbums -> feed.favoriteAlbums
-                                HomeShelf.RecentlyAddedAlbums -> feed.recentlyAddedAlbums
-                                HomeShelf.MostPlayedAlbums -> feed.mostPlayedAlbums
-                                HomeShelf.RecentlyPlayedAlbums -> feed.recentlyPlayedAlbums
-                                else -> feed.rediscoverAlbums
+                                item(key = "pins") { PinnedHomeShelf(pins, coverArt, onPinnedClick, onPinnedLongClick) }
                             }
-                        albumRow(section, albums, coverArt, onAlbumClick, onLongClick, onMore, shelf in layout.grids)
+                        }
+                        continue
+                    }
+                    if (shelf == HomeShelf.YourPlaylists) {
+                        yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore, shelf in layout.grids)
+                        continue
+                    }
+                    val section = HomeSection.valueOf(shelf.name)
+                    when (shelf) {
+                        HomeShelf.YourPlaylists -> {
+                            Unit
+                        }
+
+                        HomeShelf.RecentlyPlayedArtists, HomeShelf.MostPlayedArtists -> {
+                            artistRow(
+                                section,
+                                if (shelf ==
+                                    HomeShelf.RecentlyPlayedArtists
+                                ) {
+                                    feed.recentlyPlayedArtists
+                                } else {
+                                    feed.mostPlayedArtists
+                                },
+                                coverArt,
+                                artistArt,
+                                onArtistClick,
+                                onLongClick,
+                                onMore,
+                            )
+                        }
+
+                        HomeShelf.RecentlyStarredSongs -> {
+                            homeSongs(section, feed.recentlyStarredSongs, coverArt, playingSongId, onPlayStarred, onLongClick, onMore)
+                        }
+
+                        HomeShelf.Genres -> {
+                            genreBlock(section, feed.genres, onGenreClick, onMore)
+                        }
+
+                        HomeShelf.Decades -> {
+                            decadeRow(section, feed.decades, onDecadeClick, onMore)
+                        }
+
+                        else -> {
+                            val albums =
+                                when (shelf) {
+                                    HomeShelf.FavoriteAlbums -> feed.favoriteAlbums
+                                    HomeShelf.RecentlyAddedAlbums -> feed.recentlyAddedAlbums
+                                    HomeShelf.MostPlayedAlbums -> feed.mostPlayedAlbums
+                                    HomeShelf.RecentlyPlayedAlbums -> feed.recentlyPlayedAlbums
+                                    else -> feed.rediscoverAlbums
+                                }
+                            albumRow(section, albums, coverArt, onAlbumClick, onLongClick, onMore, shelf in layout.grids)
+                        }
                     }
                 }
             }

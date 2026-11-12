@@ -24,7 +24,14 @@ class UserPreferencesTest {
             val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
             val prefs = UserPreferences(store)
             assertEquals(HomeLayout(), prefs.homeLayout().first())
-            val custom = HomeLayout().move(HomeShelf.FavoriteAlbums, -1).show(HomeShelf.Genres, false).grid(HomeShelf.FavoriteAlbums, true)
+            val custom =
+                HomeLayout()
+                    .move(
+                        HomeShelf.FavoriteAlbums,
+                        -1,
+                    ).show(HomeShelf.Genres, false)
+                    .grid(HomeShelf.FavoriteAlbums, true)
+                    .grid(HomeShelf.Pinned, true)
             prefs.setHomeLayout(custom)
             assertEquals(custom, UserPreferences(store).homeLayout().first())
             store.edit { it[stringPreferencesKey("home_layout")] = "FavoriteAlbums,FavoriteAlbums,Unknown|Genres,Unknown" }

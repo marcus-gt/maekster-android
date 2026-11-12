@@ -284,6 +284,11 @@ Part F adds shared Pin/Unpin menu actions for albums, playlists and artists and 
 Metadata resolves only from Room; missing refs stay stored and reappear when mirrored again. The section can be hidden/reordered.
 Build, full unit suite, lint and focused screenshot recording pass; normal/2× shelf renders reviewed and menu mutation checked.
 Pin grid/order management and offline shelf visibility remain unfinished. See `docs/handoffs/M2.5-pins-ui.md`.
+Part G lets Pinned use the carousel/grid choice like the cover shelves. The grid is rows of the outer Home list,
+so a long pin list stays paged and only nearby rows compose; columns fit the width. Build, 1,237 tests and lint pass;
+normal/2× renders reviewed and a forced-carousel mutation fails the grid tests. Three order-sensitive paged UI fixtures
+now use replaying flows. Pin ordering and offline Pinned remain.
+See `docs/handoffs/M2.5-pin-grid.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
