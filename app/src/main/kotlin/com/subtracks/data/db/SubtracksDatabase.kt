@@ -34,6 +34,8 @@ import com.subtracks.data.model.SongGenre
 import com.subtracks.data.model.SongSearch
 import com.subtracks.data.model.Source
 import com.subtracks.data.model.SourceHeader
+import com.subtracks.data.model.StoredQueueOrder
+import com.subtracks.data.model.StoredQueueOrderEntry
 import com.subtracks.data.model.StringListConverter
 import com.subtracks.data.model.SubsonicSource
 import com.subtracks.data.model.UpNextEntry
@@ -67,8 +69,10 @@ import com.subtracks.data.model.UpNextEntry
         PendingAction::class,
         Pin::class,
         SearchHistoryEntry::class,
+        StoredQueueOrder::class,
+        StoredQueueOrderEntry::class,
     ],
-    version = 46,
+    version = 47,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -86,6 +90,8 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun sourcesDao(): SourcesDao
 
     abstract fun queueDao(): QueueDao
+
+    abstract fun queueOrderDao(): QueueOrderDao
 
     abstract fun artworkSeedDao(): ArtworkSeedDao
 

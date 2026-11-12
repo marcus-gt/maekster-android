@@ -402,6 +402,9 @@ played order; it must not restore discarded tracks or materialize the retained q
 Part R adds the strict versioned retained-prefix persistence format, preserving seed, original
 domain, cutoff and sparse removals. Round-trip and malformed-data tests include a mutation check.
 Runtime cutoff integration remains; see `docs/handoffs/M2.7-shuffle-prefix-codec.md`.
+Part S adds source-scoped immutable queue order storage (schema 47): prefix plus reference
+ranges/lengths, with cascading cleanup. DAO/migration tests include huge synthetic ranges and a
+cleanup mutation. No runtime action yet; see `docs/handoffs/M2.7-stored-orders.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
