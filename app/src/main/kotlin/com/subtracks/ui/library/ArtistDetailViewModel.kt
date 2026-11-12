@@ -187,7 +187,7 @@ class ArtistDetailViewModel(
         albums: List<Album>,
         shuffled: Boolean,
     ) {
-        viewModelScope.launch { playbackController.playAlbums(sourceId.first(), albums.map { it.id }, shuffled) }
+        viewModelScope.launch { playbackController.playAlbums(sourceId.first(), albums.map { it.id }, shuffled, artistId = artistId) }
     }
 
     /** Plays or shuffles Appears On: only the tracks crediting this artist. */

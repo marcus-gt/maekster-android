@@ -3314,12 +3314,43 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun aColdDiscographyShelfRetainsItsArtistTitleThroughUndo() {
+        seedArtist()
+        controller.playAlbums(1, listOf("al2", "al1"), shuffled = false, artistId = "ar1")
+        await {
+            controller.state.value.item
+                ?.id == "b1"
+        }
+        assertEquals("Artist", runBlocking { controller.sourceTitle(null, resources) })
+        runBlocking {
+            assertTrue(controller.clearUpcoming())
+            controller.undo()
+        }
+        assertEquals("Artist", runBlocking { controller.sourceTitle(null, resources) })
+    }
+
+    @Test
+    fun aConnectedShuffledShelfKeepsItsArtistTitleAcrossAlbums() {
+        seedArtist()
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.item != null }
+        controller.playAlbums(1, listOf("al2", "al1"), shuffled = true, artistId = "ar1")
+        await { controller.state.value.shuffle }
+        assertEquals("Artist", runBlocking { controller.sourceTitle(null, resources) })
+        assertEquals(setOf("a1", "a2", "a3", "b1", "b2"), handle.items.map { it.id }.toSet())
+        assertTrue(handle.items.all { it.albumContext })
+        controller.playAt(4)
+        await { controller.state.value.position == 4L }
+        assertEquals("Artist", runBlocking { controller.sourceTitle(controller.state.value.context, resources) })
+    }
+
+    @Test
     fun aDiscographyShelfPlaysItsAlbumsInTheListedOrderAsAlbumReferences() {
         seedArtist()
         controller.shuffleAlbum(1, "al1")
         await { controller.state.value.shuffle }
 
-        controller.playAlbums(1, listOf("al2", "al1"), shuffled = false)
+        controller.playAlbums(1, listOf("al2", "al1"), shuffled = false, artistId = "ar1")
         await {
             !controller.state.value.shuffle && controller.state.value.item
                 ?.id == "b1"
@@ -3337,16 +3368,18 @@ class PlaybackControllerTest {
                 ?.refId,
         )
         assertEquals(listOf("al2", "al1"), runBlocking { db.queueDao().entries().map { it.refId } })
+        assertEquals("Artist", runBlocking { controller.sourceTitle(null, resources) })
     }
 
     @Test
     fun shufflingADiscographyShelfShufflesAcrossItsAlbumsOnly() {
         seedArtist()
 
-        controller.playAlbums(1, listOf("al2"), shuffled = true)
+        controller.playAlbums(1, listOf("al2"), shuffled = true, artistId = "ar1")
         await { controller.state.value.shuffle && controller.state.value.item != null }
 
         assertEquals(setOf("b1", "b2"), handle.items.map { it.id }.toSet())
+        assertEquals("Artist", runBlocking { controller.sourceTitle(null, resources) })
     }
 
     @Test

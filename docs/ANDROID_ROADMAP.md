@@ -383,6 +383,10 @@ Part M adds stable collection labels for Songs, Favorites and Downloads, resolve
 in Now Playing and Queue. New queues persist the collection kind; older collection queues use the
 same resource-backed title. Mixed shelf origin labels, shuffled truncation and player styling remain.
 See `docs/handoffs/M2.7-collection-labels.md`.
+Part N gives artist discography shelves a persisted artist-origin title for normal and shuffled
+playback, including requests waiting for connection. Album references and gain context are retained;
+Undo keeps the title. Generic mixed references without an explicit origin retain their fallback.
+See `docs/handoffs/M2.7-shelf-origin.md`. Shuffled truncation and player styling remain.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

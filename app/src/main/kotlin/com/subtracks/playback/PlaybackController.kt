@@ -128,6 +128,12 @@ private data class PendingPlay(
     val entries: List<QueueEntry>,
     val position: Long,
     val disableShuffle: Boolean,
+    val origin: QueueEntry?,
+)
+
+private data class PendingShuffle(
+    val entries: List<QueueEntry>,
+    val origin: QueueEntry?,
 )
 
 private data class NetworkRetry(
@@ -159,7 +165,7 @@ class PlaybackController(
     private var pendingPlay: PendingPlay? = null
     private var networkRetry: NetworkRetry? = null
     private var playbackIntentVersion = 0L
-    private var pendingShuffle: List<QueueEntry>? = null
+    private var pendingShuffle: PendingShuffle? = null
     private var positionJob: Job? = null
     private var windowJob: Job? = null
     private var stallJob: Job? = null
@@ -231,8 +237,8 @@ class PlaybackController(
                     val shuffle = pendingShuffle
                     pendingShuffle = null
                     when {
-                        pending != null -> start(pending.entries, pending.position, pending.disableShuffle)
-                        shuffle != null -> startShuffled(shuffle)
+                        pending != null -> start(pending.entries, pending.position, pending.disableShuffle, pending.origin)
+                        shuffle != null -> startShuffled(shuffle.entries, shuffle.origin)
                         else -> restore()
                     }
                     _ready.value = true
@@ -312,16 +318,18 @@ class PlaybackController(
 
     /**
      * Plays one artist-page shelf (Albums, EPs, Singles…) in its listed order, or shuffles it: one album reference
-     * per release, so nothing is copied and each album keeps its own "Playing from".
+     * per release, so nothing is copied and album gain context is retained.
      */
     fun playAlbums(
         sourceId: Long,
         albumIds: List<String>,
         shuffled: Boolean,
+        artistId: String? = null,
     ) {
         if (albumIds.isEmpty()) return
         val entries = albumIds.map { queueRepository.albumEntry(sourceId, it) }
-        if (shuffled) shufflePlay(entries) else play(entries, 0, disableShuffle = true)
+        val origin = artistId?.let { queueRepository.artistEntry(sourceId, it) }
+        if (shuffled) shufflePlay(entries, origin) else play(entries, 0, disableShuffle = true, origin = origin)
     }
 
     /** Plays or shuffles the artist's Appears On: only the songs crediting them on other artists' albums. */
@@ -358,42 +366,47 @@ class PlaybackController(
 
     private fun shuffleContext(entry: QueueEntry) = shufflePlay(listOf(entry))
 
-    private fun shufflePlay(entries: List<QueueEntry>) {
+    private fun shufflePlay(
+        entries: List<QueueEntry>,
+        origin: QueueEntry? = null,
+    ) {
         if (player == null) {
-            pendingShuffle = entries
+            pendingShuffle = PendingShuffle(entries, origin)
             connect()
             return
         }
-        scope.launch { startShuffled(entries) }
+        scope.launch { startShuffled(entries, origin) }
     }
 
-    private suspend fun startShuffled(entries: List<QueueEntry>) =
-        startLock.withLock {
-            val entry = entries.first()
-            windowJob?.cancel()
-            windowStart = 0
-            windowEnd = -1
-            lastEdit = null
-            endedHandled = false
-            val previous = snapshot
-            val previousEntry = previous?.entries?.firstOrNull()?.entry
-            val same = previousEntry != null && previousEntry.kind == entry.kind && previousEntry.refId == entry.refId
-            val avoid = if (same) currentPosition()?.let { previous.flatContext(previous.anchorContextPlay(it)) } else null
-            queueRepository.replace(entries, sourceLabel = sourceLabelFor(entries))
-            var snap = queueRepository.snapshot()
-            if (snap.contextSize == 0L) {
-                stopLocked()
-                return@withLock
-            }
-            val start = randomIndex(snap.contextSize, avoid)
-            queueRepository.setShuffle(pinnedSeed(snap.contextSize, start))
-            shuffleEnabled = true
-            queueSourceId = entry.sourceId
-            queueRepository.setCursor(0)
-            snap = queueRepository.snapshot()
-            this@PlaybackController.snapshot = snap
-            loadWindow(0, autoplay = true)
+    private suspend fun startShuffled(
+        entries: List<QueueEntry>,
+        origin: QueueEntry? = null,
+    ) = startLock.withLock {
+        val entry = entries.first()
+        windowJob?.cancel()
+        windowStart = 0
+        windowEnd = -1
+        lastEdit = null
+        endedHandled = false
+        val previous = snapshot
+        val previousEntry = previous?.entries?.firstOrNull()?.entry
+        val same = previousEntry != null && previousEntry.kind == entry.kind && previousEntry.refId == entry.refId
+        val avoid = if (same) currentPosition()?.let { previous.flatContext(previous.anchorContextPlay(it)) } else null
+        queueRepository.replace(entries, sourceLabel = sourceLabelFor(entries, origin))
+        var snap = queueRepository.snapshot()
+        if (snap.contextSize == 0L) {
+            stopLocked()
+            return@withLock
         }
+        val start = randomIndex(snap.contextSize, avoid)
+        queueRepository.setShuffle(pinnedSeed(snap.contextSize, start))
+        shuffleEnabled = true
+        queueSourceId = entry.sourceId
+        queueRepository.setCursor(0)
+        snap = queueRepository.snapshot()
+        this@PlaybackController.snapshot = snap
+        loadWindow(0, autoplay = true)
+    }
 
     private fun randomIndex(
         size: Long,
@@ -1137,20 +1150,22 @@ class PlaybackController(
         entries: List<QueueEntry>,
         startPosition: Long,
         disableShuffle: Boolean = false,
+        origin: QueueEntry? = null,
     ) {
         unplayableRun = 0
         if (player == null) {
-            pendingPlay = PendingPlay(entries, startPosition, disableShuffle)
+            pendingPlay = PendingPlay(entries, startPosition, disableShuffle, origin)
             connect()
             return
         }
-        scope.launch { start(entries, startPosition, disableShuffle) }
+        scope.launch { start(entries, startPosition, disableShuffle, origin) }
     }
 
     private suspend fun start(
         entries: List<QueueEntry>,
         startPosition: Long,
         disableShuffle: Boolean = false,
+        origin: QueueEntry? = null,
     ) = startLock.withLock {
         windowJob?.cancel()
         windowStart = 0
@@ -1161,7 +1176,7 @@ class PlaybackController(
         shuffleEnabled = !disableShuffle && modes.shuffle
         repeatMode = modes.repeat.toRepeatMode()
         player?.setRepeatOne(repeatMode == RepeatMode.One)
-        queueRepository.replace(entries, sourceLabel = sourceLabelFor(entries))
+        queueRepository.replace(entries, sourceLabel = sourceLabelFor(entries, origin))
         val snapshot = queueRepository.snapshot()
         this.snapshot = snapshot
         queueSourceId = entries.firstOrNull()?.sourceId
@@ -1731,8 +1746,11 @@ class PlaybackController(
         return QueueContext(entry.kind, entry.sourceId, entry.refId)
     }
 
-    private suspend fun sourceLabelFor(entries: List<QueueEntry>): String? =
-        entries.singleOrNull()?.let {
+    private suspend fun sourceLabelFor(
+        entries: List<QueueEntry>,
+        origin: QueueEntry?,
+    ): String? =
+        (origin ?: entries.singleOrNull())?.let {
             QueueCollection.forKind(it.kind)?.storedLabel ?: queueRepository.sourceName(it.kind, it.sourceId, it.refId)
         }
 
