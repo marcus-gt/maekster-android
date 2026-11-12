@@ -478,6 +478,7 @@ private fun MainNavigation() {
                                 onDownloadedMore = { kind -> navController.navigate(Routes.homeDownloaded(kind)) },
                                 onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
                                 onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
+                                onPlaylistsMore = { navController.navigate(Routes.libraryList(LibraryTab.Playlists)) },
                                 contextMenuHost = contextMenuHost,
                                 setStar = libraryRepository::star,
                                 topInset = statusBarTop,

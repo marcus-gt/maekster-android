@@ -62,7 +62,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -88,6 +91,7 @@ import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
+import com.subtracks.ui.components.playlistUpdatedText
 import com.subtracks.ui.components.statusBarScrim
 import com.subtracks.ui.library.SongRow
 import org.koin.compose.koinInject
@@ -124,6 +128,7 @@ fun HomeRoute(
     onDownloadedMore: (OfflineListKind) -> Unit,
     onGenreClick: (String) -> Unit,
     onDecadeClick: (Long) -> Unit,
+    onPlaylistsMore: () -> Unit = {},
     contextMenuHost: ContextMenuHost? = null,
     setStar: (StarType, String, Boolean) -> Unit,
     topInset: Dp,
@@ -172,6 +177,7 @@ fun HomeRoute(
             onGenreClick = onGenreClick,
             onDecadeClick = onDecadeClick,
             onLongClick = onLongClick,
+            onPlaylistsMore = onPlaylistsMore,
         )
         Spacer(Modifier.align(Alignment.TopStart).statusBarScrim())
         if (onOpenSettings != null) {
@@ -200,6 +206,7 @@ private fun HomeFeedContent(
     onGenreClick: (String) -> Unit,
     onDecadeClick: (Long) -> Unit,
     onLongClick: (MenuTarget) -> Unit,
+    onPlaylistsMore: () -> Unit,
 ) {
     if (offline) {
         OfflineHomeScreen(
@@ -230,6 +237,8 @@ private fun HomeFeedContent(
             bottomInset = bottomInset,
             onAlbumClick = onAlbumClick,
             onArtistClick = onArtistClick,
+            onPlaylistClick = onPlaylistClick,
+            onPlaylistsMore = onPlaylistsMore,
             onPlayStarred = viewModel::playStarred,
             onLongClick = onLongClick,
             onMore = onMore,
@@ -251,6 +260,8 @@ fun HomeScreen(
     bottomInset: Dp = 0.dp,
     onAlbumClick: (Album) -> Unit = {},
     onArtistClick: (Artist) -> Unit = {},
+    onPlaylistClick: (Playlist) -> Unit = {},
+    onPlaylistsMore: () -> Unit = {},
     onPlayStarred: (Song) -> Unit = {},
     onLongClick: (MenuTarget) -> Unit = {},
     onMore: (HomeSection) -> Unit = {},
@@ -277,6 +288,7 @@ fun HomeScreen(
             contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
         ) {
             homeTitle()
+            yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore)
             albumRow(
                 HomeSection.RecentlyAddedAlbums,
                 feed.recentlyAddedAlbums,
@@ -529,8 +541,94 @@ private fun PlaylistTile(
     }
 }
 
+/** Your playlists, first on Home: large covers, newest change first, each with when it was updated. */
+private fun LazyListScope.yourPlaylistsRow(
+    playlists: List<Playlist>,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onPlaylistClick: (Playlist) -> Unit,
+    onLongClick: (MenuTarget) -> Unit,
+    onMore: () -> Unit,
+) {
+    if (playlists.isEmpty()) return
+    item(key = "your-playlists-header") {
+        HomeSectionHeader(R.string.home_section_your_playlists, Icons.AutoMirrored.Rounded.PlaylistPlay, onMore)
+    }
+    item(key = "your-playlists-row") {
+        val rowState = rememberLazyListState()
+        RevealNewFrontItem(playlists, rowState) { it.id }
+        LazyRow(
+            state = rowState,
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(TILE_SPACING * 2),
+            modifier = Modifier.padding(top = SECTION_CONTENT_TOP).testTag(YOUR_PLAYLISTS_TAG),
+        ) {
+            items(playlists, key = { it.id }) { playlist ->
+                // The large card shows the full cover, not the thumbnail.
+                val ref = coverArt(playlist.coverArt, false)
+                val thumbnail = coverArt(playlist.coverArt, true)
+                RecentPlaylistCard(
+                    playlist = playlist,
+                    ref = ref,
+                    thumbnailRef = thumbnail,
+                    onClick = { onPlaylistClick(playlist) },
+                    onLongClick = { onLongClick(MenuTarget.Playlist(playlist, thumbnail)) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentPlaylistCard(
+    playlist: Playlist,
+    ref: CoverArtRef?,
+    thumbnailRef: CoverArtRef?,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    val resources = LocalResources.current
+    val updated = remember(playlist.changed, resources) { playlistUpdatedText(resources, playlist.changed) }
+    val count = playlist.songCount.toInt()
+    Column(
+        modifier = Modifier.width(PLAYLIST_CARD_SIZE).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+    ) {
+        CoverArt(
+            ref = ref,
+            name = playlist.name,
+            thumbnailRef = thumbnailRef,
+            modifier = Modifier.size(PLAYLIST_CARD_SIZE).clip(RoundedCornerShape(4.dp)),
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = playlist.name,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (updated != null) {
+            Text(
+                text = updated,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            text = pluralStringResource(R.plurals.resources_song_count, count, count),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
+
+internal const val YOUR_PLAYLISTS_TAG = "yourPlaylists"
+private val PLAYLIST_CARD_SIZE = 200.dp
+
 private fun HomeFeed.isEmpty(): Boolean =
-    recentlyPlayedAlbums.isEmpty() &&
+    yourPlaylists.isEmpty() &&
+        recentlyPlayedAlbums.isEmpty() &&
         recentlyPlayedArtists.isEmpty() &&
         mostPlayedAlbums.isEmpty() &&
         mostPlayedArtists.isEmpty() &&

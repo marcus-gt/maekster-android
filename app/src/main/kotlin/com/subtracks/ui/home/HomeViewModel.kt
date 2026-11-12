@@ -36,6 +36,8 @@ const val HOME_STARRED_LIMIT = 5
 const val HOME_DOWNLOADED_LIMIT = 5
 
 data class HomeFeed(
+    // First on Home, as on iOS: the playlists changed most recently.
+    val yourPlaylists: List<Playlist> = emptyList(),
     val recentlyPlayedAlbums: List<Album> = emptyList(),
     val recentlyPlayedArtists: List<Artist> = emptyList(),
     val mostPlayedAlbums: List<Album> = emptyList(),
@@ -115,8 +117,14 @@ class HomeViewModel(
                         libraryRepository.hasAlbumPlayCount(sourceId),
                         libraryRepository.hasAlbumPlayed(sourceId),
                     ) { frequent, recent -> frequent || recent }
-                combine(plays, discovery, hasPlayData) { rows, found, played ->
+                combine(
+                    plays,
+                    discovery,
+                    hasPlayData,
+                    libraryRepository.recentlyChangedPlaylists(sourceId, HOME_ROW_LIMIT),
+                ) { rows, found, played, playlists ->
                     buildHomeFeed(
+                        playlists = playlists,
                         recentAlbums = rows.recentAlbums,
                         recentArtists = rows.recentArtists,
                         frequentAlbums = rows.frequentAlbums,
@@ -180,8 +188,10 @@ internal fun buildHomeFeed(
     addedAlbums: List<Album>,
     rediscover: List<Album>,
     hasPlayData: Boolean,
+    playlists: List<Playlist> = emptyList(),
 ): HomeFeed =
     HomeFeed(
+        yourPlaylists = playlists,
         recentlyPlayedAlbums = recentAlbums.takeIf { hasPlayData }.orEmpty(),
         recentlyPlayedArtists = recentArtists.takeIf { hasPlayData }.orEmpty(),
         mostPlayedAlbums = frequentAlbums.takeIf { hasPlayData }.orEmpty(),

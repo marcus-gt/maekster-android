@@ -399,6 +399,7 @@
     <string name="home_section_decades">Decades</string>
     <string name="home_section_recently_starred">Recent favorites</string>
     <string name="home_section_recently_added">Recently added</string>
+    <string name="home_section_your_playlists">Your playlists</string>
     <string name="home_section_rediscover">Rediscover</string>
     <string name="home_downloaded_songs">Downloaded songs</string>
     <string name="home_downloaded_albums">Downloaded albums</string>

@@ -1,7 +1,5 @@
 package com.subtracks.ui.library
 
-import android.content.res.Resources
-import android.text.format.DateUtils
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -41,6 +39,7 @@ import com.subtracks.ui.components.HeroHeader
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
+import com.subtracks.ui.components.playlistUpdatedText
 import com.subtracks.ui.components.rememberPendingDownloadDelete
 import com.subtracks.ui.theme.ArtworkColors
 import com.subtracks.ui.theme.MaeksterSpacing
@@ -143,7 +142,7 @@ fun PlaylistDetailScreen(
         remember(playlist?.owner, playlist?.changed, resources) {
             listOfNotNull(
                 playlist?.owner?.takeIf { it.isNotBlank() },
-                playlist?.changed?.takeIf { it > 0 }?.let { updatedText(resources, it) },
+                playlist?.changed?.let { playlistUpdatedText(resources, it) },
             ).joinToString(" $DOT ")
         }
     HeroDetailScaffold(
@@ -220,16 +219,3 @@ private fun PlaylistSummary(totals: ListTotals) {
 }
 
 internal const val PLAYLIST_SUMMARY_TAG = "playlistSummary"
-
-private fun updatedText(
-    resources: Resources,
-    changedEpochSeconds: Long,
-): String {
-    val relative =
-        DateUtils.getRelativeTimeSpanString(
-            changedEpochSeconds * 1000,
-            System.currentTimeMillis(),
-            DateUtils.DAY_IN_MILLIS,
-        )
-    return resources.getString(R.string.playlist_updated, relative)
-}
