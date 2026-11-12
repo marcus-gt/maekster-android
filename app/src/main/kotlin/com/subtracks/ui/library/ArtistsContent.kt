@@ -14,6 +14,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -26,6 +27,7 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
 import com.subtracks.R
+import com.subtracks.data.db.LetterBucket
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.ListDownloadStatus
@@ -40,6 +42,7 @@ import com.subtracks.ui.components.ResetScrollOnChange
 import com.subtracks.ui.components.ScrollToTopOnRequest
 import com.subtracks.ui.components.rememberViewportFill
 import com.subtracks.ui.theme.PrefetchArtworkSeeds
+import kotlinx.coroutines.launch
 
 @Composable
 fun ArtistsContent(
@@ -52,6 +55,7 @@ fun ArtistsContent(
     filtered: Boolean = false,
     onClearFilters: () -> Unit = {},
     resetKey: Any? = null,
+    letterBuckets: List<LetterBucket> = emptyList(),
     topInset: Dp = 0.dp,
     onSync: () -> Unit = {},
     downloadStatuses: Map<String, ListDownloadStatus> = emptyMap(),
@@ -76,58 +80,65 @@ fun ArtistsContent(
             ResetScrollOnChange(resetKey, { items.loadState.refresh }) { listState.scrollToItem(0) }
             ScrollToTopOnRequest(scrollToTopKey, listState)
             val fill = rememberViewportFill(listState)
-            LazyColumn(
-                state = listState,
-                modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = topInset, bottom = bottomInset),
-            ) {
-                items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
-                    val artist = items[index]
-                    if (artist != null) {
-                        val art = artistArt(artist)
-                        PrefetchArtworkSeeds(art.primary)
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    text = artist.name,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    text =
-                                        pluralStringResource(
-                                            R.plurals.resources_album_count,
-                                            artist.albumCount.toInt(),
-                                            artist.albumCount,
-                                        ),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            },
-                            leadingContent = {
-                                ArtistIcon(
-                                    artist = artist,
-                                    art = art,
-                                    modifier = Modifier.size(48.dp).clip(CircleShape),
-                                )
-                            },
-                            trailingContent = {
-                                ListDownloadIndicator(downloadStatuses[artist.id], Modifier.padding(end = 8.dp))
-                            },
-                            modifier =
-                                Modifier.combinedClickable(
-                                    onClick = { onArtistClick(artist) },
-                                    onLongClick = {
-                                        onLongClick(MenuTarget.Artist(artist, art.primary, downloadStatuses[artist.id]))
-                                    },
-                                ),
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        )
+            val scope = rememberCoroutineScope()
+            LetterIndexedContent(letterBuckets, { position ->
+                if (position < items.itemCount) scope.launch { listState.scrollToItem(position) }
+            }, modifier) { listModifier ->
+                LazyColumn(
+                    state = listState,
+                    modifier = listModifier.fillMaxSize(),
+                    contentPadding = PaddingValues(top = topInset, bottom = bottomInset),
+                ) {
+                    items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
+                        val artist = items[index]
+                        if (artist != null) {
+                            val art = artistArt(artist)
+                            PrefetchArtworkSeeds(art.primary)
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        text = artist.name,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                supportingContent = {
+                                    Text(
+                                        text =
+                                            pluralStringResource(
+                                                R.plurals.resources_album_count,
+                                                artist.albumCount.toInt(),
+                                                artist.albumCount,
+                                            ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                                leadingContent = {
+                                    ArtistIcon(
+                                        artist = artist,
+                                        art = art,
+                                        modifier = Modifier.size(48.dp).clip(CircleShape),
+                                    )
+                                },
+                                trailingContent = {
+                                    ListDownloadIndicator(downloadStatuses[artist.id], Modifier.padding(end = 8.dp))
+                                },
+                                modifier =
+                                    Modifier.combinedClickable(
+                                        onClick = { onArtistClick(artist) },
+                                        onLongClick = {
+                                            onLongClick(MenuTarget.Artist(artist, art.primary, downloadStatuses[artist.id]))
+                                        },
+                                    ),
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            )
+                        } else {
+                            Spacer(Modifier.height(72.dp))
+                        }
                     }
+                    item { Spacer(Modifier.height(fill)) }
                 }
-                item { Spacer(Modifier.height(fill)) }
             }
         }
     }

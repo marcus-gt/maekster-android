@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -16,6 +17,7 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
 import com.subtracks.R
+import com.subtracks.data.db.LetterBucket
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Song
@@ -26,6 +28,7 @@ import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.ResetScrollOnChange
 import com.subtracks.ui.components.rememberViewportFill
+import kotlinx.coroutines.launch
 
 /**
  * The Library's Songs list. A tap plays the list as shown from that song, so [onSongClick] gets the row's position
@@ -45,6 +48,7 @@ fun LibrarySongsContent(
     filtered: Boolean = false,
     onClearFilters: () -> Unit = {},
     resetKey: Any? = null,
+    letterBuckets: List<LetterBucket> = emptyList(),
     onSync: () -> Unit = {},
 ) {
     when {
@@ -69,36 +73,44 @@ fun LibrarySongsContent(
             val listState = rememberLazyListState()
             ResetScrollOnChange(resetKey, { items.loadState.refresh }) { listState.scrollToItem(0) }
             val fill = rememberViewportFill(listState)
-            LazyColumn(
-                state = listState,
-                modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = bottomInset + FAB_CLEARANCE),
-            ) {
-                items(count = items.itemCount, key = items.itemKey { it.song.id }) { index ->
-                    val item = items[index]
-                    if (item != null) {
-                        val song = item.song
-                        SongRow(
-                            song = song,
-                            coverArtId = item.coverArt,
-                            coverArt = coverArt,
-                            isPlaying = song.id == playingSongId,
-                            durationSeconds = song.duration,
-                            download = downloads[song.id],
-                            onToggleFavorite = onToggleFavorite?.let { toggle -> { favorite -> toggle(song, favorite) } },
-                            modifier =
-                                Modifier.combinedClickable(
-                                    onClick = { onSongClick(song, index) },
-                                    onLongClick = {
-                                        onLongClick(MenuTarget.Song(song, coverArt(item.coverArt, true), downloads[song.id]))
-                                    },
-                                ),
-                        )
-                    } else {
-                        Spacer(Modifier.height(PLACEHOLDER_ROW_HEIGHT))
+            val scope = rememberCoroutineScope()
+            LetterIndexedContent(
+                buckets = letterBuckets,
+                onJump = { position -> if (position < items.itemCount) scope.launch { listState.scrollToItem(position) } },
+                modifier = modifier,
+                railBottomPadding = bottomInset + FAB_CLEARANCE,
+            ) { listModifier ->
+                LazyColumn(
+                    state = listState,
+                    modifier = listModifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = bottomInset + FAB_CLEARANCE),
+                ) {
+                    items(count = items.itemCount, key = items.itemKey { it.song.id }) { index ->
+                        val item = items[index]
+                        if (item != null) {
+                            val song = item.song
+                            SongRow(
+                                song = song,
+                                coverArtId = item.coverArt,
+                                coverArt = coverArt,
+                                isPlaying = song.id == playingSongId,
+                                durationSeconds = song.duration,
+                                download = downloads[song.id],
+                                onToggleFavorite = onToggleFavorite?.let { toggle -> { favorite -> toggle(song, favorite) } },
+                                modifier =
+                                    Modifier.combinedClickable(
+                                        onClick = { onSongClick(song, index) },
+                                        onLongClick = {
+                                            onLongClick(MenuTarget.Song(song, coverArt(item.coverArt, true), downloads[song.id]))
+                                        },
+                                    ),
+                            )
+                        } else {
+                            Spacer(Modifier.height(PLACEHOLDER_ROW_HEIGHT))
+                        }
                     }
+                    item { Spacer(Modifier.height(fill)) }
                 }
-                item { Spacer(Modifier.height(fill)) }
             }
         }
     }

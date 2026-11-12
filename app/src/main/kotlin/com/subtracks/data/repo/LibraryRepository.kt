@@ -6,6 +6,7 @@ import androidx.paging.PagingData
 import androidx.paging.PagingSource
 import com.subtracks.R
 import com.subtracks.UiMessage
+import com.subtracks.data.db.LetterBucket
 import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.albumCollectionsPageQuery
@@ -13,6 +14,7 @@ import com.subtracks.data.db.albumsPageQuery
 import com.subtracks.data.db.artistsPageQuery
 import com.subtracks.data.db.collectionAlbumsQuery
 import com.subtracks.data.db.hasDownloadedCollectionsQuery
+import com.subtracks.data.db.letterBucketsQuery
 import com.subtracks.data.db.playlistsPageQuery
 import com.subtracks.data.db.rediscoverAlbumsQuery
 import com.subtracks.data.db.songsPageQuery
@@ -31,6 +33,7 @@ import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.ArtistSort
 import com.subtracks.data.prefs.CollectionSort
 import com.subtracks.data.prefs.LibraryListTab
+import com.subtracks.data.prefs.ListQuery
 import com.subtracks.data.prefs.PlaylistSort
 import com.subtracks.data.prefs.StarredFilter
 import com.subtracks.data.prefs.UserPreferences
@@ -47,6 +50,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -242,6 +246,21 @@ class LibraryRepository(
             }
         }
 
+    fun letterBuckets(
+        sourceId: Long,
+        tab: LibraryListTab,
+        query: ListQuery,
+        search: String,
+    ): Flow<List<LetterBucket>> =
+        // Albums, Artists and Songs all call their name sort "Name"; only that sort has a letter index.
+        if (query.sort != AlbumSort.Name.name || tab !in LETTER_INDEXED_LISTS) {
+            flowOf(emptyList())
+        } else {
+            userPreferences.sortNameMode().flatMapLatest { mode ->
+                db.libraryDao().letterBuckets(letterBucketsQuery(sourceId, tab, query, search, mode))
+            }
+        }
+
     fun artists(
         sourceId: Long,
         sort: ArtistSort,
@@ -251,7 +270,7 @@ class LibraryRepository(
         downloaded: Boolean,
     ): Flow<PagingData<Artist>> =
         userPreferences.sortNameMode().flatMapLatest { mode ->
-            pager(60) {
+            pager(60, enablePlaceholders = true) {
                 val dao = db.libraryDao()
                 val query =
                     artistsPageQuery(
@@ -542,6 +561,8 @@ class LibraryRepository(
 const val REDISCOVER_WINDOW_MS = 60L * 24 * 60 * 60 * 1000
 
 const val SEARCH_RESULT_LIMIT = 50
+
+private val LETTER_INDEXED_LISTS = setOf(LibraryListTab.Albums, LibraryListTab.Artists, LibraryListTab.Songs)
 
 internal fun normalizeBiography(value: String?): String? =
     value

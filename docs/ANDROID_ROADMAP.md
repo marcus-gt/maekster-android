@@ -232,7 +232,15 @@ with album counts, artwork, name/count sorting, in-list search and downloaded fi
 come entirely from Room; genres include every song tag and labels include every album label, grouped case-insensitively
 with distinct album counts. Collections show albums newest first. No schema or dependency change. Database and UI tests,
 normal/2× font renders, build and lint pass. Pixel 9 API 37 verified genre sorting and genre/label → albums → album detail.
-API 35 and offline with real downloads remain unverified; see `docs/handoffs/M2.4-genres-labels.md`. Part D remains pending.
+API 35 and offline with real downloads remain unverified; see `docs/handoffs/M2.4-genres-labels.md`. Part D is complete for Library lists (see below).
+
+**M2.4 Part D status (12 Nov 2026):** done for Library lists. Library Albums, Artists and Songs have local letter-bucket queries
+and letter buttons for name/title sorts, respecting direction, filters, downloads and sort-name mode. The database returns
+at most 27 bucket positions; lists remain paged, with Artists now also using placeholders. Query tests compare bucket positions
+to actual list order, and an off-by-one mutation fails the test. On review, the Songs rail gained bottom clearance so the
+shuffle button no longer covers a letter (with a test that fails without it). Build, 1,190 tests and lint pass; normal/2x
+font rail renders reviewed. Pixel 9 API 37 verified jumps on all three lists, including a far jump on Songs. Large-library timing, API 35 and real offline downloads remain
+unverified; Favorites/Home lists are unchanged. See `docs/handoffs/M2.4-letter-rail.md`. No later M2.4 subtask has started.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

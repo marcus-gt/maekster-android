@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +28,7 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
 import com.subtracks.R
+import com.subtracks.data.db.LetterBucket
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.ListDownloadStatus
@@ -41,6 +43,7 @@ import com.subtracks.ui.components.ScrollToTopOnRequest
 import com.subtracks.ui.components.SkeletonBlock
 import com.subtracks.ui.components.rememberViewportFill
 import com.subtracks.ui.theme.PrefetchArtworkSeeds
+import kotlinx.coroutines.launch
 
 const val ALBUM_COVER_TAG = "album-cover"
 
@@ -57,6 +60,7 @@ fun AlbumsContent(
     filtered: Boolean = false,
     onClearFilters: () -> Unit = {},
     resetKey: Any? = null,
+    letterBuckets: List<LetterBucket> = emptyList(),
     topInset: Dp = 0.dp,
     onSync: () -> Unit = {},
     downloadStatuses: Map<String, ListDownloadStatus> = emptyMap(),
@@ -85,50 +89,55 @@ fun AlbumsContent(
             ResetScrollOnChange(resetKey, { items.loadState.refresh }) { gridState.scrollToItem(0) }
             ScrollToTopOnRequest(scrollToTopKey, gridState)
             val fill = rememberViewportFill(gridState)
-            LazyVerticalGrid(
-                state = gridState,
-                columns = GridCells.Fixed(3),
-                contentPadding = PaddingValues(start = 8.dp, top = topInset + 8.dp, end = 8.dp, bottom = bottomInset + 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = modifier.fillMaxSize(),
-            ) {
-                items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
-                    val album = items[index]
-                    if (album != null) {
-                        val art = coverArt(album.coverArt, true)
-                        PrefetchArtworkSeeds(art)
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .combinedClickable(
-                                        onClick = { onAlbumClick(album) },
-                                        onLongClick = { onLongClick(MenuTarget.Album(album, art, downloadStatuses[album.id])) },
-                                    ).testTag(ALBUM_COVER_TAG),
-                        ) {
-                            CoverArt(
-                                ref = art,
-                                name = album.name,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                            ListDownloadIndicator(
-                                status = downloadStatuses[album.id],
-                                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
-                                scrim = true,
+            val scope = rememberCoroutineScope()
+            LetterIndexedContent(letterBuckets, { position ->
+                if (position < items.itemCount) scope.launch { gridState.scrollToItem(position) }
+            }, modifier) { listModifier ->
+                LazyVerticalGrid(
+                    state = gridState,
+                    columns = GridCells.Fixed(3),
+                    contentPadding = PaddingValues(start = 8.dp, top = topInset + 8.dp, end = 8.dp, bottom = bottomInset + 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = listModifier.fillMaxSize(),
+                ) {
+                    items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
+                        val album = items[index]
+                        if (album != null) {
+                            val art = coverArt(album.coverArt, true)
+                            PrefetchArtworkSeeds(art)
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(1f)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .combinedClickable(
+                                            onClick = { onAlbumClick(album) },
+                                            onLongClick = { onLongClick(MenuTarget.Album(album, art, downloadStatuses[album.id])) },
+                                        ).testTag(ALBUM_COVER_TAG),
+                            ) {
+                                CoverArt(
+                                    ref = art,
+                                    name = album.name,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                                ListDownloadIndicator(
+                                    status = downloadStatuses[album.id],
+                                    modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                                    scrim = true,
+                                )
+                            }
+                        } else {
+                            SkeletonBlock(
+                                modifier = Modifier.fillMaxWidth().aspectRatio(1f).testTag(ALBUM_PLACEHOLDER_TAG),
+                                shape = RoundedCornerShape(2.dp),
                             )
                         }
-                    } else {
-                        SkeletonBlock(
-                            modifier = Modifier.fillMaxWidth().aspectRatio(1f).testTag(ALBUM_PLACEHOLDER_TAG),
-                            shape = RoundedCornerShape(2.dp),
-                        )
                     }
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Spacer(Modifier.height(fill))
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Spacer(Modifier.height(fill))
+                    }
                 }
             }
         }

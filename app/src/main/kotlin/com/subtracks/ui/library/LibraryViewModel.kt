@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.subtracks.data.db.LetterBucket
 import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumCollectionKind
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -63,6 +65,21 @@ class LibraryViewModel(
 
     private val searches: Map<LibraryListTab, MutableStateFlow<String>> =
         LibraryListTab.entries.associateWith { MutableStateFlow("") }
+
+    /** Each list's letter index; empty unless the list is sorted by name. */
+    val letterBuckets: Map<LibraryListTab, StateFlow<List<LetterBucket>>> =
+        LibraryListTab.entries.associateWith { tab ->
+            libraryRepository.activeSourceId
+                .flatMapLatest { sourceId ->
+                    if (sourceId == null) {
+                        flowOf(emptyList())
+                    } else {
+                        combine(listQueries.getValue(tab), searches.getValue(tab), sourceRepository.offline) { query, search, offline ->
+                            query.copy(downloaded = query.downloaded || offline) to search
+                        }.flatMapLatest { (query, search) -> libraryRepository.letterBuckets(sourceId, tab, query, search) }
+                    }
+                }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }
 
     val albums: Flow<PagingData<Album>> =
         libraryRepository.activeSourceId

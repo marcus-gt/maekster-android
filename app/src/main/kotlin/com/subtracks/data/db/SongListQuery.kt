@@ -63,7 +63,7 @@ private const val SONG_DOWNLOADED =
     " AND EXISTS (SELECT 1 FROM song_downloads sd WHERE sd.sourceId = songs.sourceId " +
         "AND sd.songId = songs.id AND sd.status = 'Completed')"
 
-private fun SongListSpec.where(): String = if (downloaded) SONGS_FROM + SONG_DOWNLOADED else SONGS_FROM
+internal fun SongListSpec.where(): String = if (downloaded) SONGS_FROM + SONG_DOWNLOADED else SONGS_FROM
 
 private fun SongListSpec.bindings(sourceId: Long): Map<String, Any?> =
     mapOf("sourceId" to sourceId, "starredFilter" to starred.ordinal, "search" to search)
@@ -87,7 +87,7 @@ internal fun songsCountQuery(
     spec: SongListSpec,
 ): RoomRawQuery = rawQuery(sql = "SELECT COUNT(*) ${spec.where()}", bindings = spec.bindings(sourceId))
 
-private fun songNameKey(mode: SortNameMode): String =
+internal fun songNameKey(mode: SortNameMode): String =
     when (mode) {
         SortNameMode.SortName -> "songs.sortName COLLATE NOCASE"
         SortNameMode.Name -> "songs.title COLLATE NOCASE"

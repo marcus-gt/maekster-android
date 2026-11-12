@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.paging.PagingData
@@ -70,6 +71,29 @@ class LibrarySongsListTest {
 
         assertEquals(listOf("s3" to 2, "s2" to 1), played)
         assertEquals(1, shuffled)
+    }
+
+    @Test
+    fun letterJumpsToAnAbsoluteSongRow() {
+        val songs = flowOf(PagingData.from((0..999).map { item("s$it", "Track $it") }))
+        composeRule.setContent {
+            MaeksterTheme {
+                LibraryListScreen(
+                    list = LibraryTab.Songs,
+                    coverArt = { _, _ -> null },
+                    onSync = {},
+                    onBack = {},
+                    songs = songs,
+                    letterBuckets =
+                        listOf(
+                            com.subtracks.data.db
+                                .LetterBucket("B", 900),
+                        ),
+                )
+            }
+        }
+        composeRule.onNodeWithTag("letter-rail-B").performClick()
+        composeRule.onNodeWithText("Track 900").assertExists()
     }
 
     @Test

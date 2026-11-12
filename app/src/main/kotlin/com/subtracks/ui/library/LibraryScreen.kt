@@ -65,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.subtracks.R
+import com.subtracks.data.db.LetterBucket
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumCollectionKind
 import com.subtracks.data.model.AlbumCollectionSummary
@@ -220,6 +221,7 @@ fun LibraryListRoute(
     playbackController: PlaybackController = koinInject(),
 ) {
     val listTab = list.listTab() ?: return
+    val letters by viewModel.letterBuckets.getValue(listTab).collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val listQuery by viewModel.listQuery(listTab).collectAsStateWithLifecycle()
     val offline by viewModel.offline.collectAsStateWithLifecycle()
@@ -244,6 +246,7 @@ fun LibraryListRoute(
         )
     LibraryListScreen(
         list = list,
+        letterBuckets = letters,
         refreshing = refreshing,
         bottomInset = bottomInset,
         albums = if (list == LibraryTab.Albums) viewModel.albums else emptyFlow(),
@@ -344,6 +347,7 @@ fun LibraryListScreen(
     bottomInset: Dp = 0.dp,
     listQuery: ListQuery = ListQuery(""),
     resetKey: Any? = null,
+    letterBuckets: List<LetterBucket> = emptyList(),
     sortOptions: List<SortOption> = emptyList(),
     starredSupported: Boolean = false,
     onSortChange: (String) -> Unit = {},
@@ -442,6 +446,7 @@ fun LibraryListScreen(
                         filtered = filtersActive,
                         onClearFilters = onClearFilters,
                         resetKey = resetKey,
+                        letterBuckets = letterBuckets,
                         onSync = onSync,
                         downloadStatuses = downloads,
                     )
@@ -457,6 +462,7 @@ fun LibraryListScreen(
                         filtered = filtersActive,
                         onClearFilters = onClearFilters,
                         resetKey = resetKey,
+                        letterBuckets = letterBuckets,
                         onSync = onSync,
                         downloadStatuses = downloads,
                         artistArt = artistArt,
@@ -471,6 +477,7 @@ fun LibraryListScreen(
                         onSongClick = { song, index -> open { onSongClick(song, index) } },
                         onLongClick = onItemLongClick,
                         onToggleFavorite = onToggleFavorite,
+                        letterBuckets = letterBuckets,
                         playingSongId = playingSongId,
                         downloads = songDownloads,
                         filtered = filtersActive,
