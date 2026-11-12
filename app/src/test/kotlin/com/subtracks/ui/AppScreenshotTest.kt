@@ -9,8 +9,10 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -23,6 +25,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.unit.Density
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.test.core.app.ApplicationProvider
@@ -502,6 +505,9 @@ class AppScreenshotTest {
     fun nowPlaying() = nowPlayingShot(Fixtures.playbackState(), "art-al-kid-a", "now_playing.png")
 
     @Test
+    fun nowPlayingLargeFont() = nowPlayingShot(Fixtures.playbackState(), "art-al-kid-a", "now_playing_large_font.png", 2f)
+
+    @Test
     fun nowPlayingModes() =
         nowPlayingShot(
             Fixtures.playbackState().copy(shuffle = true, repeat = RepeatMode.One),
@@ -516,23 +522,27 @@ class AppScreenshotTest {
         state: PlaybackState,
         coverArtId: String,
         file: String,
+        fontScale: Float = 1f,
     ) {
         composeRule.setContent {
-            MaeksterTheme {
-                NowPlayingScreen(
-                    state = state,
-                    positionMs = 62_000,
-                    title = "Kid A",
-                    coverArt = CoverArtRef(coverArtId, "test:$coverArtId"),
-                    artwork = artworkColorsFromSeed(Color.rgb(120, 80, 200)),
-                    onBack = {},
-                    onQueue = {},
-                    onPlayPause = {},
-                    onNext = {},
-                    onPrevious = {},
-                    onSeek = {},
-                    modifier = Modifier.fillMaxSize(),
-                )
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
+                MaeksterTheme {
+                    NowPlayingScreen(
+                        state = state,
+                        positionMs = 62_000,
+                        title = "Kid A",
+                        coverArt = CoverArtRef(coverArtId, "test:$coverArtId"),
+                        artwork = artworkColorsFromSeed(Color.rgb(120, 80, 200)),
+                        onBack = {},
+                        onQueue = {},
+                        onPlayPause = {},
+                        onNext = {},
+                        onPrevious = {},
+                        onSeek = {},
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
         awaitText("Everything In Its Right Place")

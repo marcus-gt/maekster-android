@@ -586,7 +586,7 @@ fun NowPlayingScreen(
                                                 ?.let { artistSubtitle(it.artist, it.artists) }
                                                 .orEmpty(),
                                         style = subtitleStyle,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = MaterialTheme.colorScheme.primary,
                                         maxLines = 1,
                                         modifier = Modifier.basicMarquee(),
                                     )

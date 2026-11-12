@@ -387,6 +387,9 @@ Part N gives artist discography shelves a persisted artist-origin title for norm
 playback, including requests waiting for connection. Album references and gain context are retained;
 Undo keeps the title. Generic mixed references without an explicit origin retain their fallback.
 See `docs/handoffs/M2.7-shelf-origin.md`. Shuffled truncation and player styling remain.
+Part O accents the Now Playing artist credit with the artwork theme's primary color, matching
+its active controls and retaining the established artist touch target. A new 2× font render
+joins the existing normal player screenshot. See `docs/handoffs/M2.7-player-accent.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
