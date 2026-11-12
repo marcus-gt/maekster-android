@@ -7,6 +7,51 @@ import org.junit.Test
 
 class ShufflePrefixTest {
     @Test
+    fun persistenceRestoresTheOriginalDomainAndSparseRemovals() {
+        val state = ShuffleState.restore(Long.MIN_VALUE, 31, "0,4,17,30")!!
+        val prefix = ShufflePrefix(state, 12)
+        assertEquals("1|-9223372036854775808|31|12|0,4,17,30", prefix.encode())
+        val restored = ShufflePrefix.decode(prefix.encode())!!
+        assertEquals(prefix.size, restored.size)
+        (0L until prefix.size).forEach {
+            assertEquals(prefix.flatFor(it), restored.flatFor(it))
+            assertEquals(it, restored.playFor(restored.flatFor(it)!!))
+        }
+        assertNull(restored.flatFor(12))
+        assertEquals(prefix.encode(), restored.encode())
+    }
+
+    @Test
+    fun emptyAndHugePrefixesRoundTripWithoutEnumeratingPositions() {
+        for (count in listOf(0L, 1L, 800_000_001L)) {
+            val original = ShufflePrefix(ShuffleState(Long.MAX_VALUE, 1_000_000_000), count)
+            val restored = ShufflePrefix.decode(original.encode())!!
+            assertEquals(count, restored.size)
+            if (count > 0) assertEquals(original.flatFor(count - 1), restored.flatFor(count - 1))
+        }
+    }
+
+    @Test
+    fun invalidPersistenceNeverCreatesAnotherPermutation() {
+        for (encoded in listOf(
+            "",
+            "2|42|10|3|",
+            "1|x|10|3|",
+            "1|42|10|-1|",
+            "1|42|10|11|",
+            "1|42|10|10|1",
+            "1|42|10|3|1,1",
+            "1|42|10|3|10",
+            "1|42|10|3|2,1",
+            "1|42|10|3|x",
+            "1|42|10|3",
+            "1|42|10|3||",
+        )) {
+            assertNull(encoded, ShufflePrefix.decode(encoded))
+        }
+    }
+
+    @Test
     fun persistedRemovalDataRejectsInvalidCoordinates() {
         for (encoded in listOf("x", "-1", "10", "2,2", "3,1", "1,")) {
             assertNull(ShuffleState.restore(42, 10, encoded))
