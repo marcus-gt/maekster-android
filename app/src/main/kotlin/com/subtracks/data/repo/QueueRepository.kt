@@ -562,12 +562,13 @@ class QueueRepository(
         shuffleSeed: Long? = null,
         upNext: List<QueueEntry> = emptyList(),
         upNextAnchor: Long = 0,
+        sourceLabel: String? = null,
     ) {
         write(entries)
         writeUpNext(upNext)
         setShuffle(shuffleSeed)
         cursorMutex.withLock {
-            dao.setCursor(cursorRow().copy(queuePosition = 0, positionMs = 0, upNextAnchor = upNextAnchor))
+            dao.setCursor(cursorRow().copy(queuePosition = 0, positionMs = 0, upNextAnchor = upNextAnchor, sourceLabel = sourceLabel))
         }
     }
 
@@ -898,6 +899,8 @@ class QueueRepository(
     suspend fun cursor(): Long = dao.cursor()?.queuePosition ?: 0
 
     suspend fun cursorPositionMs(): Long = dao.cursor()?.positionMs ?: 0
+
+    suspend fun sourceLabel(): String? = dao.cursor()?.sourceLabel
 
     suspend fun setPosition(positionMs: Long) =
         cursorMutex.withLock {

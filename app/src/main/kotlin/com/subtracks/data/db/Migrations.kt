@@ -816,6 +816,13 @@ val MIGRATION_43_44 =
         }
     }
 
+val MIGRATION_44_45 =
+    object : Migration(44, 45) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL("ALTER TABLE playback_cursor ADD COLUMN sourceLabel TEXT")
+        }
+    }
+
 internal fun artistSearchTriggersOptimized(connection: SQLiteConnection): Boolean {
     val triggers = mutableListOf<String>()
     connection.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name IN (?, ?)").use { statement ->
@@ -900,4 +907,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_41_42,
         MIGRATION_42_43,
         MIGRATION_43_44,
+        MIGRATION_44_45,
     )

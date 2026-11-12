@@ -28,6 +28,28 @@ class MigrationsTest {
             .sorted()
 
     @Test
+    fun sourceLabelMigrationKeepsTheExistingPlaybackCursor() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 44)
+                connection.execSQL(
+                    "INSERT INTO playback_cursor (id, queuePosition, positionMs, shuffleEnabled, repeatMode, " +
+                        "shuffleSeed, shuffleSize, upNextAnchor) VALUES (1, 12, 3456, 1, 2, 42, 100, 7)",
+                )
+                MIGRATION_44_45.migrate(connection)
+                connection
+                    .prepare(
+                        "SELECT queuePosition, positionMs, shuffleEnabled, repeatMode, shuffleSeed, shuffleSize, " +
+                            "upNextAnchor, sourceLabel FROM playback_cursor WHERE id = 1",
+                    ).use { row ->
+                        assertTrue(row.step())
+                        assertEquals(listOf(12L, 3456L, 1L, 2L, 42L, 100L, 7L), (0..6).map { row.getLong(it) })
+                        assertTrue(row.isNull(7))
+                    }
+            }
+        }
+
+    @Test
     fun everyExportedVersionIsCoveredByAContiguousMigrationChain() {
         val chain = MIGRATIONS.sortedBy { it.startVersion }
         assertEquals(versions.dropLast(1), chain.map { it.startVersion })

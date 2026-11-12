@@ -371,6 +371,10 @@ errors never skip. One skip message per run, and no claim that a song was delete
 that; Android makes no request). Controller and classification tests with three mutation checks.
 See `docs/handoffs/M2.7-unplayable-skip.md`. Still open: shuffled truncation, persisted source labels and
 remaining player styling.
+Part K adds source-label storage: nullable `playback_cursor.sourceLabel` (schema 45), passed to queue
+replacement and retained by cursor edits. Existing queues migrate with no label; unlabeled replacement
+clears the previous label. Controller, Undo and UI integration remain unfinished.
+See `docs/handoffs/M2.7-source-label-storage.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

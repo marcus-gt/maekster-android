@@ -44,6 +44,25 @@ class QueueRepositoryTest {
     }
 
     @Test
+    fun sourceLabelSurvivesRepositoryRecreationAndEditsAndClearsForANewQueue() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1")), sourceLabel = "Album · Kid A")
+            repository = QueueRepository(db)
+            assertEquals("Album · Kid A", repository.sourceLabel())
+            repository.setCursor(1)
+            repository.setPosition(1234)
+            repository.setRepeat(2)
+            repository.setShuffle(42)
+            assertEquals("Album · Kid A", repository.sourceLabel())
+            repository.setShuffle(null)
+            assertTrue(repository.clearUpcoming(repository.snapshot(), 1))
+            assertEquals("Album · Kid A", repository.sourceLabel())
+            repository.replace(listOf(repository.albumEntry(1, "al2")))
+            assertEquals(null, repository.sourceLabel())
+        }
+
+    @Test
     fun clearUpcomingKeepsTheCurrentContextTrackAndItsPosition() =
         runTest {
             seedLibrary()

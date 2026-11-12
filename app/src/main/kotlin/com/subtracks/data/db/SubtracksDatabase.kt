@@ -68,7 +68,7 @@ import com.subtracks.data.model.UpNextEntry
         Pin::class,
         SearchHistoryEntry::class,
     ],
-    version = 44,
+    version = 45,
     exportSchema = true,
 )
 @ColumnTypeConverters(
