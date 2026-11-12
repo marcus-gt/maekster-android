@@ -85,6 +85,14 @@ data class ArtworkSeedValue(
 class UserPreferences(
     private val store: DataStore<Preferences>,
 ) {
+    fun homeLayout(): Flow<HomeLayout> = store.data.map { HomeLayout.decode(it[homeLayoutKey]) }
+
+    suspend fun setHomeLayout(layout: HomeLayout) {
+        store.edit { it[homeLayoutKey] = layout.encode() }
+    }
+
+    private val homeLayoutKey = stringPreferencesKey("home_layout")
+
     fun listQuery(tab: LibraryListTab): Flow<ListQuery> = store.data.map { prefs -> decode(prefs[listQueryKey(tab)], tab.defaultSort) }
 
     suspend fun setListQuery(

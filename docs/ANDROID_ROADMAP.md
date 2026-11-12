@@ -269,7 +269,11 @@ Playlists list. DAO and screen tests (with a mutation check), build, 1,210 tests
 shelf, More and opening a playlist. See `docs/handoffs/M2.5-your-playlists.md`.
 Part B adds Favorite albums after Your playlists: up to 10 locally mirrored favorites, newest star first, with album menus
 and More opening a paged favorites list. Build, full unit suite, lint and screenshot recording pass; normal/2× font UI tests
-include a mutation check. See `docs/handoffs/M2.5-favorite-albums.md`. Configurable sections and pins have not started.
+include a mutation check. See `docs/handoffs/M2.5-favorite-albums.md`.
+Part C adds show/hide/reorder for existing online Home sections from Application > Home sections, persisted in DataStore,
+with Reset, Save and Cancel. Default order and offline downloaded shelves are unchanged. Build, full unit suite and lint
+pass; the order test fails when Home ignores the saved layout. See `docs/handoffs/M2.5-home-sections.md`.
+Carousel/grid layouts and pins have not started.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

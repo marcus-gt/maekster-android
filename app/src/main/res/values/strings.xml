@@ -2,6 +2,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">mækster</string>
     <string name="home_section_favorite_albums">Favorite albums</string>
+    <string name="settings_home_sections">Home sections</string>
+    <string name="settings_home_reset">Reset to default</string>
+    <string name="settings_home_up">Move up</string>
+    <string name="settings_home_down">Move down</string>
+    <string name="settings_home_save">Save</string>
     <string name="download_channel_description">Progress while songs download</string>
     <string name="sync_notification_channel">Sync</string>
     <string name="sync_notification_title">Syncing library</string>

@@ -81,6 +81,7 @@ import com.subtracks.UiMessage
 import com.subtracks.UiMessages
 import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
+import com.subtracks.data.prefs.HomeLayout
 import com.subtracks.data.prefs.MAX_REPLAY_GAIN_PREAMP_DB
 import com.subtracks.data.prefs.MIN_REPLAY_GAIN_PREAMP_DB
 import com.subtracks.data.prefs.ReplayGainMode
@@ -134,6 +135,7 @@ private enum class SettingsDialog {
     ReplayGainPreamp,
     SortNames,
     Theme,
+    Home,
 }
 
 @Composable
@@ -168,6 +170,7 @@ fun SettingsRoute(
     val sortNameMode by viewModel.sortNameMode.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val materialYou by viewModel.materialYou.collectAsStateWithLifecycle()
+    val homeLayout by viewModel.homeLayout.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     SettingsScreen(
@@ -187,6 +190,8 @@ fun SettingsRoute(
         sortNameMode = sortNameMode,
         themeMode = themeMode,
         materialYou = materialYou,
+        homeLayout = homeLayout,
+        onHomeLayoutChange = viewModel::setHomeLayout,
         keepScreenOn = keepScreenOn,
         offline = offline,
         verboseLogging = verboseLogging,
@@ -257,6 +262,8 @@ fun SettingsScreen(
     sortNameMode: SortNameMode = SortNameMode.Name,
     themeMode: ThemeMode = ThemeMode.System,
     materialYou: Boolean = false,
+    homeLayout: HomeLayout = HomeLayout(),
+    onHomeLayoutChange: (HomeLayout) -> Unit = {},
     materialYouAvailable: Boolean = materialYouSupported,
     onSelectSource: (Long) -> Unit,
     onEditServer: (Long) -> Unit,
@@ -355,6 +362,12 @@ fun SettingsScreen(
                                 onCheckedChange = onMaterialYouChange,
                             )
                         }
+                    }
+                    item {
+                        ActionRow(title = stringResource(R.string.settings_home_sections), icon = Icons.Rounded.Palette, onClick = {
+                            dialog =
+                                SettingsDialog.Home
+                        })
                     }
                     item { SectionHeader(stringResource(R.string.settings_library_name)) }
                     item {
@@ -562,6 +575,10 @@ fun SettingsScreen(
                 onSelect = onSortNameModeChange,
                 onDismiss = { dialog = null },
             )
+        }
+
+        SettingsDialog.Home -> {
+            HomeLayoutDialog(homeLayout, onHomeLayoutChange, onDismiss = { dialog = null })
         }
 
         SettingsDialog.Theme -> {

@@ -10,7 +10,9 @@ import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
+import com.subtracks.data.prefs.HomeLayout
 import com.subtracks.data.prefs.PlaylistSort
+import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.data.repo.rediscoverCutoff
@@ -57,7 +59,10 @@ class HomeViewModel(
     private val sourceRepository: SourceRepository,
     private val syncManager: SyncManager,
     private val playbackController: PlaybackController,
+    userPreferences: UserPreferences,
 ) : ViewModel() {
+    val homeLayout = userPreferences.homeLayout().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeLayout())
+
     /** True while a sync the user asked for is running, so pull to refresh can show it. */
     val refreshing: StateFlow<Boolean> =
         syncManager.status

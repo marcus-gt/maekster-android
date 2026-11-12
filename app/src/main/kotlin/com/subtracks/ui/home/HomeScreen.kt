@@ -81,6 +81,8 @@ import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
+import com.subtracks.data.prefs.HomeLayout
+import com.subtracks.data.prefs.HomeShelf
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.ArtistArt
@@ -229,8 +231,10 @@ private fun HomeFeedContent(
         )
     } else {
         val feed by viewModel.feed.collectAsStateWithLifecycle()
+        val layout by viewModel.homeLayout.collectAsStateWithLifecycle()
         HomeScreen(
             feed = feed,
+            layout = layout,
             coverArt = viewModel::coverArt,
             artistArt = { viewModel.artistArt(it) },
             playingSongId = playingSongId,
@@ -269,6 +273,7 @@ fun HomeScreen(
     onGenreClick: (String) -> Unit = {},
     onDecadeClick: (Long) -> Unit = {},
     onSync: () -> Unit = {},
+    layout: HomeLayout = HomeLayout(),
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         if (feed.loading) {
@@ -289,69 +294,60 @@ fun HomeScreen(
             contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
         ) {
             homeTitle()
-            yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore)
-            albumRow(HomeSection.FavoriteAlbums, feed.favoriteAlbums, coverArt, onAlbumClick, onLongClick, onMore)
-            albumRow(
-                HomeSection.RecentlyAddedAlbums,
-                feed.recentlyAddedAlbums,
-                coverArt,
-                onAlbumClick,
-                onLongClick,
-                onMore,
-            )
-            artistRow(
-                HomeSection.RecentlyPlayedArtists,
-                feed.recentlyPlayedArtists,
-                coverArt,
-                artistArt,
-                onArtistClick,
-                onLongClick,
-                onMore,
-            )
-            homeSongs(
-                HomeSection.RecentlyStarredSongs,
-                feed.recentlyStarredSongs,
-                coverArt,
-                playingSongId,
-                onPlayStarred,
-                onLongClick,
-                onMore,
-            )
-            albumRow(
-                HomeSection.MostPlayedAlbums,
-                feed.mostPlayedAlbums,
-                coverArt,
-                onAlbumClick,
-                onLongClick,
-                onMore,
-            )
-            genreBlock(HomeSection.Genres, feed.genres, onGenreClick, onMore)
-            albumRow(
-                HomeSection.RecentlyPlayedAlbums,
-                feed.recentlyPlayedAlbums,
-                coverArt,
-                onAlbumClick,
-                onLongClick,
-                onMore,
-            )
-            artistRow(
-                HomeSection.MostPlayedArtists,
-                feed.mostPlayedArtists,
-                coverArt,
-                artistArt,
-                onArtistClick,
-                onLongClick,
-                onMore,
-            )
-            decadeRow(HomeSection.Decades, feed.decades, onDecadeClick, onMore)
-            albumRow(
-                HomeSection.Rediscover,
-                feed.rediscoverAlbums,
-                coverArt,
-                onAlbumClick,
-                onLongClick,
-                onMore,
-            )
+            for (shelf in layout.visible) {
+                if (shelf == HomeShelf.YourPlaylists) {
+                    yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore)
+                    continue
+                }
+                val section = HomeSection.valueOf(shelf.name)
+                when (shelf) {
+                    HomeShelf.YourPlaylists -> {
+                        Unit
+                    }
+
+                    HomeShelf.RecentlyPlayedArtists, HomeShelf.MostPlayedArtists -> {
+                        artistRow(
+                            section,
+                            if (shelf ==
+                                HomeShelf.RecentlyPlayedArtists
+                            ) {
+                                feed.recentlyPlayedArtists
+                            } else {
+                                feed.mostPlayedArtists
+                            },
+                            coverArt,
+                            artistArt,
+                            onArtistClick,
+                            onLongClick,
+                            onMore,
+                        )
+                    }
+
+                    HomeShelf.RecentlyStarredSongs -> {
+                        homeSongs(section, feed.recentlyStarredSongs, coverArt, playingSongId, onPlayStarred, onLongClick, onMore)
+                    }
+
+                    HomeShelf.Genres -> {
+                        genreBlock(section, feed.genres, onGenreClick, onMore)
+                    }
+
+                    HomeShelf.Decades -> {
+                        decadeRow(section, feed.decades, onDecadeClick, onMore)
+                    }
+
+                    else -> {
+                        val albums =
+                            when (shelf) {
+                                HomeShelf.FavoriteAlbums -> feed.favoriteAlbums
+                                HomeShelf.RecentlyAddedAlbums -> feed.recentlyAddedAlbums
+                                HomeShelf.MostPlayedAlbums -> feed.mostPlayedAlbums
+                                HomeShelf.RecentlyPlayedAlbums -> feed.recentlyPlayedAlbums
+                                else -> feed.rediscoverAlbums
+                            }
+                        albumRow(section, albums, coverArt, onAlbumClick, onLongClick, onMore)
+                    }
+                }
+            }
         }
     }
 }

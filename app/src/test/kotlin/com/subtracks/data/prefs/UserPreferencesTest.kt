@@ -18,6 +18,37 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class UserPreferencesTest {
     @Test
+    fun homeLayoutPersistsVisibilityAndOrderAcrossReaders() =
+        runTest {
+            val file = File.createTempFile("home-layout", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val prefs = UserPreferences(store)
+            assertEquals(HomeLayout(), prefs.homeLayout().first())
+            val custom = HomeLayout().move(HomeShelf.FavoriteAlbums, -1).show(HomeShelf.Genres, false)
+            prefs.setHomeLayout(custom)
+            assertEquals(custom, UserPreferences(store).homeLayout().first())
+            store.edit { it[stringPreferencesKey("home_layout")] = "FavoriteAlbums,FavoriteAlbums,Unknown|Genres,Unknown" }
+            val recovered = prefs.homeLayout().first()
+            assertEquals(HomeShelf.entries.size, recovered.order.distinct().size)
+            assertEquals(setOf(HomeShelf.Genres), recovered.hidden)
+            assertEquals(HomeShelf.YourPlaylists, recovered.order.first())
+            prefs.setHomeLayout(HomeLayout())
+            assertEquals(HomeLayout(), prefs.homeLayout().first())
+            file.delete()
+        }
+
+    @Test
+    fun homeLayoutCodecRecoversMalformedAndMissingSections() {
+        assertEquals(HomeLayout(), HomeLayout.decode("broken"))
+        assertEquals(HomeLayout(), HomeLayout.decode(null))
+        val custom = HomeLayout().move(HomeShelf.Rediscover, -10).show(HomeShelf.YourPlaylists, false)
+        assertEquals(custom, HomeLayout.decode(custom.encode()))
+        assertEquals(HomeShelf.Rediscover, custom.visible.first())
+        assertEquals(custom, custom.move(HomeShelf.Rediscover, -1))
+        assertEquals(emptyList<HomeShelf>(), HomeLayout(hidden = HomeShelf.entries.toSet()).visible)
+    }
+
+    @Test
     fun listQueryRoundTripsPerTab() =
         runTest {
             val file = File.createTempFile("user-prefs", ".preferences_pb").apply { delete() }

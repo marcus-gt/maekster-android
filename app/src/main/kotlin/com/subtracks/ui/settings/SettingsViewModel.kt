@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.subtracks.data.model.Source
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
+import com.subtracks.data.prefs.HomeLayout
 import com.subtracks.data.prefs.ReplayGainMode
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StreamQuality
@@ -100,6 +101,12 @@ class SettingsViewModel(
         userPreferences
             .materialYou()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    val homeLayout = userPreferences.homeLayout().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeLayout())
+
+    fun setHomeLayout(layout: HomeLayout) {
+        viewModelScope.launch { userPreferences.setHomeLayout(layout) }
+    }
 
     val offline: StateFlow<Boolean> = sourceRepository.offline
 
