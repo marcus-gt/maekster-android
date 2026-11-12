@@ -2,12 +2,15 @@ package com.subtracks.ui.home
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.Surface
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.model.Album
@@ -114,7 +117,19 @@ class HomeLayoutTest {
         rule.setContent { MaeksterTheme { HomeLayoutDialog(HomeLayout(), { saved = it }, {}) } }
         rule.onNodeWithContentDescription("Your playlists").performClick()
         rule.onRoot().captureRoboImage("src/test/screenshots/home_sections.png")
-        rule.onNodeWithContentDescription("Your playlists: Move down").performClick()
+        rule.onNodeWithText("Move up").assertDoesNotExist()
+        rule.onNodeWithText("Move down").assertDoesNotExist()
+        val handle = rule.onNodeWithContentDescription("Reorder Your playlists")
+        val target = rule.onNodeWithContentDescription("Reorder Favorite albums")
+        val distance =
+            target
+                .fetchSemanticsNode()
+                .boundsInRoot.center.y -
+                handle
+                    .fetchSemanticsNode()
+                    .boundsInRoot.center.y
+        handle.performTouchInput { swipe(center, center + Offset(0f, distance), durationMillis = 800) }
+        rule.waitForIdle()
         rule.onNodeWithText("Save").performClick()
         assertEquals(HomeShelf.FavoriteAlbums, saved!!.order.first())
         assertTrue(HomeShelf.YourPlaylists in saved.hidden)

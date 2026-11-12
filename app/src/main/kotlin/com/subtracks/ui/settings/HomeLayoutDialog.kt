@@ -1,12 +1,15 @@
 package com.subtracks.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -18,13 +21,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.subtracks.R
 import com.subtracks.data.prefs.HomeLayout
 import com.subtracks.data.prefs.HomeShelf
 import com.subtracks.ui.home.HomeSection
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
 internal fun HomeLayoutDialog(
@@ -33,12 +40,21 @@ internal fun HomeLayoutDialog(
     onDismiss: () -> Unit,
 ) {
     var draft by remember { mutableStateOf(layout.normalized()) }
+    val listState = rememberLazyListState()
+    val reorderState =
+        rememberReorderableLazyListState(listState) { from, to ->
+            val shelf = draft.order.firstOrNull { it.name == from.key }
+            val target = draft.order.indexOfFirst { it.name == to.key }
+            if (shelf != null && target >= 0) {
+                draft = draft.move(shelf, target - draft.order.indexOf(shelf))
+            }
+        }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings_home_sections)) },
         text = {
-            LazyColumn {
-                item {
+            LazyColumn(state = listState) {
+                item(key = "reset") {
                     TextButton(onClick = { draft = HomeLayout() }) { Text(stringResource(R.string.settings_home_reset)) }
                 }
                 itemsIndexed(draft.order, key = { _, shelf -> shelf.name }) { index, shelf ->
@@ -54,26 +70,47 @@ internal fun HomeLayoutDialog(
                         )
                     val upLabel = stringResource(R.string.settings_home_up)
                     val downLabel = stringResource(R.string.settings_home_down)
-                    Column {
+                    val reorderLabel = stringResource(R.string.settings_home_reorder, title)
+                    ReorderableItem(reorderState, key = shelf.name) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Icon(
+                                Icons.Rounded.DragHandle,
+                                contentDescription = reorderLabel,
+                                modifier =
+                                    Modifier
+                                        .size(48.dp)
+                                        .draggableHandle()
+                                        .semantics {
+                                            customActions =
+                                                buildList {
+                                                    if (index > 0) {
+                                                        add(
+                                                            CustomAccessibilityAction(upLabel) {
+                                                                draft = draft.move(shelf, -1)
+                                                                true
+                                                            },
+                                                        )
+                                                    }
+                                                    if (index <
+                                                        draft.order.lastIndex
+                                                    ) {
+                                                        add(
+                                                            CustomAccessibilityAction(downLabel) {
+                                                                draft =
+                                                                    draft.move(shelf, 1)
+                                                                ; true
+                                                            },
+                                                        )
+                                                    }
+                                                }
+                                        },
+                            )
                             Text(title, modifier = Modifier.weight(1f))
                             Switch(
                                 checked = shelf !in draft.hidden,
                                 onCheckedChange = { draft = draft.show(shelf, it) },
                                 modifier = Modifier.semantics { contentDescription = title },
                             )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(
-                                enabled = index > 0,
-                                onClick = { draft = draft.move(shelf, -1) },
-                                modifier = Modifier.weight(1f).semantics { contentDescription = "$title: " + upLabel },
-                            ) { Text(stringResource(R.string.settings_home_up)) }
-                            TextButton(
-                                enabled = index < draft.order.lastIndex,
-                                onClick = { draft = draft.move(shelf, 1) },
-                                modifier = Modifier.weight(1f).semantics { contentDescription = "$title: " + downLabel },
-                            ) { Text(stringResource(R.string.settings_home_down)) }
                         }
                     }
                 }
