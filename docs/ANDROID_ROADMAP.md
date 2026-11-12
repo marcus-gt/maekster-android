@@ -364,6 +364,13 @@ description stays "Pause" with the status as state; the mini-player spinner foll
 delay is replaced. Virtual-time, controller and UI tests with mutations; full build/tests/lint pass.
 See `docs/handoffs/M2.7-waiting-states.md`. Still open: shuffled truncation, persisted source labels, bounded
 failing-item skips and remaining player styling.
+Part J is done: player errors carry a typed failure. Item-specific ones (HTTP 404/410, a missing file, an
+undecodable or unsupported stream) skip forward with the normal Next rules while playback is wanted, at most 5 in a
+row, then pause with an explanation; a track that plays, or a user transport action, ends the run. Auth and server
+errors never skip. One skip message per run, and no claim that a song was deleted (iOS needs a server not-found for
+that; Android makes no request). Controller and classification tests with three mutation checks.
+See `docs/handoffs/M2.7-unplayable-skip.md`. Still open: shuffled truncation, persisted source labels and
+remaining player styling.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

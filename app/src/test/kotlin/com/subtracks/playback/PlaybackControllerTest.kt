@@ -1912,6 +1912,154 @@ class PlaybackControllerTest {
         assertEquals("The server refused to stream this track.", playbackErrorMessage(refused).resolve(resources))
     }
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    @Test
+    fun onlyItemSpecificErrorsCountAsUnplayable() {
+        fun http(status: Int) =
+            PlaybackException(
+                "http",
+                androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException(
+                    status,
+                    null,
+                    null,
+                    emptyMap(),
+                    androidx.media3.datasource.DataSpec(android.net.Uri.EMPTY),
+                    ByteArray(0),
+                ),
+                PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+            )
+
+        fun code(errorCode: Int) = playbackFailure(PlaybackException("e", null, errorCode))
+        assertEquals(PlaybackFailure.Unplayable, playbackFailure(http(404)))
+        assertEquals(PlaybackFailure.Unplayable, playbackFailure(http(410)))
+        assertEquals(PlaybackFailure.Other, playbackFailure(http(401)))
+        assertEquals(PlaybackFailure.Other, playbackFailure(http(403)))
+        assertEquals(PlaybackFailure.Other, playbackFailure(http(500)))
+        assertEquals(PlaybackFailure.Other, code(PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS))
+        assertEquals(PlaybackFailure.Unplayable, code(PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED))
+        assertEquals(PlaybackFailure.Unplayable, code(PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED))
+        assertEquals(PlaybackFailure.Unplayable, code(PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND))
+        assertEquals(PlaybackFailure.Network, code(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED))
+        assertEquals(PlaybackFailure.Other, code(PlaybackException.ERROR_CODE_UNSPECIFIED))
+    }
+
+    private fun failUnplayable() = handle.failItem(UiMessage(R.string.playback_error_refused), PlaybackFailure.Unplayable)
+
+    @Test
+    fun anUnplayableTrackIsSkippedAndPlaybackContinues() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await {
+            controller.state.value.item
+                ?.id == "s1" && handle.playWhenReady
+        }
+
+        failUnplayable()
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+
+        assertTrue(handle.playWhenReady)
+        await { messages.isNotEmpty() }
+        assertEquals(listOf("Couldn't play “Song 1”, so it was skipped."), messages.toList())
+    }
+
+    @Test
+    fun aRunOfUnplayableTracksStopsAfterFiveSkips() {
+        seedAlbum(10, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await {
+            controller.state.value.item
+                ?.id == "s1" && handle.playWhenReady
+        }
+
+        for (track in 2..6) {
+            failUnplayable()
+            await {
+                controller.state.value.item
+                    ?.id == "s$track"
+            }
+        }
+        failUnplayable()
+        await { !handle.playWhenReady }
+
+        assertEquals(
+            "s6",
+            controller.state.value.item
+                ?.id,
+        )
+        await { messages.size == 2 }
+        assertEquals(
+            listOf(
+                "Couldn't play “Song 1”, so it was skipped.",
+                "Playback stopped: several tracks in a row couldn't be played.",
+            ),
+            messages.toList(),
+        )
+    }
+
+    @Test
+    fun aTrackThatPlaysStartsANewRun() {
+        seedAlbum(10, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await {
+            controller.state.value.item
+                ?.id == "s1" && handle.playWhenReady
+        }
+        for (track in 2..6) {
+            failUnplayable()
+            await {
+                controller.state.value.item
+                    ?.id == "s$track"
+            }
+        }
+
+        handle.becomeReady()
+        failUnplayable()
+        await {
+            controller.state.value.item
+                ?.id == "s7"
+        }
+
+        assertTrue(handle.playWhenReady)
+        await { messages.size == 2 }
+        assertEquals("Couldn't play “Song 6”, so it was skipped.", messages.last())
+    }
+
+    @Test
+    fun otherFailuresAndTheLastTrackAreReportedWithoutSkipping() {
+        seedAlbum(2, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await {
+            controller.state.value.item
+                ?.id == "s1" && handle.playWhenReady
+        }
+
+        handle.failItem(UiMessage(R.string.playback_error_refused), PlaybackFailure.Other)
+        await { messages.size == 1 }
+        assertEquals(
+            "s1",
+            controller.state.value.item
+                ?.id,
+        )
+
+        controller.next()
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+        failUnplayable()
+        await { messages.size == 2 }
+
+        assertEquals(
+            "s2",
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals("The server refused to stream this track.", messages.last())
+    }
+
     @Test
     fun startingAnEmptyQueueStopsThePlayer() {
         seedAlbum(3, sourceId = 1)

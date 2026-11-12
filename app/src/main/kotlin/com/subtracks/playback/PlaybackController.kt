@@ -164,6 +164,7 @@ class PlaybackController(
     private var stallJob: Job? = null
     private val waitingIndicator = PlaybackWaitingIndicator(scope) { refresh() }
     private var stalled = false
+    private var unplayableRun = 0
     private val startLock = Mutex()
 
     private var snapshot: QueueSnapshot? = null
@@ -756,6 +757,7 @@ class PlaybackController(
 
     fun togglePlayPause() {
         playbackIntentVersion++
+        unplayableRun = 0
         val player = player ?: return
         networkRetry?.let { retry ->
             networkRetry = null
@@ -781,6 +783,11 @@ class PlaybackController(
     }
 
     fun next() {
+        unplayableRun = 0
+        advance()
+    }
+
+    private fun advance() {
         val snapshot = snapshot ?: return
         if (snapshot.size == 0L) return
         val current = currentPosition() ?: return
@@ -921,6 +928,7 @@ class PlaybackController(
     }
 
     fun previous() {
+        unplayableRun = 0
         val player = player ?: return
         if (player.currentPositionMs > RESTART_THRESHOLD_MS) {
             scope.launch {
@@ -1129,6 +1137,7 @@ class PlaybackController(
         startPosition: Long,
         disableShuffle: Boolean = false,
     ) {
+        unplayableRun = 0
         if (player == null) {
             pendingPlay = PendingPlay(entries, startPosition, disableShuffle)
             connect()
@@ -1601,7 +1610,10 @@ class PlaybackController(
                 refresh()
             }
 
-            override fun onError(message: UiMessage) {
+            override fun onError(
+                message: UiMessage,
+                failure: PlaybackFailure,
+            ) {
                 val player = player
                 val sourceId = queueSourceId
                 val position = currentPosition()
@@ -1615,10 +1627,39 @@ class PlaybackController(
                     } else {
                         null
                     }
-                showMessage(message)
+                if (failure != PlaybackFailure.Unplayable || !skipUnplayable()) showMessage(message)
                 refresh()
             }
         }
+
+    /**
+     * Moves past an item that cannot be played, as iOS does for unavailable songs, but only while playback is
+     * wanted and only for [MAX_UNPLAYABLE_SKIPS] items in a row, so a queue where nothing plays stops instead of
+     * racing through. It never says the song was deleted: that needs the server to confirm it. Returns false
+     * when it did nothing, so the caller reports the original error.
+     */
+    private fun skipUnplayable(): Boolean {
+        val player = player ?: return false
+        val snapshot = snapshot ?: return false
+        val current = currentPosition() ?: return false
+        if (!player.playWhenReady || snapshot.size == 0L) return false
+        if (!snapshot.isUpNext(current) && nextPosition(snapshot, current) == null) {
+            unplayableRun = 0
+            return false
+        }
+        unplayableRun++
+        if (unplayableRun > MAX_UNPLAYABLE_SKIPS) {
+            unplayableRun = 0
+            player.pause()
+            showMessage(UiMessage(R.string.playback_unplayable_stopped))
+            return true
+        }
+        if (unplayableRun == 1) {
+            showMessage(UiMessage(R.string.playback_unplayable_skipped, listOf(player.currentItem?.title.orEmpty())))
+        }
+        advance()
+        return true
+    }
 
     internal suspend fun retryNetworkPlayback() =
         startLock.withLock {
@@ -1734,6 +1775,8 @@ class PlaybackController(
 
     private fun refresh(position: Long? = currentPosition()) {
         val player = player ?: return
+        // A track that actually plays ends a run of unplayable ones.
+        if (player.isPlaying && !player.isIdle && !player.isBuffering) unplayableRun = 0
         updateBuffering()
         val durationMs =
             player.durationMs.takeIf { it > 0 }
@@ -1800,6 +1843,7 @@ class PlaybackController(
         const val POSITION_TICK_MS = 500L
         const val POSITION_SAVE_INTERVAL_MS = 15_000L
         const val STALL_WATCHDOG_MS = 15_000L
+        const val MAX_UNPLAYABLE_SKIPS = 5
         const val QUEUE_WINDOW_RADIUS = 25L
         const val WINDOW_SHIFT_DELAY_MS = 400L
         const val RESTART_THRESHOLD_MS = 3_000L

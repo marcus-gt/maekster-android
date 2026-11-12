@@ -3,6 +3,18 @@ package com.subtracks.playback
 import com.subtracks.UiMessage
 import com.subtracks.data.model.AudioEncoding
 
+/** What a playback error says about the item, so recovery can choose between retrying, skipping and stopping. */
+enum class PlaybackFailure {
+    /** The route to the server failed; the same item may play once the network returns. */
+    Network,
+
+    /** This item cannot be played (not found or undecodable), but others in the queue may be fine. */
+    Unplayable,
+
+    /** Anything else, including refused or failing servers, which would fail for every item alike. */
+    Other,
+}
+
 interface PlayerHandle {
     val itemCount: Int
     val currentIndex: Int
@@ -78,7 +90,10 @@ interface PlayerHandle {
 
         fun onEvents()
 
-        fun onError(message: UiMessage) {
+        fun onError(
+            message: UiMessage,
+            failure: PlaybackFailure = PlaybackFailure.Other,
+        ) {
         }
     }
 }

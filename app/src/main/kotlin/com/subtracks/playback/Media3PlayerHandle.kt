@@ -9,6 +9,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.session.MediaController
 import com.subtracks.R
 import com.subtracks.UiMessage
@@ -161,7 +162,7 @@ class Media3PlayerHandle(
                             "position=${controller.currentPosition} duration=${duration(controller.duration)}",
                         error,
                     )
-                    listener.onError(playbackErrorMessage(error))
+                    listener.onError(playbackErrorMessage(error), playbackFailure(error))
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -339,6 +340,40 @@ internal fun queueMediaItem(
     }
     return builder.build()
 }
+
+/**
+ * Item-specific failures: the stream or file is gone (HTTP 404/410, a missing local file) or the audio cannot be
+ * read. Auth and server errors (401, 403, 5xx) would fail every item alike, so they are not item-specific.
+ */
+@androidx.annotation.OptIn(UnstableApi::class)
+internal fun playbackFailure(error: PlaybackException): PlaybackFailure =
+    when (error.errorCode) {
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+        -> {
+            PlaybackFailure.Network
+        }
+
+        PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> {
+            val status = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+            if (status == 404 || status == 410) PlaybackFailure.Unplayable else PlaybackFailure.Other
+        }
+
+        PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND,
+        PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+        PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+        PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+        PlaybackException.ERROR_CODE_DECODING_FAILED,
+        PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
+        PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+        -> {
+            PlaybackFailure.Unplayable
+        }
+
+        else -> {
+            PlaybackFailure.Other
+        }
+    }
 
 internal fun playbackErrorMessage(error: PlaybackException): UiMessage =
     when (error.errorCode) {

@@ -241,6 +241,17 @@ class FakePlayerHandle : PlayerHandle {
 
     fun fail(message: UiMessage) = listeners.forEach { it.onError(message) }
 
+    /** As Media3 does on an item error: the player goes idle but keeps its play intent. */
+    fun failItem(
+        message: UiMessage,
+        failure: PlaybackFailure,
+    ) {
+        idle = true
+        playing = false
+        buffering = false
+        listeners.forEach { it.onError(message, failure) }
+    }
+
     fun startBuffering() {
         idle = false
         ended = false
