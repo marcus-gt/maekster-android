@@ -295,6 +295,12 @@ shows every pin offline; Android keeps its downloaded-only offline rule. iOS has
 added. DAO and UI tests with mutation checks, build, full unit suite and lint pass. M2.5 now lacks only Artist picks,
 which needs M3.2 inputs. See `docs/handoffs/M2.5-offline-pins.md`.
 
+**M2.6 status (12 Nov 2026):** in progress. Part A is done: search results in each type rank by title, exact, then
+prefix, then contains, then a match only in another field, in SQL ahead of the 50-result limit, so an exact title is
+never cut off. Matching is unchanged (FTS5 trigram). The rank folds ASCII case only, not diacritics (iOS folds both).
+DAO tests with a mutation check, build, full unit suite and lint pass. Next: scope chips and a top result (Part B),
+then recent searches per server (Part C). See `docs/handoffs/M2.6-search-ranking.md`.
+
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
   skip to downloaded). Process death during playback, then restore. Lyrics with Navidrome-embedded LRC and LRCLIB fallback.

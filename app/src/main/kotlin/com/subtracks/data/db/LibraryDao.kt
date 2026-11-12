@@ -228,6 +228,27 @@ internal const val SONG_SEARCH_FILTER =
     "(length(:search) >= $SEARCH_MIN_LENGTH AND songs.rowid IN (SELECT rowid FROM song_search " +
         "WHERE song_search MATCH '\"' || replace(:search, '\"', '\"\"') || '\"'))"
 
+// Search ranks by the title as iOS does: exact, then prefix, then contains, then a match only in another
+// field (an artist, a sort name). Ranked before LIMIT so an exact title is never cut off. lower() folds
+// ASCII only, so other scripts rank case-sensitively; matching itself stays the FTS trigram match.
+private const val SEARCH_TERM = "lower(:search)"
+internal const val ALBUM_SEARCH_RANK =
+    "CASE WHEN lower(albums.name) = $SEARCH_TERM THEN 0 " +
+        "WHEN substr(lower(albums.name), 1, length(:search)) = $SEARCH_TERM THEN 1 " +
+        "WHEN instr(lower(albums.name), $SEARCH_TERM) > 0 THEN 2 ELSE 3 END"
+internal const val ARTIST_SEARCH_RANK =
+    "CASE WHEN lower(artists.name) = $SEARCH_TERM THEN 0 " +
+        "WHEN substr(lower(artists.name), 1, length(:search)) = $SEARCH_TERM THEN 1 " +
+        "WHEN instr(lower(artists.name), $SEARCH_TERM) > 0 THEN 2 ELSE 3 END"
+internal const val PLAYLIST_SEARCH_RANK =
+    "CASE WHEN lower(playlists.name) = $SEARCH_TERM THEN 0 " +
+        "WHEN substr(lower(playlists.name), 1, length(:search)) = $SEARCH_TERM THEN 1 " +
+        "WHEN instr(lower(playlists.name), $SEARCH_TERM) > 0 THEN 2 ELSE 3 END"
+internal const val SONG_SEARCH_RANK =
+    "CASE WHEN lower(songs.title) = $SEARCH_TERM THEN 0 " +
+        "WHEN substr(lower(songs.title), 1, length(:search)) = $SEARCH_TERM THEN 1 " +
+        "WHEN instr(lower(songs.title), $SEARCH_TERM) > 0 THEN 2 ELSE 3 END"
+
 internal val ARTIST_AGGREGATES_SQL =
     "WITH credited AS (SELECT DISTINCT * FROM ($CREDITED_SONG_ROWS)), " +
         "credited_albums AS ($CREDITED_ALBUM_ROWS), " +
@@ -515,7 +536,7 @@ interface LibraryDao {
 
     @Query(
         "SELECT * FROM albums WHERE sourceId = :sourceId AND $ALBUM_SEARCH_FILTER " +
-            "ORDER BY $ALBUM_ORDER_BY_NAME_SORT_MODE LIMIT :limit",
+            "ORDER BY $ALBUM_SEARCH_RANK, $ALBUM_ORDER_BY_NAME_SORT_MODE LIMIT :limit",
     )
     fun searchAlbums(
         sourceId: Long,
@@ -526,7 +547,7 @@ interface LibraryDao {
 
     @Query(
         "SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND $ARTIST_SEARCH_FILTER AND $ARTIST_CREDITED " +
-            "ORDER BY $ARTIST_ORDER_BY_NAME_SORT_MODE LIMIT :limit",
+            "ORDER BY $ARTIST_SEARCH_RANK, $ARTIST_ORDER_BY_NAME_SORT_MODE LIMIT :limit",
     )
     fun searchArtists(
         sourceId: Long,
@@ -537,7 +558,7 @@ interface LibraryDao {
 
     @Query(
         "SELECT * FROM playlists WHERE sourceId = :sourceId AND $PLAYLIST_SEARCH_FILTER " +
-            "ORDER BY name COLLATE NOCASE, id LIMIT :limit",
+            "ORDER BY $PLAYLIST_SEARCH_RANK, name COLLATE NOCASE, id LIMIT :limit",
     )
     fun searchPlaylists(
         sourceId: Long,
@@ -549,7 +570,7 @@ interface LibraryDao {
         "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
             "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
             "WHERE songs.sourceId = :sourceId AND $SONG_SEARCH_FILTER " +
-            "ORDER BY $SONG_SEARCH_ORDER_SORT_MODE LIMIT :limit",
+            "ORDER BY $SONG_SEARCH_RANK, $SONG_SEARCH_ORDER_SORT_MODE LIMIT :limit",
     )
     fun searchSongs(
         sourceId: Long,

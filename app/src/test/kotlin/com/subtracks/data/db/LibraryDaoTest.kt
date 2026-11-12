@@ -1371,6 +1371,74 @@ class LibraryDaoTest {
         }
 
     @Test
+    fun searchRanksExactThenPrefixThenContainsThenOtherFields() =
+        runTest {
+            val sourceId = source()
+            val dao = db.libraryDao()
+            dao.upsertAlbums(
+                listOf(
+                    album(sourceId, "other", "Aardvark", year = null, starred = null).copy(albumArtist = "Life Band"),
+                    album(sourceId, "contains", "A Day in the Life", year = null, starred = null),
+                    album(sourceId, "prefix", "Lifehouse", year = null, starred = null),
+                    album(sourceId, "exact", "Life", year = null, starred = null),
+                ),
+            )
+            dao.upsertArtists(
+                listOf(
+                    artist(sourceId, "contains", "Afterlife", albumCount = 1),
+                    artist(sourceId, "prefix", "Lifehouse", albumCount = 1),
+                    artist(sourceId, "exact", "LIFE", albumCount = 1),
+                ),
+            )
+            dao.upsertPlaylists(
+                listOf(
+                    playlist(sourceId, "contains", "A Good Life", created = 0, changed = 0),
+                    playlist(sourceId, "prefix", "Life Songs", created = 0, changed = 0),
+                    playlist(sourceId, "exact", "life", created = 0, changed = 0),
+                ),
+            )
+            dao.upsertSongs(
+                listOf(
+                    song(sourceId, "other", "Aaa", starred = null).copy(artist = "Lifehouse"),
+                    song(sourceId, "contains", "Another Life", starred = null),
+                    song(sourceId, "prefix", "Life on Mars", starred = null),
+                    song(sourceId, "exact", "Life", starred = null),
+                ),
+            )
+
+            assertEquals(
+                listOf("exact", "prefix", "contains", "other"),
+                dao.searchAlbums(sourceId, "life", 50).first().map { it.id },
+            )
+            assertEquals(listOf("exact", "prefix", "contains"), dao.searchArtists(sourceId, "Life", 50).first().map { it.id })
+            assertEquals(listOf("exact", "prefix", "contains"), dao.searchPlaylists(sourceId, "LIFE", 50).first().map { it.id })
+            assertEquals(
+                listOf("exact", "prefix", "contains", "other"),
+                dao.searchSongs(sourceId, "life", 50).first().map { it.song.id },
+            )
+        }
+
+    @Test
+    fun anExactTitleSurvivesTheResultLimit() =
+        runTest {
+            val sourceId = source()
+            val dao = db.libraryDao()
+            dao.upsertAlbums(
+                (1..60).map { album(sourceId, "a$it", "A life %02d".format(it), year = null, starred = null) } +
+                    album(sourceId, "exact", "Life", year = null, starred = null),
+            )
+
+            assertEquals(
+                "exact",
+                dao
+                    .searchAlbums(sourceId, "life", 50)
+                    .first()
+                    .first()
+                    .id,
+            )
+        }
+
+    @Test
     fun crossTypeSearchIgnoresQueriesShorterThanThreeCharacters() =
         runTest {
             val sourceId = source()
