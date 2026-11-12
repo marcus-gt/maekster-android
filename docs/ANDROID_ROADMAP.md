@@ -295,7 +295,7 @@ shows every pin offline; Android keeps its downloaded-only offline rule. iOS has
 added. DAO and UI tests with mutation checks, build, full unit suite and lint pass. M2.5 now lacks only Artist picks,
 which needs M3.2 inputs. See `docs/handoffs/M2.5-offline-pins.md`.
 
-**M2.6 status (12 Nov 2026):** in progress. Part A is done: search results in each type rank by title, exact, then
+**M2.6 status (12 Nov 2026):** complete. Part A is done: search results in each type rank by title, exact, then
 prefix, then contains, then a match only in another field, in SQL ahead of the 50-result limit, so an exact title is
 never cut off. Matching is unchanged (FTS5 trigram). The rank folds ASCII case only, not diacritics (iOS folds both).
 DAO tests with a mutation check, build, full unit suite and lint pass. Next: scope chips and a top result (Part B),
@@ -307,8 +307,11 @@ See `docs/handoffs/M2.6-search-scopes.md`.
 Part C is done: as on iOS, Search remembers the albums, artists and playlists opened from it (50 per server,
 newest first) and lists them as Recent when the field is empty, with Clear behind a confirmation. Room schema 44
 adds `search_history` (cascade on server delete, D6); names resolve from the mirror. DAO, ViewModel, screen and
-migration tests with mutation checks. Follow-up found: offline Search (results and history) still covers the whole
-mirror, where iOS shows only what is available offline. See `docs/handoffs/M2.6-search-history.md`.
+migration tests with mutation checks. See `docs/handoffs/M2.6-search-history.md`.
+Part D is done: offline Search results and Recent now show only completed downloads, using offline Library
+availability rules and SQL filters before limits. Mode and download changes update the flows. The regression
+failed before the fix; debug build, full unit suite, formatting and lint pass. No layout or schema change.
+See `docs/handoffs/M2.6-offline-search.md`. Next: M2.7 Player and queue parity.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

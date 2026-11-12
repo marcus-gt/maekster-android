@@ -92,7 +92,8 @@ class LibraryRepository(
         }
     }
 
-    fun searchHistory(sourceId: Long): Flow<List<PinnedItem>> = db.searchHistoryDao().recent(sourceId)
+    fun searchHistory(sourceId: Long): Flow<List<PinnedItem>> =
+        sourceRepository.offline.flatMapLatest { downloaded -> db.searchHistoryDao().recent(sourceId, downloaded = downloaded) }
 
     suspend fun recordSearchVisit(
         ref: PinRef,
@@ -201,30 +202,36 @@ class LibraryRepository(
         sourceId: Long,
         query: String,
     ): Flow<List<Album>> =
-        userPreferences.sortNameMode().flatMapLatest { mode ->
-            db.libraryDao().searchAlbums(sourceId, query, SEARCH_RESULT_LIMIT, mode.name)
-        }
+        combine(userPreferences.sortNameMode(), sourceRepository.offline) { mode, downloaded -> mode to downloaded }
+            .flatMapLatest { (mode, downloaded) ->
+                db.libraryDao().searchAlbums(sourceId, query, SEARCH_RESULT_LIMIT, mode.name, downloaded)
+            }
 
     fun searchArtists(
         sourceId: Long,
         query: String,
     ): Flow<List<Artist>> =
-        userPreferences.sortNameMode().flatMapLatest { mode ->
-            db.libraryDao().searchArtists(sourceId, query, SEARCH_RESULT_LIMIT, mode.name)
-        }
+        combine(userPreferences.sortNameMode(), sourceRepository.offline) { mode, downloaded -> mode to downloaded }
+            .flatMapLatest { (mode, downloaded) ->
+                db.libraryDao().searchArtists(sourceId, query, SEARCH_RESULT_LIMIT, mode.name, downloaded)
+            }
 
     fun searchPlaylists(
         sourceId: Long,
         query: String,
-    ): Flow<List<Playlist>> = db.libraryDao().searchPlaylists(sourceId, query, SEARCH_RESULT_LIMIT)
+    ): Flow<List<Playlist>> =
+        sourceRepository.offline.flatMapLatest { downloaded ->
+            db.libraryDao().searchPlaylists(sourceId, query, SEARCH_RESULT_LIMIT, downloaded)
+        }
 
     fun searchSongs(
         sourceId: Long,
         query: String,
     ): Flow<List<AlbumSongItem>> =
-        userPreferences.sortNameMode().flatMapLatest { mode ->
-            db.libraryDao().searchSongs(sourceId, query, SEARCH_RESULT_LIMIT, mode.name)
-        }
+        combine(userPreferences.sortNameMode(), sourceRepository.offline) { mode, downloaded -> mode to downloaded }
+            .flatMapLatest { (mode, downloaded) ->
+                db.libraryDao().searchSongs(sourceId, query, SEARCH_RESULT_LIMIT, mode.name, downloaded)
+            }
 
     fun downloadedAlbumsPage(sourceId: Long): Flow<PagingData<Album>> = pager(40) { db.libraryDao().downloadedAlbums(sourceId) }
 

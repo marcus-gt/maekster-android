@@ -54,11 +54,15 @@ interface SearchHistoryDao {
             "LEFT JOIN playlists ON h.kind = 'Playlist' AND playlists.sourceId = h.sourceId AND playlists.id = h.refId " +
             "LEFT JOIN artists ON h.kind = 'Artist' AND artists.sourceId = h.sourceId AND artists.id = h.refId " +
             "WHERE h.sourceId = :sourceId AND COALESCE(albums.id, playlists.id, artists.id) IS NOT NULL " +
+            "AND (:downloaded = 0 OR (h.kind = 'Album' AND $SEARCH_ALBUM_DOWNLOADED) " +
+            "OR (h.kind = 'Artist' AND $SEARCH_ARTIST_DOWNLOADED) " +
+            "OR (h.kind = 'Playlist' AND $SEARCH_PLAYLIST_DOWNLOADED)) " +
             "ORDER BY h.visitedAt DESC, h.rowid DESC LIMIT :limit",
     )
     fun recent(
         sourceId: Long,
         limit: Int = SEARCH_HISTORY_LIMIT,
+        downloaded: Boolean = false,
     ): Flow<List<PinnedItem>>
 
     @Query("DELETE FROM search_history WHERE sourceId = :sourceId")

@@ -536,47 +536,51 @@ interface LibraryDao {
 
     @Query(
         "SELECT * FROM albums WHERE sourceId = :sourceId AND $ALBUM_SEARCH_FILTER " +
-            "ORDER BY $ALBUM_SEARCH_RANK, $ALBUM_ORDER_BY_NAME_SORT_MODE LIMIT :limit",
+            "AND (:downloaded = 0 OR $SEARCH_ALBUM_DOWNLOADED) ORDER BY $ALBUM_SEARCH_RANK, $ALBUM_ORDER_BY_NAME_SORT_MODE LIMIT :limit",
     )
     fun searchAlbums(
         sourceId: Long,
         search: String,
         limit: Int,
         sortMode: String = "",
+        downloaded: Boolean = false,
     ): Flow<List<Album>>
 
     @Query(
         "SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND $ARTIST_SEARCH_FILTER AND $ARTIST_CREDITED " +
-            "ORDER BY $ARTIST_SEARCH_RANK, $ARTIST_ORDER_BY_NAME_SORT_MODE LIMIT :limit",
+            "AND (:downloaded = 0 OR $SEARCH_ARTIST_DOWNLOADED) ORDER BY $ARTIST_SEARCH_RANK, $ARTIST_ORDER_BY_NAME_SORT_MODE LIMIT :limit",
     )
     fun searchArtists(
         sourceId: Long,
         search: String,
         limit: Int,
         sortMode: String = "",
+        downloaded: Boolean = false,
     ): Flow<List<Artist>>
 
     @Query(
         "SELECT * FROM playlists WHERE sourceId = :sourceId AND $PLAYLIST_SEARCH_FILTER " +
-            "ORDER BY $PLAYLIST_SEARCH_RANK, name COLLATE NOCASE, id LIMIT :limit",
+            "AND (:downloaded = 0 OR $SEARCH_PLAYLIST_DOWNLOADED) ORDER BY $PLAYLIST_SEARCH_RANK, name COLLATE NOCASE, id LIMIT :limit",
     )
     fun searchPlaylists(
         sourceId: Long,
         search: String,
         limit: Int,
+        downloaded: Boolean = false,
     ): Flow<List<Playlist>>
 
     @Query(
         "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
             "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
             "WHERE songs.sourceId = :sourceId AND $SONG_SEARCH_FILTER " +
-            "ORDER BY $SONG_SEARCH_RANK, $SONG_SEARCH_ORDER_SORT_MODE LIMIT :limit",
+            "AND (:downloaded = 0 OR $SEARCH_SONG_DOWNLOADED) ORDER BY $SONG_SEARCH_RANK, $SONG_SEARCH_ORDER_SORT_MODE LIMIT :limit",
     )
     fun searchSongs(
         sourceId: Long,
         search: String,
         limit: Int,
         sortMode: String = "",
+        downloaded: Boolean = false,
     ): Flow<List<AlbumSongItem>>
 
     @Query(

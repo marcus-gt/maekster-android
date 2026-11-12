@@ -131,6 +131,56 @@ class SearchViewModelTest {
         runBlocking { withTimeout(5_000) { viewModel.history.first { it.isEmpty() } } }
     }
 
+    @Test
+    fun offlineSearchAndHistoryFollowCompletedDownloadsAndModeChanges() =
+        runBlocking {
+            val id = sourceRepository.addSource("nav", "http://localhost/", "u", "p", false)
+            db.libraryDao().upsertAlbums(listOf(album(id, "al-1", "Road Album")))
+            db.libraryDao().upsertArtists(listOf(artist(id, "ar-1", "Road Artist")))
+            db.libraryDao().upsertPlaylists(listOf(playlist(id, "pl-1", "Road Playlist")))
+            db.libraryDao().upsertSongs(listOf(song(id, "s1", "Road Song")))
+            db.libraryDao().upsertPlaylistSongs(
+                listOf(
+                    com.subtracks.data.model
+                        .PlaylistSong(id, "pl-1", "s1", 0),
+                ),
+            )
+            for ((kind, ref) in listOf(PinKind.Album to "al-1", PinKind.Artist to "ar-1", PinKind.Playlist to "pl-1")) {
+                fixture.libraryRepository.recordSearchVisit(PinRef(id, kind, ref))
+            }
+            sourceRepository.setOfflineMode(true)
+            withTimeout(5_000) { sourceRepository.offline.first { it } }
+            val library = fixture.libraryRepository
+            assertTrue(library.searchAlbums(id, "road").first().isEmpty())
+            assertTrue(library.searchArtists(id, "road").first().isEmpty())
+            assertTrue(library.searchPlaylists(id, "road").first().isEmpty())
+            assertTrue(library.searchSongs(id, "road").first().isEmpty())
+            assertTrue(library.searchHistory(id).first().isEmpty())
+            db.downloadDao().upsert(
+                com.subtracks.data.model
+                    .SongDownload(id, "s1", com.subtracks.data.model.DownloadStatus.Queued),
+            )
+            assertTrue(library.searchSongs(id, "road").first().isEmpty())
+            db.downloadDao().upsert(
+                com.subtracks.data.model
+                    .SongDownload(id, "s1", com.subtracks.data.model.DownloadStatus.Completed),
+            )
+            assertEquals(1, library.searchAlbums(id, "road").first().size)
+            assertEquals(1, library.searchArtists(id, "road").first().size)
+            assertEquals(1, library.searchPlaylists(id, "road").first().size)
+            assertEquals(1, library.searchSongs(id, "road").first().size)
+            assertEquals(3, library.searchHistory(id).first().size)
+            db.downloadDao().upsert(
+                com.subtracks.data.model
+                    .SongDownload(id, "s1", com.subtracks.data.model.DownloadStatus.Failed),
+            )
+            viewModel.setQuery("road")
+            withTimeout(5_000) { viewModel.results.first { !it.loading && it.isEmpty } }
+            sourceRepository.setOfflineMode(false)
+            withTimeout(5_000) { viewModel.results.first { it.songs.size == 1 } }
+            assertEquals(3, library.searchHistory(id).first().size)
+        }
+
     private fun album(
         sourceId: Long,
         id: String,
