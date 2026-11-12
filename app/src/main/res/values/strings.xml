@@ -3,6 +3,10 @@
     <string name="app_name" translatable="false">mækster</string>
     <string name="home_section_favorite_albums">Favorite albums</string>
     <string name="home_pinned">Pinned</string>
+    <string name="playback_origin_streaming">Streaming</string>
+    <string name="playback_origin_downloaded">Downloaded</string>
+    <string name="playback_origin_transcoding">Transcoding</string>
+    <string name="playback_sample_rate">%1$s kHz</string>
     <string name="pin_to_home">Pin to Home</string>
     <string name="unpin_from_home">Unpin from Home</string>
     <string name="settings_home_sections">Home sections</string>

@@ -317,7 +317,13 @@ See `docs/handoffs/M2.6-offline-search.md`.
 `PlaybackState`, refreshed on player events, including encoding changes and unknown values; it clears when
 there is no current item. This prepares the format line without guessing transcoding from synced metadata.
 Controller regression with a failing mutation, debug build, full unit suite, formatting and lint pass.
-See `docs/handoffs/M2.7-audio-encoding-state.md`. Next: visible format/source line with playback-origin tracking.
+See `docs/handoffs/M2.7-audio-encoding-state.md`.
+Part B is done: Now Playing shows the loaded item's source (Streaming, Transcoding or Downloaded) and
+actual decoder codec, bitrate and sample rate below the scrubber. Origin travels in media metadata across
+the session, so current preferences/download status cannot mislabel a loaded item. Unknown details are
+omitted; no source-file bit depth is claimed for decoded audio. Media-item/controller/UI tests, mutation,
+full build/tests/lint and normal/2× font renders pass. See `docs/handoffs/M2.7-format-line.md`.
+Next: M2.7 queue Clear upcoming and snackbar Undo, or playback recovery as a bounded subtask.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

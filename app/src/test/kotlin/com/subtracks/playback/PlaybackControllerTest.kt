@@ -138,15 +138,17 @@ class PlaybackControllerTest {
             com.subtracks.data.model
                 .AudioEncoding("audio/flac", sampleRate = 96000, channels = 2)
         handle.audioEncoding = original
+        handle.playbackOrigin = PlaybackOrigin.Downloaded
         handle.emitEvents()
-        await { controller.state.value.audioEncoding == original }
+        await { controller.state.value.audioEncoding == original && controller.state.value.playbackOrigin == PlaybackOrigin.Downloaded }
 
         val transcoded =
             com.subtracks.data.model
                 .AudioEncoding("audio/mpeg", bitrate = 192000, sampleRate = 44100, channels = 2)
         handle.audioEncoding = transcoded
+        handle.playbackOrigin = PlaybackOrigin.Transcoding
         handle.emitEvents()
-        await { controller.state.value.audioEncoding == transcoded }
+        await { controller.state.value.audioEncoding == transcoded && controller.state.value.playbackOrigin == PlaybackOrigin.Transcoding }
         assertEquals(
             "MP3",
             controller.state.value.audioEncoding
@@ -158,10 +160,14 @@ class PlaybackControllerTest {
         await { controller.state.value.audioEncoding == null }
 
         handle.audioEncoding = original
+        handle.playbackOrigin = PlaybackOrigin.Downloaded
         handle.emitEvents()
-        await { controller.state.value.audioEncoding == original }
+        await { controller.state.value.audioEncoding == original && controller.state.value.playbackOrigin == PlaybackOrigin.Downloaded }
         handle.clear()
-        await { controller.state.value.item == null && controller.state.value.audioEncoding == null }
+        await {
+            controller.state.value.item == null && controller.state.value.audioEncoding == null &&
+                controller.state.value.playbackOrigin == null
+        }
     }
 
     @Test

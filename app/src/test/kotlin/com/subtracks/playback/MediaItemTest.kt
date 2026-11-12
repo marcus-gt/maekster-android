@@ -20,6 +20,28 @@ class MediaItemTest {
         )
 
     @Test
+    fun playbackOriginDescribesTheSelectedUriAndSurvivesMetadataTransport() {
+        val downloaded = queueMediaItem(song, "file:///downloads/s1", "https://server/stream", true)
+        val streamed = queueMediaItem(song, null, "https://server/stream", false)
+        val transcoded = queueMediaItem(song, null, "https://server/stream", true)
+        assertEquals(PlaybackOrigin.Downloaded, downloaded.playbackOrigin())
+        assertEquals(PlaybackOrigin.Streaming, streamed.playbackOrigin())
+        assertEquals(PlaybackOrigin.Transcoding, transcoded.playbackOrigin())
+        val remote =
+            androidx.media3.common.MediaItem
+                .Builder()
+                .setMediaMetadata(downloaded.mediaMetadata)
+                .build()
+        assertEquals(PlaybackOrigin.Downloaded, remote.playbackOrigin())
+        assertEquals(null, queueMediaItem(song, null, null, true).playbackOrigin())
+        assertEquals(
+            null,
+            androidx.media3.common.MediaItem.EMPTY
+                .playbackOrigin(),
+        )
+    }
+
+    @Test
     fun aDownloadedFileIsPreferredOverTheStream() {
         val item = queueMediaItem(song, local = "file:///downloads/1/s1", stream = "http://server/stream?s=s1", transcode = false)
 

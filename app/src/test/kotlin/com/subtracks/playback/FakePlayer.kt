@@ -45,6 +45,9 @@ class FakePlayerHandle : PlayerHandle {
     @Volatile
     override var audioEncoding: com.subtracks.data.model.AudioEncoding? = null
 
+    @Volatile
+    override var playbackOrigin: PlaybackOrigin? = null
+
     override val itemCount: Int get() = items.size
 
     override val currentIndex: Int get() = index

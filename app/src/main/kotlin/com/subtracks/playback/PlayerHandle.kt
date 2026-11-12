@@ -18,6 +18,8 @@ interface PlayerHandle {
     /** The encoding of the audio now being rendered, when the player knows it. */
     val audioEncoding: AudioEncoding? get() = null
 
+    val playbackOrigin: PlaybackOrigin? get() = null
+
     fun setWindow(
         items: List<QueueItem>,
         startIndex: Int,

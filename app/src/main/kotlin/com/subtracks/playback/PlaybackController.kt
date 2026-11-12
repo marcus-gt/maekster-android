@@ -49,6 +49,8 @@ data class QueueContext(
 
 enum class RepeatMode { Off, All, One }
 
+enum class PlaybackOrigin { Downloaded, Streaming, Transcoding }
+
 data class PlaybackState(
     val item: QueueItem? = null,
     val context: QueueContext? = null,
@@ -62,6 +64,7 @@ data class PlaybackState(
     val repeat: RepeatMode = RepeatMode.Off,
     val layout: Long = 0,
     val audioEncoding: AudioEncoding? = null,
+    val playbackOrigin: PlaybackOrigin? = null,
 )
 
 private sealed interface QueueUndo {
@@ -1603,6 +1606,7 @@ class PlaybackController(
                 repeat = repeatMode,
                 layout = layoutVersion,
                 audioEncoding = player.audioEncoding.takeIf { player.currentItem != null },
+                playbackOrigin = player.playbackOrigin.takeIf { player.currentItem != null },
             )
         _positionMs.value = player.currentPositionMs
         if (player.isPlaying) startPositionTicker() else stopPositionTicker()

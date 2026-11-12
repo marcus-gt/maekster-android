@@ -45,6 +45,8 @@ class Media3PlayerHandle(
 
     override val currentItem: QueueItem? get() = controller.currentMediaItem?.let(::toQueueItem)
 
+    override val playbackOrigin: PlaybackOrigin? get() = controller.currentMediaItem.playbackOrigin()
+
     @get:UnstableApi
     override val audioEncoding: AudioEncoding?
         get() =
@@ -247,6 +249,15 @@ internal fun MediaItem.artistRefs(): List<ArtistRef> =
         ?.let(ArtistRefsCodec::decode)
         .orEmpty()
 
+private const val EXTRA_PLAYBACK_ORIGIN = "playbackOrigin"
+
+internal fun MediaItem?.playbackOrigin(): PlaybackOrigin? =
+    this
+        ?.mediaMetadata
+        ?.extras
+        ?.getString(EXTRA_PLAYBACK_ORIGIN)
+        ?.let { name -> PlaybackOrigin.entries.firstOrNull { it.name == name } }
+
 private const val EXTRA_COVER_ART_ID = "coverArtId"
 private const val EXTRA_ARTISTS = "artists"
 private const val EXTRA_DURATION_MS = "durationMs"
@@ -303,6 +314,14 @@ internal fun queueMediaItem(
                     putGain(EXTRA_REPLAY_GAIN_TRACK_PEAK, item.replayGain.trackPeak)
                     putGain(EXTRA_REPLAY_GAIN_ALBUM_PEAK, item.replayGain.albumPeak)
                     putBoolean(EXTRA_ALBUM_CONTEXT, item.albumContext)
+                    val origin =
+                        when {
+                            local != null -> PlaybackOrigin.Downloaded
+                            stream == null -> null
+                            transcode -> PlaybackOrigin.Transcoding
+                            else -> PlaybackOrigin.Streaming
+                        }
+                    putString(EXTRA_PLAYBACK_ORIGIN, origin?.name)
                 },
             ).build()
     val builder =

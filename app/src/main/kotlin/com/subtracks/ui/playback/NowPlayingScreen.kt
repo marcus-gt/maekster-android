@@ -627,6 +627,7 @@ fun NowPlayingScreen(
                             Text(formatTime(positionMs), style = MaterialTheme.typography.bodySmall)
                             Text(formatTime(state.durationMs), style = MaterialTheme.typography.bodySmall)
                         }
+                        PlaybackFormatLine(state, Modifier.fillMaxWidth().padding(top = 6.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
