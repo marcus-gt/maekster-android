@@ -18,6 +18,8 @@ import com.subtracks.data.model.DownloadErrorConverter
 import com.subtracks.data.model.DownloadStatusConverter
 import com.subtracks.data.model.PendingAction
 import com.subtracks.data.model.PendingActionKindConverter
+import com.subtracks.data.model.Pin
+import com.subtracks.data.model.PinKindConverter
 import com.subtracks.data.model.PlaybackCursor
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSearch
@@ -62,11 +64,13 @@ import com.subtracks.data.model.UpNextEntry
         ArtworkSeed::class,
         SongDownload::class,
         PendingAction::class,
+        Pin::class,
     ],
-    version = 42,
+    version = 43,
     exportSchema = true,
 )
 @ColumnTypeConverters(
+    PinKindConverter::class,
     QueueKindConverter::class,
     DownloadStatusConverter::class,
     DownloadErrorConverter::class,
@@ -86,4 +90,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun downloadDao(): DownloadDao
 
     abstract fun pendingActionDao(): PendingActionDao
+
+    abstract fun pinDao(): PinDao
 }

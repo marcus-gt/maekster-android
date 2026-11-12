@@ -276,7 +276,10 @@ pass; the order test fails when Home ignores the saved layout. See `docs/handoff
 Part D adds per-shelf carousel/grid choices for the six online album/playlist cover shelves in the Home sections editor.
 Choices persist in DataStore and older saved layouts keep carousels. Grids wrap bounded Home data; playlist dates/counts,
 card actions and More remain available. Build, full unit suite, lint and screenshot recording pass; grid and editor
-normal/2× renders reviewed, with a mutation check for the grid. See `docs/handoffs/M2.5-home-grid.md`. Pins have not started.
+normal/2× renders reviewed, with a mutation check for the grid. See `docs/handoffs/M2.5-home-grid.md`.
+Part E adds pin persistence: Room schema 43, typed album/playlist/artist references scoped to server, ordered bounded reads,
+duplicate-safe pin/unpin and source-deletion cascade. This is the storage foundation only; context-menu pin actions and
+Home pins remain unfinished. See `docs/handoffs/M2.5-pin-storage.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

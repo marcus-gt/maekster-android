@@ -790,6 +790,18 @@ val MIGRATION_41_42 =
         }
     }
 
+val MIGRATION_42_43 =
+    object : Migration(42, 43) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS pins (sourceId INTEGER NOT NULL, kind TEXT NOT NULL, refId TEXT NOT NULL, " +
+                    "position INTEGER NOT NULL, PRIMARY KEY(sourceId, kind, refId), " +
+                    "FOREIGN KEY(sourceId) REFERENCES sources(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+            connection.execSQL("CREATE INDEX IF NOT EXISTS index_pins_sourceId_position ON pins (sourceId, position)")
+        }
+    }
+
 internal fun artistSearchTriggersOptimized(connection: SQLiteConnection): Boolean {
     val triggers = mutableListOf<String>()
     connection.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name IN (?, ?)").use { statement ->
@@ -872,4 +884,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_39_40,
         MIGRATION_40_41,
         MIGRATION_41_42,
+        MIGRATION_42_43,
     )
