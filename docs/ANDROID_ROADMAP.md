@@ -311,7 +311,13 @@ migration tests with mutation checks. See `docs/handoffs/M2.6-search-history.md`
 Part D is done: offline Search results and Recent now show only completed downloads, using offline Library
 availability rules and SQL filters before limits. Mode and download changes update the flows. The regression
 failed before the fix; debug build, full unit suite, formatting and lint pass. No layout or schema change.
-See `docs/handoffs/M2.6-offline-search.md`. Next: M2.7 Player and queue parity.
+See `docs/handoffs/M2.6-offline-search.md`.
+
+**M2.7 status (12 Nov 2026):** in progress. Part A is done: actual decoder encoding is now part of
+`PlaybackState`, refreshed on player events, including encoding changes and unknown values; it clears when
+there is no current item. This prepares the format line without guessing transcoding from synced metadata.
+Controller regression with a failing mutation, debug build, full unit suite, formatting and lint pass.
+See `docs/handoffs/M2.7-audio-encoding-state.md`. Next: visible format/source line with playback-origin tracking.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

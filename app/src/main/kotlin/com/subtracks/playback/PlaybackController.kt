@@ -61,6 +61,7 @@ data class PlaybackState(
     val shuffle: Boolean = false,
     val repeat: RepeatMode = RepeatMode.Off,
     val layout: Long = 0,
+    val audioEncoding: AudioEncoding? = null,
 )
 
 private sealed interface QueueUndo {
@@ -1601,6 +1602,7 @@ class PlaybackController(
                 shuffle = shuffleEnabled,
                 repeat = repeatMode,
                 layout = layoutVersion,
+                audioEncoding = player.audioEncoding.takeIf { player.currentItem != null },
             )
         _positionMs.value = player.currentPositionMs
         if (player.isPlaying) startPositionTicker() else stopPositionTicker()

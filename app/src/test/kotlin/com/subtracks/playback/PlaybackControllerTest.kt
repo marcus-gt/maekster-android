@@ -128,6 +128,43 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun playbackStateTracksTheActualEncodingIncludingUnknownValues() {
+        seedAlbum(2, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.item != null }
+        assertNull(controller.state.value.audioEncoding)
+
+        val original =
+            com.subtracks.data.model
+                .AudioEncoding("audio/flac", sampleRate = 96000, channels = 2)
+        handle.audioEncoding = original
+        handle.emitEvents()
+        await { controller.state.value.audioEncoding == original }
+
+        val transcoded =
+            com.subtracks.data.model
+                .AudioEncoding("audio/mpeg", bitrate = 192000, sampleRate = 44100, channels = 2)
+        handle.audioEncoding = transcoded
+        handle.emitEvents()
+        await { controller.state.value.audioEncoding == transcoded }
+        assertEquals(
+            "MP3",
+            controller.state.value.audioEncoding
+                ?.format,
+        )
+
+        handle.audioEncoding = null
+        handle.emitEvents()
+        await { controller.state.value.audioEncoding == null }
+
+        handle.audioEncoding = original
+        handle.emitEvents()
+        await { controller.state.value.audioEncoding == original }
+        handle.clear()
+        await { controller.state.value.item == null && controller.state.value.audioEncoding == null }
+    }
+
+    @Test
     fun playingAnAlbumLoadsAWindowAroundTheStart() {
         seedAlbum(60, sourceId = 1)
 
