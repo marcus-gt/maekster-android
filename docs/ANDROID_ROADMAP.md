@@ -443,6 +443,11 @@ Part F implements the isolated LRCLIB HTTPS provider: four-field metadata query 
 identification, cancellable requests, sequential pacing, Retry-After cooldown with jitter, typed
 errors and plain/LRC/instrumental decoding. Instrumental markers round-trip through the cache;
 older payloads remain readable. No runtime/opt-in/settings/UI wiring yet; see `docs/handoffs/M2.8-lrclib-provider.md`.
+Part G adds language/variant selection (locale, explicit choice, synced preference, ISO-3 and
+script/region normalization) and precomputed overflow-safe lyric timing. Highlighting and seek use
+one timeline; provider offset advances lyrics, listener correction delays them. This follows the
+OpenSubsonic sign convention rather than the opposite sign in the iOS reference viewmodel.
+See `docs/handoffs/M2.8-lyrics-selection-timing.md`. Preferences/player wiring remains.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
