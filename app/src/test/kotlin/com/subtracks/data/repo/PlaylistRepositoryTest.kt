@@ -353,6 +353,37 @@ class PlaylistRepositoryTest {
         }
 
     @Test
+    fun preflightFailureRetainsTheMoveButDoesNotAuthorizePartialRecovery() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "c")
+            mirror("p", "a", "b", "c")
+            online = false
+            expect(PlaylistEditException.Reason.Offline) { repository.moveEntry(1, "p", 2, "c", 0) }
+            online = true
+            repository.retryReorder(1, "p")
+            assertEquals(listOf("c", "a", "b"), mirrored("p"))
+            online = false
+            expect(PlaylistEditException.Reason.Offline) { repository.moveEntry(1, "p", 0, "c", 2) }
+            online = true
+            server.put("p", "Mix", "a")
+            expect(PlaylistEditException.Reason.Changed) { repository.retryReorder(1, "p") }
+            assertEquals(1, server.replaced.size)
+        }
+
+    @Test
+    fun retainedRetryUsesTheOriginalOrderAfterTheMirrorWasRefreshed() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "c")
+            mirror("p", "a", "b", "c")
+            server.failNext = FakePlaylistWriter.Failure.AfterFirstSong
+            assertTrue(runCatching { repository.moveEntry(1, "p", 2, "c", 0) }.isFailure)
+            mirror("p", "c")
+            repository.retryReorder(1, "p")
+            assertEquals(listOf("c", "a", "b"), mirrored("p"))
+            expect(PlaylistEditException.Reason.Changed) { repository.retryReorder(1, "p") }
+        }
+
+    @Test
     fun aLostMoveResponseIsReadBackWithoutAnotherReplacement() =
         runTest {
             server.put("p", "Mix", "a", "b", "c")

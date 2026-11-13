@@ -38,6 +38,49 @@ class PlaylistEntryMoverTest {
         }
 
     @Test
+    fun retryUsesTheRecoveryOperationAndCancelForgetsTheFailedMove() =
+        runTest {
+            var calls = 0
+            var retries = 0
+            val finish = CompletableDeferred<Unit>()
+            val mover =
+                PlaylistEntryMover(
+                    backgroundScope,
+                    { _, _, _ ->
+                        calls++
+                        throw IOException("offline")
+                    },
+                    {},
+                    retryMove = {
+                        retries++
+                        finish.await()
+                    },
+                )
+            mover.move(3, "song", 2)
+            runCurrent()
+            mover.move(0, "other", 1)
+            runCurrent()
+            assertEquals(1, calls)
+            mover.retry()
+            runCurrent()
+            mover.retry()
+            mover.dismissFailure()
+            assertTrue(mover.error.value != null)
+            assertTrue(mover.busy.value)
+            finish.complete(Unit)
+            runCurrent()
+            assertEquals(1, retries)
+            assertEquals(null, mover.error.value)
+            mover.move(3, "song", 2)
+            runCurrent()
+            mover.dismissFailure()
+            mover.retry()
+            runCurrent()
+            assertEquals(1, retries)
+            assertEquals(null, mover.error.value)
+        }
+
+    @Test
     fun aFailureReportsAnErrorAndAllowsAnotherAttemptWithoutSuccess() =
         runTest {
             var fail = true
@@ -48,9 +91,11 @@ class PlaylistEntryMoverTest {
             assertFalse(mover.busy.value)
             assertEquals(1, messages.size)
             assertFalse(messages.single() == UiMessage(R.string.playlist_song_moved))
+            assertTrue(mover.error.value != null)
             fail = false
-            mover.move(1, "song", 0)
+            mover.retry()
             runCurrent()
+            assertEquals(null, mover.error.value)
             assertEquals(UiMessage(R.string.playlist_song_moved), messages.last())
         }
 }

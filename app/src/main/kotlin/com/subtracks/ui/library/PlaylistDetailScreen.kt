@@ -43,6 +43,7 @@ import com.subtracks.ui.components.playlistUpdatedText
 import com.subtracks.ui.components.rememberPendingDownloadDelete
 import com.subtracks.ui.playlist.DeletePlaylistRequest
 import com.subtracks.ui.playlist.DeletePlaylistRoute
+import com.subtracks.ui.playlist.PlaylistMoveRecoveryDialog
 import com.subtracks.ui.playlist.RenamePlaylistRequest
 import com.subtracks.ui.playlist.RenamePlaylistRoute
 import com.subtracks.ui.theme.ArtworkColors
@@ -75,6 +76,7 @@ fun PlaylistDetailRoute(
     val totals by viewModel.totals.collectAsStateWithLifecycle()
     val canEdit by viewModel.canEdit.collectAsStateWithLifecycle()
     val moving by viewModel.moving.collectAsStateWithLifecycle()
+    val moveError by viewModel.moveError.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf<RenamePlaylistRequest?>(null) }
     var deleting by remember { mutableStateOf<DeletePlaylistRequest?>(null) }
     CloseWhenDownloadsGone(downloadStatus.downloaded, offline, onBack)
@@ -160,6 +162,9 @@ fun PlaylistDetailRoute(
         onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
     )
 
+    moveError?.let { error ->
+        PlaylistMoveRecoveryDialog(error, moving, canEdit && viewModel.canRetryMove, viewModel::retryMove, viewModel::dismissMoveError)
+    }
     PendingDownloadDeleteConfirmation(pendingDelete) {
         viewModel.onDownloadAction(BulkDownloadAction.Delete)
     }

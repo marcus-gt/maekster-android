@@ -91,7 +91,9 @@ class PlaylistRepository(
     private data class ReorderIntent(
         val shown: List<String>,
         val ordered: List<String>,
-    )
+    ) {
+        var replacementStarted: Boolean = false
+    }
 
     private val reorderMutex = Mutex()
     private val pendingReorders = mutableMapOf<Pair<Long, String>, ReorderIntent>()
@@ -244,8 +246,10 @@ class PlaylistRepository(
         reorderMutex.withLock {
             require(ordered.sorted() == shownSongIds.sorted()) { "A reorder must keep the same songs" }
             val key = sourceId to playlistId
-            val intent = ReorderIntent(shownSongIds.toList(), ordered.toList())
-            val retry = pendingReorders[key] == intent
+            val requested = ReorderIntent(shownSongIds.toList(), ordered.toList())
+            val intent = pendingReorders[key]?.takeIf { it == requested } ?: requested
+            val retry = intent.replacementStarted
+            pendingReorders[key] = intent
             val writer = writer(sourceId)
             val current = fresh(writer, sourceId, playlistId)
             val held = current.songIds()
@@ -254,11 +258,22 @@ class PlaylistRepository(
                 pendingReorders.remove(key)
                 changed(current)
             }
-            pendingReorders[key] = intent
+            intent.replacementStarted = true
             if (held != ordered) writer.replace(playlistId, ordered)
             refresh(writer, sourceId, playlistId)
             pendingReorders.remove(key)
         }
+    }
+
+    /** Retries the retained order, even if a sync has since refreshed the mirror. */
+    suspend fun retryReorder(
+        sourceId: Long,
+        playlistId: String,
+    ) {
+        val intent =
+            reorderMutex.withLock { pendingReorders[sourceId to playlistId] }
+                ?: throw PlaylistEditException(PlaylistEditException.Reason.Changed)
+        reorder(sourceId, playlistId, intent.ordered, intent.shown)
     }
 
     /**

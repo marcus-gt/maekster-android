@@ -85,15 +85,27 @@ class PlaylistDetailViewModel(
         combine(playlist, offline, ownerName, ::canEditPlaylist)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    private var moveSourceId: Long? = null
+
     private val mover =
         PlaylistEntryMover(
             viewModelScope,
             move = { position, songId, destination ->
-                playlists.moveEntry(sourceId.first(), playlistId, position.toInt(), songId, destination)
+                playlists.moveEntry(requireNotNull(moveSourceId), playlistId, position.toInt(), songId, destination)
             },
             showMessage = showMessage,
+            retryMove = { playlists.retryReorder(requireNotNull(moveSourceId), playlistId) },
         )
     val moving = mover.busy
+    val moveError = mover.error
+
+    val canRetryMove: Boolean get() = canEdit.value && playlist.value?.sourceId == moveSourceId
+
+    fun retryMove() {
+        if (canRetryMove) mover.retry()
+    }
+
+    fun dismissMoveError() = mover.dismissFailure()
 
     fun moveFromPlaylist(
         target: com.subtracks.ui.components.MenuTarget.Song,
@@ -104,6 +116,8 @@ class PlaylistDetailViewModel(
         val destination = position + offset
         val count = playlist.value?.songCount ?: return
         if (destination !in 0 until count || destination > Int.MAX_VALUE || position > Int.MAX_VALUE) return
+        if (moving.value || moveError.value != null) return
+        moveSourceId = target.song.sourceId
         mover.move(position, target.song.id, destination.toInt())
     }
 

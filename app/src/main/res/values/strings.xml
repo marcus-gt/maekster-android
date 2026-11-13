@@ -501,6 +501,7 @@
     <string name="playlist_move_up">Move up</string>
     <string name="playlist_move_down">Move down</string>
     <string name="playlist_song_moved">Playlist order updated</string>
+    <string name="playlist_move_failed">Playlist move failed</string>
     <string name="rename_playlist">Rename…</string>
     <string name="rename_playlist_title">Rename playlist</string>
     <string name="rename_playlist_name">Playlist name</string>
