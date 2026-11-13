@@ -14,12 +14,9 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DownloadDone
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +61,8 @@ import com.subtracks.data.model.DownloadStatus
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.ui.components.CoverArt
+import com.subtracks.ui.components.FavoriteHeart
+import com.subtracks.ui.components.LocalQuickPlaylists
 import com.subtracks.ui.components.artistSubtitle
 import com.subtracks.ui.theme.MaeksterControlSize
 
@@ -137,7 +136,7 @@ fun SongRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (download.showsIndicator()) DownloadBadge(download)
-                if (onToggleFavorite != null) FavoriteToggle(song.starred != null, onToggleFavorite)
+                if (onToggleFavorite != null) FavoriteToggle(song, onToggleFavorite)
                 if (durationSeconds != null) TrackTime(durationSeconds)
                 trailingContent?.invoke()
             }
@@ -295,17 +294,18 @@ private fun TrackCell(
 /** A small heart that keeps a full 40dp touch target: outlined, or filled in the accent once a favorite. */
 @Composable
 private fun FavoriteToggle(
-    favorite: Boolean,
+    song: Song,
     onToggle: (Boolean) -> Unit,
 ) {
-    IconButton(onClick = { onToggle(!favorite) }, modifier = Modifier.size(MaeksterControlSize.compact)) {
-        Icon(
-            imageVector = if (favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-            contentDescription = stringResource(if (favorite) R.string.actions_unstar else R.string.actions_star),
-            tint = if (favorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(FAVORITE_ICON_SIZE),
-        )
-    }
+    val favorite = song.starred != null
+    val quickPlaylists = LocalQuickPlaylists.current
+    FavoriteHeart(
+        favorite = favorite,
+        onToggle = { onToggle(!favorite) },
+        buttonSize = MaeksterControlSize.compact,
+        iconSize = FAVORITE_ICON_SIZE,
+        onLongPress = quickPlaylists?.let { open -> { open(song) } },
+    )
 }
 
 private val FAVORITE_ICON_SIZE = 20.dp

@@ -530,7 +530,7 @@ private fun StarItem(
 }
 
 @Composable
-private fun MenuItem(
+internal fun MenuItem(
     icon: ImageVector,
     label: String,
     tint: Color? = null,

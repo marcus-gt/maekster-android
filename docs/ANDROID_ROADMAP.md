@@ -573,6 +573,10 @@ Quick playlists data layer: per-server ordered list (schema 52, `quick_playlists
 toggle/move/remove, and a quick add that skips songs already there and then favorites the song
 (DataStore preference, on by default). Menu, picker and Settings UI remain; see
 `docs/handoffs/M2.9-quick-playlists-data.md`.
+Touch and hold on any song heart (rows and Now Playing, not in offline mode) now opens a quick playlist
+sheet: "Add to <name>" per quick playlist (snackbar result), "Choose quick playlists…" (a ticked picker of
+the user's own playlists) and "Add to playlist…". Settings page remains; see
+`docs/handoffs/M2.9-quick-playlists-menu.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

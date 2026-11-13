@@ -23,8 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PauseCircle
@@ -92,7 +90,9 @@ import com.subtracks.playback.RepeatMode
 import com.subtracks.ui.components.ArtistChooserSheet
 import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.components.CoverArt
+import com.subtracks.ui.components.FavoriteHeart
 import com.subtracks.ui.components.ItemActions
+import com.subtracks.ui.components.LocalQuickPlaylists
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.artistSubtitle
 import com.subtracks.ui.components.prefetchArtworkRatio
@@ -300,6 +300,7 @@ fun NowPlayingRoute(
                 },
         starred = song?.starred != null,
         onToggleStar = song?.let { s -> { setStar(StarType.Song, s.id, s.starred == null) } },
+        onQuickPlaylists = LocalQuickPlaylists.current?.let { open -> song?.let { s -> { open(s) } } },
         onSeek = controller::seekTo,
         keepScreenOn = keepScreenOn,
         modifier = modifier,
@@ -345,6 +346,7 @@ fun NowPlayingScreen(
     onArtistClick: (() -> Unit)? = null,
     starred: Boolean = false,
     onToggleStar: (() -> Unit)? = null,
+    onQuickPlaylists: (() -> Unit)? = null,
     onSeek: (Long) -> Unit,
     thumbnailRef: CoverArtRef? = null,
     previousArt: NowPlayingArt? = null,
@@ -624,19 +626,14 @@ fun NowPlayingScreen(
                                     )
                                 }
                             }
-                            IconButton(onClick = { onToggleStar?.invoke() }, enabled = onToggleStar != null) {
-                                Icon(
-                                    imageVector = if (starred) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = stringResource(if (starred) R.string.actions_unstar else R.string.actions_star),
-                                    tint =
-                                        if (starred) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                    modifier = Modifier.size(32.dp),
-                                )
-                            }
+                            FavoriteHeart(
+                                favorite = starred,
+                                onToggle = { onToggleStar?.invoke() },
+                                enabled = onToggleStar != null,
+                                buttonSize = 48.dp,
+                                iconSize = 32.dp,
+                                onLongPress = onQuickPlaylists,
+                            )
                         }
                         if (lyrics.showCurrentLine && !showLyrics) {
                             CurrentLyricLine(

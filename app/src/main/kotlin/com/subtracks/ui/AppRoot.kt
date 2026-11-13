@@ -90,6 +90,7 @@ import com.subtracks.ui.components.ArtistChooserSheet
 import com.subtracks.ui.components.ArtistInfoDialog
 import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.components.LoadingState
+import com.subtracks.ui.components.LocalQuickPlaylists
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PinMenuRoute
 import com.subtracks.ui.components.PlaylistInfoDialog
@@ -115,6 +116,8 @@ import com.subtracks.ui.playback.NowPlayingRoute
 import com.subtracks.ui.playback.QueueRoute
 import com.subtracks.ui.playlist.AddToPlaylistRequest
 import com.subtracks.ui.playlist.AddToPlaylistRoute
+import com.subtracks.ui.playlist.QuickPlaylistMenuRoute
+import com.subtracks.ui.playlist.QuickPlaylistPickerRoute
 import com.subtracks.ui.search.SearchRoute
 import com.subtracks.ui.settings.AddSourceRoute
 import com.subtracks.ui.settings.LicensesRoute
@@ -313,7 +316,11 @@ private fun MainNavigation() {
     val contextMenuHost = remember { ContextMenuHost() }
     var infoTarget by remember { mutableStateOf<MenuTarget?>(null) }
     var addToPlaylist by remember { mutableStateOf<AddToPlaylistRequest?>(null) }
+    var quickPlaylistSong by remember { mutableStateOf<Song?>(null) }
+    var quickPlaylistPicker by remember { mutableStateOf<Long?>(null) }
     var artistChooser by remember { mutableStateOf<List<ArtistRef>?>(null) }
+    val offlineMode by koinInject<SourceRepository>().offline.collectAsStateWithLifecycle()
+    val openQuickPlaylists = remember(offlineMode) { if (offlineMode) null else { song: Song -> quickPlaylistSong = song } }
 
     val activeSourceId by libraryRepository.activeSourceId.collectAsStateWithLifecycle(initialValue = null)
     var previousSourceId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -398,6 +405,8 @@ private fun MainNavigation() {
             infoTarget = null
             artistChooser = null
             addToPlaylist = null
+            quickPlaylistSong = null
+            quickPlaylistPicker = null
             showingQueue = false
             if (navController.currentDestination?.route in DETAIL_ROUTES) {
                 navController.popBackStack(navController.currentTabNow().root, inclusive = false)
@@ -446,195 +455,311 @@ private fun MainNavigation() {
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
-        Box(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().imePadding()) {
-                NavHost(
-                    navController = navController,
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .consumeWindowInsets(WindowInsets.navigationBars)
-                            .nestedScroll(barVisibility.nestedScrollConnection)
-                            .onSizeChanged { contentHeightPx = it.height },
-                    startDestination = TopLevelTab.Home.graph,
-                    enterTransition = {
-                        slideInHorizontally(initialOffsetX = { it / 4 }, animationSpec = tween(NAVIGATION_DURATION_MS)) +
-                            fadeIn(tween(NAVIGATION_DURATION_MS))
-                    },
-                    exitTransition = {
-                        slideOutHorizontally(targetOffsetX = { -it / 4 }, animationSpec = tween(NAVIGATION_DURATION_MS)) +
-                            fadeOut(tween(NAVIGATION_DURATION_MS))
-                    },
-                    popEnterTransition = {
-                        slideInHorizontally(initialOffsetX = { -it / 4 }, animationSpec = tween(NAVIGATION_DURATION_MS)) +
-                            fadeIn(tween(NAVIGATION_DURATION_MS))
-                    },
-                    popExitTransition = {
-                        slideOutHorizontally(targetOffsetX = { it / 4 }, animationSpec = tween(NAVIGATION_DURATION_MS)) +
-                            fadeOut(tween(NAVIGATION_DURATION_MS))
-                    },
-                ) {
-                    navigation(startDestination = Routes.HOME, route = TopLevelTab.Home.graph) {
-                        composable(Routes.HOME) {
-                            HomeRoute(
-                                onAlbumClick = { album ->
-                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                                },
-                                onArtistClick = { artist ->
-                                    navigateDetail(
-                                        Routes.ARTIST_DETAIL,
-                                        "artistId",
-                                        artist.id,
-                                        Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
-                                    )
-                                },
-                                onPlaylistClick = { playlist ->
-                                    navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
-                                },
-                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                                onViewArtist = { artistId ->
-                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                                },
-                                onMore = { section -> navController.navigate(Routes.homeSection(section)) },
-                                onDownloadedMore = { kind -> navController.navigate(Routes.homeDownloaded(kind)) },
-                                onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
-                                onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
-                                onPlaylistsMore = { navController.navigate(Routes.libraryList(LibraryTab.Playlists)) },
-                                contextMenuHost = contextMenuHost,
-                                setStar = libraryRepository::star,
-                                topInset = statusBarTop,
-                                bottomInset = bottomInset,
-                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                            )
+        CompositionLocalProvider(LocalQuickPlaylists provides openQuickPlaylists) {
+            Box(Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize().imePadding()) {
+                    NavHost(
+                        navController = navController,
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .consumeWindowInsets(WindowInsets.navigationBars)
+                                .nestedScroll(barVisibility.nestedScrollConnection)
+                                .onSizeChanged { contentHeightPx = it.height },
+                        startDestination = TopLevelTab.Home.graph,
+                        enterTransition = {
+                            slideInHorizontally(initialOffsetX = { it / 4 }, animationSpec = tween(NAVIGATION_DURATION_MS)) +
+                                fadeIn(tween(NAVIGATION_DURATION_MS))
+                        },
+                        exitTransition = {
+                            slideOutHorizontally(targetOffsetX = { -it / 4 }, animationSpec = tween(NAVIGATION_DURATION_MS)) +
+                                fadeOut(tween(NAVIGATION_DURATION_MS))
+                        },
+                        popEnterTransition = {
+                            slideInHorizontally(initialOffsetX = { -it / 4 }, animationSpec = tween(NAVIGATION_DURATION_MS)) +
+                                fadeIn(tween(NAVIGATION_DURATION_MS))
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(targetOffsetX = { it / 4 }, animationSpec = tween(NAVIGATION_DURATION_MS)) +
+                                fadeOut(tween(NAVIGATION_DURATION_MS))
+                        },
+                    ) {
+                        navigation(startDestination = Routes.HOME, route = TopLevelTab.Home.graph) {
+                            composable(Routes.HOME) {
+                                HomeRoute(
+                                    onAlbumClick = { album ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                    },
+                                    onArtistClick = { artist ->
+                                        navigateDetail(
+                                            Routes.ARTIST_DETAIL,
+                                            "artistId",
+                                            artist.id,
+                                            Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
+                                        )
+                                    },
+                                    onPlaylistClick = { playlist ->
+                                        navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
+                                    },
+                                    onViewAlbum = { albumId ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId))
+                                    },
+                                    onViewArtist = { artistId ->
+                                        navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                    },
+                                    onMore = { section -> navController.navigate(Routes.homeSection(section)) },
+                                    onDownloadedMore = { kind -> navController.navigate(Routes.homeDownloaded(kind)) },
+                                    onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
+                                    onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
+                                    onPlaylistsMore = { navController.navigate(Routes.libraryList(LibraryTab.Playlists)) },
+                                    contextMenuHost = contextMenuHost,
+                                    setStar = libraryRepository::star,
+                                    topInset = statusBarTop,
+                                    bottomInset = bottomInset,
+                                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                                )
+                            }
                         }
-                    }
-                    navigation(startDestination = Routes.LIBRARY, route = TopLevelTab.Library.graph) {
-                        composable(Routes.LIBRARY) {
-                            LibraryHubRoute(
-                                onOpenEntry = { entry ->
-                                    navController.navigate(entry.list?.let(Routes::libraryList) ?: Routes.FAVORITES)
-                                },
-                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                            )
+                        navigation(startDestination = Routes.LIBRARY, route = TopLevelTab.Library.graph) {
+                            composable(Routes.LIBRARY) {
+                                LibraryHubRoute(
+                                    onOpenEntry = { entry ->
+                                        navController.navigate(entry.list?.let(Routes::libraryList) ?: Routes.FAVORITES)
+                                    },
+                                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                                )
+                            }
+                            composable(Routes.FAVORITES) {
+                                FavoritesRoute(
+                                    onBack = { navController.popBackStack() },
+                                    onAlbumClick = { album ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                    },
+                                    onArtistClick = { artist ->
+                                        navigateDetail(
+                                            Routes.ARTIST_DETAIL,
+                                            "artistId",
+                                            artist.id,
+                                            Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
+                                        )
+                                    },
+                                    onViewAlbum = { albumId ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId))
+                                    },
+                                    onViewArtist = { artistId ->
+                                        navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                    },
+                                    setStar = libraryRepository::star,
+                                    contextMenuHost = contextMenuHost,
+                                )
+                            }
+                            composable(
+                                route = Routes.LIBRARY_LIST,
+                                arguments = listOf(navArgument("list") { type = NavType.StringType }),
+                            ) { entry ->
+                                LibraryListRoute(
+                                    list = libraryTabFor(entry.arguments?.getString("list")),
+                                    onBack = { navController.popBackStack() },
+                                    onAlbumClick = { album ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                    },
+                                    onArtistClick = { artist ->
+                                        navigateDetail(
+                                            Routes.ARTIST_DETAIL,
+                                            "artistId",
+                                            artist.id,
+                                            Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
+                                        )
+                                    },
+                                    onPlaylistClick = { playlist ->
+                                        navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
+                                    },
+                                    onViewAlbum = { albumId ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId))
+                                    },
+                                    onViewArtist = { artistId ->
+                                        navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                    },
+                                    contextMenuHost = contextMenuHost,
+                                    setStar = libraryRepository::star,
+                                    bottomInset = bottomInset,
+                                    onCollectionClick = { kind, name -> navController.navigate(Routes.collection(kind, name)) },
+                                )
+                            }
+                            composable(
+                                route = Routes.COLLECTION,
+                                arguments =
+                                    listOf(
+                                        navArgument("kind") { type = NavType.StringType },
+                                        navArgument("name") { type = NavType.StringType },
+                                    ),
+                            ) { entry ->
+                                val kind =
+                                    AlbumCollectionKind.entries.firstOrNull { it.name == entry.arguments?.getString("kind") }
+                                        ?: return@composable
+                                val name = entry.arguments?.getString("name") ?: return@composable
+                                HomeListRoute(
+                                    request = HomeListRequest(title = name, collection = kind, collectionName = name),
+                                    onBack = { navController.popBackStack() },
+                                    onAlbumClick = { album ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                    },
+                                    onArtistClick = {},
+                                    onViewAlbum = { albumId ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId))
+                                    },
+                                    onViewArtist = { artistId ->
+                                        navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                    },
+                                    onGenreClick = {},
+                                    onDecadeClick = {},
+                                    contextMenuHost = contextMenuHost,
+                                    setStar = libraryRepository::star,
+                                )
+                            }
                         }
-                        composable(Routes.FAVORITES) {
-                            FavoritesRoute(
+                        composable(Routes.SETTINGS) {
+                            SettingsRoute(
+                                onAddServer = { navController.navigate(Routes.ADD_SERVER) },
+                                onOpenDownloads = { navController.navigate(Routes.DOWNLOADS) },
+                                onOpenLicenses = { navController.navigate(Routes.LICENSES) },
+                                onEditServer = { id -> navController.navigate(Routes.editServer(id)) },
                                 onBack = { navController.popBackStack() },
-                                onAlbumClick = { album ->
-                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                                },
-                                onArtistClick = { artist ->
-                                    navigateDetail(
-                                        Routes.ARTIST_DETAIL,
-                                        "artistId",
-                                        artist.id,
-                                        Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
-                                    )
-                                },
-                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                                onViewArtist = { artistId ->
-                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                                },
-                                setStar = libraryRepository::star,
-                                contextMenuHost = contextMenuHost,
+                                dismissals = contextMenuHost.dismissals,
+                                onOpenPage = { page -> navController.navigate(Routes.settingsPage(page)) },
                             )
                         }
                         composable(
-                            route = Routes.LIBRARY_LIST,
-                            arguments = listOf(navArgument("list") { type = NavType.StringType }),
+                            route = Routes.SETTINGS_PAGE,
+                            arguments = listOf(navArgument("page") { type = NavType.StringType }),
                         ) { entry ->
-                            LibraryListRoute(
-                                list = libraryTabFor(entry.arguments?.getString("list")),
+                            val page = settingsPageFor(entry.arguments?.getString("page")) ?: return@composable
+                            SettingsRoute(
+                                onAddServer = { navController.navigate(Routes.ADD_SERVER) },
+                                onOpenDownloads = { navController.navigate(Routes.DOWNLOADS) },
+                                onOpenLicenses = { navController.navigate(Routes.LICENSES) },
+                                onEditServer = { id -> navController.navigate(Routes.editServer(id)) },
                                 onBack = { navController.popBackStack() },
-                                onAlbumClick = { album ->
-                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                                },
-                                onArtistClick = { artist ->
-                                    navigateDetail(
-                                        Routes.ARTIST_DETAIL,
-                                        "artistId",
-                                        artist.id,
-                                        Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
-                                    )
-                                },
-                                onPlaylistClick = { playlist ->
-                                    navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
-                                },
-                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                dismissals = contextMenuHost.dismissals,
+                                page = page,
+                            )
+                        }
+                        composable(Routes.DOWNLOADS) {
+                            DownloadsRoute(
+                                onBack = { navController.popBackStack() },
+                                dismissals = contextMenuHost.dismissals,
+                            )
+                        }
+                        navigation(startDestination = Routes.SEARCH, route = TopLevelTab.Search.graph) {
+                            composable(Routes.SEARCH) {
+                                SearchRoute(
+                                    onAlbumClick = { album ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                    },
+                                    onArtistClick = { artist ->
+                                        navigateDetail(
+                                            Routes.ARTIST_DETAIL,
+                                            "artistId",
+                                            artist.id,
+                                            Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
+                                        )
+                                    },
+                                    onPlaylistClick = { playlist ->
+                                        navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
+                                    },
+                                    onViewAlbum = { albumId ->
+                                        navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId))
+                                    },
+                                    onViewArtist = { artistId ->
+                                        navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                    },
+                                    contextMenuHost = contextMenuHost,
+                                    setStar = libraryRepository::star,
+                                    onBack = null,
+                                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                                )
+                            }
+                        }
+                        composable(Routes.LICENSES) {
+                            LicensesRoute(onBack = { navController.popBackStack() })
+                        }
+                        composable(
+                            route = Routes.ALBUM_DETAIL,
+                            arguments =
+                                listOf(
+                                    navArgument("albumId") { type = NavType.StringType },
+                                    navArgument("coverArt") {
+                                        type = NavType.StringType
+                                        defaultValue = ""
+                                    },
+                                ),
+                        ) { entry ->
+                            AlbumDetailRoute(
+                                albumId = entry.arguments?.getString("albumId").orEmpty(),
+                                coverArtId =
+                                    entry.arguments
+                                        ?.getString("coverArt")
+                                        .orEmpty()
+                                        .ifEmpty { null },
+                                onBack = { navController.popBackStack() },
                                 onViewArtist = { artistId ->
                                     navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
                                 },
                                 contextMenuHost = contextMenuHost,
                                 setStar = libraryRepository::star,
-                                bottomInset = bottomInset,
                                 onCollectionClick = { kind, name -> navController.navigate(Routes.collection(kind, name)) },
                             )
                         }
                         composable(
-                            route = Routes.COLLECTION,
+                            route = Routes.ARTIST_DETAIL,
                             arguments =
                                 listOf(
-                                    navArgument("kind") { type = NavType.StringType },
-                                    navArgument("name") { type = NavType.StringType },
+                                    navArgument("artistId") { type = NavType.StringType },
+                                    navArgument("coverArt") {
+                                        type = NavType.StringType
+                                        defaultValue = ""
+                                    },
                                 ),
                         ) { entry ->
-                            val kind =
-                                AlbumCollectionKind.entries.firstOrNull { it.name == entry.arguments?.getString("kind") }
-                                    ?: return@composable
-                            val name = entry.arguments?.getString("name") ?: return@composable
-                            HomeListRoute(
-                                request = HomeListRequest(title = name, collection = kind, collectionName = name),
+                            ArtistDetailRoute(
+                                artistId = entry.arguments?.getString("artistId").orEmpty(),
+                                coverArtId =
+                                    entry.arguments
+                                        ?.getString("coverArt")
+                                        .orEmpty()
+                                        .ifEmpty { null },
                                 onBack = { navController.popBackStack() },
                                 onAlbumClick = { album ->
                                     navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
                                 },
-                                onArtistClick = {},
                                 onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                                onViewArtist = { artistId ->
-                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                                },
-                                onGenreClick = {},
-                                onDecadeClick = {},
                                 contextMenuHost = contextMenuHost,
                                 setStar = libraryRepository::star,
                             )
                         }
-                    }
-                    composable(Routes.SETTINGS) {
-                        SettingsRoute(
-                            onAddServer = { navController.navigate(Routes.ADD_SERVER) },
-                            onOpenDownloads = { navController.navigate(Routes.DOWNLOADS) },
-                            onOpenLicenses = { navController.navigate(Routes.LICENSES) },
-                            onEditServer = { id -> navController.navigate(Routes.editServer(id)) },
-                            onBack = { navController.popBackStack() },
-                            dismissals = contextMenuHost.dismissals,
-                            onOpenPage = { page -> navController.navigate(Routes.settingsPage(page)) },
-                        )
-                    }
-                    composable(
-                        route = Routes.SETTINGS_PAGE,
-                        arguments = listOf(navArgument("page") { type = NavType.StringType }),
-                    ) { entry ->
-                        val page = settingsPageFor(entry.arguments?.getString("page")) ?: return@composable
-                        SettingsRoute(
-                            onAddServer = { navController.navigate(Routes.ADD_SERVER) },
-                            onOpenDownloads = { navController.navigate(Routes.DOWNLOADS) },
-                            onOpenLicenses = { navController.navigate(Routes.LICENSES) },
-                            onEditServer = { id -> navController.navigate(Routes.editServer(id)) },
-                            onBack = { navController.popBackStack() },
-                            dismissals = contextMenuHost.dismissals,
-                            page = page,
-                        )
-                    }
-                    composable(Routes.DOWNLOADS) {
-                        DownloadsRoute(
-                            onBack = { navController.popBackStack() },
-                            dismissals = contextMenuHost.dismissals,
-                        )
-                    }
-                    navigation(startDestination = Routes.SEARCH, route = TopLevelTab.Search.graph) {
-                        composable(Routes.SEARCH) {
-                            SearchRoute(
+                        composable(
+                            route = Routes.PLAYLIST_DETAIL,
+                            arguments = listOf(navArgument("playlistId") { type = NavType.StringType }),
+                        ) { entry ->
+                            PlaylistDetailRoute(
+                                playlistId = entry.arguments?.getString("playlistId").orEmpty(),
+                                onBack = { navController.popBackStack() },
+                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { artistId ->
+                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                },
+                                contextMenuHost = contextMenuHost,
+                                setStar = libraryRepository::star,
+                            )
+                        }
+                        composable(
+                            route = Routes.HOME_SECTION,
+                            arguments = listOf(navArgument("section") { type = NavType.StringType }),
+                        ) { entry ->
+                            val section = HomeSection.fromRoute(entry.arguments?.getString("section")) ?: return@composable
+                            HomeListRoute(
+                                request = HomeListRequest(title = stringResource(section.title), section = section),
+                                onBack = { navController.popBackStack() },
                                 onAlbumClick = { album ->
                                     navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
                                 },
@@ -643,7 +768,108 @@ private fun MainNavigation() {
                                         Routes.ARTIST_DETAIL,
                                         "artistId",
                                         artist.id,
-                                        Routes.artist(artist.id, artist.coverArt ?: artist.coverArts.firstOrNull()),
+                                        Routes.artist(
+                                            artist.id,
+                                            artist.coverArt ?: artist.coverArts.firstOrNull(),
+                                        ),
+                                    )
+                                },
+                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { artistId ->
+                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                },
+                                onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
+                                onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
+                                contextMenuHost = contextMenuHost,
+                                setStar = libraryRepository::star,
+                            )
+                        }
+                        composable(
+                            route = Routes.HOME_GENRE,
+                            arguments = listOf(navArgument("genre") { type = NavType.StringType }),
+                        ) { entry ->
+                            val genre = entry.arguments?.getString("genre").orEmpty()
+                            HomeListRoute(
+                                request = HomeListRequest(title = genre, genre = genre),
+                                onBack = { navController.popBackStack() },
+                                onAlbumClick = { album ->
+                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                },
+                                onArtistClick = { artist ->
+                                    navigateDetail(
+                                        Routes.ARTIST_DETAIL,
+                                        "artistId",
+                                        artist.id,
+                                        Routes.artist(
+                                            artist.id,
+                                            artist.coverArt ?: artist.coverArts.firstOrNull(),
+                                        ),
+                                    )
+                                },
+                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { artistId ->
+                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                },
+                                onGenreClick = { value -> navController.navigate(Routes.homeGenre(value)) },
+                                onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
+                                contextMenuHost = contextMenuHost,
+                                setStar = libraryRepository::star,
+                            )
+                        }
+                        composable(
+                            route = Routes.HOME_DECADE,
+                            arguments = listOf(navArgument("decade") { type = NavType.LongType }),
+                        ) { entry ->
+                            val decade = entry.arguments?.getLong("decade") ?: return@composable
+                            HomeListRoute(
+                                request = HomeListRequest(title = stringResource(R.string.home_decade, decade), decade = decade),
+                                onBack = { navController.popBackStack() },
+                                onAlbumClick = { album ->
+                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                },
+                                onArtistClick = { artist ->
+                                    navigateDetail(
+                                        Routes.ARTIST_DETAIL,
+                                        "artistId",
+                                        artist.id,
+                                        Routes.artist(
+                                            artist.id,
+                                            artist.coverArt ?: artist.coverArts.firstOrNull(),
+                                        ),
+                                    )
+                                },
+                                onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { artistId ->
+                                    navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                },
+                                onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
+                                onDecadeClick = { value -> navController.navigate(Routes.homeDecade(value)) },
+                                contextMenuHost = contextMenuHost,
+                                setStar = libraryRepository::star,
+                            )
+                        }
+                        composable(
+                            route = Routes.HOME_DOWNLOADED,
+                            arguments = listOf(navArgument("kind") { type = NavType.StringType }),
+                        ) { entry ->
+                            val kind =
+                                OfflineListKind.entries.firstOrNull { it.name == entry.arguments?.getString("kind") }
+                                    ?: return@composable
+                            HomeListRoute(
+                                request = HomeListRequest(title = stringResource(kind.title), downloaded = kind),
+                                onBack = { navController.popBackStack() },
+                                onAlbumClick = { album ->
+                                    navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
+                                },
+                                onArtistClick = { artist ->
+                                    navigateDetail(
+                                        Routes.ARTIST_DETAIL,
+                                        "artistId",
+                                        artist.id,
+                                        Routes.artist(
+                                            artist.id,
+                                            artist.coverArt ?: artist.coverArts.firstOrNull(),
+                                        ),
                                     )
                                 },
                                 onPlaylistClick = { playlist ->
@@ -653,444 +879,261 @@ private fun MainNavigation() {
                                 onViewArtist = { artistId ->
                                     navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
                                 },
+                                onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
+                                onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
                                 contextMenuHost = contextMenuHost,
                                 setStar = libraryRepository::star,
-                                onBack = null,
-                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                            )
+                        }
+                        composable(Routes.ADD_SERVER) {
+                            AddSourceRoute(
+                                onSaved = { navController.popBackStack() },
+                                onBack = { navController.popBackStack() },
+                                dismissals = contextMenuHost.dismissals,
+                            )
+                        }
+                        composable(
+                            route = Routes.EDIT_SERVER,
+                            arguments = listOf(navArgument("sourceId") { type = NavType.LongType }),
+                        ) { entry ->
+                            AddSourceRoute(
+                                onSaved = { navController.popBackStack() },
+                                onBack = { navController.popBackStack() },
+                                sourceId = entry.arguments?.getLong("sourceId"),
+                                dismissals = contextMenuHost.dismissals,
                             )
                         }
                     }
-                    composable(Routes.LICENSES) {
-                        LicensesRoute(onBack = { navController.popBackStack() })
+
+                    AnimatedVisibility(
+                        visible = showMiniPlayer,
+                        enter = expandVertically(tween(MINI_PLAYER_ANIM_MS), expandFrom = Alignment.Bottom),
+                        exit = shrinkVertically(tween(MINI_PLAYER_ANIM_MS), shrinkTowards = Alignment.Bottom),
+                    ) {
+                        val positionMs by playbackController.positionMs.collectAsStateWithLifecycle()
+                        val miniArt = playbackController.coverArt(playback.item, thumbnail = true)
+                        MiniPlayer(
+                            state = playback,
+                            positionMs = positionMs,
+                            coverArt = miniArt,
+                            artwork = artwork,
+                            onExpand = { settleNowPlaying(true) },
+                            onPlayPause = playbackController::togglePlayPause,
+                            onNext = playbackController::next,
+                            navigationBarFraction = { 1f - barFraction.value },
+                            onExpandDrag = { dragUpPx ->
+                                nowPlayingOpen = true
+                                settleJob?.cancel()
+                                if (miniPlayerTopPx > 0f) {
+                                    nowPlayingProgress = (dragUpPx / miniPlayerTopPx).coerceIn(0f, 1f)
+                                }
+                            },
+                            onExpandRelease = { velocity -> settleNowPlaying(nowPlayingProgress > 0.05f || velocity < -FLING_VELOCITY) },
+                            modifier = Modifier.onGloballyPositioned { miniPlayerTopPx = it.positionInRoot().y },
+                        )
                     }
-                    composable(
-                        route = Routes.ALBUM_DETAIL,
-                        arguments =
-                            listOf(
-                                navArgument("albumId") { type = NavType.StringType },
-                                navArgument("coverArt") {
-                                    type = NavType.StringType
-                                    defaultValue = ""
-                                },
-                            ),
-                    ) { entry ->
-                        AlbumDetailRoute(
-                            albumId = entry.arguments?.getString("albumId").orEmpty(),
-                            coverArtId =
-                                entry.arguments
-                                    ?.getString("coverArt")
-                                    .orEmpty()
-                                    .ifEmpty { null },
-                            onBack = { navController.popBackStack() },
+
+                    if (!barGone) {
+                        MaeksterNavigationBar(
+                            current = selectedTab,
+                            onSelect = { tab ->
+                                focusManager.clearFocus()
+                                barVisibility.show()
+                                navController.selectTab(tab, selectedTab)
+                            },
+                            modifier = Modifier.revealHeight { barFraction.value },
+                        )
+                    }
+
+                    // With nothing playing and the bar away, keep the screens clear of the system navigation area.
+                    if (!playerVisible && !keyboardUp) {
+                        Spacer(
+                            Modifier
+                                .fillMaxWidth()
+                                .layoutHeight { (systemNavigationBarPx * (1f - barFraction.value)).toInt() },
+                        )
+                    }
+                }
+
+                if (nowPlayingOpen) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    translationY = if (nowPlayingFadeOut) 0f else (1f - nowPlayingProgress) * miniPlayerTopPx
+                                    alpha =
+                                        if (nowPlayingFadeOut) nowPlayingProgress else (nowPlayingProgress / EXPAND_FADE).coerceAtMost(1f)
+                                }.draggable(
+                                    orientation = Orientation.Vertical,
+                                    state =
+                                        rememberDraggableState { delta ->
+                                            settleJob?.cancel()
+                                            if (miniPlayerTopPx > 0f) {
+                                                nowPlayingProgress = (nowPlayingProgress - delta / miniPlayerTopPx).coerceIn(0f, 1f)
+                                            }
+                                        },
+                                    onDragStopped = { velocity ->
+                                        settleNowPlaying(nowPlayingProgress > 0.9f && velocity < FLING_VELOCITY)
+                                    },
+                                ),
+                    ) {
+                        NowPlayingRoute(
+                            onBack = { settleNowPlaying(false) },
+                            onQueue = { showingQueue = true },
+                            onViewAlbum = { albumId ->
+                                navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId))
+                                fadeNowPlaying()
+                            },
                             onViewArtist = { artistId ->
                                 navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
+                                fadeNowPlaying()
                             },
                             contextMenuHost = contextMenuHost,
                             setStar = libraryRepository::star,
-                            onCollectionClick = { kind, name -> navController.navigate(Routes.collection(kind, name)) },
+                            modifier = Modifier.fillMaxSize(),
+                            showLyrics = showingLyrics,
+                            onShowLyrics = { showingLyrics = it },
                         )
                     }
-                    composable(
-                        route = Routes.ARTIST_DETAIL,
-                        arguments =
-                            listOf(
-                                navArgument("artistId") { type = NavType.StringType },
-                                navArgument("coverArt") {
-                                    type = NavType.StringType
-                                    defaultValue = ""
-                                },
-                            ),
-                    ) { entry ->
-                        ArtistDetailRoute(
-                            artistId = entry.arguments?.getString("artistId").orEmpty(),
-                            coverArtId =
-                                entry.arguments
-                                    ?.getString("coverArt")
-                                    .orEmpty()
-                                    .ifEmpty { null },
-                            onBack = { navController.popBackStack() },
-                            onAlbumClick = { album ->
-                                navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                            },
-                            onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                            contextMenuHost = contextMenuHost,
-                            setStar = libraryRepository::star,
-                        )
-                    }
-                    composable(
-                        route = Routes.PLAYLIST_DETAIL,
-                        arguments = listOf(navArgument("playlistId") { type = NavType.StringType }),
-                    ) { entry ->
-                        PlaylistDetailRoute(
-                            playlistId = entry.arguments?.getString("playlistId").orEmpty(),
-                            onBack = { navController.popBackStack() },
-                            onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                            onViewArtist = { artistId ->
-                                navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                            },
-                            contextMenuHost = contextMenuHost,
-                            setStar = libraryRepository::star,
-                        )
-                    }
-                    composable(
-                        route = Routes.HOME_SECTION,
-                        arguments = listOf(navArgument("section") { type = NavType.StringType }),
-                    ) { entry ->
-                        val section = HomeSection.fromRoute(entry.arguments?.getString("section")) ?: return@composable
-                        HomeListRoute(
-                            request = HomeListRequest(title = stringResource(section.title), section = section),
-                            onBack = { navController.popBackStack() },
-                            onAlbumClick = { album ->
-                                navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                            },
-                            onArtistClick = { artist ->
-                                navigateDetail(
-                                    Routes.ARTIST_DETAIL,
-                                    "artistId",
-                                    artist.id,
-                                    Routes.artist(
-                                        artist.id,
-                                        artist.coverArt ?: artist.coverArts.firstOrNull(),
-                                    ),
-                                )
-                            },
-                            onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                            onViewArtist = { artistId ->
-                                navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                            },
-                            onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
-                            onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
-                            contextMenuHost = contextMenuHost,
-                            setStar = libraryRepository::star,
-                        )
-                    }
-                    composable(
-                        route = Routes.HOME_GENRE,
-                        arguments = listOf(navArgument("genre") { type = NavType.StringType }),
-                    ) { entry ->
-                        val genre = entry.arguments?.getString("genre").orEmpty()
-                        HomeListRoute(
-                            request = HomeListRequest(title = genre, genre = genre),
-                            onBack = { navController.popBackStack() },
-                            onAlbumClick = { album ->
-                                navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                            },
-                            onArtistClick = { artist ->
-                                navigateDetail(
-                                    Routes.ARTIST_DETAIL,
-                                    "artistId",
-                                    artist.id,
-                                    Routes.artist(
-                                        artist.id,
-                                        artist.coverArt ?: artist.coverArts.firstOrNull(),
-                                    ),
-                                )
-                            },
-                            onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                            onViewArtist = { artistId ->
-                                navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                            },
-                            onGenreClick = { value -> navController.navigate(Routes.homeGenre(value)) },
-                            onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
-                            contextMenuHost = contextMenuHost,
-                            setStar = libraryRepository::star,
-                        )
-                    }
-                    composable(
-                        route = Routes.HOME_DECADE,
-                        arguments = listOf(navArgument("decade") { type = NavType.LongType }),
-                    ) { entry ->
-                        val decade = entry.arguments?.getLong("decade") ?: return@composable
-                        HomeListRoute(
-                            request = HomeListRequest(title = stringResource(R.string.home_decade, decade), decade = decade),
-                            onBack = { navController.popBackStack() },
-                            onAlbumClick = { album ->
-                                navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                            },
-                            onArtistClick = { artist ->
-                                navigateDetail(
-                                    Routes.ARTIST_DETAIL,
-                                    "artistId",
-                                    artist.id,
-                                    Routes.artist(
-                                        artist.id,
-                                        artist.coverArt ?: artist.coverArts.firstOrNull(),
-                                    ),
-                                )
-                            },
-                            onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                            onViewArtist = { artistId ->
-                                navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                            },
-                            onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
-                            onDecadeClick = { value -> navController.navigate(Routes.homeDecade(value)) },
-                            contextMenuHost = contextMenuHost,
-                            setStar = libraryRepository::star,
-                        )
-                    }
-                    composable(
-                        route = Routes.HOME_DOWNLOADED,
-                        arguments = listOf(navArgument("kind") { type = NavType.StringType }),
-                    ) { entry ->
-                        val kind =
-                            OfflineListKind.entries.firstOrNull { it.name == entry.arguments?.getString("kind") }
-                                ?: return@composable
-                        HomeListRoute(
-                            request = HomeListRequest(title = stringResource(kind.title), downloaded = kind),
-                            onBack = { navController.popBackStack() },
-                            onAlbumClick = { album ->
-                                navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
-                            },
-                            onArtistClick = { artist ->
-                                navigateDetail(
-                                    Routes.ARTIST_DETAIL,
-                                    "artistId",
-                                    artist.id,
-                                    Routes.artist(
-                                        artist.id,
-                                        artist.coverArt ?: artist.coverArts.firstOrNull(),
-                                    ),
-                                )
-                            },
-                            onPlaylistClick = { playlist ->
-                                navigateDetail(Routes.PLAYLIST_DETAIL, "playlistId", playlist.id, Routes.playlist(playlist.id))
-                            },
-                            onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
-                            onViewArtist = { artistId ->
-                                navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                            },
-                            onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
-                            onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
-                            contextMenuHost = contextMenuHost,
-                            setStar = libraryRepository::star,
-                        )
-                    }
-                    composable(Routes.ADD_SERVER) {
-                        AddSourceRoute(
-                            onSaved = { navController.popBackStack() },
-                            onBack = { navController.popBackStack() },
-                            dismissals = contextMenuHost.dismissals,
-                        )
-                    }
-                    composable(
-                        route = Routes.EDIT_SERVER,
-                        arguments = listOf(navArgument("sourceId") { type = NavType.LongType }),
-                    ) { entry ->
-                        AddSourceRoute(
-                            onSaved = { navController.popBackStack() },
-                            onBack = { navController.popBackStack() },
-                            sourceId = entry.arguments?.getLong("sourceId"),
-                            dismissals = contextMenuHost.dismissals,
-                        )
-                    }
+
+                    Box(
+                        modifier =
+                            Modifier
+                                .align(Alignment.TopCenter)
+                                .graphicsLayer {
+                                    alpha = ((nowPlayingProgress - SCRIM_FADE_START) / (1f - SCRIM_FADE_START)).coerceIn(0f, 1f)
+                                }.statusBarScrim(dark = true),
+                    )
                 }
 
                 AnimatedVisibility(
-                    visible = showMiniPlayer,
-                    enter = expandVertically(tween(MINI_PLAYER_ANIM_MS), expandFrom = Alignment.Bottom),
-                    exit = shrinkVertically(tween(MINI_PLAYER_ANIM_MS), shrinkTowards = Alignment.Bottom),
+                    visible = showingQueue,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(tween(OVERLAY_DURATION_MS)),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(tween(OVERLAY_DURATION_MS)),
                 ) {
-                    val positionMs by playbackController.positionMs.collectAsStateWithLifecycle()
-                    val miniArt = playbackController.coverArt(playback.item, thumbnail = true)
-                    MiniPlayer(
-                        state = playback,
-                        positionMs = positionMs,
-                        coverArt = miniArt,
-                        artwork = artwork,
-                        onExpand = { settleNowPlaying(true) },
-                        onPlayPause = playbackController::togglePlayPause,
-                        onNext = playbackController::next,
-                        navigationBarFraction = { 1f - barFraction.value },
-                        onExpandDrag = { dragUpPx ->
-                            nowPlayingOpen = true
-                            settleJob?.cancel()
-                            if (miniPlayerTopPx > 0f) {
-                                nowPlayingProgress = (dragUpPx / miniPlayerTopPx).coerceIn(0f, 1f)
+                    val queueStoreOwner =
+                        remember {
+                            object : ViewModelStoreOwner {
+                                override val viewModelStore = ViewModelStore()
                             }
-                        },
-                        onExpandRelease = { velocity -> settleNowPlaying(nowPlayingProgress > 0.05f || velocity < -FLING_VELOCITY) },
-                        modifier = Modifier.onGloballyPositioned { miniPlayerTopPx = it.positionInRoot().y },
+                        }
+                    DisposableEffect(queueStoreOwner) { onDispose { queueStoreOwner.viewModelStore.clear() } }
+                    CompositionLocalProvider(LocalViewModelStoreOwner provides queueStoreOwner) {
+                        ArtworkTheme(artwork) {
+                            WhiteStatusBarIcons()
+                            QueueRoute(
+                                open = showingQueue,
+                                onBack = { showingQueue = false },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
+                }
+
+                contextMenuHost.target?.let { target ->
+                    PinMenuRoute(
+                        target = target,
+                        actions = contextMenuHost.actions,
+                        onDismiss = { contextMenuHost.dismiss() },
+                        onInfo = { infoTarget = it },
+                        onChooseArtists = { artistChooser = it },
+                        onAddToPlaylist = { song -> addToPlaylist = AddToPlaylistRequest(song.sourceId, listOf(song.id)) },
                     )
                 }
 
-                if (!barGone) {
-                    MaeksterNavigationBar(
-                        current = selectedTab,
-                        onSelect = { tab ->
-                            focusManager.clearFocus()
-                            barVisibility.show()
-                            navController.selectTab(tab, selectedTab)
+                addToPlaylist?.let { request ->
+                    AddToPlaylistRoute(request = request, onDismiss = { addToPlaylist = null })
+                }
+
+                quickPlaylistSong?.let { song ->
+                    QuickPlaylistMenuRoute(
+                        song = song,
+                        onDismiss = { quickPlaylistSong = null },
+                        onChoose = {
+                            quickPlaylistSong = null
+                            quickPlaylistPicker = song.sourceId
                         },
-                        modifier = Modifier.revealHeight { barFraction.value },
+                        onAddToPlaylist = { chosen ->
+                            quickPlaylistSong = null
+                            addToPlaylist = AddToPlaylistRequest(chosen.sourceId, listOf(chosen.id))
+                        },
                     )
                 }
 
-                // With nothing playing and the bar away, keep the screens clear of the system navigation area.
-                if (!playerVisible && !keyboardUp) {
-                    Spacer(
-                        Modifier
-                            .fillMaxWidth()
-                            .layoutHeight { (systemNavigationBarPx * (1f - barFraction.value)).toInt() },
-                    )
+                quickPlaylistPicker?.let { sourceId ->
+                    QuickPlaylistPickerRoute(sourceId = sourceId, onDismiss = { quickPlaylistPicker = null })
                 }
-            }
 
-            if (nowPlayingOpen) {
-                Box(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                translationY = if (nowPlayingFadeOut) 0f else (1f - nowPlayingProgress) * miniPlayerTopPx
-                                alpha = if (nowPlayingFadeOut) nowPlayingProgress else (nowPlayingProgress / EXPAND_FADE).coerceAtMost(1f)
-                            }.draggable(
-                                orientation = Orientation.Vertical,
-                                state =
-                                    rememberDraggableState { delta ->
-                                        settleJob?.cancel()
-                                        if (miniPlayerTopPx > 0f) {
-                                            nowPlayingProgress = (nowPlayingProgress - delta / miniPlayerTopPx).coerceIn(0f, 1f)
-                                        }
-                                    },
-                                onDragStopped = { velocity -> settleNowPlaying(nowPlayingProgress > 0.9f && velocity < FLING_VELOCITY) },
-                            ),
-                ) {
-                    NowPlayingRoute(
-                        onBack = { settleNowPlaying(false) },
-                        onQueue = { showingQueue = true },
-                        onViewAlbum = { albumId ->
-                            navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId))
-                            fadeNowPlaying()
+                artistChooser?.let { artists ->
+                    ArtistChooserSheet(
+                        artists = artists,
+                        onArtistClick = { artist ->
+                            artistChooser = null
+                            navigateDetail(
+                                Routes.ARTIST_DETAIL,
+                                "artistId",
+                                artist.id,
+                                Routes.artist(artist.id),
+                            )
                         },
-                        onViewArtist = { artistId ->
-                            navigateDetail(Routes.ARTIST_DETAIL, "artistId", artistId, Routes.artist(artistId))
-                            fadeNowPlaying()
-                        },
-                        contextMenuHost = contextMenuHost,
-                        setStar = libraryRepository::star,
-                        modifier = Modifier.fillMaxSize(),
-                        showLyrics = showingLyrics,
-                        onShowLyrics = { showingLyrics = it },
+                        onDismiss = { artistChooser = null },
                     )
                 }
 
+                when (val target = infoTarget) {
+                    is MenuTarget.Song -> {
+                        val song = target.song
+                        val genres by
+                            remember(song.sourceId, song.id) { libraryRepository.songGenres(song.sourceId, song.id) }
+                                .collectAsStateWithLifecycle(initialValue = emptyList())
+                        SongInfoDialog(
+                            song = song,
+                            download = downloads[song.id],
+                            localFile = downloadRepository.localFile(song.id),
+                            streamEncoding = playbackController.currentAudioEncoding().takeIf { playback.item?.id == song.id },
+                            onDismiss = { infoTarget = null },
+                            genres = genres,
+                        )
+                    }
+
+                    is MenuTarget.Album -> {
+                        AlbumInfoDialog(
+                            album = target.album,
+                            download = target.download,
+                            onDismiss = { infoTarget = null },
+                        )
+                    }
+
+                    is MenuTarget.Artist -> {
+                        ArtistInfoDialog(
+                            artist = target.artist,
+                            onDismiss = { infoTarget = null },
+                        )
+                    }
+
+                    is MenuTarget.Playlist -> {
+                        PlaylistInfoDialog(
+                            playlist = target.playlist,
+                            onDismiss = { infoTarget = null },
+                        )
+                    }
+
+                    null -> {
+                        Unit
+                    }
+                }
+
+                // Messages appear just above the mini-player and navigation bar, over every screen and overlay.
                 Box(
                     modifier =
                         Modifier
                             .align(Alignment.TopCenter)
-                            .graphicsLayer {
-                                alpha = ((nowPlayingProgress - SCRIM_FADE_START) / (1f - SCRIM_FADE_START)).coerceIn(0f, 1f)
-                            }.statusBarScrim(dark = true),
-                )
-            }
-
-            AnimatedVisibility(
-                visible = showingQueue,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(tween(OVERLAY_DURATION_MS)),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(tween(OVERLAY_DURATION_MS)),
-            ) {
-                val queueStoreOwner =
-                    remember {
-                        object : ViewModelStoreOwner {
-                            override val viewModelStore = ViewModelStore()
-                        }
-                    }
-                DisposableEffect(queueStoreOwner) { onDispose { queueStoreOwner.viewModelStore.clear() } }
-                CompositionLocalProvider(LocalViewModelStoreOwner provides queueStoreOwner) {
-                    ArtworkTheme(artwork) {
-                        WhiteStatusBarIcons()
-                        QueueRoute(
-                            open = showingQueue,
-                            onBack = { showingQueue = false },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
+                            .fillMaxWidth()
+                            .height(with(density) { contentHeightPx.toDp() }),
+                ) {
+                    SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
                 }
-            }
-
-            contextMenuHost.target?.let { target ->
-                PinMenuRoute(
-                    target = target,
-                    actions = contextMenuHost.actions,
-                    onDismiss = { contextMenuHost.dismiss() },
-                    onInfo = { infoTarget = it },
-                    onChooseArtists = { artistChooser = it },
-                    onAddToPlaylist = { song -> addToPlaylist = AddToPlaylistRequest(song.sourceId, listOf(song.id)) },
-                )
-            }
-
-            addToPlaylist?.let { request ->
-                AddToPlaylistRoute(request = request, onDismiss = { addToPlaylist = null })
-            }
-
-            artistChooser?.let { artists ->
-                ArtistChooserSheet(
-                    artists = artists,
-                    onArtistClick = { artist ->
-                        artistChooser = null
-                        navigateDetail(
-                            Routes.ARTIST_DETAIL,
-                            "artistId",
-                            artist.id,
-                            Routes.artist(artist.id),
-                        )
-                    },
-                    onDismiss = { artistChooser = null },
-                )
-            }
-
-            when (val target = infoTarget) {
-                is MenuTarget.Song -> {
-                    val song = target.song
-                    val genres by
-                        remember(song.sourceId, song.id) { libraryRepository.songGenres(song.sourceId, song.id) }
-                            .collectAsStateWithLifecycle(initialValue = emptyList())
-                    SongInfoDialog(
-                        song = song,
-                        download = downloads[song.id],
-                        localFile = downloadRepository.localFile(song.id),
-                        streamEncoding = playbackController.currentAudioEncoding().takeIf { playback.item?.id == song.id },
-                        onDismiss = { infoTarget = null },
-                        genres = genres,
-                    )
-                }
-
-                is MenuTarget.Album -> {
-                    AlbumInfoDialog(
-                        album = target.album,
-                        download = target.download,
-                        onDismiss = { infoTarget = null },
-                    )
-                }
-
-                is MenuTarget.Artist -> {
-                    ArtistInfoDialog(
-                        artist = target.artist,
-                        onDismiss = { infoTarget = null },
-                    )
-                }
-
-                is MenuTarget.Playlist -> {
-                    PlaylistInfoDialog(
-                        playlist = target.playlist,
-                        onDismiss = { infoTarget = null },
-                    )
-                }
-
-                null -> {
-                    Unit
-                }
-            }
-
-            // Messages appear just above the mini-player and navigation bar, over every screen and overlay.
-            Box(
-                modifier =
-                    Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(with(density) { contentHeightPx.toDp() }),
-            ) {
-                SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter))
             }
         }
     }

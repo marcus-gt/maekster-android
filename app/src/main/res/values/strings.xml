@@ -508,6 +508,11 @@
     <string name="rename_playlist_name">Playlist name</string>
     <string name="rename_playlist_confirm">Rename</string>
     <string name="rename_playlist_cancel">Cancel</string>
+    <string name="quick_playlists_title">Quick playlists</string>
+    <string name="quick_playlist_add">Add to %1$s</string>
+    <string name="quick_playlists_choose">Choose quick playlists…</string>
+    <string name="quick_playlists_picker_hint">Touch and hold a song’s heart to add the song to one of these.</string>
+    <string name="quick_playlists_done">Done</string>
     <string name="save_queue_as_playlist">Save queue as playlist…</string>
     <string name="save_queue_title">Save queue as playlist</string>
     <string name="save_queue_confirm">Save</string>

@@ -19,6 +19,7 @@ import com.subtracks.data.lyrics.LyricsLoader
 import com.subtracks.data.lyrics.LyricsProvider
 import com.subtracks.data.lyrics.LyricsRepository
 import com.subtracks.data.model.DownloadList
+import com.subtracks.data.model.Song
 import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.net.networkAvailable
 import com.subtracks.data.net.networkMode
@@ -64,6 +65,8 @@ import com.subtracks.ui.playlist.AddToPlaylistRequest
 import com.subtracks.ui.playlist.AddToPlaylistViewModel
 import com.subtracks.ui.playlist.DeletePlaylistRequest
 import com.subtracks.ui.playlist.DeletePlaylistViewModel
+import com.subtracks.ui.playlist.QuickPlaylistMenuViewModel
+import com.subtracks.ui.playlist.QuickPlaylistPickerViewModel
 import com.subtracks.ui.playlist.RenamePlaylistRequest
 import com.subtracks.ui.playlist.RenamePlaylistViewModel
 import com.subtracks.ui.playlist.SaveQueueViewModel
@@ -226,6 +229,12 @@ fun appModule(
     }
     viewModel { params -> RenamePlaylistViewModel(params.get<RenamePlaylistRequest>(), get(), showMessage) }
     viewModel { SaveQueueViewModel(get(), get(), showMessage, cleanup = get<CoroutineScope>(named("io"))) }
+    viewModel { params -> QuickPlaylistMenuViewModel(params.get<Song>(), get(), showMessage, work = get<CoroutineScope>(named("io"))) }
+    viewModel { params ->
+        val sourceId = params.get<Long>()
+        val sources = get<SourceRepository>()
+        QuickPlaylistPickerViewModel(sourceId, get(), get(), owner = { sources.username(sourceId) })
+    }
     viewModel { params ->
         val downloads = get<DownloadRepository>()
         val playback = get<PlaybackController>()
