@@ -5,12 +5,17 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.model.Playlist
+import com.subtracks.data.model.PlaylistSaveDraft
+import com.subtracks.data.model.PlaylistSaveDraftSong
 import com.subtracks.data.playlist.PlaylistAppendIntent
 import com.subtracks.data.source.PlaylistDetail
 import com.subtracks.data.source.PlaylistWriter
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import java.io.IOException
 
 /** Why a playlist edit did not happen; any other failure is the server's or the network's own exception. */
 class PlaylistEditException(
@@ -97,6 +102,12 @@ class PlaylistRepository(
 
     private val reorderMutex = Mutex()
     private val pendingReorders = mutableMapOf<Pair<Long, String>, ReorderIntent>()
+    private val saveMutex = Mutex()
+
+    private data class SavedPrefix(
+        val playlist: Playlist,
+        val count: Long,
+    )
 
     /** The playlists songs were last added to on [sourceId], newest first (only successful additions). */
     fun recentDestinations(sourceId: Long): Flow<List<Playlist>> = db.playlistDestinationDao().recent(sourceId)
@@ -305,6 +316,108 @@ class PlaylistRepository(
         }
     }
 
+    /**
+     * Captures [songIds] (bounded batches in playback order, such as [QueueRepository.playlistBatches]) as the draft of
+     * a new playlist named [name], replacing [sourceId]'s previous draft. Nothing reaches the server. A failed or empty
+     * capture leaves no draft. Returns the draft for [saveDraft].
+     */
+    suspend fun stageSave(
+        sourceId: Long,
+        name: String,
+        songIds: Flow<List<String>>,
+    ): Long =
+        saveMutex.withLock {
+            val trimmed = name.trim()
+            require(trimmed.isNotEmpty()) { "A playlist needs a name" }
+            val drafts = db.playlistSaveDraftDao()
+            drafts.deleteForSource(sourceId)
+            val id = drafts.insert(PlaylistSaveDraft(sourceId = sourceId, name = trimmed))
+            try {
+                var size = 0L
+                songIds.collect { batch ->
+                    require(batch.size <= SAVE_BATCH) { "A captured batch holds at most $SAVE_BATCH songs" }
+                    drafts.insertSongs(batch.mapIndexed { index, songId -> PlaylistSaveDraftSong(id, size + index, songId) })
+                    size += batch.size
+                }
+                require(size > 0) { "There is nothing to save" }
+                drafts.setSize(id, size)
+            } catch (failure: Throwable) {
+                withContext(NonCancellable) { drafts.delete(id) }
+                throw failure
+            }
+            id
+        }
+
+    /**
+     * Creates the draft's playlist on its server, appends the songs in batches of at most [SAVE_BATCH], checks the
+     * server holds exactly them, then mirrors it from the draft and drops the draft. Returns the playlist ID.
+     *
+     * After a failure the draft remains: running it again reads the created playlist back and sends only what has not
+     * arrived, so neither a second playlist nor a lost response's songs are added twice. If the playlist was edited
+     * elsewhere meanwhile this fails with [PlaylistEditException.Reason.Changed] without writing, leaving the mirror for
+     * a sync; if it was deleted, with [PlaylistEditException.Reason.NotFound], and the next run creates a new one.
+     */
+    suspend fun saveDraft(draftId: Long): String =
+        saveMutex.withLock {
+            val drafts = db.playlistSaveDraftDao()
+            val draft = drafts.draft(draftId) ?: throw IllegalStateException("The playlist draft no longer exists")
+            val writer = writer(draft.sourceId)
+            val playlistId: String
+            var held: Long
+            if (draft.playlistId == null) {
+                val created = writer.create(draft.name) ?: throw PlaylistEditException(PlaylistEditException.Reason.NotReported)
+                playlistId = created.playlist.id
+                drafts.setPlaylistId(draftId, playlistId)
+                mirror(created)
+                if (created.songs.isNotEmpty()) throw PlaylistEditException(PlaylistEditException.Reason.Changed)
+                held = 0
+            } else {
+                playlistId = draft.playlistId
+                held = readBack(writer, draft, playlistId).count
+            }
+            while (held < draft.size) {
+                val batch = drafts.songIds(draftId, held, SAVE_BATCH)
+                check(batch.isNotEmpty()) { "The playlist draft lost songs" }
+                writer.append(playlistId, batch)
+                held += batch.size
+            }
+            val saved = readBack(writer, draft, playlistId)
+            if (saved.count < draft.size) throw IOException("The server has not kept every song yet")
+            drafts.complete(draftId, saved.playlist)
+            libraryChanged()
+            db.playlistDestinationDao().record(draft.sourceId, playlistId, now())
+            playlistId
+        }
+
+    /** Forgets a draft; a playlist it already created stays on the server. */
+    suspend fun discardSave(draftId: Long) = saveMutex.withLock { db.playlistSaveDraftDao().delete(draftId) }
+
+    /** How many of the draft's songs the server holds, in order; anything else there means it changed elsewhere. */
+    private suspend fun readBack(
+        writer: PlaylistWriter,
+        draft: PlaylistSaveDraft,
+        playlistId: String,
+    ): SavedPrefix {
+        val drafts = db.playlistSaveDraftDao()
+        var playlist: Playlist? = null
+        var count = 0L
+        writer.playlistBatches(playlistId).collect { batch ->
+            playlist = batch.playlist
+            if (batch.songs.isNotEmpty()) {
+                val staged = drafts.songIds(draft.id, count, batch.songs.size)
+                if (staged != batch.songs.map { it.songId }) throw PlaylistEditException(PlaylistEditException.Reason.Changed)
+                count += batch.songs.size
+            }
+        }
+        val found =
+            playlist ?: run {
+                drafts.setPlaylistId(draft.id, null)
+                removeMirror(draft.sourceId, playlistId)
+                throw PlaylistEditException(PlaylistEditException.Reason.NotFound)
+            }
+        return SavedPrefix(found, count)
+    }
+
     private suspend fun writer(sourceId: Long): PlaylistWriter =
         writerFor(sourceId) ?: throw PlaylistEditException(PlaylistEditException.Reason.Offline)
 
@@ -346,4 +459,8 @@ class PlaylistRepository(
     }
 
     private fun PlaylistDetail.songIds() = songs.map { it.songId }
+
+    companion object {
+        const val SAVE_BATCH = 100
+    }
 }

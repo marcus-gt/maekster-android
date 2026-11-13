@@ -562,6 +562,9 @@ including shuffle/up-next/duplicates, with source and mutation checks. Dialog an
 workflow remain open; see `docs/handoffs/M2.9-queue-export.md`.
 The writer now also provides bounded, backpressured fresh playlist readback for that future saver,
 without materialising the destination. See `docs/handoffs/M2.9-playlist-readback.md`.
+Save-queue operation: the export is staged into a Room draft (schema 51), then created, appended in
+batches of 100 and verified by bounded readback; a retry resumes the same playlist without resending
+lost batches, also after process death. Dialog/menu remain open; see `docs/handoffs/M2.9-queue-save.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
