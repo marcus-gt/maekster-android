@@ -503,7 +503,11 @@ Normal and 2×/320×480 renders reviewed; see `docs/handoffs/M2.9-sheet-ui.md`.
 Repository/ViewModel search integration is now covered through a real Room-backed Paging presenter:
 query changes, literal `%`/`_`/backslash, trimmed/case-insensitive search, Recent separation,
 owner/source filtering, empty results and mirror rename invalidation. Removing percent escaping
-fails the test; see `docs/handoffs/M2.9-search-integration.md`. Real-device checks remain.
+fails the test; see `docs/handoffs/M2.9-search-integration.md`.
+API 37 emulator verification found a stale sheet ViewModel: reopening the same song retained a
+cancelled draft. Each opening now owns/clears its ViewModel store, matching the queue overlay.
+Lifecycle tests (with cleanup mutation) and emulator retest pass; see `docs/handoffs/M2.9-sheet-lifecycle.md`.
+Remaining Part D checks: real IME, add/create writes, duplicate choices, failure/retry and success snackbar/dismissal.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

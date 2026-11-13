@@ -67,6 +67,16 @@ fun addToPlaylistRowTag(id: String) = "add-to-playlist-$id"
 fun AddToPlaylistRoute(
     request: AddToPlaylistRequest,
     onDismiss: () -> Unit,
+) {
+    PlaylistSheetScope(request) {
+        AddToPlaylistContent(request, onDismiss)
+    }
+}
+
+@Composable
+private fun AddToPlaylistContent(
+    request: AddToPlaylistRequest,
+    onDismiss: () -> Unit,
     viewModel: AddToPlaylistViewModel = koinViewModel(key = request.toString()) { parametersOf(request) },
     sources: SourceRepository = koinInject(),
 ) {
