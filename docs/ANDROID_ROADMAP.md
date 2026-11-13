@@ -434,7 +434,11 @@ malformed data, transport failures and cancellation do not trigger fallback. No 
 yet; see `docs/handoffs/M2.8-server-lyrics-provider.md`.
 Part D adds provider-specific Room storage (schema 49), versioned strict JSON payloads and typed
 cache read/write/invalidate. Source deletion cascades; corrupt/unknown data is a cache miss.
-Offline orchestration and UI remain; see `docs/handoffs/M2.8-lyrics-cache.md`.
+Offline orchestration and UI were still pending at that checkpoint; see `docs/handoffs/M2.8-lyrics-cache.md`.
+Part E adds cache-first Server/LRCLIB/Auto selection with explicit offline and opt-in inputs,
+provider provenance, positive-only cache writes and cancellation-safe fallback. Auto prefers synced
+server lyrics, then permitted external timings over server plain; cached disabled providers stay
+excluded. No DI/settings/UI or actual LRCLIB client yet; see `docs/handoffs/M2.8-lyrics-orchestration.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
