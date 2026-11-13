@@ -18,6 +18,17 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class UserPreferencesTest {
     @Test
+    fun quickPlaylistsAlsoFavoriteDefaultsToOnAndIsRemembered() =
+        runTest {
+            val file = File.createTempFile("quick-playlists", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            assertEquals(true, UserPreferences(store).quickPlaylistsAlsoFavorite().first())
+            UserPreferences(store).setQuickPlaylistsAlsoFavorite(false)
+            assertEquals(false, UserPreferences(store).quickPlaylistsAlsoFavorite().first())
+            file.delete()
+        }
+
+    @Test
     fun homeLayoutPersistsVisibilityAndOrderAcrossReaders() =
         runTest {
             val file = File.createTempFile("home-layout", ".preferences_pb").apply { delete() }

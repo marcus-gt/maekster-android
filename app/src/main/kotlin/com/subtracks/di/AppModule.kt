@@ -32,10 +32,12 @@ import com.subtracks.data.repo.NetworkServerActionSink
 import com.subtracks.data.repo.PendingServerActionSink
 import com.subtracks.data.repo.PlaylistRepository
 import com.subtracks.data.repo.QueueRepository
+import com.subtracks.data.repo.QuickPlaylistRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.data.security.CredentialStore
 import com.subtracks.data.security.KeystoreCredentialStore
 import com.subtracks.data.source.ServerActionSink
+import com.subtracks.data.source.StarType
 import com.subtracks.data.sync.AutoSync
 import com.subtracks.data.sync.SyncManager
 import com.subtracks.data.sync.SyncNotifier
@@ -207,6 +209,15 @@ fun appModule(
     single {
         val sources = get<SourceRepository>()
         PlaylistRepository(get(), writerFor = sources::playlistWriter, libraryChanged = get<QueueRepository>()::invalidateLibraryCache)
+    }
+    single {
+        val library = get<LibraryRepository>()
+        QuickPlaylistRepository(
+            get(),
+            get(),
+            alsoFavorite = get<UserPreferences>()::quickPlaylistsAlsoFavorite,
+            favorite = { songId: String -> library.setStar(StarType.Song, songId, true) },
+        )
     }
     viewModel { params ->
         val request = params.get<AddToPlaylistRequest>()

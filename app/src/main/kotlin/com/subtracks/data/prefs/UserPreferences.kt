@@ -286,6 +286,15 @@ class UserPreferences(
 
     private val offlineModeKey = booleanPreferencesKey("offline_mode")
 
+    /** Adding a song to a quick playlist also adds it to Favorites; on unless turned off, as on iOS. */
+    fun quickPlaylistsAlsoFavorite(): Flow<Boolean> = store.data.map { prefs -> prefs[quickAlsoFavoriteKey] ?: true }
+
+    suspend fun setQuickPlaylistsAlsoFavorite(enabled: Boolean) {
+        store.edit { prefs -> prefs[quickAlsoFavoriteKey] = enabled }
+    }
+
+    private val quickAlsoFavoriteKey = booleanPreferencesKey("quick_playlists_also_favorite")
+
     fun verboseLogging(): Flow<Boolean> = store.data.map { prefs -> prefs[verboseLoggingKey] ?: false }
 
     suspend fun setVerboseLogging(enabled: Boolean) {

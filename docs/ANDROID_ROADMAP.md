@@ -569,6 +569,10 @@ lost batches, also after process death. Dialog/menu remain open; see `docs/hando
 the queue on Save, keeps the capture for Retry after a failure, and discards it on close. Verified on
 API 37: offline Save fails with no server write, Retry creates one 12-song playlist in queue order with
 snackbar, Home and Recent updated without sync. See `docs/handoffs/M2.9-save-queue-ui.md`.
+Quick playlists data layer: per-server ordered list (schema 52, `quick_playlists`, names from the mirror),
+toggle/move/remove, and a quick add that skips songs already there and then favorites the song
+(DataStore preference, on by default). Menu, picker and Settings UI remain; see
+`docs/handoffs/M2.9-quick-playlists-data.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

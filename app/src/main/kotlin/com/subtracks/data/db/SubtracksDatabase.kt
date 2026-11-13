@@ -30,6 +30,7 @@ import com.subtracks.data.model.PlaylistSearch
 import com.subtracks.data.model.PlaylistSong
 import com.subtracks.data.model.QueueEntry
 import com.subtracks.data.model.QueueKindConverter
+import com.subtracks.data.model.QuickPlaylist
 import com.subtracks.data.model.SearchHistoryEntry
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongArtistRef
@@ -79,8 +80,9 @@ import com.subtracks.data.model.UpNextEntry
         PlaylistDestination::class,
         PlaylistSaveDraft::class,
         PlaylistSaveDraftSong::class,
+        QuickPlaylist::class,
     ],
-    version = 51,
+    version = 52,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -116,4 +118,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun playlistDestinationDao(): PlaylistDestinationDao
 
     abstract fun playlistSaveDraftDao(): PlaylistSaveDraftDao
+
+    abstract fun quickPlaylistDao(): QuickPlaylistDao
 }
