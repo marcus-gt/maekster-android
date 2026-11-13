@@ -543,6 +543,9 @@ Reorder entry foundation adds a position-based repository move, preserving dupli
 unresolved mirror entries and refusing stale edits; see `docs/handoffs/M2.9-reorder-entry.md`.
 The playlist song menu now offers Move up/down with ownership/offline and busy gating, exact occurrence
 positions and snackbar feedback. Drag reordering remains open; see `docs/handoffs/M2.9-reorder-menu.md`.
+Failed reorders now retain their intent in the repository: a matching retry can recover an ordered
+prefix or a lost success response, while conflicting edits refresh instead of writing. Retry state
+is process-local; see `docs/handoffs/M2.9-reorder-retry.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

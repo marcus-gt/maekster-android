@@ -85,7 +85,13 @@ class FakePlaylistWriter(
         replaced += songIds
         val songs = playlists.getValue(playlistId).second
         songs.clear()
+        if (failNext == Failure.AfterFirstSong) {
+            songs += songIds.first()
+            failNext = null
+            throw IOException("connection lost")
+        }
         songs += songIds
+        fail(Failure.AfterWrite)
     }
 
     override suspend fun delete(playlistId: String) {

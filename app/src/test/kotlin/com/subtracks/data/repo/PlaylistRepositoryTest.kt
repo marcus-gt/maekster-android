@@ -270,6 +270,57 @@ class PlaylistRepositoryTest {
         }
 
     @Test
+    fun aPartialMoveCanBeRetriedWithoutLosingDuplicateOccurrences() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "a", "c")
+            mirror("p", "a", "b", "a", "c")
+            server.failNext = FakePlaylistWriter.Failure.AfterFirstSong
+            assertTrue(runCatching { repository.moveEntry(1, "p", 3, "c", 0) }.exceptionOrNull() is IOException)
+            assertEquals(listOf("c"), server.songs("p"))
+            assertEquals(listOf("a", "b", "a", "c"), mirrored("p"))
+            repository.moveEntry(1, "p", 3, "c", 0)
+            assertEquals(listOf("c", "a", "b", "a"), server.songs("p"))
+            assertEquals(listOf("c", "a", "b", "a"), mirrored("p"))
+        }
+
+    @Test
+    fun aLostMoveResponseIsReadBackWithoutAnotherReplacement() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "c")
+            mirror("p", "a", "b", "c")
+            server.failNext = FakePlaylistWriter.Failure.AfterWrite
+            assertTrue(runCatching { repository.moveEntry(1, "p", 2, "c", 0) }.isFailure)
+            repository.moveEntry(1, "p", 2, "c", 0)
+            assertEquals(1, server.replaced.size)
+            assertEquals(listOf("c", "a", "b"), mirrored("p"))
+            expect(PlaylistEditException.Reason.Changed) {
+                repository.reorder(1, "p", listOf("c", "a", "b"), listOf("a", "b", "c"))
+            }
+        }
+
+    @Test
+    fun aConflictingEditAfterAPartialMoveIsNeverOverwritten() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "c")
+            mirror("p", "a", "b", "c")
+            server.failNext = FakePlaylistWriter.Failure.AfterFirstSong
+            assertTrue(runCatching { repository.moveEntry(1, "p", 2, "c", 0) }.isFailure)
+            server.put("p", "Mix", "c", "x")
+            expect(PlaylistEditException.Reason.Changed) { repository.moveEntry(1, "p", 2, "c", 0) }
+            assertEquals(1, server.replaced.size)
+            assertEquals(listOf("c", "x"), mirrored("p"))
+        }
+
+    @Test
+    fun aPrefixWithoutAFailedIntentIsAConflict() =
+        runTest {
+            server.put("p", "Mix", "c")
+            mirror("p", "a", "b", "c")
+            expect(PlaylistEditException.Reason.Changed) { repository.moveEntry(1, "p", 2, "c", 0) }
+            assertTrue(server.replaced.isEmpty())
+        }
+
+    @Test
     fun movingOutsideThePlaylistIsRejected() =
         runTest {
             server.put("p", "Mix", "a", "b")

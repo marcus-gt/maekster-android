@@ -9,6 +9,8 @@ import com.subtracks.data.playlist.PlaylistAppendIntent
 import com.subtracks.data.source.PlaylistDetail
 import com.subtracks.data.source.PlaylistWriter
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Why a playlist edit did not happen; any other failure is the server's or the network's own exception. */
 class PlaylistEditException(
@@ -85,6 +87,14 @@ class PlaylistRepository(
     private val writerFor: suspend (sourceId: Long) -> PlaylistWriter?,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
+    private data class ReorderIntent(
+        val shown: List<String>,
+        val ordered: List<String>,
+    )
+
+    private val reorderMutex = Mutex()
+    private val pendingReorders = mutableMapOf<Pair<Long, String>, ReorderIntent>()
+
     /** The playlists songs were last added to on [sourceId], newest first (only successful additions). */
     fun recentDestinations(sourceId: Long): Flow<List<Playlist>> = db.playlistDestinationDao().recent(sourceId)
 
@@ -219,19 +229,35 @@ class PlaylistRepository(
         reorder(sourceId, playlistId, ordered, shown)
     }
 
-    /** Puts the playlist in [ordered] order; it must hold the same songs as [shownSongIds], the order shown. */
+    /**
+     * Puts the playlist in [ordered] order, retaining failed intent until readback succeeds. A matching retry
+     * accepts the original list or an ordered prefix left by a partial replacement; any other order conflicts.
+     * Retry state lasts for this repository instance, not across process death.
+     */
     suspend fun reorder(
         sourceId: Long,
         playlistId: String,
         ordered: List<String>,
         shownSongIds: List<String>,
     ) {
-        require(ordered.sorted() == shownSongIds.sorted()) { "A reorder must keep the same songs" }
-        val writer = writer(sourceId)
-        val current = fresh(writer, sourceId, playlistId)
-        if (current.songIds() != shownSongIds) changed(current)
-        writer.replace(playlistId, ordered)
-        refresh(writer, sourceId, playlistId)
+        reorderMutex.withLock {
+            require(ordered.sorted() == shownSongIds.sorted()) { "A reorder must keep the same songs" }
+            val key = sourceId to playlistId
+            val intent = ReorderIntent(shownSongIds.toList(), ordered.toList())
+            val retry = pendingReorders[key] == intent
+            val writer = writer(sourceId)
+            val current = fresh(writer, sourceId, playlistId)
+            val held = current.songIds()
+            val partial = retry && held.size <= ordered.size && held == ordered.take(held.size)
+            if (held != shownSongIds && !partial) {
+                pendingReorders.remove(key)
+                changed(current)
+            }
+            pendingReorders[key] = intent
+            if (held != ordered) writer.replace(playlistId, ordered)
+            refresh(writer, sourceId, playlistId)
+            pendingReorders.remove(key)
+        }
     }
 
     /**
