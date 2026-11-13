@@ -489,6 +489,10 @@ Part D's add-to-playlist sheet implementation is committed, but broader UI/retry
 unfinished. Its Recent destinations now wait for the signed-in owner and exclude other owners,
 matching the paged list's eligibility rule; unknown-owner playlists remain compatible.
 See `docs/handoffs/M2.9-recent-ownership.md` for this bounded follow-up.
+Duplicate choices and partial-write/creation retries now have ViewModel-to-Room/fake-server tests,
+including success messages, dismissal, retained drafts and cancellation of the duplicate prompt.
+Mutation checks catch swapped choices, lost creation identity and broken prompt dismissal.
+See `docs/handoffs/M2.9-playlist-retries.md`; paging, sheet UI, renders and device checks remain.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
