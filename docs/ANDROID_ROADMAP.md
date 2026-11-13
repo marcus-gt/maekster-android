@@ -496,7 +496,11 @@ See `docs/handoffs/M2.9-playlist-retries.md`.
 Destination DAO tests now cover owner/source isolation, Recent exclusions, escaped substring search,
 and 125 rows across seven-row pages with case-insensitive name order and ID ties. A broken-query
 mutation fails all three tests; see `docs/handoffs/M2.9-destination-paging.md`.
-Repository/UI search wiring, sheet UI, renders and device checks remain.
+Sheet controls now have Compose tests (creation/search callbacks, Recent and deep-list picks,
+busy gating, duplicate choices, and scrolling back to creation). The whole sheet scrolls together;
+Create sits below a full-width name field to prevent floating-label overlap at 2× font size.
+Normal and 2×/320×480 renders reviewed; see `docs/handoffs/M2.9-sheet-ui.md`.
+Repository/ViewModel search integration and real-device checks remain.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

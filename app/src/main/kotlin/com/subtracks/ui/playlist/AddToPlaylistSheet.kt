@@ -107,79 +107,79 @@ fun AddToPlaylistSheet(
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier.testTag(ADD_TO_PLAYLIST_TAG),
     ) {
-        Column(Modifier.fillMaxWidth().imePadding()) {
-            Text(
-                stringResource(R.string.add_to_playlist_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedTextField(
-                    value = ui.newName,
-                    onValueChange = onNewName,
-                    label = { Text(stringResource(R.string.add_to_playlist_new_name)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { if (ui.canCreate) onCreate() }),
-                    modifier = Modifier.weight(1f),
+        LazyColumn(Modifier.fillMaxWidth().imePadding().testTag("playlist-destinations")) {
+            item {
+                Text(
+                    stringResource(R.string.add_to_playlist_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
-                FilledTonalButton(onClick = onCreate, enabled = ui.canCreate) {
-                    if (ui.busy == AddToPlaylistUi.CREATING) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        Text(stringResource(R.string.add_to_playlist_create))
-                    }
-                }
-            }
-            OutlinedTextField(
-                value = ui.query,
-                onValueChange = onQuery,
-                placeholder = { Text(stringResource(R.string.add_to_playlist_search)) },
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-            ui.error?.let { error ->
-                val resources = LocalResources.current
                 Column(
-                    Modifier
-                        .padding(horizontal = 24.dp, vertical = 4.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(error.resolve(resources), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        stringResource(R.string.add_to_playlist_retry_hint),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
+                    OutlinedTextField(
+                        value = ui.newName,
+                        onValueChange = onNewName,
+                        label = { Text(stringResource(R.string.add_to_playlist_new_name)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { if (ui.canCreate) onCreate() }),
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                }
-            }
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
-                if (ui.recent.isNotEmpty()) {
-                    item { SectionLabel(stringResource(R.string.add_to_playlist_recent)) }
-                    ui.recent.forEach { playlist ->
-                        item(key = "recent-${playlist.id}") { DestinationRow(playlist, coverArt, ui.busy, onPick) }
+                    FilledTonalButton(onClick = onCreate, enabled = ui.canCreate) {
+                        if (ui.busy == AddToPlaylistUi.CREATING) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(stringResource(R.string.add_to_playlist_create))
+                        }
                     }
-                    item { SectionLabel(stringResource(R.string.add_to_playlist_all)) }
                 }
-                items(destinations.itemCount, key = destinations.itemKey { it.id }) { index ->
-                    destinations[index]?.let { DestinationRow(it, coverArt, ui.busy, onPick) }
-                }
-                if (destinations.itemCount == 0 && ui.recent.isEmpty() && ui.query.isBlank()) {
-                    item {
+                OutlinedTextField(
+                    value = ui.query,
+                    onValueChange = onQuery,
+                    placeholder = { Text(stringResource(R.string.add_to_playlist_search)) },
+                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                ui.error?.let { error ->
+                    val resources = LocalResources.current
+                    Column(
+                        Modifier
+                            .padding(horizontal = 24.dp, vertical = 4.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    ) {
+                        Text(error.resolve(resources), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            stringResource(R.string.add_to_playlist_none),
+                            stringResource(R.string.add_to_playlist_retry_hint),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(24.dp),
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
-                item { Spacer(Modifier.size(24.dp)) }
             }
+            if (ui.recent.isNotEmpty()) {
+                item { SectionLabel(stringResource(R.string.add_to_playlist_recent)) }
+                ui.recent.forEach { playlist ->
+                    item(key = "recent-${playlist.id}") { DestinationRow(playlist, coverArt, ui.busy, onPick) }
+                }
+                item { SectionLabel(stringResource(R.string.add_to_playlist_all)) }
+            }
+            items(destinations.itemCount, key = destinations.itemKey { it.id }) { index ->
+                destinations[index]?.let { DestinationRow(it, coverArt, ui.busy, onPick) }
+            }
+            if (destinations.itemCount == 0 && ui.recent.isEmpty() && ui.query.isBlank()) {
+                item {
+                    Text(
+                        stringResource(R.string.add_to_playlist_none),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+            }
+            item { Spacer(Modifier.size(24.dp)) }
         }
     }
     ui.duplicatesIn?.let { playlist ->
