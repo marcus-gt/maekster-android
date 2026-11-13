@@ -64,6 +64,7 @@ import com.subtracks.ui.playlist.DeletePlaylistRequest
 import com.subtracks.ui.playlist.DeletePlaylistViewModel
 import com.subtracks.ui.playlist.RenamePlaylistRequest
 import com.subtracks.ui.playlist.RenamePlaylistViewModel
+import com.subtracks.ui.playlist.SaveQueueViewModel
 import com.subtracks.ui.search.SearchViewModel
 import com.subtracks.ui.settings.AddSourceViewModel
 import com.subtracks.ui.settings.SettingsViewModel
@@ -213,6 +214,7 @@ fun appModule(
         AddToPlaylistViewModel(request, get(), owner = { sources.username(request.sourceId) }, showMessage = showMessage)
     }
     viewModel { params -> RenamePlaylistViewModel(params.get<RenamePlaylistRequest>(), get(), showMessage) }
+    viewModel { SaveQueueViewModel(get(), get(), showMessage, cleanup = get<CoroutineScope>(named("io"))) }
     viewModel { params ->
         val downloads = get<DownloadRepository>()
         val playback = get<PlaybackController>()

@@ -508,6 +508,16 @@
     <string name="rename_playlist_name">Playlist name</string>
     <string name="rename_playlist_confirm">Rename</string>
     <string name="rename_playlist_cancel">Cancel</string>
+    <string name="save_queue_as_playlist">Save queue as playlist…</string>
+    <string name="save_queue_title">Save queue as playlist</string>
+    <string name="save_queue_confirm">Save</string>
+    <string name="save_queue_retry">Retry</string>
+    <string name="save_queue_retained">The queue as it was when you pressed Save is kept for a retry.</string>
+    <string name="queue_saved_as_playlist">Saved the queue as %1$s</string>
+    <string name="save_queue_empty">The queue is empty</string>
+    <string name="save_queue_several_servers">The queue holds songs from more than one server</string>
+    <string name="save_queue_capture_failed">The queue changed while it was being read. Try again.</string>
+    <string name="save_queue_changed">The new playlist was changed elsewhere, so the rest of the queue was not added</string>
     <string name="delete_playlist">Delete playlist</string>
     <string name="delete_playlist_title">Delete “%1$s”?</string>
     <string name="delete_playlist_message">This permanently deletes the playlist from your server. This can\'t be undone.</string>

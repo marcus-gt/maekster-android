@@ -66,6 +66,7 @@ import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.rememberViewportFill
 import com.subtracks.ui.library.SongRow
+import com.subtracks.ui.playlist.SaveQueueRoute
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -311,7 +312,15 @@ fun QueueRoute(
     }
     LaunchedEffect(playback.shuffle, open) { if (open) viewModel.open() }
     LaunchedEffect(playback.layout) { if (open) viewModel.reconcile() }
+    val offline by sourceRepository.offline.collectAsStateWithLifecycle()
+    var saveOpening by remember { mutableIntStateOf(0) }
+    var savingQueue by remember { mutableStateOf(false) }
     QueueScreen(
+        canSaveAsPlaylist = !offline && viewModel.rows.isNotEmpty(),
+        onSaveAsPlaylist = {
+            saveOpening++
+            savingQueue = true
+        },
         rows = viewModel.rows,
         ready = viewModel.ready,
         initialIndex = viewModel.initialIndex,
@@ -334,6 +343,7 @@ fun QueueRoute(
         onUndo = viewModel::undo,
         modifier = modifier,
     )
+    if (savingQueue) SaveQueueRoute(key = saveOpening, onDismiss = { savingQueue = false })
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -360,6 +370,8 @@ fun QueueScreen(
     onClearUpNext: () -> Unit = {},
     canClearUpcoming: Boolean = false,
     onClearUpcoming: suspend () -> Boolean = { false },
+    canSaveAsPlaylist: Boolean = false,
+    onSaveAsPlaylist: () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val fill = rememberViewportFill(listState)
@@ -434,7 +446,7 @@ fun QueueScreen(
                     }
                 },
                 actions = {
-                    if (canClearUpcoming || rows.any { it.upNext }) {
+                    if (canClearUpcoming || rows.any { it.upNext } || canSaveAsPlaylist) {
                         Box {
                             IconButton(onClick = { showOptions = true }) {
                                 Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.queue_options))
@@ -458,6 +470,15 @@ fun QueueScreen(
                                             showOptions = false
                                             onClearUpNext()
                                             showUndo(queueCleared)
+                                        },
+                                    )
+                                }
+                                if (canSaveAsPlaylist) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.save_queue_as_playlist)) },
+                                        onClick = {
+                                            showOptions = false
+                                            onSaveAsPlaylist()
                                         },
                                     )
                                 }
