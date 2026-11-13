@@ -19,6 +19,8 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Cancel
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
@@ -144,7 +146,7 @@ fun MenuTarget.bulkRef(): Pair<DownloadList, String>? =
         is MenuTarget.Song -> null
     }
 
-class ItemActions(
+data class ItemActions(
     val playNext: ((QueueRef) -> Unit)? = null,
     val addToQueue: ((QueueRef) -> Unit)? = null,
     val download: ((SongModel) -> Unit)? = null,
@@ -154,6 +156,8 @@ class ItemActions(
     val setStar: (StarType, String, Boolean) -> Unit = { _, _, _ -> },
     val viewAlbum: ((String) -> Unit)? = null,
     val viewArtist: ((String) -> Unit)? = null,
+    val moveUpInPlaylist: ((MenuTarget.Song) -> Unit)? = null,
+    val moveDownInPlaylist: ((MenuTarget.Song) -> Unit)? = null,
     val removeFromPlaylist: ((MenuTarget.Song) -> Unit)? = null,
     val renamePlaylist: ((PlaylistModel) -> Unit)? = null,
     val deletePlaylist: ((PlaylistModel) -> Unit)? = null,
@@ -271,6 +275,12 @@ fun ItemContextMenu(
                         }
                     }
                     if (target.playlistPosition != null) {
+                        actions.moveUpInPlaylist?.let { move ->
+                            MenuItem(Icons.Rounded.ArrowUpward, stringResource(R.string.playlist_move_up)) { dismiss { move(target) } }
+                        }
+                        actions.moveDownInPlaylist?.let { move ->
+                            MenuItem(Icons.Rounded.ArrowDownward, stringResource(R.string.playlist_move_down)) { dismiss { move(target) } }
+                        }
                         actions.removeFromPlaylist?.let { remove ->
                             MenuItem(Icons.Rounded.RemoveCircleOutline, stringResource(R.string.remove_from_playlist)) {
                                 dismiss { remove(target) }

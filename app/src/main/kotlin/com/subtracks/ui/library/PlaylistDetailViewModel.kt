@@ -20,6 +20,7 @@ import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.PlaylistRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.playback.PlaybackController
+import com.subtracks.ui.playlist.PlaylistEntryMover
 import com.subtracks.ui.playlist.playlistEditMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -83,6 +84,28 @@ class PlaylistDetailViewModel(
     val canEdit: StateFlow<Boolean> =
         combine(playlist, offline, ownerName, ::canEditPlaylist)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    private val mover =
+        PlaylistEntryMover(
+            viewModelScope,
+            move = { position, songId, destination ->
+                playlists.moveEntry(sourceId.first(), playlistId, position.toInt(), songId, destination)
+            },
+            showMessage = showMessage,
+        )
+    val moving = mover.busy
+
+    fun moveFromPlaylist(
+        target: com.subtracks.ui.components.MenuTarget.Song,
+        offset: Int,
+    ) {
+        if (!canEdit.value || target.song.sourceId != playlist.value?.sourceId || offset !in listOf(-1, 1)) return
+        val position = target.playlistPosition ?: return
+        val destination = position + offset
+        val count = playlist.value?.songCount ?: return
+        if (destination !in 0 until count || destination > Int.MAX_VALUE || position > Int.MAX_VALUE) return
+        mover.move(position, target.song.id, destination.toInt())
+    }
 
     /** Removes the entry at [position], which the user saw holding [songId]. */
     fun removeFromPlaylist(

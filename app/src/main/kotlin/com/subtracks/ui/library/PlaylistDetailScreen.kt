@@ -74,6 +74,7 @@ fun PlaylistDetailRoute(
     val offline by viewModel.offline.collectAsStateWithLifecycle()
     val totals by viewModel.totals.collectAsStateWithLifecycle()
     val canEdit by viewModel.canEdit.collectAsStateWithLifecycle()
+    val moving by viewModel.moving.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf<RenamePlaylistRequest?>(null) }
     var deleting by remember { mutableStateOf<DeletePlaylistRequest?>(null) }
     CloseWhenDownloadsGone(downloadStatus.downloaded, offline, onBack)
@@ -96,6 +97,18 @@ fun PlaylistDetailRoute(
             setStar = setStar,
             viewAlbum = onViewAlbum,
             viewArtist = onViewArtist,
+            moveUpInPlaylist =
+                if (canEdit && !moving) {
+                    { viewModel.moveFromPlaylist(it, -1) }
+                } else {
+                    null
+                },
+            moveDownInPlaylist =
+                if (canEdit && !moving) {
+                    { viewModel.moveFromPlaylist(it, 1) }
+                } else {
+                    null
+                },
             removeFromPlaylist =
                 if (canEdit) {
                     { target -> target.playlistPosition?.let { viewModel.removeFromPlaylist(it, target.song.id) } }
@@ -126,7 +139,18 @@ fun PlaylistDetailRoute(
         onDownloadAction = requestDownloadAction,
         onBack = onBack,
         onSongClick = viewModel::play,
-        onSongLongClick = { contextMenuHost?.show(it, actions) },
+        onSongLongClick = { target ->
+            val position = (target as? MenuTarget.Song)?.playlistPosition
+            val songActions =
+                actions.copy(
+                    moveUpInPlaylist = actions.moveUpInPlaylist.takeIf { position != null && position > 0 },
+                    moveDownInPlaylist =
+                        actions.moveDownInPlaylist.takeIf {
+                            position != null && position < (playlist?.songCount ?: 0) - 1
+                        },
+                )
+            contextMenuHost?.show(target, songActions)
+        },
         onShuffle = viewModel::shuffle,
         onPlay = viewModel::playAll,
         onMore = {

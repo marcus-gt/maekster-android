@@ -540,8 +540,9 @@ downloads, purged only after the server confirms), snackbar and page close. On A
 dialog and Cancel were checked; a real delete awaits user authorization. See
 `docs/handoffs/M2.9-delete-playlist.md`.
 Reorder entry foundation adds a position-based repository move, preserving duplicate occurrences and
-unresolved mirror entries and refusing stale edits. Reorder UI remains next; see
-`docs/handoffs/M2.9-reorder-entry.md`.
+unresolved mirror entries and refusing stale edits; see `docs/handoffs/M2.9-reorder-entry.md`.
+The playlist song menu now offers Move up/down with ownership/offline and busy gating, exact occurrence
+positions and snackbar feedback. Drag reordering remains open; see `docs/handoffs/M2.9-reorder-menu.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

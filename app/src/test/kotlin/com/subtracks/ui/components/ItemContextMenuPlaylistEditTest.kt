@@ -34,6 +34,33 @@ class ItemContextMenuPlaylistEditTest {
     }
 
     @Test
+    fun moveActionsKeepTheSelectedOccurrence() {
+        val moves = mutableListOf<Pair<Long?, Int>>()
+        composeRule.setContent {
+            MaeksterTheme {
+                ItemContextMenu(
+                    target = MenuTarget.Song(song, playlistPosition = 2),
+                    actions =
+                        ItemActions(
+                            moveUpInPlaylist = { moves += it.playlistPosition to -1 },
+                            moveDownInPlaylist = { moves += it.playlistPosition to 1 },
+                        ),
+                    onDismiss = {},
+                )
+            }
+        }
+        composeRule.onNodeWithText("Move down").performClick()
+        assertEquals(listOf(2L to 1), moves)
+    }
+
+    @Test
+    fun noMovesWithoutEditCallbacks() {
+        show(MenuTarget.Song(song, playlistPosition = 2), remove = null)
+        composeRule.onNodeWithText("Move up").assertDoesNotExist()
+        composeRule.onNodeWithText("Move down").assertDoesNotExist()
+    }
+
+    @Test
     fun aSongFromAnEditablePlaylistCanBeRemovedAtItsPosition() {
         var removed: MenuTarget.Song? = null
         show(MenuTarget.Song(song, playlistPosition = 2), remove = { removed = it })
