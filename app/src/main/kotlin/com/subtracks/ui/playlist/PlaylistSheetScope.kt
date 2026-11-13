@@ -8,13 +8,14 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 
+/** Gives each opening of a playlist sheet or dialog (one [key]) its own ViewModels, cleared when it closes. */
 @Composable
 internal fun PlaylistSheetScope(
-    request: AddToPlaylistRequest,
+    key: Any,
     content: @Composable () -> Unit,
 ) {
     val owner =
-        remember(request) {
+        remember(key) {
             object : ViewModelStoreOwner {
                 override val viewModelStore = ViewModelStore()
             }

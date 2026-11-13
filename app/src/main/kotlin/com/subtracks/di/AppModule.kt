@@ -59,6 +59,8 @@ import com.subtracks.ui.playback.QueueViewModel
 import com.subtracks.ui.playback.playingSong
 import com.subtracks.ui.playlist.AddToPlaylistRequest
 import com.subtracks.ui.playlist.AddToPlaylistViewModel
+import com.subtracks.ui.playlist.RenamePlaylistRequest
+import com.subtracks.ui.playlist.RenamePlaylistViewModel
 import com.subtracks.ui.search.SearchViewModel
 import com.subtracks.ui.settings.AddSourceViewModel
 import com.subtracks.ui.settings.SettingsViewModel
@@ -207,6 +209,7 @@ fun appModule(
         val sources = get<SourceRepository>()
         AddToPlaylistViewModel(request, get(), owner = { sources.username(request.sourceId) }, showMessage = showMessage)
     }
+    viewModel { params -> RenamePlaylistViewModel(params.get<RenamePlaylistRequest>(), get(), showMessage) }
     single { LyricsCache(get<SubtracksDatabase>().lyricsCacheDao()) }
     single { LrclibProvider() }
     single {

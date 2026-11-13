@@ -35,10 +35,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Songs can be removed online from the user's own playlists, or from ones whose owner the server did not say or
- * when the user is unknown (the add sheet's rule).
+ * A playlist can be edited (songs removed, renamed) outside offline mode when it is the user's own, or when the
+ * server did not say whose it is or who the user is (the add sheet's rule).
  */
-internal fun canRemoveSongs(
+internal fun canEditPlaylist(
     playlist: Playlist?,
     offline: Boolean,
     user: String?,
@@ -80,8 +80,8 @@ class PlaylistDetailViewModel(
 
     val offline: StateFlow<Boolean> = sourceRepository.offline
 
-    val canRemove: StateFlow<Boolean> =
-        combine(playlist, offline, ownerName, ::canRemoveSongs)
+    val canEdit: StateFlow<Boolean> =
+        combine(playlist, offline, ownerName, ::canEditPlaylist)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /** Removes the entry at [position], which the user saw holding [songId]. */

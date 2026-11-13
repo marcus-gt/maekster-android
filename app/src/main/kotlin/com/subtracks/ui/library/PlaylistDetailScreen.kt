@@ -41,6 +41,8 @@ import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
 import com.subtracks.ui.components.playlistUpdatedText
 import com.subtracks.ui.components.rememberPendingDownloadDelete
+import com.subtracks.ui.playlist.RenamePlaylistRequest
+import com.subtracks.ui.playlist.RenamePlaylistRoute
 import com.subtracks.ui.theme.ArtworkColors
 import com.subtracks.ui.theme.MaeksterSpacing
 import com.subtracks.ui.theme.MaeksterTheme
@@ -69,7 +71,8 @@ fun PlaylistDetailRoute(
     val downloadStatus by viewModel.downloadStatus.collectAsStateWithLifecycle()
     val offline by viewModel.offline.collectAsStateWithLifecycle()
     val totals by viewModel.totals.collectAsStateWithLifecycle()
-    val canRemove by viewModel.canRemove.collectAsStateWithLifecycle()
+    val canEdit by viewModel.canEdit.collectAsStateWithLifecycle()
+    var renaming by remember { mutableStateOf<RenamePlaylistRequest?>(null) }
     CloseWhenDownloadsGone(downloadStatus.downloaded, offline, onBack)
     val pendingDelete = rememberPendingDownloadDelete(contextMenuHost?.dismissals ?: emptyFlow()) { _, _ -> viewModel.downloadedBytes() }
     val playback by playbackController.state.collectAsStateWithLifecycle()
@@ -91,8 +94,14 @@ fun PlaylistDetailRoute(
             viewAlbum = onViewAlbum,
             viewArtist = onViewArtist,
             removeFromPlaylist =
-                if (canRemove) {
+                if (canEdit) {
                     { target -> target.playlistPosition?.let { viewModel.removeFromPlaylist(it, target.song.id) } }
+                } else {
+                    null
+                },
+            renamePlaylist =
+                if (canEdit) {
+                    { renaming = RenamePlaylistRequest(it.sourceId, it.id, it.name) }
                 } else {
                     null
                 },
@@ -121,6 +130,7 @@ fun PlaylistDetailRoute(
     PendingDownloadDeleteConfirmation(pendingDelete) {
         viewModel.onDownloadAction(BulkDownloadAction.Delete)
     }
+    renaming?.let { request -> RenamePlaylistRoute(request, onDismiss = { renaming = null }) }
 }
 
 @Composable

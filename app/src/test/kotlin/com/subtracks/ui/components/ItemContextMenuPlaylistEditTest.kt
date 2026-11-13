@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
 import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
@@ -15,7 +16,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-class ItemContextMenuRemoveTest {
+class ItemContextMenuPlaylistEditTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
@@ -49,6 +50,40 @@ class ItemContextMenuRemoveTest {
         show(MenuTarget.Song(song, playlistPosition = 2), remove = null)
 
         composeRule.onNodeWithText("Remove from playlist").assertDoesNotExist()
+    }
+
+    @Test
+    fun anEditablePlaylistsMenuOffersRename() {
+        var renamed: Playlist? = null
+        val playlist = Playlist(1, "p", "Mix", null, null, 1, created = 0)
+        composeRule.setContent {
+            MaeksterTheme {
+                ItemContextMenu(
+                    target = MenuTarget.Playlist(playlist),
+                    actions = ItemActions(renamePlaylist = { renamed = it }),
+                    onDismiss = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Rename…").performClick()
+
+        assertEquals(playlist, renamed)
+    }
+
+    @Test
+    fun noRenameWhenThePlaylistCannotBeEdited() {
+        composeRule.setContent {
+            MaeksterTheme {
+                ItemContextMenu(
+                    target = MenuTarget.Playlist(Playlist(1, "p", "Mix", null, null, 1, created = 0)),
+                    actions = ItemActions(),
+                    onDismiss = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Rename…").assertDoesNotExist()
     }
 
     @Test

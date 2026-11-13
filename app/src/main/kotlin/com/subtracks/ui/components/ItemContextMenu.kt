@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Cancel
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Info
@@ -154,6 +155,7 @@ class ItemActions(
     val viewAlbum: ((String) -> Unit)? = null,
     val viewArtist: ((String) -> Unit)? = null,
     val removeFromPlaylist: ((MenuTarget.Song) -> Unit)? = null,
+    val renamePlaylist: ((PlaylistModel) -> Unit)? = null,
 )
 
 class ContextMenuHost {
@@ -324,6 +326,9 @@ fun ItemContextMenu(
 
                 is MenuTarget.Playlist -> {
                     queueItems()
+                    actions.renamePlaylist?.let { rename ->
+                        MenuItem(Icons.Rounded.Edit, stringResource(R.string.rename_playlist)) { replaceWith { rename(target.playlist) } }
+                    }
                     BulkDownloadItem(target, actions, ::dismiss)
                     onInfo?.let { info ->
                         MenuItem(Icons.Rounded.Info, stringResource(R.string.info)) { dismiss { info(target) } }

@@ -531,7 +531,10 @@ font, and a lost server response on device (JVM-tested only). Membership toggles
 Part E is done: "Remove from playlist" in a song's menu on its playlist page, for the user's own
 playlists outside offline mode. It removes that exact entry (duplicates safe), refusing when the
 mirror or server order changed, with a snackbar either way. Verified on API 37 on the test playlist;
-see `docs/handoffs/M2.9-remove-from-playlist.md`. Next: rename/delete, then reorder.
+see `docs/handoffs/M2.9-remove-from-playlist.md`.
+Part F is done: "Rename…" in the playlist page menu (same edit rule), a prefilled dialog that sends
+the trimmed name, needs a real change, and keeps the draft on failure. Verified on API 37 by renaming
+the test playlist and back; see `docs/handoffs/M2.9-rename-playlist.md`. Next: delete, then reorder.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

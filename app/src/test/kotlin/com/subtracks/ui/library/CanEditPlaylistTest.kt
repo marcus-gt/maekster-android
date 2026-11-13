@@ -5,28 +5,28 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class CanRemoveSongsTest {
+class CanEditPlaylistTest {
     private fun playlist(owner: String?) = Playlist(1, "p", "Mix", null, null, 1, created = 0, owner = owner)
 
     @Test
     fun theUsersOwnPlaylistCanBeEditedOnline() {
-        assertTrue(canRemoveSongs(playlist("alex"), offline = false, user = "alex"))
+        assertTrue(canEditPlaylist(playlist("alex"), offline = false, user = "alex"))
     }
 
     @Test
     fun someoneElsesPlaylistCannot() {
-        assertFalse(canRemoveSongs(playlist("sam"), offline = false, user = "alex"))
+        assertFalse(canEditPlaylist(playlist("sam"), offline = false, user = "alex"))
     }
 
     @Test
     fun anUnknownOwnerOrUserIsAllowedAsInTheAddSheet() {
-        assertTrue(canRemoveSongs(playlist(null), offline = false, user = "alex"))
-        assertTrue(canRemoveSongs(playlist("sam"), offline = false, user = null))
+        assertTrue(canEditPlaylist(playlist(null), offline = false, user = "alex"))
+        assertTrue(canEditPlaylist(playlist("sam"), offline = false, user = null))
     }
 
     @Test
     fun nothingIsEditableOfflineOrBeforeThePlaylistLoads() {
-        assertFalse(canRemoveSongs(playlist("alex"), offline = true, user = "alex"))
-        assertFalse(canRemoveSongs(null, offline = false, user = "alex"))
+        assertFalse(canEditPlaylist(playlist("alex"), offline = true, user = "alex"))
+        assertFalse(canEditPlaylist(null, offline = false, user = "alex"))
     }
 }
