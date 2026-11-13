@@ -578,8 +578,13 @@ sheet: "Add to <name>" per quick playlist (snackbar result), "Choose quick playl
 the user's own playlists) and "Add to playlist…". Settings page remains; see
 `docs/handoffs/M2.9-quick-playlists-menu.md`.
 Settings > Application > Quick playlists manages them: reorder (drag or accessibility actions), remove,
-choose (online only) and the "Also add to Favorites" switch. JVM-tested; device check next; see
+choose (online only) and the "Also add to Favorites" switch. Verified on API 37, including a
+user-authorized quick add (one append, one star; repeat says "Already in"); see
 `docs/handoffs/M2.9-quick-playlists-settings.md`.
+**Decision (13 Nov 2026, user):** M2.9 server verification is Navidrome-only for now. Playlist-write
+integration tests on gonic, LMS and Nextcloud Music are deferred to GitHub issue #11 and do not
+block M2.9. Remaining M2.9 work: membership toggles in the add-to-playlist sheet, read from the
+local mirror (decided with the user), with a server check before any write.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
