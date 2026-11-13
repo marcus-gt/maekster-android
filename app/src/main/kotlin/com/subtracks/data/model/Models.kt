@@ -608,6 +608,7 @@ data class PlaybackCursor(
     @ColumnInfo(defaultValue = "0") val upNextAnchor: Long = 0,
     val sourceLabel: String? = null,
     val shuffleRemoved: String? = null,
+    @ColumnInfo(defaultValue = "0") val shuffleLinear: Boolean = false,
 )
 
 @Entity(

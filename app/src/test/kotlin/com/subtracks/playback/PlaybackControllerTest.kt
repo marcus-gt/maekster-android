@@ -2669,12 +2669,63 @@ class PlaybackControllerTest {
     }
 
     @Test
-    fun clearUpcomingRejectsShuffleWithoutChangingTheQueue() {
+    fun clearUpcomingWhileShuffledKeepsCurrentAndUndoRestoresExactOrder() {
         seedShuffledQueue(seed = 7L)
+        controller.playAt(2)
+        await { controller.state.value.position == 2L }
         val before = resolvedIds()
+        val current =
+            controller.state.value.item!!
+                .id
+        handle.positionMs = 9876
+        assertTrue(controller.state.value.canClearUpcoming)
+        assertTrue(runBlocking { controller.clearUpcoming() })
+        assertEquals(before.take(3), resolvedIds())
+        assertEquals(
+            current,
+            controller.state.value.item!!
+                .id,
+        )
+        assertEquals(9876L, handle.currentPositionMs)
+        assertTrue(controller.state.value.shuffle)
         assertFalse(controller.state.value.canClearUpcoming)
-        assertFalse(runBlocking { controller.clearUpcoming() })
+        runBlocking { controller.undo() }
         assertEquals(before, resolvedIds())
+        assertEquals(
+            current,
+            controller.state.value.item!!
+                .id,
+        )
+        assertEquals(9876L, handle.currentPositionMs)
+        assertTrue(controller.state.value.shuffle)
+    }
+
+    @Test
+    fun shuffledClearUndoRestoresSparseRemovalsAndPausePosition() {
+        seedShuffledQueue(seed = 7L, count = 8)
+        runBlocking { controller.removeAt(7) }
+        controller.playAt(2)
+        await { controller.state.value.position == 2L }
+        controller.togglePlayPause()
+        await { !handle.playWhenReady }
+        handle.positionMs = 12345
+        val before = runBlocking { queues.snapshot() }
+        val ids = resolvedIds()
+        assertTrue(runBlocking { controller.clearUpcoming() })
+        assertEquals(ids.take(3), resolvedIds())
+        assertFalse(handle.playWhenReady)
+        runBlocking { controller.undo() }
+        val restored = runBlocking { queues.snapshot() }
+        assertEquals(ids, resolvedIds())
+        assertEquals(before.shuffle!!.domain, restored.shuffle!!.domain)
+        assertEquals(before.shuffle.encodeRemoved(), restored.shuffle.encodeRemoved())
+        assertEquals(12345L, handle.currentPositionMs)
+        assertFalse(handle.playWhenReady)
+        assertTrue(runBlocking { controller.clearUpcoming() })
+        val retained = resolvedIds()
+        controller.toggleShuffle()
+        await { !controller.state.value.shuffle }
+        assertEquals(retained, resolvedIds())
     }
 
     @Test

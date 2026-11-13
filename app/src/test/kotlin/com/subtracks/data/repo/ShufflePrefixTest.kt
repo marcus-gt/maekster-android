@@ -7,6 +7,20 @@ import org.junit.Test
 
 class ShufflePrefixTest {
     @Test
+    fun linearShuffleAndSparseRemovalPrefixesRoundTrip() {
+        val order = ShuffleState(0, 10, linear = true).withRemoved(2).withRemoved(7)
+        (0L until order.liveSize).forEach {
+            assertEquals(it, order.flatFor(it))
+            assertEquals(it, order.playFor(it))
+        }
+        val prefix = ShufflePrefix(order, 5)
+        val restored = ShufflePrefix.decode(prefix.encode())!!
+        assertEquals("2|0|10|5|1|2,7", prefix.encode())
+        (0L until 5).forEach { assertEquals(it, restored.flatFor(it)) }
+        assertNull(restored.flatFor(5))
+    }
+
+    @Test
     fun persistenceRestoresTheOriginalDomainAndSparseRemovals() {
         val state = ShuffleState.restore(Long.MIN_VALUE, 31, "0,4,17,30")!!
         val prefix = ShufflePrefix(state, 12)

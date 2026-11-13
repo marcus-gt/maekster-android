@@ -14,6 +14,7 @@ import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.QueueSnapshot
 import com.subtracks.data.repo.QueueWindowItem
 import com.subtracks.data.repo.Shuffle
+import com.subtracks.data.repo.ShuffleState
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.log.Log
 import kotlinx.coroutines.CancellationException
@@ -77,7 +78,8 @@ private sealed interface QueueUndo {
     val entries: List<QueueEntry>
     val cursor: Long
     val current: Long?
-    val shuffleSeed: Long?
+    val shuffleOrder: ShuffleState?
+    val shuffleSeed: Long? get() = shuffleOrder?.seed
     val upNext: List<QueueEntry>
     val upNextAnchor: Long
 }
@@ -88,7 +90,7 @@ private data class RemovedUndo(
     override val current: Long,
     val position: Long,
     val item: QueueItem?,
-    override val shuffleSeed: Long?,
+    override val shuffleOrder: ShuffleState?,
     override val upNext: List<QueueEntry>,
     override val upNextAnchor: Long,
 ) : QueueUndo
@@ -99,7 +101,7 @@ private data class MovedUndo(
     override val current: Long,
     val from: Long,
     val to: Long,
-    override val shuffleSeed: Long?,
+    override val shuffleOrder: ShuffleState?,
     override val upNext: List<QueueEntry>,
     override val upNextAnchor: Long,
 ) : QueueUndo
@@ -107,7 +109,7 @@ private data class MovedUndo(
 private data class ReloadUndo(
     override val entries: List<QueueEntry>,
     override val cursor: Long,
-    override val shuffleSeed: Long?,
+    override val shuffleOrder: ShuffleState?,
     override val upNext: List<QueueEntry>,
     override val upNextAnchor: Long,
 ) : QueueUndo {
@@ -118,7 +120,7 @@ private data class ClearedQueueUndo(
     override val entries: List<QueueEntry>,
     override val cursor: Long,
     override val current: Long?,
-    override val shuffleSeed: Long?,
+    override val shuffleOrder: ShuffleState?,
     override val upNext: List<QueueEntry>,
     override val upNextAnchor: Long,
     val positionMs: Long,
@@ -479,7 +481,7 @@ class PlaybackController(
             if (snapshot.size == 1L) {
                 queueRepository.removeAt(snapshot, position)
                 stopLocked()
-                lastEdit = ReloadUndo(entries, cursor, snapshot.shuffleSeed, upNext, snapshot.upNextAnchor)
+                lastEdit = ReloadUndo(entries, cursor, snapshot.shuffle, upNext, snapshot.upNextAnchor)
                 return@withLock
             }
             val current = currentPosition() ?: return@withLock
@@ -492,7 +494,7 @@ class PlaybackController(
             windowJob?.cancel()
             if (updated.size == 0L) {
                 stopLocked()
-                lastEdit = ReloadUndo(entries, cursor, snapshot.shuffleSeed, upNext, snapshot.upNextAnchor)
+                lastEdit = ReloadUndo(entries, cursor, snapshot.shuffle, upNext, snapshot.upNextAnchor)
                 return@withLock
             }
             // Derive the current track's new position from the edit. Resolving its song id after
@@ -535,9 +537,9 @@ class PlaybackController(
             lastPosition = target
             lastEdit =
                 if (removed == null) {
-                    ReloadUndo(entries, cursor, snapshot.shuffleSeed, upNext, snapshot.upNextAnchor)
+                    ReloadUndo(entries, cursor, snapshot.shuffle, upNext, snapshot.upNextAnchor)
                 } else {
-                    RemovedUndo(entries, cursor, target, position, removed, snapshot.shuffleSeed, upNext, snapshot.upNextAnchor)
+                    RemovedUndo(entries, cursor, target, position, removed, snapshot.shuffle, upNext, snapshot.upNextAnchor)
                 }
             if (offline) {
                 queueRepository.setCursor(target)
@@ -627,9 +629,9 @@ class PlaybackController(
         val toInWindow = to in windowStart..windowEnd
         lastEdit =
             if (fromInWindow == toInWindow) {
-                MovedUndo(entries, cursor, target, from, to, snapshot.shuffleSeed, upNext, snapshot.upNextAnchor)
+                MovedUndo(entries, cursor, target, from, to, snapshot.shuffle, upNext, snapshot.upNextAnchor)
             } else {
-                ReloadUndo(entries, cursor, snapshot.shuffleSeed, upNext, snapshot.upNextAnchor)
+                ReloadUndo(entries, cursor, snapshot.shuffle, upNext, snapshot.upNextAnchor)
             }
         if (offline) {
             queueRepository.setCursor(target)
@@ -674,7 +676,14 @@ class PlaybackController(
             val player = player ?: return@withLock
             val playing = player.playWhenReady
             val positionMs = player.currentPositionMs
-            queueRepository.replace(undo.entries, undo.shuffleSeed, undo.upNext, undo.upNextAnchor, queueRepository.sourceLabel())
+            queueRepository.replace(
+                undo.entries,
+                undo.shuffleSeed,
+                undo.upNext,
+                undo.upNextAnchor,
+                queueRepository.sourceLabel(),
+                shuffleOrder = undo.shuffleOrder,
+            )
             shuffleEnabled = undo.shuffleSeed != null
             val restored = readSnapshot()
             this.snapshot = restored
@@ -877,7 +886,7 @@ class PlaybackController(
             val snapshot = snapshot ?: return@withLock false
             val player = player ?: return@withLock false
             val current = currentPosition() ?: return@withLock false
-            if (snapshot.shuffled || current >= snapshot.size - 1) return@withLock false
+            if (current >= snapshot.size - 1) return@withLock false
             val savedPositionMs = player.currentPositionMs
             if (!queueRepository.clearUpcoming(snapshot, current)) return@withLock false
             lastEdit =
@@ -885,7 +894,7 @@ class PlaybackController(
                     snapshot.entries.map { it.entry },
                     current,
                     current,
-                    snapshot.shuffleSeed,
+                    snapshot.shuffle,
                     snapshot.upNext.map { it.entry },
                     snapshot.upNextAnchor,
                     savedPositionMs,
@@ -926,7 +935,7 @@ class PlaybackController(
                         snapshot.entries.map { it.entry },
                         current,
                         if (wasUpNext) null else target,
-                        snapshot.shuffleSeed,
+                        snapshot.shuffle,
                         snapshot.upNext.map { it.entry },
                         snapshot.upNextAnchor,
                         savedPositionMs,
@@ -1833,7 +1842,7 @@ class PlaybackController(
                 layout = layoutVersion,
                 audioEncoding = player.audioEncoding.takeIf { player.currentItem != null },
                 playbackOrigin = player.playbackOrigin.takeIf { player.currentItem != null },
-                canClearUpcoming = snapshot?.let { !it.shuffled && position != null && position < it.size - 1 } == true,
+                canClearUpcoming = snapshot?.let { position != null && position < it.size - 1 } == true,
             )
         _positionMs.value = player.currentPositionMs
         if (player.isPlaying) startPositionTicker() else stopPositionTicker()

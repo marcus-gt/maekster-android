@@ -72,7 +72,7 @@ import com.subtracks.data.model.UpNextEntry
         StoredQueueOrder::class,
         StoredQueueOrderEntry::class,
     ],
-    version = 47,
+    version = 48,
     exportSchema = true,
 )
 @ColumnTypeConverters(

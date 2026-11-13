@@ -33,6 +33,7 @@ class ClearUpcomingActionTest {
         fontScale: Float,
         succeeds: Boolean,
         image: String? = null,
+        shuffled: Boolean = false,
     ) {
         var clears = 0
         var undos = 0
@@ -44,6 +45,7 @@ class ClearUpcomingActionTest {
                     QueueScreen(
                         rows = listOf(QueueRow(1, 0, AlbumSongItem(song, null))),
                         ready = true,
+                        shuffle = shuffled,
                         currentPosition = 0,
                         currentSongId = "s1",
                         contextTitle = "Album",
@@ -88,6 +90,11 @@ class ClearUpcomingActionTest {
             true,
             "src/test/screenshots/queue_clear_upcoming_large_font.png",
         )
+
+    @Test fun shuffledClearOffersUndo() = check(1f, true, "src/test/screenshots/queue_shuffled_clear.png", shuffled = true)
+
+    @Test fun shuffledClearIsReadableAtLargeFontScale() =
+        check(2f, true, "src/test/screenshots/queue_shuffled_clear_large_font.png", shuffled = true)
 
     @Test fun rejectedClearDoesNotOfferUndoForAnEarlierEdit() = check(1f, false)
 }

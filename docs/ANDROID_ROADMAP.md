@@ -408,7 +408,13 @@ cleanup mutation. No runtime action yet; see `docs/handoffs/M2.7-stored-orders.m
 Part T resolves Order references through stored prefixes, preserving original album context,
 source scope, restart behavior and nested dependencies. Invalid records play nothing; queue
 replacement prunes unreachable orders. Mapping mutation/full checks pass. The shuffled Clear
-upcoming action is still disabled; see `docs/handoffs/M2.7-order-resolution.md`.
+upcoming action was still disabled at that checkpoint; see `docs/handoffs/M2.7-order-resolution.md`.
+Part U enables shuffled Clear upcoming using a persisted retained-order reference and identity shuffle
+state (schema 48). Current track/time and manual-block boundaries survive; unshuffle keeps played
+order, and Undo restores the exact sparse shuffle. Pre-fix regression, full build/tests/lint and
+normal/2× UI renders pass. Emulator clear preserved the paused track/time; timed Undo was not
+activated before expiry. See `docs/handoffs/M2.7-shuffled-clear-upcoming.md`.
+Next: final M2.7 parity review, then M2.8 lyrics.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

@@ -22,16 +22,26 @@ class ShufflePrefix(
         return shuffle.playFor(canonical).takeIf { it in 0 until size }
     }
 
-    fun encode(): String = listOf("1", shuffle.seed, shuffle.domain, size, shuffle.encodeRemoved()).joinToString("|")
+    fun encode(): String =
+        if (shuffle.linear) {
+            listOf("2", shuffle.seed, shuffle.domain, size, "1", shuffle.encodeRemoved()).joinToString("|")
+        } else {
+            listOf("1", shuffle.seed, shuffle.domain, size, shuffle.encodeRemoved()).joinToString("|")
+        }
 
     companion object {
         fun decode(encoded: String): ShufflePrefix? {
             val fields = encoded.split('|')
-            if (fields.size != 5 || fields[0] != "1") return null
+            val linear =
+                when {
+                    fields.size == 5 && fields[0] == "1" -> false
+                    fields.size == 6 && fields[0] == "2" && fields[4] == "1" -> true
+                    else -> return null
+                }
             val seed = fields[1].toLongOrNull() ?: return null
             val domain = fields[2].toLongOrNull() ?: return null
             val count = fields[3].toLongOrNull() ?: return null
-            val shuffle = ShuffleState.restore(seed, domain, fields[4]) ?: return null
+            val shuffle = ShuffleState.restore(seed, domain, fields.last(), linear) ?: return null
             if (count !in 0..shuffle.liveSize) return null
             return ShufflePrefix(shuffle, count)
         }

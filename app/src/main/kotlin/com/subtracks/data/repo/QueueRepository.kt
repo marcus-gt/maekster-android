@@ -10,6 +10,8 @@ import com.subtracks.data.model.PlaybackCursor
 import com.subtracks.data.model.QueueEntry
 import com.subtracks.data.model.QueueKind
 import com.subtracks.data.model.SongItem
+import com.subtracks.data.model.StoredQueueOrder
+import com.subtracks.data.model.StoredQueueOrderEntry
 import com.subtracks.data.model.UpNextEntry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -72,14 +74,15 @@ class ShuffleState(
     val domain: Long,
     private val removedFlats: LongArray = LongArray(0),
     private val removedSlots: LongArray = LongArray(0),
+    val linear: Boolean = false,
 ) {
     fun flatFor(play: Long): Long {
-        val domainFlat = Shuffle.toFlat(seed, domain, liveSlot(play))
+        val domainFlat = if (linear) liveSlot(play) else Shuffle.toFlat(seed, domain, liveSlot(play))
         return domainFlat - removedFlats.count { it < domainFlat }
     }
 
     fun playFor(canonical: Long): Long {
-        val slot = Shuffle.toSequence(seed, domain, liveFlat(canonical))
+        val slot = if (linear) liveFlat(canonical) else Shuffle.toSequence(seed, domain, liveFlat(canonical))
         return slot - removedSlots.count { it < slot }
     }
 
@@ -92,7 +95,8 @@ class ShuffleState(
             seed,
             domain,
             (removedFlats + domainFlat).sortedArray(),
-            (removedSlots + Shuffle.toSequence(seed, domain, domainFlat)).sortedArray(),
+            (removedSlots + if (linear) domainFlat else Shuffle.toSequence(seed, domain, domainFlat)).sortedArray(),
+            linear,
         )
 
     fun encodeRemoved(): String = removedFlats.joinToString(",")
@@ -102,13 +106,14 @@ class ShuffleState(
             seed: Long,
             domain: Long,
             encoded: String?,
+            linear: Boolean = false,
         ): ShuffleState? {
             if (domain !in 0..(1L shl 40)) return null
-            if (encoded.isNullOrEmpty()) return ShuffleState(seed, domain)
+            if (encoded.isNullOrEmpty()) return ShuffleState(seed, domain, linear = linear)
             val flats = encoded.split(',').map { it.toLongOrNull() ?: return null }
             if (flats.any { it !in 0 until domain } || flats.zipWithNext().any { (a, b) -> a >= b }) return null
-            val slots = flats.map { Shuffle.toSequence(seed, domain, it) }.sorted().toLongArray()
-            return ShuffleState(seed, domain, flats.toLongArray(), slots)
+            val slots = flats.map { if (linear) it else Shuffle.toSequence(seed, domain, it) }.sorted().toLongArray()
+            return ShuffleState(seed, domain, flats.toLongArray(), slots, linear)
         }
     }
 
@@ -596,10 +601,11 @@ class QueueRepository(
         upNext: List<QueueEntry> = emptyList(),
         upNextAnchor: Long = 0,
         sourceLabel: String? = null,
+        shuffleOrder: ShuffleState? = null,
     ) {
         write(entries)
         writeUpNext(upNext)
-        setShuffle(shuffleSeed)
+        if (shuffleOrder == null) setShuffle(shuffleSeed) else setShuffleOrder(shuffleOrder)
         cursorMutex.withLock {
             dao.setCursor(cursorRow().copy(queuePosition = 0, positionMs = 0, upNextAnchor = upNextAnchor, sourceLabel = sourceLabel))
         }
@@ -625,21 +631,18 @@ class QueueRepository(
                         if (row != null && row.shuffleEnabled && size > 0L) {
                             when {
                                 state != null && state.seed == row.shuffleSeed && state.domain == row.shuffleSize &&
-                                    state.liveSize == size -> {
+                                    state.liveSize == size && state.linear == row.shuffleLinear -> {
                                     state
                                 }
 
-                                state == null -> {
+                                else -> {
                                     ShuffleState
                                         .restore(
                                             row.shuffleSeed,
                                             row.shuffleSize,
                                             row.shuffleRemoved,
+                                            row.shuffleLinear,
                                         )?.takeIf { it.liveSize == size }
-                                }
-
-                                else -> {
-                                    null
                                 }
                             }
                         } else {
@@ -665,10 +668,26 @@ class QueueRepository(
                     shuffleSeed = seed ?: 0L,
                     shuffleSize = size,
                     shuffleRemoved = null,
+                    shuffleLinear = false,
                 ),
             )
         }
         shuffleRemoved = seed?.let { ShuffleState(it, size) }
+    }
+
+    private suspend fun setShuffleOrder(order: ShuffleState) {
+        cursorMutex.withLock {
+            dao.setCursor(
+                cursorRow().copy(
+                    shuffleEnabled = true,
+                    shuffleSeed = order.seed,
+                    shuffleSize = order.domain,
+                    shuffleRemoved = order.encodeRemoved(),
+                    shuffleLinear = order.linear,
+                ),
+            )
+        }
+        shuffleRemoved = order
     }
 
     fun invalidateLibraryCache() {
@@ -795,7 +814,6 @@ class QueueRepository(
         snapshot: QueueSnapshot,
         currentPosition: Long,
     ): Boolean {
-        require(!snapshot.shuffled) { "Shuffled truncation requires preserving the shuffle domain" }
         if (currentPosition !in 0 until snapshot.size || currentPosition == snapshot.size - 1) return false
         val inBlock = snapshot.isUpNext(currentPosition)
         val contextCount = if (inBlock) snapshot.anchorPlay + 1 else snapshot.contextPlay(currentPosition) + 1
@@ -805,21 +823,61 @@ class QueueRepository(
                 currentPosition <= snapshot.anchorPlay -> 0
                 else -> snapshot.upNextSize
             }
-        val entries = prefixEntries(snapshot.entries, contextCount)
+        if (snapshot.shuffled && snapshot.entries
+                .map { it.entry.sourceId }
+                .distinct()
+                .size != 1
+        ) {
+            return false
+        }
+        val entries = if (snapshot.shuffled) emptyList() else prefixEntries(snapshot.entries, contextCount)
         val block = prefixEntries(snapshot.upNext, blockCount)
         cursorMutex.withLock {
             db.useWriterConnection { transactor ->
                 transactor.immediateTransaction {
                     val cursor = cursorRow()
+                    val keptEntries =
+                        if (snapshot.shuffled && contextCount > 0) {
+                            val source =
+                                snapshot.entries
+                                    .first()
+                                    .entry.sourceId
+                            val orderId =
+                                db.queueOrderDao().insertOrder(
+                                    StoredQueueOrder(sourceId = source, prefix = ShufflePrefix(snapshot.shuffle!!, contextCount).encode()),
+                                )
+                            db.queueOrderDao().insertEntries(
+                                snapshot.entries.mapIndexed { index, resolved ->
+                                    val entry = resolved.entry
+                                    StoredQueueOrderEntry(
+                                        orderId,
+                                        index.toLong(),
+                                        entry.sourceId,
+                                        entry.kind,
+                                        entry.refId,
+                                        entry.rangeStart,
+                                        entry.rangeEnd,
+                                        resolved.length,
+                                    )
+                                },
+                            )
+                            listOf(QueueEntry(position = 0, sourceId = source, kind = QueueKind.Order, refId = orderId.toString()))
+                        } else {
+                            entries
+                        }
                     dao.clear()
-                    dao.insert(entries.mapIndexed { index, entry -> entry.copy(id = 0, position = index.toLong()) })
+                    dao.insert(keptEntries.mapIndexed { index, entry -> entry.copy(id = 0, position = index.toLong()) })
                     dao.clearUpNext()
                     dao.insertUpNext(block.mapIndexed { index, entry -> UpNextEntry.from(entry).copy(id = 0, position = index.toLong()) })
                     dao.setCursor(
                         cursor.copy(
                             queuePosition = currentPosition,
                             positionMs = if (cursor.queuePosition == currentPosition) cursor.positionMs else 0,
-                            upNextAnchor = snapshot.upNextAnchor.coerceAtMost(contextCount - 1),
+                            upNextAnchor = snapshot.anchorPlay.coerceAtMost(contextCount - 1),
+                            shuffleSeed = if (snapshot.shuffled) 0 else cursor.shuffleSeed,
+                            shuffleSize = if (snapshot.shuffled) contextCount else cursor.shuffleSize,
+                            shuffleRemoved = if (snapshot.shuffled) null else cursor.shuffleRemoved,
+                            shuffleLinear = snapshot.shuffled || cursor.shuffleLinear,
                         ),
                     )
                 }

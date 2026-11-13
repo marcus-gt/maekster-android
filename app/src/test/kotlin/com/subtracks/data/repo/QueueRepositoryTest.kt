@@ -45,6 +45,87 @@ class QueueRepositoryTest {
         db.close()
     }
 
+    @Test
+    fun shuffledClearUpcomingKeepsPlayedOrderAfterRestartAndUnshuffle() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1"), repository.albumEntry(1, "al2")), sourceLabel = "Artist")
+            repository.setShuffle(9)
+            val before = repository.snapshot()
+            val expected = resolveAll(before).take(3)
+            repository.setCursor(2)
+            repository.setPosition(12345)
+            assertTrue(repository.clearUpcoming(before, 2))
+            repository = QueueRepository(db)
+            val after = repository.snapshot()
+            assertTrue(after.shuffled)
+            assertEquals(expected, resolveAll(after))
+            assertEquals(2L, repository.cursor())
+            assertEquals(12345L, repository.cursorPositionMs())
+            assertEquals("Artist", repository.sourceLabel())
+            assertEquals(1, after.entries.size)
+            repository.setShuffle(null)
+            assertEquals(expected, resolveAll(repository.snapshot()))
+            repository.setShuffle(42)
+            assertEquals(expected.toSet(), resolveAll(repository.snapshot()).toSet())
+        }
+
+    @Test
+    fun shuffledClearHandlesEveryManualBlockBoundaryAndDuplicates() =
+        runTest {
+            seedLibrary()
+            for (anchor in listOf(-1L, 1L)) {
+                for (cut in 0L..6L) {
+                    repository.replace(
+                        listOf(repository.albumEntry(1, "al1"), repository.songEntry(1, "s1")),
+                        upNext = listOf(repository.songEntry(1, "s1"), repository.albumEntry(1, "al2")),
+                        upNextAnchor = anchor,
+                    )
+                    repository.setShuffle(42)
+                    val before = repository.snapshot()
+                    if (cut >= before.size - 1) continue
+                    val expected = resolveAll(before).take((cut + 1).toInt())
+                    repository.setCursor(cut)
+                    assertTrue(repository.clearUpcoming(before, cut))
+                    repository = QueueRepository(db)
+                    assertEquals("anchor=$anchor cut=$cut", expected, resolveAll(repository.snapshot()))
+                    repository.setShuffle(null)
+                    assertEquals(expected, resolveAll(repository.snapshot()))
+                }
+            }
+        }
+
+    @Test
+    fun repeatedShuffledClearKeepsAnIdentityPrefixAndDoesNotResolveHugeQueues() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1"), repository.albumEntry(1, "al2")))
+            repository.setShuffle(9)
+            val before = repository.snapshot()
+            val expected = resolveAll(before).take(2)
+            assertTrue(repository.clearUpcoming(before, 3))
+            assertTrue(repository.clearUpcoming(repository.snapshot(), 1))
+            repository = QueueRepository(db)
+            assertEquals(expected, resolveAll(repository.snapshot()))
+            repository.setShuffle(null)
+            assertEquals(expected, resolveAll(repository.snapshot()))
+            val entry = repository.albumEntry(1, "al1")
+            repository.replace(listOf(entry))
+            val synthetic =
+                QueueSnapshot(
+                    listOf(ResolvedQueueEntry(entry, 1_000_000_000)),
+                    shuffle = ShuffleState(42, 1_000_000_000),
+                )
+            val resolvedBefore = repository.resolvedRowCount
+            assertTrue(repository.clearUpcoming(synthetic, 500_000_000))
+            assertEquals(resolvedBefore, repository.resolvedRowCount)
+            val root = db.queueDao().entries().single()
+            assertEquals(QueueKind.Order, root.kind)
+            val order = db.queueOrderDao().order(1, root.refId.toLong())!!
+            assertEquals(500_000_001L, ShufflePrefix.decode(order.prefix)!!.size)
+            assertEquals(1, db.queueOrderDao().entries(order.id).size)
+        }
+
     private suspend fun storedOrder(
         snapshot: QueueSnapshot,
         count: Long,
@@ -236,7 +317,7 @@ class QueueRepositoryTest {
         }
 
     @Test
-    fun clearUpcomingNoOpsAtTheEndAndRejectsShuffleWithoutWriting() =
+    fun clearUpcomingNoOpsAtTheEndWithoutWriting() =
         runTest {
             seedLibrary()
             repository.replace(listOf(repository.albumEntry(1, "al1")))
@@ -246,8 +327,7 @@ class QueueRepositoryTest {
             assertFalse(repository.clearUpcoming(before, before.size - 1))
             repository.setShuffle(42)
             val shuffled = repository.snapshot()
-            val result = runCatching { repository.clearUpcoming(shuffled, 0) }
-            assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+            assertFalse(repository.clearUpcoming(shuffled, shuffled.size - 1))
             assertEquals(listOf("s1", "s2", "s3").sorted(), resolveAll(repository.snapshot()).sorted())
             assertEquals(42L, repository.snapshot().shuffleSeed)
         }
