@@ -500,7 +500,10 @@ Sheet controls now have Compose tests (creation/search callbacks, Recent and dee
 busy gating, duplicate choices, and scrolling back to creation). The whole sheet scrolls together;
 Create sits below a full-width name field to prevent floating-label overlap at 2× font size.
 Normal and 2×/320×480 renders reviewed; see `docs/handoffs/M2.9-sheet-ui.md`.
-Repository/ViewModel search integration and real-device checks remain.
+Repository/ViewModel search integration is now covered through a real Room-backed Paging presenter:
+query changes, literal `%`/`_`/backslash, trimmed/case-insensitive search, Recent separation,
+owner/source filtering, empty results and mirror rename invalidation. Removing percent escaping
+fails the test; see `docs/handoffs/M2.9-search-integration.md`. Real-device checks remain.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
