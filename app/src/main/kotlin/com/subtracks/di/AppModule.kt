@@ -5,6 +5,7 @@ import android.os.Environment
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.UiMessages
+import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createAndroidDatabase
 import com.subtracks.data.download.ArtworkFetcher
 import com.subtracks.data.download.ArtworkStore
@@ -12,6 +13,11 @@ import com.subtracks.data.download.DownloadEngine
 import com.subtracks.data.download.DownloadNotifier
 import com.subtracks.data.download.OkHttpArtworkFetcher
 import com.subtracks.data.download.SystemDownloadEngine
+import com.subtracks.data.lyrics.LrclibProvider
+import com.subtracks.data.lyrics.LyricsCache
+import com.subtracks.data.lyrics.LyricsLoader
+import com.subtracks.data.lyrics.LyricsProvider
+import com.subtracks.data.lyrics.LyricsRepository
 import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.net.networkAvailable
 import com.subtracks.data.net.networkMode
@@ -47,13 +53,17 @@ import com.subtracks.ui.library.ArtistDetailViewModel
 import com.subtracks.ui.library.LibraryHubViewModel
 import com.subtracks.ui.library.LibraryViewModel
 import com.subtracks.ui.library.PlaylistDetailViewModel
+import com.subtracks.ui.playback.LyricsViewModel
 import com.subtracks.ui.playback.QueueViewModel
+import com.subtracks.ui.playback.playingSong
 import com.subtracks.ui.search.SearchViewModel
 import com.subtracks.ui.settings.AddSourceViewModel
 import com.subtracks.ui.settings.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import okhttp3.OkHttpClient
@@ -182,6 +192,23 @@ fun appModule(
     viewModel { params -> ArtistDetailViewModel(get(), get(), get(), get(), params.get()) }
     viewModel { params -> PlaylistDetailViewModel(get(), get(), get(), get(), params.get()) }
     viewModel { QueueViewModel(get(), get(), get(), get()) }
+    single { LyricsCache(get<SubtracksDatabase>().lyricsCacheDao()) }
+    single { LrclibProvider() }
+    single {
+        val sources = get<SourceRepository>()
+        LyricsRepository(get(), server = LyricsProvider { sources.serverLyrics(it) }, lrclib = get<LrclibProvider>())
+    }
+    viewModel {
+        val library = get<LibraryRepository>()
+        val connected = networkAvailable(context.applicationContext).distinctUntilChanged()
+        val offline = combine(get<SourceRepository>().offline, connected) { mode, online -> mode || !online }
+        LyricsViewModel(
+            song = playingSong(get<PlaybackController>().state, library::song),
+            preferences = get<UserPreferences>().lyrics(),
+            offline = offline,
+            loader = LyricsLoader.from(get()),
+        )
+    }
 }
 
 private fun downloadsRoot(context: Context): File =

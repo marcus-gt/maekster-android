@@ -456,6 +456,11 @@ Part I adds Settings > Playback > Lyrics: source, explicit LRCLIB opt-in with th
 beside it (LRCLIB source disabled until allowed), current-line preview and ±3000ms correction.
 Normal/2× font dialog tests with a gate mutation; emulator checked. No player wiring yet;
 see `docs/handoffs/M2.8-lyrics-settings-ui.md`.
+Part J wires lyrics at runtime: Koin provides the cache, the server provider (per song's server) and
+an isolated LRCLIB client; LyricsLoader/LyricsViewModel follow the playing song, settings and
+connectivity, reload only when those change, and look nothing up unless the pane or preview shows
+lyrics. Loader/ViewModel tests with two mutations; full checks pass. No pane UI yet;
+see `docs/handoffs/M2.8-lyrics-runtime.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

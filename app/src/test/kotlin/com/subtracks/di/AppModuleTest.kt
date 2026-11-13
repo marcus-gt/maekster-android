@@ -4,9 +4,11 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.cancelAndJoinBlocking
+import com.subtracks.data.lyrics.LyricsRepository
 import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.playback.PlaybackController
+import com.subtracks.ui.playback.LyricsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -15,6 +17,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import okhttp3.OkHttpClient
 import org.junit.After
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Before
 import org.junit.Test
@@ -64,5 +67,18 @@ class AppModuleTest {
 
         assertSame(downloads, koin.get<DownloadRepository>())
         assertSame(controller, koin.get<PlaybackController>())
+    }
+
+    @Test
+    fun theModuleResolvesTheLyricsGraph() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val serverHeaders = ServerHeaders()
+        val http = OkHttpClient.Builder().addNetworkInterceptor(serverHeaders.interceptor()).build()
+        koin = startKoin { modules(appModule(context, http, serverHeaders)) }.koin
+
+        val lyrics = koin.get<LyricsRepository>()
+
+        assertSame(lyrics, koin.get<LyricsRepository>())
+        assertNotNull(koin.get<LyricsViewModel>())
     }
 }

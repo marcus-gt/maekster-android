@@ -6,7 +6,9 @@ import com.subtracks.UiMessage
 import com.subtracks.data.db.StoredSubsonicConfig
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.download.ArtworkStore
+import com.subtracks.data.lyrics.Lyrics
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.Song
 import com.subtracks.data.model.Source
 import com.subtracks.data.model.SourceHeader
 import com.subtracks.data.model.SubsonicConfig
@@ -26,6 +28,7 @@ import com.subtracks.data.source.MusicSource
 import com.subtracks.data.source.declaredStreamLength
 import com.subtracks.data.source.streamLengthSuffix
 import com.subtracks.data.source.subsonic.SubsonicClient
+import com.subtracks.data.source.subsonic.SubsonicLyricsProvider
 import com.subtracks.log.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -386,6 +389,14 @@ class SourceRepository(
         val config = sourceConfigOnce(sourceId) ?: error("No configured source")
         check(!config.needsSignIn) { "The source needs signing in" }
         return config.toMusicSource(quality.value, prefs.syncConcurrency().first()).artistBiography(artistId)
+    }
+
+    /** Lyrics for [song] from its own server; never called offline, since the lyrics repository reads only its cache then. */
+    suspend fun serverLyrics(song: Song): List<Lyrics> {
+        check(!_offline.value) { "Offline mode is on" }
+        val config = sourceConfigOnce(song.sourceId) ?: error("No configured source")
+        check(!config.needsSignIn) { "The source needs signing in" }
+        return SubsonicLyricsProvider(config.id, config.toClient()).fetch(song)
     }
 
     private fun SubsonicConfig.toClient(): SubsonicClient =
