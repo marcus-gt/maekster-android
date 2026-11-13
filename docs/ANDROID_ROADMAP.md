@@ -447,7 +447,11 @@ Part G adds language/variant selection (locale, explicit choice, synced preferen
 script/region normalization) and precomputed overflow-safe lyric timing. Highlighting and seek use
 one timeline; provider offset advances lyrics, listener correction delays them. This follows the
 OpenSubsonic sign convention rather than the opposite sign in the iOS reference viewmodel.
-See `docs/handoffs/M2.8-lyrics-selection-timing.md`. Preferences/player wiring remains.
+See `docs/handoffs/M2.8-lyrics-selection-timing.md`. Preferences/player wiring was still pending.
+Part H persists atomic lyric settings in DataStore: Auto source, LRCLIB opt-in off by default,
+current-line preview on, correction clamped to ±3000ms on read/write. Choosing LRCLIB never grants
+permission; disabling it resets an LRCLIB-only choice to Auto. No UI/runtime wiring yet;
+see `docs/handoffs/M2.8-lyrics-preferences.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

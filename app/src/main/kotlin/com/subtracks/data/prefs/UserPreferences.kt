@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.subtracks.data.lyrics.LyricsSource
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.source.DEFAULT_FETCH_CONCURRENCY
 import kotlinx.coroutines.flow.Flow
@@ -85,6 +86,45 @@ data class ArtworkSeedValue(
 class UserPreferences(
     private val store: DataStore<Preferences>,
 ) {
+    fun lyrics(): Flow<LyricsPreferences> =
+        store.data.map { prefs ->
+            val allowed = prefs[lyricsLrclibKey] ?: false
+            val source = LyricsSource.entries.firstOrNull { it.name == prefs[lyricsSourceKey] } ?: LyricsSource.Auto
+            LyricsPreferences(
+                source = source.takeUnless { it == LyricsSource.Lrclib && !allowed } ?: LyricsSource.Auto,
+                allowLrclib = allowed,
+                showCurrentLine = prefs[lyricsPreviewKey] ?: true,
+                timingOffsetMs = (prefs[lyricsOffsetKey] ?: 0).coerceIn(-LYRICS_TIMING_OFFSET_LIMIT_MS, LYRICS_TIMING_OFFSET_LIMIT_MS),
+            )
+        }
+
+    suspend fun setLyricsSource(source: LyricsSource) {
+        store.edit { prefs ->
+            prefs[lyricsSourceKey] =
+                if (source == LyricsSource.Lrclib && prefs[lyricsLrclibKey] != true) LyricsSource.Auto.name else source.name
+        }
+    }
+
+    suspend fun setLrclibAllowed(allowed: Boolean) {
+        store.edit { prefs ->
+            prefs[lyricsLrclibKey] = allowed
+            if (!allowed && prefs[lyricsSourceKey] == LyricsSource.Lrclib.name) prefs[lyricsSourceKey] = LyricsSource.Auto.name
+        }
+    }
+
+    suspend fun setShowCurrentLyricLine(show: Boolean) {
+        store.edit { it[lyricsPreviewKey] = show }
+    }
+
+    suspend fun setLyricsTimingOffsetMs(offset: Int) {
+        store.edit { it[lyricsOffsetKey] = offset.coerceIn(-LYRICS_TIMING_OFFSET_LIMIT_MS, LYRICS_TIMING_OFFSET_LIMIT_MS) }
+    }
+
+    private val lyricsSourceKey = stringPreferencesKey("lyrics_source")
+    private val lyricsLrclibKey = booleanPreferencesKey("lyrics_lrclib_allowed")
+    private val lyricsPreviewKey = booleanPreferencesKey("lyrics_current_line")
+    private val lyricsOffsetKey = intPreferencesKey("lyrics_offset_ms")
+
     fun homeLayout(): Flow<HomeLayout> = store.data.map { HomeLayout.decode(it[homeLayoutKey]) }
 
     suspend fun setHomeLayout(layout: HomeLayout) {
