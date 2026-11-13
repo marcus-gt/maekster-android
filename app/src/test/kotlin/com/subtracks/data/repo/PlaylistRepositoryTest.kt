@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -149,6 +150,42 @@ class PlaylistRepositoryTest {
             repository.remove(1, "p", listOf(2, 0), shownSongIds = listOf("a", "b", "a", "c"))
             assertEquals(listOf("b", "c"), server.songs("p"))
             assertEquals(listOf("b", "c"), mirrored("p"))
+        }
+
+    @Test
+    fun deletingRunsTheCleanupWhileTheMirrorStillListsTheSongs() =
+        runTest {
+            server.put("p", "Mix", "a", "b")
+            mirror("p", "a", "b")
+            var seenDuringCleanup: List<String>? = null
+            repository.delete(1, "p") {
+                assertNull(server.playlists["p"])
+                seenDuringCleanup = mirrored("p")
+            }
+            assertEquals(listOf("a", "b"), seenDuringCleanup)
+            assertEquals(emptyList<String>(), mirrored("p"))
+            assertNull(db.libraryDao().playlist(1, "p").first())
+        }
+
+    @Test
+    fun aFailedDeleteRunsNoCleanupAndKeepsTheMirror() =
+        runTest {
+            server.put("p", "Mix", "a")
+            mirror("p", "a")
+            server.failNext = FakePlaylistWriter.Failure.BeforeWrite
+            var cleaned = false
+            assertTrue(runCatching { repository.delete(1, "p") { cleaned = true } }.exceptionOrNull() is IOException)
+            assertFalse(cleaned)
+            assertEquals(listOf("a"), mirrored("p"))
+        }
+
+    @Test
+    fun aFailingCleanupStillDropsTheMirror() =
+        runTest {
+            server.put("p", "Mix", "a")
+            mirror("p", "a")
+            assertTrue(runCatching { repository.delete(1, "p") { throw IllegalStateException("disk") } }.isFailure)
+            assertEquals(emptyList<String>(), mirrored("p"))
         }
 
     @Test

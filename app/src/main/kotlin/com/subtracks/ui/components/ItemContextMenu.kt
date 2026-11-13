@@ -156,6 +156,7 @@ class ItemActions(
     val viewArtist: ((String) -> Unit)? = null,
     val removeFromPlaylist: ((MenuTarget.Song) -> Unit)? = null,
     val renamePlaylist: ((PlaylistModel) -> Unit)? = null,
+    val deletePlaylist: ((PlaylistModel) -> Unit)? = null,
 )
 
 class ContextMenuHost {
@@ -332,6 +333,11 @@ fun ItemContextMenu(
                     BulkDownloadItem(target, actions, ::dismiss)
                     onInfo?.let { info ->
                         MenuItem(Icons.Rounded.Info, stringResource(R.string.info)) { dismiss { info(target) } }
+                    }
+                    actions.deletePlaylist?.let { delete ->
+                        MenuItem(Icons.Rounded.Delete, stringResource(R.string.delete_playlist), tint = MaterialTheme.colorScheme.error) {
+                            replaceWith { delete(target.playlist) }
+                        }
                     }
                 }
             }

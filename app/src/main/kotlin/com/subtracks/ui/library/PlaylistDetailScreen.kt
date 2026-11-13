@@ -41,6 +41,8 @@ import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
 import com.subtracks.ui.components.playlistUpdatedText
 import com.subtracks.ui.components.rememberPendingDownloadDelete
+import com.subtracks.ui.playlist.DeletePlaylistRequest
+import com.subtracks.ui.playlist.DeletePlaylistRoute
 import com.subtracks.ui.playlist.RenamePlaylistRequest
 import com.subtracks.ui.playlist.RenamePlaylistRoute
 import com.subtracks.ui.theme.ArtworkColors
@@ -73,6 +75,7 @@ fun PlaylistDetailRoute(
     val totals by viewModel.totals.collectAsStateWithLifecycle()
     val canEdit by viewModel.canEdit.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf<RenamePlaylistRequest?>(null) }
+    var deleting by remember { mutableStateOf<DeletePlaylistRequest?>(null) }
     CloseWhenDownloadsGone(downloadStatus.downloaded, offline, onBack)
     val pendingDelete = rememberPendingDownloadDelete(contextMenuHost?.dismissals ?: emptyFlow()) { _, _ -> viewModel.downloadedBytes() }
     val playback by playbackController.state.collectAsStateWithLifecycle()
@@ -105,6 +108,12 @@ fun PlaylistDetailRoute(
                 } else {
                     null
                 },
+            deletePlaylist =
+                if (canEdit) {
+                    { deleting = DeletePlaylistRequest(it.sourceId, it.id, it.name, hasDownloads = downloadStatus.downloaded > 0) }
+                } else {
+                    null
+                },
         )
     PlaylistDetailScreen(
         playlist = playlist,
@@ -131,6 +140,16 @@ fun PlaylistDetailRoute(
         viewModel.onDownloadAction(BulkDownloadAction.Delete)
     }
     renaming?.let { request -> RenamePlaylistRoute(request, onDismiss = { renaming = null }) }
+    deleting?.let { request ->
+        DeletePlaylistRoute(
+            request,
+            onDismiss = { deleting = null },
+            onDeleted = {
+                deleting = null
+                onBack()
+            },
+        )
+    }
 }
 
 @Composable

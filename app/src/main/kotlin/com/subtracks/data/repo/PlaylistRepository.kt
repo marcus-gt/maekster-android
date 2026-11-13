@@ -215,12 +215,21 @@ class PlaylistRepository(
         refresh(writer, sourceId, playlistId)
     }
 
+    /**
+     * Deletes the playlist on the server, then runs [afterServerDelete] (for example removing its downloads, which are
+     * found through the mirror) and only then drops the mirror rows, even if [afterServerDelete] fails.
+     */
     suspend fun delete(
         sourceId: Long,
         playlistId: String,
+        afterServerDelete: suspend () -> Unit = {},
     ) {
         writer(sourceId).delete(playlistId)
-        db.libraryDao().removePlaylist(sourceId, playlistId)
+        try {
+            afterServerDelete()
+        } finally {
+            db.libraryDao().removePlaylist(sourceId, playlistId)
+        }
     }
 
     private suspend fun writer(sourceId: Long): PlaylistWriter =

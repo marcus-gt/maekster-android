@@ -72,7 +72,26 @@ class ItemContextMenuPlaylistEditTest {
     }
 
     @Test
-    fun noRenameWhenThePlaylistCannotBeEdited() {
+    fun anEditablePlaylistsMenuOffersDelete() {
+        var deleted: Playlist? = null
+        val playlist = Playlist(1, "p", "Mix", null, null, 1, created = 0)
+        composeRule.setContent {
+            MaeksterTheme {
+                ItemContextMenu(
+                    target = MenuTarget.Playlist(playlist),
+                    actions = ItemActions(deletePlaylist = { deleted = it }),
+                    onDismiss = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Delete playlist").performClick()
+
+        assertEquals(playlist, deleted)
+    }
+
+    @Test
+    fun noRenameOrDeleteWhenThePlaylistCannotBeEdited() {
         composeRule.setContent {
             MaeksterTheme {
                 ItemContextMenu(
@@ -84,6 +103,7 @@ class ItemContextMenuPlaylistEditTest {
         }
 
         composeRule.onNodeWithText("Rename…").assertDoesNotExist()
+        composeRule.onNodeWithText("Delete playlist").assertDoesNotExist()
     }
 
     @Test

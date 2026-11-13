@@ -503,6 +503,13 @@
     <string name="rename_playlist_name">Playlist name</string>
     <string name="rename_playlist_confirm">Rename</string>
     <string name="rename_playlist_cancel">Cancel</string>
+    <string name="delete_playlist">Delete playlist</string>
+    <string name="delete_playlist_title">Delete “%1$s”?</string>
+    <string name="delete_playlist_message">This permanently deletes the playlist from your server. This can\'t be undone.</string>
+    <string name="delete_playlist_message_downloads">This removes the playlist from your server. You can keep its downloaded songs on this device or remove them too. This can\'t be undone.</string>
+    <string name="delete_playlist_confirm">Delete</string>
+    <string name="delete_playlist_only">Delete playlist only</string>
+    <string name="delete_playlist_and_downloads">Delete playlist &amp; downloads</string>
     <string name="add_to_playlist_title">Add to playlist</string>
     <string name="add_to_playlist_search">Search playlists</string>
     <string name="add_to_playlist_recent">Recent</string>
@@ -520,6 +527,7 @@
     <string name="playlist_created">Created %1$s</string>
     <string name="playlist_song_removed">Removed from %1$s</string>
     <string name="playlist_renamed">Renamed to %1$s</string>
+    <string name="playlist_deleted">Deleted %1$s</string>
     <string name="playlist_edit_offline">Playlists can\'t be changed offline</string>
     <string name="playlist_edit_not_found">That playlist is no longer on the server</string>
     <string name="playlist_edit_changed">The playlist changed on the server and has been refreshed. Try again.</string>

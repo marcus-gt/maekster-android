@@ -534,7 +534,11 @@ mirror or server order changed, with a snackbar either way. Verified on API 37 o
 see `docs/handoffs/M2.9-remove-from-playlist.md`.
 Part F is done: "Rename…" in the playlist page menu (same edit rule), a prefilled dialog that sends
 the trimmed name, needs a real change, and keeps the draft on failure. Verified on API 37 by renaming
-the test playlist and back; see `docs/handoffs/M2.9-rename-playlist.md`. Next: delete, then reorder.
+the test playlist and back; see `docs/handoffs/M2.9-rename-playlist.md`.
+Part G is done in code and tests: "Delete playlist" with an iOS-style confirmation (keep or remove
+downloads, purged only after the server confirms), snackbar and page close. On API 37 only the
+dialog and Cancel were checked; a real delete awaits user authorization. See
+`docs/handoffs/M2.9-delete-playlist.md`. Next: reorder.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
