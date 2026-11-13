@@ -25,10 +25,12 @@ import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.security.CredentialStore
 import com.subtracks.data.source.MusicSource
+import com.subtracks.data.source.PlaylistWriter
 import com.subtracks.data.source.declaredStreamLength
 import com.subtracks.data.source.streamLengthSuffix
 import com.subtracks.data.source.subsonic.SubsonicClient
 import com.subtracks.data.source.subsonic.SubsonicLyricsProvider
+import com.subtracks.data.source.subsonic.SubsonicPlaylistWriter
 import com.subtracks.log.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -389,6 +391,13 @@ class SourceRepository(
         val config = sourceConfigOnce(sourceId) ?: error("No configured source")
         check(!config.needsSignIn) { "The source needs signing in" }
         return config.toMusicSource(quality.value, prefs.syncConcurrency().first()).artistBiography(artistId)
+    }
+
+    /** Playlist edits for [sourceId], or null while offline or when the server needs signing in again. */
+    suspend fun playlistWriter(sourceId: Long): PlaylistWriter? {
+        if (_offline.value) return null
+        val config = sourceConfigOnce(sourceId)?.takeIf { !it.needsSignIn } ?: return null
+        return SubsonicPlaylistWriter(config.id, config.toClient())
     }
 
     /** Lyrics for [song] from its own server; never called offline, since the lyrics repository reads only its cache then. */

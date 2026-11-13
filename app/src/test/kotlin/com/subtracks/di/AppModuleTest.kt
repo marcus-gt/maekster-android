@@ -7,6 +7,7 @@ import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.lyrics.LyricsRepository
 import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.repo.DownloadRepository
+import com.subtracks.data.repo.PlaylistRepository
 import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.playback.LyricsViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -80,5 +81,6 @@ class AppModuleTest {
 
         assertSame(lyrics, koin.get<LyricsRepository>())
         assertNotNull(koin.get<LyricsViewModel>())
+        assertSame(koin.get<PlaylistRepository>(), koin.get<PlaylistRepository>())
     }
 }

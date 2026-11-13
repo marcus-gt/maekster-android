@@ -1,0 +1,172 @@
+package com.subtracks.data.repo
+
+import com.subtracks.data.db.SubtracksDatabase
+import com.subtracks.data.playlist.PlaylistAppendIntent
+import com.subtracks.data.source.PlaylistDetail
+import com.subtracks.data.source.PlaylistWriter
+
+/** Why a playlist edit did not happen; any other failure is the server's or the network's own exception. */
+class PlaylistEditException(
+    val reason: Reason,
+) : Exception(reason.name) {
+    enum class Reason {
+        /** Offline mode, no network, or the server needs signing in again. */
+        Offline,
+
+        /** The server no longer has the playlist; it has been removed from the mirror too. */
+        NotFound,
+
+        /** The playlist changed on the server since it was shown; the mirror now shows the server's version. */
+        Changed,
+
+        /** The server created the playlist but did not say which it was; a library sync will bring it in. */
+        NotReported,
+    }
+}
+
+/**
+ * Adds songs to a playlist, and can be run again after a failure: the first run records what the playlist held,
+ * so a retry sends only what has not arrived. Keep the same instance for retries.
+ */
+class PlaylistAddition(
+    val sourceId: Long,
+    val playlistId: String,
+    val songIds: List<String>,
+) {
+    internal var intent: PlaylistAppendIntent? = null
+}
+
+/** A new playlist with songs. A retry finishes the playlist already created rather than making another. */
+class PlaylistCreation(
+    val sourceId: Long,
+    val name: String,
+    val songIds: List<String>,
+) {
+    var playlistId: String? = null
+        internal set
+    internal var addition: PlaylistAddition? = null
+}
+
+/**
+ * Playlist edits for a server. Each edit goes to the server first (they are explicit actions, D9), then the playlist
+ * is read back and mirrored into Room in one transaction, so lists, search and queues see the server's result.
+ * Positions are 0-based.
+ */
+class PlaylistRepository(
+    private val db: SubtracksDatabase,
+    private val writerFor: suspend (sourceId: Long) -> PlaylistWriter?,
+) {
+    suspend fun add(addition: PlaylistAddition) {
+        val writer = writer(addition.sourceId)
+        val current = fresh(writer, addition.sourceId, addition.playlistId)
+        val intent = addition.intent ?: PlaylistAppendIntent(addition.songIds, current.songIds()).also { addition.intent = it }
+        val missing = intent.remaining(current.songIds())
+        if (missing.isNotEmpty()) writer.append(addition.playlistId, missing)
+        refresh(writer, addition.sourceId, addition.playlistId)
+    }
+
+    suspend fun create(creation: PlaylistCreation): String {
+        val writer = writer(creation.sourceId)
+        val id =
+            creation.playlistId ?: run {
+                val created = writer.create(creation.name) ?: throw PlaylistEditException(PlaylistEditException.Reason.NotReported)
+                db.libraryDao().replacePlaylist(created.playlist, created.songs)
+                created.playlist.id.also { creation.playlistId = it }
+            }
+        if (creation.songIds.isNotEmpty()) {
+            val addition = creation.addition ?: PlaylistAddition(creation.sourceId, id, creation.songIds).also { creation.addition = it }
+            add(addition)
+        }
+        return id
+    }
+
+    suspend fun rename(
+        sourceId: Long,
+        playlistId: String,
+        name: String,
+    ) {
+        val writer = writer(sourceId)
+        writer.rename(playlistId, name)
+        refresh(writer, sourceId, playlistId)
+    }
+
+    suspend fun setComment(
+        sourceId: Long,
+        playlistId: String,
+        comment: String,
+    ) {
+        val writer = writer(sourceId)
+        writer.setComment(playlistId, comment)
+        refresh(writer, sourceId, playlistId)
+    }
+
+    /**
+     * Removes the songs at [positions], which the caller read from the mirror as [shownSongIds]. If the server's
+     * order differs, nothing is removed: the wrong songs would go.
+     */
+    suspend fun remove(
+        sourceId: Long,
+        playlistId: String,
+        positions: List<Int>,
+        shownSongIds: List<String>,
+    ) {
+        val writer = writer(sourceId)
+        val current = fresh(writer, sourceId, playlistId)
+        if (current.songIds() != shownSongIds) changed(current)
+        if (positions.any { it !in shownSongIds.indices }) throw IllegalArgumentException("Position outside the playlist")
+        writer.remove(playlistId, positions)
+        refresh(writer, sourceId, playlistId)
+    }
+
+    /** Puts the playlist in [ordered] order; it must hold the same songs as [shownSongIds], the order shown. */
+    suspend fun reorder(
+        sourceId: Long,
+        playlistId: String,
+        ordered: List<String>,
+        shownSongIds: List<String>,
+    ) {
+        require(ordered.sorted() == shownSongIds.sorted()) { "A reorder must keep the same songs" }
+        val writer = writer(sourceId)
+        val current = fresh(writer, sourceId, playlistId)
+        if (current.songIds() != shownSongIds) changed(current)
+        writer.replace(playlistId, ordered)
+        refresh(writer, sourceId, playlistId)
+    }
+
+    suspend fun delete(
+        sourceId: Long,
+        playlistId: String,
+    ) {
+        writer(sourceId).delete(playlistId)
+        db.libraryDao().removePlaylist(sourceId, playlistId)
+    }
+
+    private suspend fun writer(sourceId: Long): PlaylistWriter =
+        writerFor(sourceId) ?: throw PlaylistEditException(PlaylistEditException.Reason.Offline)
+
+    private suspend fun fresh(
+        writer: PlaylistWriter,
+        sourceId: Long,
+        playlistId: String,
+    ): PlaylistDetail =
+        writer.playlist(playlistId) ?: run {
+            db.libraryDao().removePlaylist(sourceId, playlistId)
+            throw PlaylistEditException(PlaylistEditException.Reason.NotFound)
+        }
+
+    private suspend fun refresh(
+        writer: PlaylistWriter,
+        sourceId: Long,
+        playlistId: String,
+    ) {
+        val detail = fresh(writer, sourceId, playlistId)
+        db.libraryDao().replacePlaylist(detail.playlist, detail.songs)
+    }
+
+    private suspend fun changed(current: PlaylistDetail): Nothing {
+        db.libraryDao().replacePlaylist(current.playlist, current.songs)
+        throw PlaylistEditException(PlaylistEditException.Reason.Changed)
+    }
+
+    private fun PlaylistDetail.songIds() = songs.map { it.songId }
+}

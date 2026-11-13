@@ -711,6 +711,26 @@ interface LibraryDao {
     )
     suspend fun deleteOrphanPlaylistSongs(sourceId: Long)
 
+    /** Mirrors one playlist exactly as the server now holds it, after an edit. */
+    @Transaction
+    suspend fun replacePlaylist(
+        playlist: Playlist,
+        songs: List<PlaylistSong>,
+    ) {
+        upsertPlaylists(listOf(playlist))
+        deletePlaylistSongsFrom(playlist.sourceId, playlist.id, 0)
+        if (songs.isNotEmpty()) upsertPlaylistSongs(songs)
+    }
+
+    @Transaction
+    suspend fun removePlaylist(
+        sourceId: Long,
+        playlistId: String,
+    ) {
+        deletePlaylistSongsFrom(sourceId, playlistId, 0)
+        deletePlaylists(sourceId, listOf(playlistId))
+    }
+
     @RawQuery(observedEntities = [Album::class])
     fun albumsPaging(query: RoomRawQuery): PagingSource<Int, Album>
 

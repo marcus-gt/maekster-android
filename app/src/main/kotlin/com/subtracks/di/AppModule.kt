@@ -29,6 +29,7 @@ import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.NetworkServerActionSink
 import com.subtracks.data.repo.PendingServerActionSink
+import com.subtracks.data.repo.PlaylistRepository
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.data.security.CredentialStore
@@ -192,6 +193,10 @@ fun appModule(
     viewModel { params -> ArtistDetailViewModel(get(), get(), get(), get(), params.get()) }
     viewModel { params -> PlaylistDetailViewModel(get(), get(), get(), get(), params.get()) }
     viewModel { QueueViewModel(get(), get(), get(), get()) }
+    single {
+        val sources = get<SourceRepository>()
+        PlaylistRepository(get(), writerFor = sources::playlistWriter)
+    }
     single { LyricsCache(get<SubtracksDatabase>().lyricsCacheDao()) }
     single { LrclibProvider() }
     single {

@@ -477,6 +477,11 @@ waits for a product decision. Device checks (embedded LRC, LRCLIB fallback) rema
 replace, delete, fresh read) with batched song lists and highest-first removal, plus the
 retry-safe `PlaylistAppendIntent` ported from iOS. MockWebServer and intent tests with two mutations;
 no UI, DI or schema change yet. See `docs/handoffs/M2.9-playlist-writer.md`.
+Part B adds `PlaylistRepository`: server first, then the playlist is read back and mirrored into
+Room in one transaction. Additions and creations keep their state across retries (no duplicate
+songs or playlists); remove/reorder refuse to act on a playlist that changed elsewhere and refresh
+it instead. Room + fake-server tests with two mutations; no schema change, no UI yet.
+See `docs/handoffs/M2.9-playlist-repository.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
