@@ -23,6 +23,16 @@ interface QueueOrderDao {
     @Query("SELECT * FROM queue_order_entries WHERE orderId = :orderId ORDER BY position")
     suspend fun entries(orderId: Long): List<StoredQueueOrderEntry>
 
+    @Query(
+        "WITH RECURSIVE retained(id) AS (" +
+            "SELECT CAST(refId AS INTEGER) FROM queue_entries WHERE kind = 'Order' " +
+            "UNION SELECT CAST(refId AS INTEGER) FROM up_next_entries WHERE kind = 'Order' " +
+            "UNION SELECT CAST(e.refId AS INTEGER) FROM queue_order_entries e " +
+            "JOIN retained r ON e.orderId = r.id WHERE e.kind = 'Order') " +
+            "DELETE FROM queue_orders WHERE id NOT IN (SELECT id FROM retained)",
+    )
+    suspend fun prune()
+
     @Query("DELETE FROM queue_orders WHERE id NOT IN (:retainedIds)")
     suspend fun deleteExcept(retainedIds: List<Long>)
 }

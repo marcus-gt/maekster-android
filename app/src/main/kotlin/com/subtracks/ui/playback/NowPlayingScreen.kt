@@ -762,7 +762,7 @@ private fun QueueKind.label(): Int =
         QueueKind.Genre -> R.string.context_kind_genre
         QueueKind.Downloaded -> R.string.context_kind_downloads
         QueueKind.Starred -> R.string.context_kind_starred
-        QueueKind.Library -> R.string.context_kind_songs
+        QueueKind.Library, QueueKind.Order -> R.string.context_kind_songs
     }
 
 private fun formatTime(milliseconds: Long): String {

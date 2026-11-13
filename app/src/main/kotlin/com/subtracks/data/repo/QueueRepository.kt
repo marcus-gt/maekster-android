@@ -35,6 +35,7 @@ private data class LoadedSnapshot(
     val upNext: List<ResolvedQueueEntry>,
     val shuffle: ShuffleState?,
     val anchor: Long,
+    val orders: Map<Long, RetainedQueueOrder>,
 )
 
 private data class QueueRef(
@@ -136,6 +137,7 @@ data class QueueSnapshot(
     val shuffle: ShuffleState? = null,
     val upNextAnchor: Long = 0,
     val version: Long = 0,
+    val orders: Map<Long, RetainedQueueOrder> = emptyMap(),
 ) {
     val contextSize: Long = entries.sumOf { it.length }
 
@@ -176,11 +178,25 @@ data class QueueSnapshot(
     }
 
     fun locate(position: Long): Pair<QueueEntry, Long>? {
-        if (isUpNext(position)) return locateIn(upNext, upNextIndex(position))
+        if (isUpNext(position)) return resolveOrder(locateIn(upNext, upNextIndex(position)))
         return locateContext(contextPlay(position))
     }
 
-    fun locateContext(contextPlay: Long): Pair<QueueEntry, Long>? = locateIn(entries, flatContext(contextPlay) ?: return null)
+    fun locateContext(contextPlay: Long): Pair<QueueEntry, Long>? = resolveOrder(locateIn(entries, flatContext(contextPlay) ?: return null))
+
+    private fun resolveOrder(located: Pair<QueueEntry, Long>?): Pair<QueueEntry, Long>? {
+        var current = located ?: return null
+        val visited = mutableSetOf<Long>()
+        while (current.first.kind == QueueKind.Order) {
+            val entry = current.first
+            val id = entry.refId.toLongOrNull() ?: return null
+            if (!visited.add(id)) return null
+            val order = orders[id]?.takeIf { it.sourceId == entry.sourceId } ?: return null
+            val flat = order.prefix.flatFor(entry.offset + current.second) ?: return null
+            current = locateIn(order.entries, flat) ?: return null
+        }
+        return current
+    }
 
     fun isAlbumContext(position: Long): Boolean = locate(position)?.first?.kind == QueueKind.Album
 }
@@ -474,6 +490,7 @@ class QueueRepository(
         private set
 
     private val cursorMutex = Mutex()
+    private val orderCache = ConcurrentHashMap<Long, RetainedQueueOrder>()
 
     fun playlistEntry(
         sourceId: Long,
@@ -567,7 +584,7 @@ class QueueRepository(
                 null
             }
 
-            QueueKind.Library -> {
+            QueueKind.Library, QueueKind.Order -> {
                 null
             }
         }
@@ -586,6 +603,8 @@ class QueueRepository(
         cursorMutex.withLock {
             dao.setCursor(cursorRow().copy(queuePosition = 0, positionMs = 0, upNextAnchor = upNextAnchor, sourceLabel = sourceLabel))
         }
+        db.queueOrderDao().prune()
+        orderCache.clear()
     }
 
     suspend fun snapshot(): QueueSnapshot {
@@ -626,10 +645,10 @@ class QueueRepository(
                         } else {
                             null
                         }
-                    LoadedSnapshot(entries, upNext, shuffle, row?.upNextAnchor ?: 0L)
+                    LoadedSnapshot(entries, upNext, shuffle, row?.upNextAnchor ?: 0L, orderCache.toMap())
                 }
             }
-        return QueueSnapshot(loaded.entries, loaded.upNext, loaded.shuffle, loaded.anchor, version)
+        return QueueSnapshot(loaded.entries, loaded.upNext, loaded.shuffle, loaded.anchor, version, loaded.orders)
     }
 
     suspend fun modes(): QueueModes {
@@ -655,6 +674,7 @@ class QueueRepository(
     fun invalidateLibraryCache() {
         lengthCache.clear()
         keyCache.clear()
+        orderCache.clear()
         shuffleRemoved = null
         queueVersion.incrementAndGet()
     }
@@ -987,7 +1007,7 @@ class QueueRepository(
         var start = 0L
         for (resolved in entries) {
             val entry = resolved.entry
-            val rank = resolverFor(entry.kind).rank(dao, entry, songId)
+            val rank = if (entry.kind == QueueKind.Order) null else resolverFor(entry.kind).rank(dao, entry, songId)
             if (rank != null && rank >= entry.offset && rank < entry.offset + resolved.length) {
                 return start + rank - entry.offset
             }
@@ -1023,7 +1043,7 @@ class QueueRepository(
     ): List<QueueWindowItem> {
         if (first > last) return emptyList()
         val items = mutableListOf<QueueWindowItem>()
-        if (snapshot.shuffled) {
+        if (snapshot.shuffled || snapshot.orders.isNotEmpty()) {
             for (play in first..last) {
                 val located = snapshot.locateContext(play) ?: continue
                 val item = rows(located.first, located.first.offset + located.second, 1).firstOrNull() ?: continue
@@ -1081,6 +1101,16 @@ class QueueRepository(
         offset: Long,
         limit: Int,
     ): List<SongItem> {
+        if (entry.kind == QueueKind.Order) {
+            val order = loadOrder(entry) ?: return emptyList()
+            return buildList {
+                for (play in offset until minOf(order.prefix.size, offset + limit)) {
+                    val flat = order.prefix.flatFor(play) ?: continue
+                    val (child, relative) = locateIn(order.entries, flat) ?: continue
+                    addAll(rows(child, child.offset + relative, 1))
+                }
+            }
+        }
         if (entry.kind == QueueKind.Song) {
             offsetSeeks++
             return resolverFor(entry.kind).rows(dao, entry, offset, limit).also { resolvedRowCount += it.size }
@@ -1121,7 +1151,7 @@ class QueueRepository(
             QueueKind.Genre -> OrderKey(row.song.id)
             QueueKind.Downloaded -> OrderKey(row.song.id)
             QueueKind.Starred -> OrderKey(row.song.id)
-            QueueKind.Library -> OrderKey(row.song.id)
+            QueueKind.Library, QueueKind.Order -> OrderKey(row.song.id)
             QueueKind.Song -> OrderKey(row.song.id)
         }
 
@@ -1189,9 +1219,30 @@ class QueueRepository(
         )
 
     private suspend fun QueueEntry.resolvedLength(): Long {
-        val total = resolverFor(kind).length(dao, this)
+        val total = if (kind == QueueKind.Order) loadOrder(this)?.prefix?.size ?: 0L else resolverFor(kind).length(dao, this)
         val available = (total - offset).coerceAtLeast(0)
         return count?.coerceAtMost(available) ?: available
+    }
+
+    private suspend fun loadOrder(entry: QueueEntry): RetainedQueueOrder? {
+        val id = entry.refId.toLongOrNull()?.takeIf { it > 0 } ?: return null
+        orderCache[id]?.let { return it.takeIf { order -> order.sourceId == entry.sourceId } }
+        val stored = db.queueOrderDao().order(entry.sourceId, id) ?: return null
+        val prefix = ShufflePrefix.decode(stored.prefix) ?: return null
+        val references = db.queueOrderDao().entries(id)
+        if (references.any {
+                it.sourceId != entry.sourceId || it.length <= 0 ||
+                    (it.kind == QueueKind.Order && (it.refId.toLongOrNull()?.let { child -> child in 1 until id } != true))
+            }
+        ) {
+            return null
+        }
+        val entries = references.map { ResolvedQueueEntry(it.toQueueEntry(), it.length) }
+        if (entries.sumOf { it.length } != prefix.canonicalSize) return null
+        for (resolved in entries) {
+            if (resolved.entry.resolvedLength() != resolved.length) return null
+        }
+        return RetainedQueueOrder(entry.sourceId, prefix, entries).also { orderCache[id] = it }
     }
 
     private fun movedEntry(

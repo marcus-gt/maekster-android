@@ -16,6 +16,8 @@ import com.subtracks.data.model.QueueKind
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.data.model.Source
+import com.subtracks.data.model.StoredQueueOrder
+import com.subtracks.data.model.StoredQueueOrderEntry
 import com.subtracks.data.prefs.SongSort
 import com.subtracks.data.prefs.StarredFilter
 import kotlinx.coroutines.test.runTest
@@ -42,6 +44,107 @@ class QueueRepositoryTest {
     fun tearDown() {
         db.close()
     }
+
+    private suspend fun storedOrder(
+        snapshot: QueueSnapshot,
+        count: Long,
+    ): QueueEntry {
+        val dao = db.queueOrderDao()
+        val id =
+            dao.insertOrder(
+                StoredQueueOrder(sourceId = 1, prefix = ShufflePrefix(snapshot.shuffle!!, count).encode()),
+            )
+        dao.insertEntries(
+            snapshot.entries.mapIndexed { index, resolved ->
+                val entry = resolved.entry
+                StoredQueueOrderEntry(
+                    id,
+                    index.toLong(),
+                    entry.sourceId,
+                    entry.kind,
+                    entry.refId,
+                    entry.rangeStart,
+                    entry.rangeEnd,
+                    resolved.length,
+                )
+            },
+        )
+        return QueueEntry(position = 0, sourceId = 1, kind = QueueKind.Order, refId = id.toString())
+    }
+
+    @Test
+    fun retainedOrderResolvesOriginalReferencesAndSurvivesEditsAndRestart() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1"), repository.albumEntry(1, "al2")))
+            repository.setShuffle(9)
+            val original = repository.snapshot()
+            val expected = resolveAll(original).take(4)
+            val reference = storedOrder(original, 4)
+            repository.replace(listOf(reference), sourceLabel = "Artist")
+            repository = QueueRepository(db)
+            val restored = repository.snapshot()
+            assertEquals(expected, resolveAll(restored))
+            assertTrue((0L until restored.size).all { restored.isAlbumContext(it) })
+            assertEquals(expected, repository.range(restored, 0, 3).map { it.item.song.id })
+            repository.setShuffle(42)
+            assertEquals(expected.toSet(), resolveAll(repository.snapshot()).toSet())
+            repository.setShuffle(null)
+            assertEquals(expected, resolveAll(repository.snapshot()))
+            repository.removeAt(repository.snapshot(), 1)
+            assertEquals(expected.filterIndexed { index, _ -> index != 1 }, resolveAll(repository.snapshot()))
+            assertEquals("Artist", repository.sourceLabel())
+        }
+
+    @Test
+    fun nestedRetainedOrdersKeepTheirDependenciesUntilQueueReplacement() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1"), repository.albumEntry(1, "al2")))
+            repository.setShuffle(9)
+            val child = storedOrder(repository.snapshot(), 4)
+            repository.replace(listOf(child))
+            repository.setShuffle(42)
+            val before = repository.snapshot()
+            val expected = resolveAll(before).take(2)
+            val parent = storedOrder(before, 2)
+            repository.replace(listOf(parent))
+            repository = QueueRepository(db)
+            assertEquals(expected, resolveAll(repository.snapshot()))
+            assertTrue(db.queueOrderDao().order(1, child.refId.toLong()) != null)
+            repository.replace(listOf(repository.albumEntry(1, "al1")))
+            assertEquals(null, db.queueOrderDao().order(1, parent.refId.toLong()))
+            assertEquals(null, db.queueOrderDao().order(1, child.refId.toLong()))
+        }
+
+    @Test
+    fun invalidStoredOrderReferencesPlayNothing() =
+        runTest {
+            seedLibrary()
+            db.sourcesDao().upsertSource(Source(2, "other", "https://other", false, 2))
+            val dao = db.queueOrderDao()
+            for (mode in listOf("cycle", "cross-source", "changed-length")) {
+                val domain = if (mode == "changed-length") 4L else 3L
+                val id = dao.insertOrder(StoredQueueOrder(sourceId = 1, prefix = ShufflePrefix(ShuffleState(42, domain), 2).encode()))
+                dao.insertEntries(
+                    listOf(
+                        StoredQueueOrderEntry(
+                            id,
+                            0,
+                            if (mode == "cross-source") 2 else 1,
+                            if (mode == "cycle") QueueKind.Order else QueueKind.Album,
+                            if (mode == "cycle") id.toString() else "al1",
+                            null,
+                            null,
+                            domain,
+                        ),
+                    ),
+                )
+                repository.replace(listOf(QueueEntry(position = 0, sourceId = 1, kind = QueueKind.Order, refId = id.toString())))
+                repository = QueueRepository(db)
+                assertEquals(mode, 0L, repository.snapshot().size)
+            }
+        }
 
     @Test
     fun sourceLabelSurvivesRepositoryRecreationAndEditsAndClearsForANewQueue() =

@@ -9,6 +9,8 @@ class ShufflePrefix(
     private val shuffle: ShuffleState,
     val size: Long,
 ) {
+    val canonicalSize: Long get() = shuffle.liveSize
+
     init {
         require(size in 0..shuffle.liveSize)
     }

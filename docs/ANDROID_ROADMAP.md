@@ -405,6 +405,10 @@ Runtime cutoff integration remains; see `docs/handoffs/M2.7-shuffle-prefix-codec
 Part S adds source-scoped immutable queue order storage (schema 47): prefix plus reference
 ranges/lengths, with cascading cleanup. DAO/migration tests include huge synthetic ranges and a
 cleanup mutation. No runtime action yet; see `docs/handoffs/M2.7-stored-orders.md`.
+Part T resolves Order references through stored prefixes, preserving original album context,
+source scope, restart behavior and nested dependencies. Invalid records play nothing; queue
+replacement prunes unreachable orders. Mapping mutation/full checks pass. The shuffled Clear
+upcoming action is still disabled; see `docs/handoffs/M2.7-order-resolution.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
