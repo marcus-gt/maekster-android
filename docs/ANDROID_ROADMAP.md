@@ -461,6 +461,12 @@ an isolated LRCLIB client; LyricsLoader/LyricsViewModel follow the playing song,
 connectivity, reload only when those change, and look nothing up unless the pane or preview shows
 lyrics. Loader/ViewModel tests with two mutations; full checks pass. No pane UI yet;
 see `docs/handoffs/M2.8-lyrics-runtime.md`.
+Part K adds the Now Playing lyrics pane (Lyrics button beside Queue; synced auto-scroll centred on
+the current line, Follow after a manual scroll, tap to seek, language menu, offline/missing/failed
+states, LRCLIB credit) and the current-line preview. Back closes the pane before Now Playing
+(hoisted to AppRoot). UI/back tests with mutations, normal/2× renders, full checks pass; emulator
+showed real server plain lyrics. Synced and LRCLIB lyrics on a device remain unchecked.
+Remaining for M2.8: prefetch on download (C1). See `docs/handoffs/M2.8-lyrics-pane.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

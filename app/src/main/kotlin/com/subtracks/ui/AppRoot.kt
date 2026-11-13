@@ -221,6 +221,21 @@ internal fun resetOnSourceSwitch(
     if (route in DETAIL_ROUTES) popDetail()
 }
 
+internal enum class OverlayBack { Queue, Lyrics, NowPlaying, Route }
+
+/** What Back closes first: the queue, then the lyrics pane, then now playing, then the route under them. */
+internal fun overlayBack(
+    showingQueue: Boolean,
+    nowPlayingOpen: Boolean,
+    showingLyrics: Boolean,
+): OverlayBack =
+    when {
+        showingQueue -> OverlayBack.Queue
+        nowPlayingOpen && showingLyrics -> OverlayBack.Lyrics
+        nowPlayingOpen -> OverlayBack.NowPlaying
+        else -> OverlayBack.Route
+    }
+
 internal data class BackStackKey(
     val route: String?,
     val argument: String?,
@@ -286,6 +301,8 @@ private fun MainNavigation() {
     val downloads by downloadRepository.states().collectAsStateWithLifecycle()
     var showingQueue by rememberSaveable { mutableStateOf(false) }
     var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
+    var showingLyrics by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(nowPlayingOpen) { if (!nowPlayingOpen) showingLyrics = false }
     var nowPlayingProgress by remember { mutableFloatStateOf(0f) }
     var miniPlayerTopPx by remember { mutableFloatStateOf(0f) }
     var nowPlayingFadeOut by remember { mutableStateOf(false) }
@@ -948,6 +965,8 @@ private fun MainNavigation() {
                         contextMenuHost = contextMenuHost,
                         setStar = libraryRepository::star,
                         modifier = Modifier.fillMaxSize(),
+                        showLyrics = showingLyrics,
+                        onShowLyrics = { showingLyrics = it },
                     )
                 }
 
@@ -1075,10 +1094,11 @@ private fun MainNavigation() {
         remember {
             object : OnBackPressedCallback(false) {
                 override fun handleOnBackPressed() {
-                    when {
-                        showingQueue -> showingQueue = false
-                        nowPlayingOpen -> settleNowPlaying(false)
-                        else -> navController.popBackStack()
+                    when (overlayBack(showingQueue, nowPlayingOpen, showingLyrics)) {
+                        OverlayBack.Queue -> showingQueue = false
+                        OverlayBack.Lyrics -> showingLyrics = false
+                        OverlayBack.NowPlaying -> settleNowPlaying(false)
+                        OverlayBack.Route -> navController.popBackStack()
                     }
                 }
             }
@@ -1086,7 +1106,7 @@ private fun MainNavigation() {
     SideEffect {
         backCallback.isEnabled = showingQueue || nowPlayingOpen || navController.previousBackStackEntry != null
     }
-    DisposableEffect(backDispatcher, currentRoute, showingQueue, nowPlayingOpen) {
+    DisposableEffect(backDispatcher, currentRoute, showingQueue, nowPlayingOpen, showingLyrics) {
         backDispatcher?.addCallback(backCallback)
         onDispose { backCallback.remove() }
     }

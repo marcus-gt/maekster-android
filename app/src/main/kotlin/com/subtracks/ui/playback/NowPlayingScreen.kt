@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.PlayCircle
@@ -66,6 +67,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
@@ -105,6 +108,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 const val NOW_PLAYING_COVER_TAG = "now-playing-cover"
 const val NOW_PLAYING_PREVIOUS_TAG = "now-playing-previous"
@@ -198,8 +202,14 @@ fun NowPlayingRoute(
     libraryRepository: LibraryRepository = koinInject(),
     downloadRepository: DownloadRepository = koinInject(),
     userPreferences: UserPreferences = koinInject(),
+    lyricsViewModel: LyricsViewModel = koinViewModel(),
+    // Hoisted so the app's back callback, which always runs first, can close the pane before now playing.
+    showLyrics: Boolean = false,
+    onShowLyrics: (Boolean) -> Unit = {},
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
+    val lyrics by lyricsViewModel.ui.collectAsStateWithLifecycle()
+    LaunchedEffect(showLyrics) { lyricsViewModel.setPaneOpen(showLyrics) }
     val keepScreenOn by remember { userPreferences.keepScreenOn() }.collectAsStateWithLifecycle(initialValue = false)
     val positionMs by controller.positionMs.collectAsStateWithLifecycle()
     val sourceId = state.context?.sourceId
@@ -293,6 +303,11 @@ fun NowPlayingRoute(
         onSeek = controller::seekTo,
         keepScreenOn = keepScreenOn,
         modifier = modifier,
+        lyrics = lyrics,
+        showLyrics = showLyrics,
+        onShowLyrics = onShowLyrics,
+        onRetryLyrics = lyricsViewModel::retry,
+        onSelectLyricsLanguage = lyricsViewModel::selectLanguage,
     )
 
     if (showArtistChooser) {
@@ -334,6 +349,11 @@ fun NowPlayingScreen(
     thumbnailRef: CoverArtRef? = null,
     previousArt: NowPlayingArt? = null,
     nextArt: NowPlayingArt? = null,
+    lyrics: LyricsUi = LyricsUi(showCurrentLine = false),
+    showLyrics: Boolean = false,
+    onShowLyrics: (Boolean) -> Unit = {},
+    onRetryLyrics: () -> Unit = {},
+    onSelectLyricsLanguage: (String) -> Unit = {},
 ) {
     val playButtonSize = 90.dp
     val playCircleDiameter = playButtonSize * 20f / 24f
@@ -452,90 +472,102 @@ fun NowPlayingScreen(
                                 .padding(horizontal = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        // Deliberately unclipped: a tile that fills the width would lose its drop
-                        // shadow. TILE_GAP keeps the neighbours off-screen instead.
-                        Box(
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                                    .padding(top = 2.dp)
-                                    .onSizeChanged { coverWidthPx = it.width.toFloat() }
-                                    .draggable(
-                                        orientation = Orientation.Horizontal,
-                                        state =
-                                            rememberDraggableState { delta ->
-                                                val resisted =
-                                                    when {
-                                                        delta > 0 && !canGoPrevious -> delta * SWIPE_EDGE_RESISTANCE
-                                                        delta < 0 && !canGoNext -> delta * SWIPE_EDGE_RESISTANCE
-                                                        else -> delta
-                                                    }
-                                                swipeOffsetX = (swipeOffsetX + resisted).coerceIn(-stridePx, stridePx)
+                        if (showLyrics) {
+                            LyricsPane(
+                                lyrics = lyrics,
+                                positionMs = positionMs,
+                                durationMs = state.durationMs,
+                                onSeek = onSeek,
+                                onRetry = onRetryLyrics,
+                                onSelectLanguage = onSelectLyricsLanguage,
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                            )
+                        } else {
+                            // Deliberately unclipped: a tile that fills the width would lose its drop
+                            // shadow. TILE_GAP keeps the neighbours off-screen instead.
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                        .padding(top = 2.dp)
+                                        .onSizeChanged { coverWidthPx = it.width.toFloat() }
+                                        .draggable(
+                                            orientation = Orientation.Horizontal,
+                                            state =
+                                                rememberDraggableState { delta ->
+                                                    val resisted =
+                                                        when {
+                                                            delta > 0 && !canGoPrevious -> delta * SWIPE_EDGE_RESISTANCE
+                                                            delta < 0 && !canGoNext -> delta * SWIPE_EDGE_RESISTANCE
+                                                            else -> delta
+                                                        }
+                                                    swipeOffsetX = (swipeOffsetX + resisted).coerceIn(-stridePx, stridePx)
+                                                },
+                                            onDragStarted = {
+                                                dragging = true
+                                                settleJob?.cancel()
                                             },
-                                        onDragStarted = {
-                                            dragging = true
-                                            settleJob?.cancel()
-                                        },
-                                        onDragStopped = { velocity ->
-                                            dragging = false
-                                            when (swipeAction(swipeOffsetX, velocity, coverWidthPx, canGoNext, canGoPrevious)) {
-                                                SwipeAction.CommitNext -> {
-                                                    commitSwipe(1)
-                                                }
+                                            onDragStopped = { velocity ->
+                                                dragging = false
+                                                when (swipeAction(swipeOffsetX, velocity, coverWidthPx, canGoNext, canGoPrevious)) {
+                                                    SwipeAction.CommitNext -> {
+                                                        commitSwipe(1)
+                                                    }
 
-                                                SwipeAction.CommitPrevious -> {
-                                                    commitSwipe(-1)
-                                                }
+                                                    SwipeAction.CommitPrevious -> {
+                                                        commitSwipe(-1)
+                                                    }
 
-                                                SwipeAction.Next -> {
-                                                    frozenStrip = null
-                                                    onNext()
-                                                    animateSwipe(0f)
-                                                }
+                                                    SwipeAction.Next -> {
+                                                        frozenStrip = null
+                                                        onNext()
+                                                        animateSwipe(0f)
+                                                    }
 
-                                                SwipeAction.Previous -> {
-                                                    frozenStrip = null
-                                                    onSkipPrevious()
-                                                    animateSwipe(0f)
-                                                }
+                                                    SwipeAction.Previous -> {
+                                                        frozenStrip = null
+                                                        onSkipPrevious()
+                                                        animateSwipe(0f)
+                                                    }
 
-                                                SwipeAction.None -> {
-                                                    animateSwipe(0f)
+                                                    SwipeAction.None -> {
+                                                        animateSwipe(0f)
+                                                    }
                                                 }
-                                            }
-                                        },
-                                    ).clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        enabled = onAlbumClick != null,
-                                        onClickLabel = stringResource(R.string.open_album),
-                                    ) { onAlbumClick?.invoke() }
-                                    .testTag(NOW_PLAYING_COVER_TAG),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            strip.forEachIndexed { index, slot ->
-                                if (slot != null && (index == 1 || coverWidthPx > 0f)) {
-                                    CoverArt(
-                                        ref = slot.ref,
-                                        name = slot.name,
-                                        thumbnailRef = slot.thumbnailRef,
-                                        showPlaceholder = slot.ref == null,
-                                        square = false,
-                                        elevation = 3.dp,
-                                        modifier =
-                                            Modifier
-                                                .fillMaxSize()
-                                                .graphicsLayer {
-                                                    translationX = (index - 1) * stridePx + swipeOffsetX
-                                                }.then(
-                                                    when (index) {
-                                                        0 -> Modifier.testTag(NOW_PLAYING_PREVIOUS_TAG)
-                                                        2 -> Modifier.testTag(NOW_PLAYING_NEXT_TAG)
-                                                        else -> Modifier
-                                                    },
-                                                ),
-                                    )
+                                            },
+                                        ).clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            enabled = onAlbumClick != null,
+                                            onClickLabel = stringResource(R.string.open_album),
+                                        ) { onAlbumClick?.invoke() }
+                                        .testTag(NOW_PLAYING_COVER_TAG),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                strip.forEachIndexed { index, slot ->
+                                    if (slot != null && (index == 1 || coverWidthPx > 0f)) {
+                                        CoverArt(
+                                            ref = slot.ref,
+                                            name = slot.name,
+                                            thumbnailRef = slot.thumbnailRef,
+                                            showPlaceholder = slot.ref == null,
+                                            square = false,
+                                            elevation = 3.dp,
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxSize()
+                                                    .graphicsLayer {
+                                                        translationX = (index - 1) * stridePx + swipeOffsetX
+                                                    }.then(
+                                                        when (index) {
+                                                            0 -> Modifier.testTag(NOW_PLAYING_PREVIOUS_TAG)
+                                                            2 -> Modifier.testTag(NOW_PLAYING_NEXT_TAG)
+                                                            else -> Modifier
+                                                        },
+                                                    ),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -605,6 +637,13 @@ fun NowPlayingScreen(
                                     modifier = Modifier.size(32.dp),
                                 )
                             }
+                        }
+                        if (lyrics.showCurrentLine && !showLyrics) {
+                            CurrentLyricLine(
+                                text = lyrics.currentLineText(positionMs),
+                                onClick = { onShowLyrics(true) },
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
                         }
                         var sliderDragging by remember { mutableStateOf(false) }
                         var dragPosition by remember { mutableFloatStateOf(0f) }
@@ -730,6 +769,17 @@ fun NowPlayingScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
+                            IconButton(
+                                onClick = { onShowLyrics(!showLyrics) },
+                                modifier = Modifier.size(40.dp).semantics { selected = showLyrics },
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Lyrics,
+                                    contentDescription = stringResource(R.string.lyrics_title),
+                                    tint = if (showLyrics) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                                    modifier = Modifier.size(30.dp),
+                                )
+                            }
                             IconButton(onClick = onQueue, modifier = Modifier.size(40.dp)) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Rounded.QueueMusic,

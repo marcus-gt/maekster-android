@@ -14,8 +14,10 @@ import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.download.ArtworkStore
 import com.subtracks.data.download.FakeDownloadEngine
+import com.subtracks.data.lyrics.LyricsLoader
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.Source
+import com.subtracks.data.prefs.LyricsPreferences
 import com.subtracks.data.prefs.fakeUserPreferences
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.LibraryRepository
@@ -33,6 +35,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.After
@@ -148,6 +151,13 @@ class NowPlayingRouteTest {
                 ?.id == "s1"
         }
 
+        val lyrics =
+            LyricsViewModel(
+                song = flowOf(null),
+                preferences = flowOf(LyricsPreferences()),
+                offline = flowOf(true),
+                loader = LyricsLoader { _, _, _, _ -> emptyList() },
+            )
         composeRule.setContent {
             MaeksterTheme {
                 NowPlayingRoute(
@@ -160,6 +170,7 @@ class NowPlayingRouteTest {
                     libraryRepository = library,
                     downloadRepository = downloads,
                     userPreferences = prefs,
+                    lyricsViewModel = lyrics,
                 )
             }
         }

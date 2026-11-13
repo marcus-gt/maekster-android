@@ -483,5 +483,17 @@
     <string name="lyrics_timing_correction">Timing correction</string>
     <string name="lyrics_timing_value">%1$d ms</string>
     <string name="lyrics_timing_description">Positive correction shows lyrics later; negative correction shows them earlier.</string>
+    <string name="lyrics_none">No lyrics for this song</string>
+    <string name="lyrics_none_offline">No saved lyrics for this song. They load when you\'re back online.</string>
+    <string name="lyrics_failed">Couldn\'t load lyrics</string>
+    <string name="lyrics_retry">Try again</string>
+    <string name="lyrics_instrumental">Instrumental</string>
+    <string name="lyrics_follow">Follow</string>
+    <string name="lyrics_seek_line">Play from this line</string>
+    <string name="lyrics_language">Lyrics language</string>
+    <string name="lyrics_language_original">Original</string>
+    <string name="lyrics_from_lrclib">Lyrics from LRCLIB</string>
+    <string name="lyrics_current_line">Current lyric line</string>
+    <string name="lyrics_show_all">Show all lyrics</string>
 
 </resources>
