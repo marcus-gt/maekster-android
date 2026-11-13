@@ -83,9 +83,16 @@ class AddToPlaylistViewModel(
     }
 
     val ui: StateFlow<AddToPlaylistUi> =
-        combine(state, recentAtOpen) { current, recent ->
+        combine(state, recentAtOpen, ownerName) { current, recent, owner ->
             val query = current.query.trim()
-            current.copy(recent = recent.orEmpty().filter { query.isEmpty() || it.name.contains(query, ignoreCase = true) })
+            current.copy(
+                recent =
+                    recent.orEmpty().filter {
+                        owner != null &&
+                            (it.owner == null || owner.name == null || it.owner == owner.name) &&
+                            (query.isEmpty() || it.name.contains(query, ignoreCase = true))
+                    },
+            )
         }.stateIn(viewModelScope, SharingStarted.Eagerly, AddToPlaylistUi())
 
     val destinations: Flow<PagingData<Playlist>> =

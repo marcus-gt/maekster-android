@@ -1,13 +1,13 @@
 package com.subtracks.data.repo
 
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.playlist.PlaylistAppendIntent
 import com.subtracks.data.source.PlaylistDetail
 import com.subtracks.data.source.PlaylistWriter
-import androidx.paging.Pager
-import androidx.paging.PagingConfig
-import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
 
 /** Why a playlist edit did not happen; any other failure is the server's or the network's own exception. */
@@ -98,7 +98,13 @@ class PlaylistRepository(
         query: String,
         exclude: List<String>,
     ): Flow<PagingData<Playlist>> {
-        val pattern = "%" + query.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        val pattern =
+            "%" +
+                query
+                    .trim()
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_") + "%"
         return Pager(PagingConfig(pageSize = 40, enablePlaceholders = false)) {
             db.libraryDao().playlistDestinations(sourceId, owner, exclude, pattern)
         }.flow

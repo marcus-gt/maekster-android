@@ -485,6 +485,10 @@ See `docs/handoffs/M2.9-playlist-repository.md`.
 Part C adds recent playlist destinations (schema 50, `playlist_destinations`, cascade on server
 delete): the newest five per server, recorded only after a successful addition, resolved through
 the mirror. DAO/repository tests with two mutations. See `docs/handoffs/M2.9-playlist-destinations.md`.
+Part D's add-to-playlist sheet implementation is committed, but broader UI/retry verification remains
+unfinished. Its Recent destinations now wait for the signed-in owner and exclude other owners,
+matching the paged list's eligibility rule; unknown-owner playlists remain compatible.
+See `docs/handoffs/M2.9-recent-ownership.md` for this bounded follow-up.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
