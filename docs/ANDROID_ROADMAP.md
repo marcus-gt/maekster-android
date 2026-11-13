@@ -542,7 +542,10 @@ dialog and Cancel were checked; a real delete awaits user authorization. See
 Reorder entry foundation adds a position-based repository move, preserving duplicate occurrences and
 unresolved mirror entries and refusing stale edits; see `docs/handoffs/M2.9-reorder-entry.md`.
 The playlist song menu now offers Move up/down with ownership/offline and busy gating, exact occurrence
-positions and snackbar feedback. Drag reordering remains open; see `docs/handoffs/M2.9-reorder-menu.md`.
+positions and snackbar feedback; see `docs/handoffs/M2.9-reorder-menu.md`.
+Editable playlist rows now have 48dp drag handles: move among visible rows, highlight the drop target,
+and submit one exact-position move on release through the same recovery flow. No drag auto-scroll;
+scroll to the destination first. See `docs/handoffs/M2.9-drag-reorder.md`.
 Failed reorders now retain their intent in the repository: a matching retry can recover an ordered
 prefix or a lost success response, while conflicting edits refresh instead of writing. Retry state
 is process-local; see `docs/handoffs/M2.9-reorder-retry.md`.

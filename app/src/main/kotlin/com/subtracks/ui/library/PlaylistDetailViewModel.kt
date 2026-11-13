@@ -112,9 +112,18 @@ class PlaylistDetailViewModel(
         target: com.subtracks.ui.components.MenuTarget.Song,
         offset: Int,
     ) {
-        if (!canEdit.value || target.song.sourceId != playlist.value?.sourceId || offset !in listOf(-1, 1)) return
+        if (offset !in listOf(-1, 1)) return
         val position = target.playlistPosition ?: return
-        val destination = position + offset
+        moveToPosition(target, position + offset)
+    }
+
+    fun moveToPosition(
+        target: com.subtracks.ui.components.MenuTarget.Song,
+        destination: Long,
+    ) {
+        if (!canEdit.value || target.song.sourceId != playlist.value?.sourceId) return
+        val position = target.playlistPosition ?: return
+        if (destination == position) return
         val count = playlist.value?.songCount ?: return
         if (destination !in 0 until count || destination > Int.MAX_VALUE || position > Int.MAX_VALUE) return
         if (moving.value || moveError.value != null) return

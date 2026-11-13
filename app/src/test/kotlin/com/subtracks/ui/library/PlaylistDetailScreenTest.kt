@@ -2,6 +2,7 @@ package com.subtracks.ui.library
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasScrollAction
@@ -12,11 +13,13 @@ import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSongItem
@@ -55,6 +58,7 @@ class PlaylistDetailScreenTest {
         totals: ListTotals?,
         songIds: List<String> = listOf("s0", "s1", "s2"),
         onSongLongClick: (MenuTarget) -> Unit = {},
+        onMoveSong: ((PlaylistSongItem, Long) -> Unit)? = null,
     ) {
         val items =
             songIds.mapIndexed { index, songId ->
@@ -88,6 +92,7 @@ class PlaylistDetailScreenTest {
                     onBack = {},
                     onSongClick = {},
                     onSongLongClick = onSongLongClick,
+                    onMoveSong = onMoveSong,
                 )
             }
         }
@@ -124,10 +129,73 @@ class PlaylistDetailScreenTest {
     }
 
     @Test
+    fun draggingASecondCopySendsOneMoveOnDrop() {
+        val moves = mutableListOf<Pair<Long, Long>>()
+        render(ListTotals(3, 600), listOf("s0", "s1", "s0"), onMoveSong = { item, to -> moves += item.position to to })
+        composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag(PLAYLIST_SUMMARY_TAG))
+        val from = composeRule.onNodeWithTag("playlist-drag-2", useUnmergedTree = true)
+        val destination =
+            composeRule
+                .onNodeWithTag("playlist-drag-0", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot.center.y
+        val delta =
+            destination -
+                from
+                    .fetchSemanticsNode()
+                    .boundsInRoot.center.y
+        from.performTouchInput {
+            down(center)
+            moveBy(Offset(0f, delta / 2))
+            moveBy(Offset(0f, delta / 2))
+        }
+        assertEquals(emptyList<Pair<Long, Long>>(), moves)
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/playlist_drag_active.png")
+        from.performTouchInput { up() }
+        assertEquals(listOf(2L to 0L), moves)
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/playlist_drag_handles.png")
+    }
+
+    @Test
+    fun cancelledDragSendsNoMove() {
+        val moves = mutableListOf<Long>()
+        render(ListTotals(3, 600), onMoveSong = { _, to -> moves += to })
+        composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag(PLAYLIST_SUMMARY_TAG))
+        composeRule.onNodeWithTag("playlist-drag-1", useUnmergedTree = true).performTouchInput {
+            down(center)
+            moveBy(Offset(0f, 30f))
+            cancel()
+        }
+        assertEquals(emptyList<Long>(), moves)
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun handlesFitAtLargeFontScale() {
+        val resources = composeRule.activity.resources
+        val previous = android.content.res.Configuration(resources.configuration)
+        resources.updateConfiguration(
+            android.content.res
+                .Configuration(previous)
+                .apply { fontScale = 2f },
+            resources.displayMetrics,
+        )
+        try {
+            render(ListTotals(3, 600), onMoveSong = { _, _ -> })
+            composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag(PLAYLIST_SUMMARY_TAG))
+            composeRule.onNodeWithTag("playlist-drag-2", useUnmergedTree = true).assertExists()
+            composeRule.onRoot().captureRoboImage("src/test/screenshots/playlist_drag_handles_2x.png")
+        } finally {
+            resources.updateConfiguration(previous, resources.displayMetrics)
+        }
+    }
+
+    @Test
     fun noFooterUntilTheTotalsAreCounted() {
         render(totals = null)
 
         composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Song 2"))
         composeRule.onNodeWithTag(PLAYLIST_SUMMARY_TAG).assertDoesNotExist()
+        composeRule.onNodeWithTag("playlist-drag-2", useUnmergedTree = true).assertDoesNotExist()
     }
 }

@@ -1,5 +1,6 @@
 package com.subtracks.ui.library
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,8 +13,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -43,6 +48,8 @@ import com.subtracks.ui.components.playlistUpdatedText
 import com.subtracks.ui.components.rememberPendingDownloadDelete
 import com.subtracks.ui.playlist.DeletePlaylistRequest
 import com.subtracks.ui.playlist.DeletePlaylistRoute
+import com.subtracks.ui.playlist.PlaylistDragHandle
+import com.subtracks.ui.playlist.PlaylistDragState
 import com.subtracks.ui.playlist.PlaylistMoveRecoveryDialog
 import com.subtracks.ui.playlist.RenamePlaylistRequest
 import com.subtracks.ui.playlist.RenamePlaylistRoute
@@ -141,6 +148,14 @@ fun PlaylistDetailRoute(
         onDownloadAction = requestDownloadAction,
         onBack = onBack,
         onSongClick = viewModel::play,
+        onMoveSong =
+            if (canEdit && !moving && moveError == null) {
+                { item, destination ->
+                    viewModel.moveToPosition(MenuTarget.Song(item.song, playlistPosition = item.position), destination)
+                }
+            } else {
+                null
+            },
         onSongLongClick = { target ->
             val position = (target as? MenuTarget.Song)?.playlistPosition
             val songActions =
@@ -195,6 +210,7 @@ fun PlaylistDetailScreen(
     onBack: () -> Unit,
     onSongClick: (Long) -> Unit,
     onSongLongClick: (MenuTarget) -> Unit = {},
+    onMoveSong: ((PlaylistSongItem, Long) -> Unit)? = null,
     onShuffle: () -> Unit = {},
     onPlay: () -> Unit = {},
     onMore: () -> Unit = {},
@@ -202,6 +218,8 @@ fun PlaylistDetailScreen(
     onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
 ) {
     val resources = LocalResources.current
+    val drag = remember(playlist?.sourceId, playlist?.id) { PlaylistDragState() }
+    LaunchedEffect(onMoveSong == null) { if (onMoveSong == null) drag.cancel() }
     // As on iOS: who made it and when it last changed up top, the count and length under the last track.
     val subtitle =
         remember(playlist?.owner, playlist?.changed, resources) {
@@ -236,23 +254,47 @@ fun PlaylistDetailScreen(
             items(count = songs.itemCount, key = songs.itemKey { it.position }) { index ->
                 val item = songs[index]
                 if (item != null) {
+                    androidx.compose.runtime.DisposableEffect(drag, item.position) {
+                        onDispose { drag.forget(item.position) }
+                    }
                     SongRow(
                         song = item.song,
                         coverArtId = item.coverArt,
                         coverArt = coverArt,
                         isPlaying = item.song.id == playingSongId,
                         durationSeconds = item.song.duration,
+                        trailingContent =
+                            onMoveSong?.let { move ->
+                                { PlaylistDragHandle(drag, item.position, item.song.id) { destination -> move(item, destination) } }
+                            },
                         download = downloads[item.song.id],
                         onToggleFavorite = onToggleFavorite?.let { toggle -> { favorite -> toggle(item.song, favorite) } },
                         modifier =
-                            rowModifier.combinedClickable(
-                                onClick = { onSongClick(item.position) },
-                                onLongClick = {
-                                    onSongLongClick(
-                                        MenuTarget.Song(item.song, coverArt(item.coverArt, true), downloads[item.song.id], item.position),
-                                    )
-                                },
-                            ),
+                            rowModifier
+                                .onGloballyPositioned { drag.record(item.position, it.boundsInRoot()) }
+                                .zIndex(if (drag.from == item.position) 1f else 0f)
+                                .graphicsLayer { translationY = if (drag.from == item.position) drag.distance else 0f }
+                                .background(
+                                    if (drag.from == item.position) {
+                                        MaterialTheme.colorScheme.surfaceContainerHigh
+                                    } else if (drag.target == item.position) {
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                    } else {
+                                        androidx.compose.ui.graphics.Color.Transparent
+                                    },
+                                ).combinedClickable(
+                                    onClick = { onSongClick(item.position) },
+                                    onLongClick = {
+                                        onSongLongClick(
+                                            MenuTarget.Song(
+                                                item.song,
+                                                coverArt(item.coverArt, true),
+                                                downloads[item.song.id],
+                                                item.position,
+                                            ),
+                                        )
+                                    },
+                                ),
                     )
                 }
             }
