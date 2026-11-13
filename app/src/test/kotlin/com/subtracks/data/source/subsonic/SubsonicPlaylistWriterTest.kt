@@ -1,6 +1,8 @@
 package com.subtracks.data.source.subsonic
 
 import com.subtracks.data.model.PlaylistSong
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -147,6 +149,111 @@ class SubsonicPlaylistWriterTest {
                 listOf(PlaylistSong(7, "p1", "a", 0), PlaylistSong(7, "p1", "b", 1), PlaylistSong(7, "p1", "a", 2)),
                 detail.songs,
             )
+        }
+
+    @Test
+    fun batchedReadIsColdAndKeepsAbsolutePositionsAndDuplicateOccurrences() =
+        runBlocking {
+            val ids = List(251) { "song${it % 7}" }
+            server.enqueue(
+                ok(
+                    "<playlist id=\"p1\" name=\"Mix\" songCount=\"251\">" +
+                        ids.joinToString("") { "<entry id=\"$it\"/>" } + "</playlist>",
+                ),
+            )
+            val flow = writer.playlistBatches("p1")
+            assertEquals(0, server.requestCount)
+            val batches = flow.toList()
+            assertEquals(listOf(100, 100, 51), batches.map { it.songs.size })
+            assertEquals(ids, batches.flatMap { it.songs }.map { it.songId })
+            assertEquals((0L..250L).toList(), batches.flatMap { it.songs }.map { it.position })
+            batches.forEach { batch ->
+                assertEquals(7L, batch.playlist.sourceId)
+                assertEquals("p1", batch.playlist.id)
+                assertEquals("Mix", batch.playlist.name)
+                batch.songs.forEach {
+                    assertEquals(7L, it.sourceId)
+                    assertEquals("p1", it.playlistId)
+                }
+            }
+            assertEquals(listOf("p1"), server.takeRequest().values("id"))
+            assertEquals(1, server.requestCount)
+        }
+
+    @Test
+    fun batchedReadDistinguishesEmptyFromMissingAndDoesNotEmitAnEmptyTail() =
+        runBlocking {
+            server.enqueue(ok("<playlist id=\"empty\" name=\"Empty\"/>"))
+            val empty = writer.playlistBatches("empty").toList()
+            assertEquals(1, empty.size)
+            assertEquals("empty", empty.single().playlist.id)
+            assertEquals(emptyList<PlaylistSong>(), empty.single().songs)
+            server.enqueue(failure(70))
+            assertEquals(emptyList<Any>(), writer.playlistBatches("gone").toList())
+            server.enqueue(MockResponse().setResponseCode(404))
+            assertEquals(emptyList<Any>(), writer.playlistBatches("gone").toList())
+            server.enqueue(ok("<playlist id=\"p1\">" + "<entry id=\"a\"/>".repeat(200) + "</playlist>"))
+            assertEquals(listOf(100, 100), writer.playlistBatches("p1").toList().map { it.songs.size })
+        }
+
+    @Test
+    fun batchedReadCancellationStopsBeforeTheResponseTailAndNextReadStillWorks() =
+        runBlocking {
+            val truncated = "<playlist id=\"p1\">" + "<entry id=\"a\"/>".repeat(500)
+            server.enqueue(ok(truncated))
+            assertEquals(
+                100,
+                writer
+                    .playlistBatches("p1")
+                    .take(1)
+                    .toList()
+                    .single()
+                    .songs.size,
+            )
+            server.enqueue(ok("<playlist id=\"p2\"/>"))
+            assertEquals(
+                "p2",
+                writer
+                    .playlistBatches("p2")
+                    .toList()
+                    .single()
+                    .playlist.id,
+            )
+        }
+
+    @Test
+    fun batchedReadDoesNotHideFailuresAfterAnEmittedBatch() =
+        runBlocking {
+            var emitted = 0
+            server.enqueue(
+                ok(
+                    "<playlist id=\"p1\">" + "<entry id=\"a\"/>".repeat(100) +
+                        "</playlist><error code=\"70\" message=\"late failure\"/>",
+                ),
+            )
+            val failure = runCatching { writer.playlistBatches("p1").collect { emitted++ } }.exceptionOrNull()
+            assertEquals(true, failure is SubsonicException)
+            assertEquals(1, emitted)
+            server.enqueue(ok("<playlist id=\"p1\">" + "<entry id=\"a\"/>".repeat(150)))
+            emitted = 0
+            assertEquals(true, runCatching { writer.playlistBatches("p1").collect { emitted++ } }.isFailure)
+            assertEquals(1, emitted)
+        }
+
+    @Test
+    fun batchedReadRejectsUnusableIdentityAndOtherServerFailures() =
+        runBlocking {
+            for (body in listOf(
+                "<playlist id=\"other\"/>",
+                "<playlist id=\"p1\"><entry id=\"\"/></playlist>",
+                "<playlist id=\"p1\"/><playlist id=\"p1\"/>",
+            )) {
+                server.enqueue(ok(body))
+                assertEquals(true, runCatching { writer.playlistBatches("p1").toList() }.isFailure)
+            }
+            server.enqueue(failure(50))
+            val failure = runCatching { writer.playlistBatches("p1").toList() }.exceptionOrNull()
+            assertEquals(true, failure is SubsonicException)
         }
 
     @Test

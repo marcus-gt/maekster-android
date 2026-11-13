@@ -1,10 +1,19 @@
 package com.subtracks.data.source.subsonic
 
+import com.subtracks.data.model.Playlist
+import com.subtracks.data.model.PlaylistSong
+import com.subtracks.data.source.PlaylistBatch
 import com.subtracks.data.source.PlaylistDetail
 import com.subtracks.data.source.PlaylistWriter
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 
 /**
@@ -77,6 +86,52 @@ class SubsonicPlaylistWriter(
 
     override suspend fun playlist(playlistId: String): PlaylistDetail? = io { playlistNow(playlistId) }
 
+    override fun playlistBatches(playlistId: String): Flow<PlaylistBatch> =
+        channelFlow {
+            val context = currentCoroutineContext()
+            var selected: Playlist? = null
+            var position = 0L
+            val pending = ArrayList<PlaylistSong>(READ_BATCH_SIZE)
+
+            fun flush() {
+                context.ensureActive()
+                val playlist = checkNotNull(selected)
+                if (trySendBlocking(PlaylistBatch(playlist, pending.toList())).isFailure) {
+                    throw CancellationException("Playlist read cancelled")
+                }
+                pending.clear()
+            }
+
+            try {
+                client.stream("getPlaylist", mapOf("id" to playlistId)) { input ->
+                    SubsonicXml.readEntities(
+                        input,
+                        entityTag = "playlist",
+                        create = { attrs ->
+                            context.ensureActive()
+                            check(selected == null) { "Server reported multiple playlists" }
+                            SubsonicXml.playlist(sourceId, attrs).also {
+                                check(it.id == playlistId) { "Server reported a different playlist" }
+                                selected = it
+                            }
+                        },
+                        onChild = { playlist, name, attrs, level ->
+                            context.ensureActive()
+                            if (name == "entry" && level == 1) {
+                                val id = attrs.attr("id")
+                                check(id.isNotEmpty()) { "Server reported a playlist entry without an ID" }
+                                pending += PlaylistSong(sourceId, playlist.id, id, position++)
+                                if (pending.size == READ_BATCH_SIZE) flush()
+                            }
+                        },
+                        onEnd = { if (pending.isNotEmpty() || position == 0L) flush() },
+                    )
+                }
+            } catch (failure: SubsonicException) {
+                if (!failure.isNotFound() || selected != null) throw failure
+            }
+        }.flowOn(Dispatchers.IO).buffer(0)
+
     private fun playlistNow(playlistId: String): PlaylistDetail? =
         try {
             client.stream("getPlaylist", mapOf("id" to playlistId)) { SubsonicXml.playlistDetail(sourceId, it) }
@@ -107,5 +162,6 @@ class SubsonicPlaylistWriter(
 
     companion object {
         const val BATCH_SIZE = 100
+        private const val READ_BATCH_SIZE = 100
     }
 }

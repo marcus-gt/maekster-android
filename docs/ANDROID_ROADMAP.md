@@ -560,6 +560,8 @@ subsequent snapshots see changed lengths/order without a sync. See `docs/handoff
 Save-queue foundation: a bounded cold export of song-ID batches in captured playback order,
 including shuffle/up-next/duplicates, with source and mutation checks. Dialog and server-save
 workflow remain open; see `docs/handoffs/M2.9-queue-export.md`.
+The writer now also provides bounded, backpressured fresh playlist readback for that future saver,
+without materialising the destination. See `docs/handoffs/M2.9-playlist-readback.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

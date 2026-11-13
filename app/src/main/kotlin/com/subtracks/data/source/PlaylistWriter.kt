@@ -2,9 +2,16 @@ package com.subtracks.data.source
 
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSong
+import kotlinx.coroutines.flow.Flow
 
 /** A playlist as the server holds it right now: its summary and its songs in order. */
 data class PlaylistDetail(
+    val playlist: Playlist,
+    val songs: List<PlaylistSong>,
+)
+
+/** One bounded portion of a fresh playlist read, with absolute entry positions. */
+data class PlaylistBatch(
     val playlist: Playlist,
     val songs: List<PlaylistSong>,
 )
@@ -51,4 +58,13 @@ interface PlaylistWriter {
 
     /** Reads the playlist fresh from the server, or null when the server no longer has it. */
     suspend fun playlist(playlistId: String): PlaylistDetail?
+
+    /**
+     * Cold, backpressured read in batches of at most 100 entries. An empty playlist emits one empty batch;
+     * a missing playlist emits nothing. Only successful flow completion validates the whole response: earlier
+     * batches may precede a parse/network failure. Consumers must stage changes until completion, and must not
+     * collect the whole playlist in memory. Cancellation is checked at entry/batch boundaries and unwinds the
+     * response; a blocked socket read remains subject to the client's network timeouts.
+     */
+    fun playlistBatches(playlistId: String): Flow<PlaylistBatch>
 }

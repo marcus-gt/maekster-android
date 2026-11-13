@@ -2,6 +2,8 @@ package com.subtracks.data.source
 
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSong
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import java.io.IOException
 
 /** An in-memory server's playlists, with failures that can be armed for the next write. */
@@ -100,6 +102,13 @@ class FakePlaylistWriter(
     }
 
     override suspend fun playlist(playlistId: String): PlaylistDetail? = playlists[playlistId]?.let { detail(playlistId) }
+
+    override fun playlistBatches(playlistId: String): Flow<PlaylistBatch> =
+        flow {
+            val detail = playlist(playlistId) ?: return@flow
+            if (detail.songs.isEmpty()) emit(PlaylistBatch(detail.playlist, emptyList()))
+            for (batch in detail.songs.chunked(100)) emit(PlaylistBatch(detail.playlist, batch))
+        }
 
     private fun detail(id: String): PlaylistDetail {
         val (name, songs) = playlists.getValue(id)
