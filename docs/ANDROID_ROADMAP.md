@@ -510,7 +510,10 @@ Lifecycle tests (with cleanup mutation) and emulator retest pass; see `docs/hand
 An isolated HTTP creation/retry test now connects ViewModel → repository → Subsonic writer → Room:
 503 append failure keeps the draft without success, retry reuses the created ID, refreshes the mirror,
 records Recent and emits completion. Skipping mirror refresh fails; see `docs/handoffs/M2.9-http-creation.md`.
-Remaining Part D device checks: real IME, real-server add/create/duplicates/failure/retry and actual snackbar/dismissal.
+API 37 portrait IME smoke check passes in a debug-only in-memory sheet preview: fields/results
+stay above the full keyboard, Back hides IME then dismisses. No personal-source writes; see
+`docs/handoffs/M2.9-sheet-ime.md`. AppRoot-specific back behavior still needs an isolated source.
+Remaining Part D device checks: real-server add/create/duplicates/failure/retry and actual snackbar/dismissal.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
