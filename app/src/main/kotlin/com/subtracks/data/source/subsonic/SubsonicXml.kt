@@ -2,6 +2,9 @@ package com.subtracks.data.source.subsonic
 
 import com.subtracks.R
 import com.subtracks.UiMessage
+import com.subtracks.data.lyrics.LrcParser
+import com.subtracks.data.lyrics.Lyrics
+import com.subtracks.data.lyrics.LyricsLine
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistRef
@@ -189,6 +192,12 @@ object SubsonicXml {
         val handler = EntityHandler(entityTag, { Unit }, { _, _, _, _ -> }, { }, stopAfterFirst = true)
         parse(input, handler)
         return handler.found
+    }
+
+    internal fun lyrics(input: InputStream): List<Lyrics> {
+        val handler = LyricsHandler()
+        parse(input, handler)
+        return handler.result
     }
 
     internal fun artistBiography(input: InputStream): String? {
@@ -492,6 +501,107 @@ private open class SubsonicResponseHandler : DefaultHandler() {
         name: String,
         depth: Int,
     ) = Unit
+}
+
+private class LyricsHandler : SubsonicResponseHandler() {
+    val result = mutableListOf<Lyrics>()
+    private var inList = false
+    private var inStructured = false
+    private var inLegacy = false
+    private var inLine = false
+    private var synced = false
+    private var language = "und"
+    private var offsetMs = 0L
+    private var startMs: Long? = null
+    private val lines = mutableListOf<LyricsLine>()
+    private val text = StringBuilder()
+
+    override fun characters(
+        ch: CharArray,
+        start: Int,
+        length: Int,
+    ) {
+        if (inLine || inLegacy) text.append(ch, start, length)
+    }
+
+    override fun onElementStart(
+        name: String,
+        attributes: Attributes,
+        depth: Int,
+    ) {
+        when {
+            depth == 2 && name == "lyricsList" -> {
+                inList = true
+            }
+
+            depth == 3 && name == "structuredLyrics" && inList -> {
+                inStructured = true
+                synced = attributes.boolAttr("synced")
+                language = attributes
+                    .attr("lang")
+                    .trim()
+                    .lowercase()
+                    .takeUnless { it.isEmpty() || it == "xxx" } ?: "und"
+                offsetMs = attributes.longAttr("offset") ?: 0
+                lines.clear()
+            }
+
+            depth == 4 && name == "line" && inStructured -> {
+                inLine = true
+                startMs = attributes.longAttr("start")?.takeIf { it >= 0 }
+                text.setLength(0)
+            }
+
+            depth == 2 && name == "lyrics" -> {
+                inLegacy = true
+                text.setLength(0)
+            }
+        }
+    }
+
+    override fun onElementEnd(
+        name: String,
+        depth: Int,
+    ) {
+        when {
+            depth == 4 && name == "line" && inLine -> {
+                val value = text.toString().trim()
+                if (value.isNotEmpty() && (!synced || startMs != null)) {
+                    lines += LyricsLine(value, startMs.takeIf { synced })
+                }
+                inLine = false
+            }
+
+            depth == 3 && name == "structuredLyrics" && inStructured -> {
+                if (lines.isNotEmpty()) {
+                    result += Lyrics(if (synced) lines.sortedBy { it.startMs } else lines.toList(), synced, language, offsetMs)
+                }
+                inStructured = false
+            }
+
+            depth == 2 && name == "lyricsList" -> {
+                inList = false
+            }
+
+            depth == 2 && name == "lyrics" && inLegacy -> {
+                val value = text.toString()
+                val parsed = LrcParser.parse(value)
+                val plain =
+                    value
+                        .lineSequence()
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .map { LyricsLine(it) }
+                        .toList()
+                if (parsed != null) {
+                    result += parsed
+                } else if (plain.isNotEmpty()) {
+                    result += Lyrics(plain, synced = false)
+                }
+                inLegacy = false
+            }
+        }
+    }
 }
 
 private class ArtistBiographyHandler : SubsonicResponseHandler() {

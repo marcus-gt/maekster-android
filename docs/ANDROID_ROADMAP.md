@@ -424,6 +424,10 @@ an LRC parser for repeated leading timestamps, millisecond fractions, signed pro
 enhanced word-tag stripping, Unicode and stable equal-time ordering. Metadata and malformed
 entries are ignored; no usable timed text returns null. Provider/cache/UI integration remains.
 See `docs/handoffs/M2.8-lrc-parser.md`.
+Part B adds SAX decoding for structured multilingual timed/plain lyrics and classic getLyrics
+text (including embedded LRC). Provider offsets and stable timing order are retained; invalid timed
+lines are skipped. It reuses the existing response/error and XXE protections. Network/cache/UI
+wiring remains; see `docs/handoffs/M2.8-server-lyrics-decoding.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
