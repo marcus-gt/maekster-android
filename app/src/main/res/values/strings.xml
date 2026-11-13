@@ -513,6 +513,10 @@
     <string name="quick_playlists_choose">Choose quick playlists…</string>
     <string name="quick_playlists_picker_hint">Touch and hold a song’s heart to add the song to one of these.</string>
     <string name="quick_playlists_done">Done</string>
+    <string name="quick_playlists_empty">No quick playlists yet.</string>
+    <string name="quick_playlists_remove">Remove %1$s</string>
+    <string name="quick_playlists_choose_playlists">Choose playlists…</string>
+    <string name="quick_playlists_also_favorite">Also add to Favorites</string>
     <string name="save_queue_as_playlist">Save queue as playlist…</string>
     <string name="save_queue_title">Save queue as playlist</string>
     <string name="save_queue_confirm">Save</string>

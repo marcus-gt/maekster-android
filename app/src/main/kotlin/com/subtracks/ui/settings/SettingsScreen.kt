@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
@@ -139,6 +140,7 @@ private enum class SettingsDialog {
     Theme,
     Home,
     Lyrics,
+    QuickPlaylists,
 }
 
 @Composable
@@ -383,6 +385,15 @@ fun SettingsScreen(
                                 SettingsDialog.Home
                         })
                     }
+                    if (activeSourceId != null) {
+                        item {
+                            ActionRow(
+                                title = stringResource(R.string.quick_playlists_title),
+                                icon = Icons.Rounded.Bolt,
+                                onClick = { dialog = SettingsDialog.QuickPlaylists },
+                            )
+                        }
+                    }
                     item { SectionHeader(stringResource(R.string.settings_library_name)) }
                     item {
                         ValueRow(
@@ -611,6 +622,12 @@ fun SettingsScreen(
 
         SettingsDialog.Home -> {
             HomeLayoutDialog(homeLayout, onHomeLayoutChange, onDismiss = { dialog = null })
+        }
+
+        SettingsDialog.QuickPlaylists -> {
+            activeSourceId?.let { sourceId ->
+                QuickPlaylistsSettingsRoute(sourceId = sourceId, offline = offline, onDismiss = { dialog = null })
+            }
         }
 
         SettingsDialog.Theme -> {

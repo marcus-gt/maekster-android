@@ -40,6 +40,12 @@ class QuickPlaylistRepository(
         playlistId: String,
     ) = db.quickPlaylistDao().remove(sourceId, playlistId)
 
+    /** Stores [playlistIds] as the whole list, in that order (after a drag). */
+    suspend fun setOrder(
+        sourceId: Long,
+        playlistIds: List<String>,
+    ) = db.quickPlaylistDao().replace(sourceId, playlistIds.distinct())
+
     /** Moves the quick playlist shown at [from] to [to], indices into [quickPlaylists]' current list. */
     suspend fun move(
         sourceId: Long,

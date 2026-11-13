@@ -72,6 +72,7 @@ import com.subtracks.ui.playlist.RenamePlaylistViewModel
 import com.subtracks.ui.playlist.SaveQueueViewModel
 import com.subtracks.ui.search.SearchViewModel
 import com.subtracks.ui.settings.AddSourceViewModel
+import com.subtracks.ui.settings.QuickPlaylistsSettingsViewModel
 import com.subtracks.ui.settings.SettingsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -235,6 +236,7 @@ fun appModule(
         val sources = get<SourceRepository>()
         QuickPlaylistPickerViewModel(sourceId, get(), get(), owner = { sources.username(sourceId) })
     }
+    viewModel { params -> QuickPlaylistsSettingsViewModel(params.get<Long>(), get(), get()) }
     viewModel { params ->
         val downloads = get<DownloadRepository>()
         val playback = get<PlaybackController>()
