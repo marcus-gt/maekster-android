@@ -55,6 +55,8 @@ import com.subtracks.ui.library.LibraryHubViewModel
 import com.subtracks.ui.library.LibraryViewModel
 import com.subtracks.ui.library.PlaylistDetailViewModel
 import com.subtracks.ui.playback.LyricsViewModel
+import com.subtracks.ui.playlist.AddToPlaylistRequest
+import com.subtracks.ui.playlist.AddToPlaylistViewModel
 import com.subtracks.ui.playback.QueueViewModel
 import com.subtracks.ui.playback.playingSong
 import com.subtracks.ui.search.SearchViewModel
@@ -196,6 +198,11 @@ fun appModule(
     single {
         val sources = get<SourceRepository>()
         PlaylistRepository(get(), writerFor = sources::playlistWriter)
+    }
+    viewModel { params ->
+        val request = params.get<AddToPlaylistRequest>()
+        val sources = get<SourceRepository>()
+        AddToPlaylistViewModel(request, get(), owner = { sources.username(request.sourceId) }, showMessage = showMessage)
     }
     single { LyricsCache(get<SubtracksDatabase>().lyricsCacheDao()) }
     single { LrclibProvider() }

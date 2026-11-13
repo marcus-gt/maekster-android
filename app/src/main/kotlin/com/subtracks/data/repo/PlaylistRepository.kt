@@ -5,6 +5,9 @@ import com.subtracks.data.model.Playlist
 import com.subtracks.data.playlist.PlaylistAppendIntent
 import com.subtracks.data.source.PlaylistDetail
 import com.subtracks.data.source.PlaylistWriter
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import kotlinx.coroutines.flow.Flow
 
 /** Why a playlist edit did not happen; any other failure is the server's or the network's own exception. */
@@ -34,8 +37,31 @@ class PlaylistAddition(
     val sourceId: Long,
     val playlistId: String,
     val songIds: List<String>,
+    /** What to do about songs the playlist already holds; it applies to the first run, which fixes the plan. */
+    var duplicates: Duplicates = Duplicates.Keep,
 ) {
     internal var intent: PlaylistAppendIntent? = null
+}
+
+enum class Duplicates {
+    /** Stop and report [AddOutcome.Duplicates] so the user can choose. */
+    Ask,
+
+    /** Add every song, even ones already there. */
+    Keep,
+
+    /** Add only songs the playlist does not hold yet. */
+    Skip,
+}
+
+sealed interface AddOutcome {
+    /** [count] songs were added; 0 when the playlist already held them all and duplicates were skipped. */
+    data class Added(
+        val count: Int,
+    ) : AddOutcome
+
+    /** Nothing was written: some songs are already there and the addition asked first. */
+    data object Duplicates : AddOutcome
 }
 
 /** A new playlist with songs. A retry finishes the playlist already created rather than making another. */
@@ -62,14 +88,37 @@ class PlaylistRepository(
     /** The playlists songs were last added to on [sourceId], newest first (only successful additions). */
     fun recentDestinations(sourceId: Long): Flow<List<Playlist>> = db.playlistDestinationDao().recent(sourceId)
 
-    suspend fun add(addition: PlaylistAddition) {
+    /**
+     * The playlists [sourceId]'s user can add to, by name, matching [query] anywhere in the name; [owner] is the
+     * signed-in user (null when unknown), and [exclude] keeps out playlists shown elsewhere (the recent ones).
+     */
+    fun destinations(
+        sourceId: Long,
+        owner: String?,
+        query: String,
+        exclude: List<String>,
+    ): Flow<PagingData<Playlist>> {
+        val pattern = "%" + query.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        return Pager(PagingConfig(pageSize = 40, enablePlaceholders = false)) {
+            db.libraryDao().playlistDestinations(sourceId, owner, exclude, pattern)
+        }.flow
+    }
+
+    suspend fun add(addition: PlaylistAddition): AddOutcome {
         val writer = writer(addition.sourceId)
         val current = fresh(writer, addition.sourceId, addition.playlistId)
-        val intent = addition.intent ?: PlaylistAppendIntent(addition.songIds, current.songIds()).also { addition.intent = it }
+        val intent =
+            addition.intent ?: run {
+                val held = current.songIds().toSet()
+                if (addition.duplicates == Duplicates.Ask && addition.songIds.any { it in held }) return AddOutcome.Duplicates
+                val wanted = if (addition.duplicates == Duplicates.Skip) addition.songIds.filter { it !in held } else addition.songIds
+                PlaylistAppendIntent(wanted, current.songIds()).also { addition.intent = it }
+            }
         val missing = intent.remaining(current.songIds())
         if (missing.isNotEmpty()) writer.append(addition.playlistId, missing)
         refresh(writer, addition.sourceId, addition.playlistId)
         db.playlistDestinationDao().record(addition.sourceId, addition.playlistId, now())
+        return AddOutcome.Added(intent.songIds.size)
     }
 
     suspend fun create(creation: PlaylistCreation): String {

@@ -496,4 +496,26 @@
     <string name="lyrics_current_line">Current lyric line</string>
     <string name="lyrics_show_all">Show all lyrics</string>
 
+    <string name="add_to_playlist">Add to playlist…</string>
+    <string name="add_to_playlist_title">Add to playlist</string>
+    <string name="add_to_playlist_search">Search playlists</string>
+    <string name="add_to_playlist_recent">Recent</string>
+    <string name="add_to_playlist_all">Your playlists</string>
+    <string name="add_to_playlist_none">No playlists yet. Name a new one above.</string>
+    <string name="add_to_playlist_new_name">New playlist name</string>
+    <string name="add_to_playlist_create">Create</string>
+    <string name="add_to_playlist_duplicates_title">Already in this playlist</string>
+    <string name="add_to_playlist_duplicates_body">Some of these songs are already in %1$s.</string>
+    <string name="add_to_playlist_add_anyway">Add anyway</string>
+    <string name="add_to_playlist_skip">Skip duplicates</string>
+    <string name="add_to_playlist_retry_hint">Tap the playlist again to retry; only missing songs are sent.</string>
+    <string name="playlist_songs_added">Added to %1$s</string>
+    <string name="playlist_already_has_songs">Already in %1$s</string>
+    <string name="playlist_created">Created %1$s</string>
+    <string name="playlist_edit_offline">Playlists can\'t be changed offline</string>
+    <string name="playlist_edit_not_found">That playlist is no longer on the server</string>
+    <string name="playlist_edit_changed">The playlist changed on the server and has been refreshed. Try again.</string>
+    <string name="playlist_edit_not_reported">The playlist was created; sync the library to see it</string>
+    <string name="playlist_edit_failed">Couldn\'t change the playlist</string>
+
 </resources>

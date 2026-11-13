@@ -92,6 +92,8 @@ import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PinMenuRoute
+import com.subtracks.ui.playlist.AddToPlaylistRequest
+import com.subtracks.ui.playlist.AddToPlaylistRoute
 import com.subtracks.ui.components.PlaylistInfoDialog
 import com.subtracks.ui.components.SongInfoDialog
 import com.subtracks.ui.components.statusBarScrim
@@ -310,6 +312,7 @@ private fun MainNavigation() {
     val scope = rememberCoroutineScope()
     val contextMenuHost = remember { ContextMenuHost() }
     var infoTarget by remember { mutableStateOf<MenuTarget?>(null) }
+    var addToPlaylist by remember { mutableStateOf<AddToPlaylistRequest?>(null) }
     var artistChooser by remember { mutableStateOf<List<ArtistRef>?>(null) }
 
     val activeSourceId by libraryRepository.activeSourceId.collectAsStateWithLifecycle(initialValue = null)
@@ -394,6 +397,7 @@ private fun MainNavigation() {
             contextMenuHost.dismissTransients()
             infoTarget = null
             artistChooser = null
+            addToPlaylist = null
             showingQueue = false
             if (navController.currentDestination?.route in DETAIL_ROUTES) {
                 navController.popBackStack(navController.currentTabNow().root, inclusive = false)
@@ -1011,7 +1015,12 @@ private fun MainNavigation() {
                     onDismiss = { contextMenuHost.dismiss() },
                     onInfo = { infoTarget = it },
                     onChooseArtists = { artistChooser = it },
+                    onAddToPlaylist = { song -> addToPlaylist = AddToPlaylistRequest(song.sourceId, listOf(song.id)) },
                 )
+            }
+
+            addToPlaylist?.let { request ->
+                AddToPlaylistRoute(request = request, onDismiss = { addToPlaylist = null })
             }
 
             artistChooser?.let { artists ->

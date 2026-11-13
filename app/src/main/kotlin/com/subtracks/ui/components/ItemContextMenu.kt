@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -204,6 +205,7 @@ fun ItemContextMenu(
     onChooseArtists: ((List<ArtistRef>) -> Unit)? = null,
     pinned: Boolean? = null,
     onSetPinned: ((Boolean) -> Unit)? = null,
+    onAddToPlaylist: ((SongModel) -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -256,6 +258,11 @@ fun ItemContextMenu(
             when (target) {
                 is MenuTarget.Song -> {
                     queueItems()
+                    onAddToPlaylist?.let { add ->
+                        MenuItem(Icons.AutoMirrored.Rounded.PlaylistAdd, stringResource(R.string.add_to_playlist)) {
+                            replaceWith { add(target.song) }
+                        }
+                    }
                     DownloadItem(target.download, target.song, actions, ::dismiss)
                     StarItem(
                         current = target.song.starred,

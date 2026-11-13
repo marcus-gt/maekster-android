@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.subtracks.data.model.ArtistRef
 import com.subtracks.data.model.PinKind
 import com.subtracks.data.model.PinRef
+import com.subtracks.data.model.Song
 import com.subtracks.data.repo.LibraryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -44,6 +45,7 @@ fun PinMenuRoute(
     onDismiss: () -> Unit,
     onInfo: (MenuTarget) -> Unit,
     onChooseArtists: (List<ArtistRef>) -> Unit,
+    onAddToPlaylist: ((Song) -> Unit)? = null,
     viewModel: PinMenuViewModel = koinViewModel(),
 ) {
     val ref = target.pinRef()
@@ -57,6 +59,7 @@ fun PinMenuRoute(
             onChooseArtists,
             pinned = pinned,
             onSetPinned = ref?.let { reference -> { value -> viewModel.setPinned(reference, value) } },
+            onAddToPlaylist = onAddToPlaylist,
         )
     }
 }

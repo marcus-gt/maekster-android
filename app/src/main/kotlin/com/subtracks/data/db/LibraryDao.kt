@@ -711,6 +711,21 @@ interface LibraryDao {
     )
     suspend fun deleteOrphanPlaylistSongs(sourceId: Long)
 
+    /**
+     * Playlists songs can be added to, by name: the user's own (or ones whose owner the server did not say), minus
+     * [exclude], matching [pattern] (a LIKE pattern with `\` as escape; `%` for all).
+     */
+    @Query(
+        "SELECT * FROM playlists WHERE sourceId = :sourceId AND (owner IS NULL OR :owner IS NULL OR owner = :owner) " +
+            "AND id NOT IN (:exclude) AND name LIKE :pattern ESCAPE '\\' ORDER BY name, id",
+    )
+    fun playlistDestinations(
+        sourceId: Long,
+        owner: String?,
+        exclude: List<String>,
+        pattern: String,
+    ): PagingSource<Int, Playlist>
+
     /** Mirrors one playlist exactly as the server now holds it, after an edit. */
     @Transaction
     suspend fun replacePlaylist(

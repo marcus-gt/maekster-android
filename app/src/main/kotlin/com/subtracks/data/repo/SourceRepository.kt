@@ -393,6 +393,9 @@ class SourceRepository(
         return config.toMusicSource(quality.value, prefs.syncConcurrency().first()).artistBiography(artistId)
     }
 
+    /** The user signed in to [sourceId], which the server names as the owner of their playlists. */
+    suspend fun username(sourceId: Long): String? = sourceConfigOnce(sourceId)?.username?.takeIf { it.isNotBlank() }
+
     /** Playlist edits for [sourceId], or null while offline or when the server needs signing in again. */
     suspend fun playlistWriter(sourceId: Long): PlaylistWriter? {
         if (_offline.value) return null
