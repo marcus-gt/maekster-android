@@ -11,6 +11,7 @@ import com.subtracks.data.model.ArtistRef
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSong
 import com.subtracks.data.model.Song
+import com.subtracks.data.source.PlaylistDetail
 import org.xml.sax.Attributes
 import org.xml.sax.SAXException
 import org.xml.sax.helpers.DefaultHandler
@@ -170,6 +171,22 @@ object SubsonicXml {
             position = position,
         )
 
+    /** The `playlist` element of getPlaylist or createPlaylist with its entries in order; null when absent. */
+    internal fun playlistDetail(
+        sourceId: Long,
+        input: InputStream,
+    ): PlaylistDetail? {
+        var detail: PlaylistDetail? = null
+        readEntities(
+            input,
+            entityTag = "playlist",
+            create = { attrs -> PlaylistDetailDraft(playlist(sourceId, attrs)) },
+            onChild = { draft, name, attrs, level -> if (name == "entry" && level == 1) draft.add(attrs.attr("id")) },
+            onEnd = { draft -> if (detail == null && draft.playlist.id.isNotEmpty()) detail = draft.toDetail() },
+        )
+        return detail
+    }
+
     internal fun readStatus(input: InputStream) {
         parse(input, SubsonicResponseHandler())
     }
@@ -205,6 +222,22 @@ object SubsonicXml {
         parse(input, handler)
         return handler.biography
     }
+}
+
+internal class PlaylistDetailDraft(
+    val playlist: Playlist,
+) {
+    private val songIds = mutableListOf<String>()
+
+    fun add(songId: String) {
+        if (songId.isNotEmpty()) songIds += songId
+    }
+
+    fun toDetail() =
+        PlaylistDetail(
+            playlist,
+            songIds.mapIndexed { position, songId -> PlaylistSong(playlist.sourceId, playlist.id, songId, position.toLong()) },
+        )
 }
 
 internal class AlbumDraft(

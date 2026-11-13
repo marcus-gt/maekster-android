@@ -41,9 +41,11 @@ class SubsonicClient(
     @Volatile
     private var useTokenAuth: Boolean = useTokenAuth
 
+    /** [repeated] carries parameters the API takes more than once, such as `songIdToAdd`, in order. */
     fun uri(
         method: String,
         params: Map<String, String> = emptyMap(),
+        repeated: List<Pair<String, String>> = emptyList(),
     ): HttpUrl {
         val builder = baseUrl.newBuilder().addPathSegments("rest/$method.view")
         builder.addQueryParameter("v", API_VERSION)
@@ -57,25 +59,28 @@ class SubsonicClient(
             builder.addQueryParameter("p", password)
         }
         params.forEach { (key, value) -> builder.addQueryParameter(key, value) }
+        repeated.forEach { (key, value) -> builder.addQueryParameter(key, value) }
         return builder.build()
     }
 
     fun check(
         method: String,
         params: Map<String, String> = emptyMap(),
+        repeated: List<Pair<String, String>> = emptyList(),
     ) {
-        stream(method, params) { SubsonicXml.readStatus(it) }
+        stream(method, params, repeated = repeated) { SubsonicXml.readStatus(it) }
     }
 
     fun <T> stream(
         method: String,
         params: Map<String, String> = emptyMap(),
         timeoutMs: Long? = null,
+        repeated: List<Pair<String, String>> = emptyList(),
         body: (InputStream) -> T,
     ): T {
         val usedTokenAuth = useTokenAuth
         return try {
-            execute(method, params, timeoutMs, body)
+            execute(method, params, repeated, timeoutMs, body)
         } catch (failure: SubsonicException) {
             if (failure.code !in TOKEN_AUTH_UNSUPPORTED_CODES || !usedTokenAuth) {
                 Log.w("http", "$method failed: server code ${failure.code} \"${failure.message}\"")
@@ -83,20 +88,21 @@ class SubsonicClient(
             }
             Log.w("http", "$method: token auth unsupported (server code ${failure.code}), retrying with plaintext")
             disableTokenAuth()
-            execute(method, params, timeoutMs, body)
+            execute(method, params, repeated, timeoutMs, body)
         }
     }
 
     private fun <T> execute(
         method: String,
         params: Map<String, String>,
+        repeated: List<Pair<String, String>>,
         timeoutMs: Long?,
         body: (InputStream) -> T,
     ): T {
         val request =
             Request
                 .Builder()
-                .url(uri(method, params))
+                .url(uri(method, params, repeated))
                 .build()
         val call = http.newCall(request)
         timeoutMs?.let { call.timeout().timeout(it, TimeUnit.MILLISECONDS) }

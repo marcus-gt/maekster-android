@@ -472,6 +472,12 @@ LRCLIB disclosure) is in place. Open decision: prefetching lyrics when a song is
 a suggested technique in FEATURE_PARITY; iOS does not do it and it would batch LRCLIB requests, so it
 waits for a product decision. Device checks (embedded LRC, LRCLIB fallback) remain open.
 
+**M2.9 status (13 Nov 2026):** in progress. Part A adds the playlist write foundation: a
+`PlaylistWriter` interface and its Subsonic implementation (create, rename, comment, append, remove,
+replace, delete, fresh read) with batched song lists and highest-first removal, plus the
+retry-safe `PlaylistAppendIntent` ported from iOS. MockWebServer and intent tests with two mutations;
+no UI, DI or schema change yet. See `docs/handoffs/M2.9-playlist-writer.md`.
+
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
   skip to downloaded). Process death during playback, then restore. Lyrics with Navidrome-embedded LRC and LRCLIB fallback.
