@@ -17,7 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
+import androidx.compose.material.icons.rounded.RemoveCircle
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -91,9 +94,9 @@ internal fun AddToPlaylistContent(
         onQuery = viewModel::setQuery,
         onNewName = viewModel::setNewName,
         onCreate = viewModel::create,
-        onPick = viewModel::addTo,
-        onResolveDuplicates = viewModel::resolveDuplicates,
-        onDismissDuplicates = viewModel::dismissDuplicates,
+        onPick = viewModel::toggle,
+        onConfirmRemoval = viewModel::confirmRemoval,
+        onDismissRemoval = viewModel::dismissRemoval,
         onDismiss = onDismiss,
     )
 }
@@ -108,8 +111,8 @@ fun AddToPlaylistSheet(
     onNewName: (String) -> Unit,
     onCreate: () -> Unit,
     onPick: (Playlist) -> Unit,
-    onResolveDuplicates: (skip: Boolean) -> Unit,
-    onDismissDuplicates: () -> Unit,
+    onConfirmRemoval: () -> Unit,
+    onDismissRemoval: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(
@@ -174,12 +177,12 @@ fun AddToPlaylistSheet(
             if (ui.recent.isNotEmpty()) {
                 item { SectionLabel(stringResource(R.string.add_to_playlist_recent)) }
                 ui.recent.forEach { playlist ->
-                    item(key = "recent-${playlist.id}") { DestinationRow(playlist, coverArt, ui.busy, onPick) }
+                    item(key = "recent-${playlist.id}") { DestinationRow(playlist, coverArt, ui, onPick) }
                 }
                 item { SectionLabel(stringResource(R.string.add_to_playlist_all)) }
             }
             items(destinations.itemCount, key = destinations.itemKey { it.id }) { index ->
-                destinations[index]?.let { DestinationRow(it, coverArt, ui.busy, onPick) }
+                destinations[index]?.let { DestinationRow(it, coverArt, ui, onPick) }
             }
             if (destinations.itemCount == 0 && ui.recent.isEmpty() && ui.query.isBlank()) {
                 item {
@@ -193,15 +196,17 @@ fun AddToPlaylistSheet(
             item { Spacer(Modifier.size(24.dp)) }
         }
     }
-    ui.duplicatesIn?.let { playlist ->
+    ui.pendingRemoval?.let { playlist ->
         AlertDialog(
-            onDismissRequest = onDismissDuplicates,
-            title = { Text(stringResource(R.string.add_to_playlist_duplicates_title)) },
-            text = { Text(stringResource(R.string.add_to_playlist_duplicates_body, playlist.name)) },
-            confirmButton = { TextButton(onClick = { onResolveDuplicates(true) }) { Text(stringResource(R.string.add_to_playlist_skip)) } },
-            dismissButton = {
-                TextButton(onClick = { onResolveDuplicates(false) }) { Text(stringResource(R.string.add_to_playlist_add_anyway)) }
+            onDismissRequest = onDismissRemoval,
+            title = { Text(stringResource(R.string.add_to_playlist_remove_title)) },
+            text = { Text(pluralStringResource(R.plurals.add_to_playlist_remove_body, ui.songCount, ui.songCount, playlist.name)) },
+            confirmButton = {
+                TextButton(onClick = onConfirmRemoval) {
+                    Text(stringResource(R.string.add_to_playlist_remove_confirm), color = MaterialTheme.colorScheme.error)
+                }
             },
+            dismissButton = { TextButton(onClick = onDismissRemoval) { Text(stringResource(R.string.actions_cancel)) } },
         )
     }
 }
@@ -220,9 +225,27 @@ private fun SectionLabel(text: String) {
 private fun DestinationRow(
     playlist: Playlist,
     coverArt: (String?) -> CoverArtRef?,
-    busy: String?,
+    ui: AddToPlaylistUi,
     onPick: (Playlist) -> Unit,
 ) {
+    val busy = ui.busy
+    val membership = ui.membership(playlist)
+    val membershipLabel =
+        stringResource(
+            when (membership) {
+                PlaylistMembership.None -> {
+                    R.string.add_to_playlist_member_none
+                }
+
+                PlaylistMembership.Some -> {
+                    R.string.add_to_playlist_member_some
+                }
+
+                PlaylistMembership.All -> {
+                    if (ui.songCount == 1) R.string.add_to_playlist_member_all else R.string.add_to_playlist_member_all_songs
+                }
+            },
+        )
     Row(
         modifier =
             Modifier
@@ -230,6 +253,7 @@ private fun DestinationRow(
                 .heightIn(min = 64.dp)
                 .testTag(addToPlaylistRowTag(playlist.id))
                 .clickable(enabled = busy == null) { onPick(playlist) }
+                .semantics { stateDescription = membershipLabel }
                 .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -250,6 +274,18 @@ private fun DestinationRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Icon(Icons.AutoMirrored.Rounded.PlaylistAdd, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        MembershipMark(membership)
     }
+}
+
+/** An empty circle, a partly filled one, or a check, as on iOS; the row's state description says it in words. */
+@Composable
+private fun MembershipMark(membership: PlaylistMembership) {
+    val (icon, tint) =
+        when (membership) {
+            PlaylistMembership.None -> Icons.Rounded.RadioButtonUnchecked to MaterialTheme.colorScheme.onSurfaceVariant
+            PlaylistMembership.Some -> Icons.Rounded.RemoveCircle to MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+            PlaylistMembership.All -> Icons.Rounded.CheckCircle to MaterialTheme.colorScheme.primary
+        }
+    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.testTag("membership-${membership.name}"))
 }

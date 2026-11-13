@@ -585,6 +585,10 @@ user-authorized quick add (one append, one star; repeat says "Already in"); see
 integration tests on gonic, LMS and Nextcloud Music are deferred to GitHub issue #11 and do not
 block M2.9. Remaining M2.9 work: membership toggles in the add-to-playlist sheet, read from the
 local mirror (decided with the user), with a server check before any write.
+Membership toggles are done: rows show none/some/all marks from the mirror; tapping a full one
+removes every occurrence (positions from a fresh server read, with confirmation for several songs),
+and any other tap fills in only the missing songs. The duplicate prompt is gone, as on iOS. Marks were
+verified on API 37; an on-device removal awaits authorization. See `docs/handoffs/M2.9-membership-toggles.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

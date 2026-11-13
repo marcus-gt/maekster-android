@@ -40,8 +40,8 @@ class PlaylistImePreviewActivity : ComponentActivity() {
                     onNewName = { ui = ui.copy(newName = it) },
                     onCreate = { finish() },
                     onPick = { finish() },
-                    onResolveDuplicates = {},
-                    onDismissDuplicates = {},
+                    onConfirmRemoval = {},
+                    onDismissRemoval = {},
                     onDismiss = { finish() },
                 )
             }

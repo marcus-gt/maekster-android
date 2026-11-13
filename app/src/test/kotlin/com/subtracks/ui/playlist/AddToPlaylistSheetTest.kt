@@ -37,7 +37,7 @@ class AddToPlaylistSheetTest {
     private val all = (0 until 20).map { recent.copy(id = "p$it", name = "Playlist $it") }
     private val state = mutableStateOf(AddToPlaylistUi(recent = listOf(recent)))
     private val picks = mutableListOf<String>()
-    private val choices = mutableListOf<Boolean>()
+    private val choices = mutableListOf<String>()
     private var creates = 0
 
     @Suppress("DEPRECATION")
@@ -61,8 +61,11 @@ class AddToPlaylistSheetTest {
                         onNewName = { state.value = state.value.copy(newName = it) },
                         onCreate = { creates++ },
                         onPick = { picks += it.id },
-                        onResolveDuplicates = { choices += it },
-                        onDismissDuplicates = { state.value = state.value.copy(duplicatesIn = null) },
+                        onConfirmRemoval = { choices += "remove" },
+                        onDismissRemoval = {
+                            choices += "cancel"
+                            state.value = state.value.copy(pendingRemoval = null)
+                        },
                         onDismiss = {},
                     )
                 }
@@ -86,15 +89,37 @@ class AddToPlaylistSheetTest {
     }
 
     @Test
-    fun busyDisablesWritesAndDuplicateButtonsKeepTheirMeaning() {
-        state.value = state.value.copy(newName = "Evening", busy = "recent")
+    fun busyDisablesWritesAndRemovalAsksBeforeTakingSongsOut() {
+        state.value = state.value.copy(newName = "Evening", busy = "recent", songCount = 3)
         show()
         rule.onNodeWithText("Create").assertIsNotEnabled()
         rule.onNodeWithTag(addToPlaylistRowTag("recent")).performScrollTo().assertIsNotEnabled()
-        rule.runOnIdle { state.value = state.value.copy(busy = null, duplicatesIn = recent) }
-        rule.onNodeWithText("Skip duplicates").performClick()
-        rule.onNodeWithText("Add anyway").performClick()
-        assertEquals(listOf(true, false), choices)
+        rule.runOnIdle { state.value = state.value.copy(busy = null, pendingRemoval = recent) }
+        rule.onNodeWithText("3 songs will be taken out of Road trip.").assertIsDisplayed()
+        rule.onNodeWithText("Remove").performClick()
+        rule.onNodeWithText("Cancel").performClick()
+        assertEquals(listOf("remove", "cancel"), choices)
+    }
+
+    @Test
+    fun rowsMarkAndAnnounceHowMuchOfTheSelectionTheyHold() {
+        state.value =
+            state.value.copy(
+                songCount = 1,
+                membership = mapOf("recent" to PlaylistMembership.All, "p0" to PlaylistMembership.Some),
+            )
+        show()
+
+        fun stateOf(id: String) =
+            rule
+                .onNodeWithTag(addToPlaylistRowTag(id))
+                .performScrollTo()
+                .fetchSemanticsNode()
+                .config[androidx.compose.ui.semantics.SemanticsProperties.StateDescription]
+        assertEquals("Already in this playlist", stateOf("recent"))
+        assertEquals("Some songs already in this playlist", stateOf("p0"))
+        assertEquals("Not in this playlist", stateOf("p1"))
+        rule.onNodeWithTag("membership-All", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test

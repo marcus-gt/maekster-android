@@ -9,6 +9,12 @@ import kotlinx.coroutines.flow.Flow
 /** How many recent destinations each server keeps, as on iOS. */
 const val PLAYLIST_DESTINATION_LIMIT = 5
 
+/** How many distinct songs of a selection one playlist holds. */
+data class PlaylistHeld(
+    val playlistId: String,
+    val held: Int,
+)
+
 @Dao
 interface PlaylistDestinationDao {
     // Always after the server's newest entry, so the latest use tops the list even within one millisecond.
@@ -50,4 +56,14 @@ interface PlaylistDestinationDao {
             "WHERE d.sourceId = :sourceId ORDER BY d.usedAt DESC, d.rowid DESC",
     )
     fun recent(sourceId: Long): Flow<List<Playlist>>
+
+    /** For every mirrored playlist on [sourceId] that holds any of [songIds], how many distinct ones it holds. */
+    @Query(
+        "SELECT playlistId, COUNT(DISTINCT songId) AS held FROM playlist_songs " +
+            "WHERE sourceId = :sourceId AND songId IN (:songIds) GROUP BY playlistId",
+    )
+    fun held(
+        sourceId: Long,
+        songIds: List<String>,
+    ): Flow<List<PlaylistHeld>>
 }

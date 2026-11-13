@@ -12,6 +12,7 @@ import com.subtracks.data.source.PlaylistDetail
 import com.subtracks.data.source.PlaylistWriter
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -132,6 +133,45 @@ class PlaylistRepository(
         return Pager(PagingConfig(pageSize = 40, enablePlaceholders = false)) {
             db.libraryDao().playlistDestinations(sourceId, owner, exclude, pattern)
         }.flow
+    }
+
+    /**
+     * How many distinct songs of [songIds] each of [sourceId]'s playlists holds, read from the mirror (no server call);
+     * playlists holding none are absent. It can lag the server until the next sync or edit.
+     */
+    fun membership(
+        sourceId: Long,
+        songIds: List<String>,
+    ): Flow<Map<String, Int>> =
+        db.playlistDestinationDao().held(sourceId, songIds.distinct()).map { rows -> rows.associate { it.playlistId to it.held } }
+
+    /**
+     * Takes every occurrence of [songIds] out of the playlist. Positions come from a fresh server read, so a stale
+     * mirror cannot remove the wrong entries; a retry after a partial failure reads again and removes what is left.
+     * Returns how many entries were removed (0 when the server no longer held any), and records the playlist as used.
+     */
+    suspend fun removeSongs(
+        sourceId: Long,
+        playlistId: String,
+        songIds: List<String>,
+    ): Int {
+        val writer = writer(sourceId)
+        val current = fresh(writer, sourceId, playlistId)
+        val selected = songIds.toSet()
+        val positions =
+            current
+                .songIds()
+                .withIndex()
+                .filter { it.value in selected }
+                .map { it.index }
+        if (positions.isEmpty()) {
+            mirror(current)
+        } else {
+            writer.remove(playlistId, positions)
+            refresh(writer, sourceId, playlistId)
+        }
+        db.playlistDestinationDao().record(sourceId, playlistId, now())
+        return positions.size
     }
 
     suspend fun add(addition: PlaylistAddition): AddOutcome {

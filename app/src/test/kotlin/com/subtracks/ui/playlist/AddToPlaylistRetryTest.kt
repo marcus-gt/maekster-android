@@ -7,6 +7,7 @@ import com.subtracks.UiMessage
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.model.Playlist
+import com.subtracks.data.model.PlaylistSong
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.Source
 import com.subtracks.data.repo.PlaylistRepository
@@ -18,6 +19,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -46,17 +48,11 @@ class AddToPlaylistRetryTest {
             db = createTestDatabase()
             db.sourcesDao().upsertSource(Source(1, "source", "http://localhost", true, 1))
             db.libraryDao().upsertSongs(
-                listOf("a", "b", "c").map { Song(1, it, null, null, it, null, null, 60, null, null, null) },
+                listOf("a", "b", "c", "x").map { Song(1, it, null, null, it, null, null, 60, null, null, null) },
             )
             server = FakePlaylistWriter(1)
             server.put("p", "Mix", "a")
-            model =
-                AddToPlaylistViewModel(
-                    AddToPlaylistRequest(1, listOf("a", "b", "c")),
-                    PlaylistRepository(db, writerFor = { server }),
-                    owner = { "alice" },
-                    showMessage = { messages.trySend(it) },
-                )
+            open(listOf("a", "b", "c"))
         }
 
     @After
@@ -66,37 +62,128 @@ class AddToPlaylistRetryTest {
         Dispatchers.resetMain()
     }
 
-    @Test
-    fun addAnywayWaitsForDecisionThenAddsEveryRequestedOccurrence() =
-        runTest {
-            val closed = backgroundScope.async(start = CoroutineStart.UNDISPATCHED) { model.done.first() }
-            model.addTo(playlist)
-            model.ui.first { it.duplicatesIn != null && it.busy == null }
-            assertEquals(emptyList<List<String>>(), server.appended)
-            assertFalse(closed.isCompleted)
-            assertNoMessage()
+    private fun open(songIds: List<String>): AddToPlaylistViewModel {
+        if (this::model.isInitialized) model.viewModelScope.cancel()
+        return AddToPlaylistViewModel(
+            AddToPlaylistRequest(1, songIds),
+            PlaylistRepository(db, writerFor = { server }),
+            owner = { "alice" },
+            showMessage = { messages.trySend(it) },
+        ).also { model = it }
+    }
 
-            model.resolveDuplicates(skip = false)
-            closed.await()
-            assertEquals(listOf("a", "a", "b", "c"), server.songs("p"))
-            assertEquals(UiMessage(R.string.playlist_songs_added, listOf("Mix")), messages.receive())
-            assertNull(model.ui.value.duplicatesIn)
+    /** Puts the playlist in both the mirror and the server, as after a sync. */
+    private suspend fun synced(vararg songIds: String) {
+        server.put("p", "Mix", *songIds)
+        mirror(*songIds)
+    }
+
+    private suspend fun mirror(vararg songIds: String) {
+        db.libraryDao().replacePlaylist(
+            playlist.copy(songCount = songIds.size.toLong()),
+            songIds.mapIndexed { position, id -> PlaylistSong(1, "p", id, position.toLong()) },
+        )
+    }
+
+    private fun TestScope.closing() = backgroundScope.async(start = CoroutineStart.UNDISPATCHED) { model.done.first() }
+
+    /** Waits for the mark to settle on [expected]: Room re-emits the mirror asynchronously after a write. */
+    private suspend fun awaitMembership(expected: PlaylistMembership) =
+        assertEquals(expected, model.ui.first { it.busy == null && it.membership(playlist) == expected }.membership(playlist))
+
+    @Test
+    fun marksFollowTheMirrorWithoutAskingTheServer() =
+        runTest {
+            synced("a", "b", "a")
+            assertEquals(PlaylistMembership.Some, model.ui.first { it.membership.isNotEmpty() }.membership(playlist))
+            synced("c", "a", "b")
+            assertEquals(PlaylistMembership.All, model.ui.first { it.membership(playlist) == PlaylistMembership.All }.membership(playlist))
+            assertEquals(PlaylistMembership.None, model.ui.value.membership(playlist.copy(id = "other")))
+            assertEquals(3, model.ui.value.songCount)
+            assertEquals(emptyList<List<String>>(), server.appended)
         }
 
     @Test
-    fun skipDuplicatesRetainsItsPlanAcrossAPartialWriteRetry() =
+    fun fillingAPartlyHeldPlaylistAddsOnlyTheMissingSongsWithoutAsking() =
         runTest {
-            val closed = backgroundScope.async(start = CoroutineStart.UNDISPATCHED) { model.done.first() }
-            model.addTo(playlist)
-            model.ui.first { it.duplicatesIn != null && it.busy == null }
+            synced("a")
+            model.ui.first { it.membership(playlist) == PlaylistMembership.Some }
+            val closed = closing()
+            model.toggle(playlist)
+            closed.await()
+            assertEquals(listOf(listOf("b", "c")), server.appended)
+            assertEquals(listOf("a", "b", "c"), server.songs("p"))
+            assertEquals(UiMessage(R.string.playlist_songs_added, listOf("Mix")), messages.receive())
+        }
+
+    @Test
+    fun aTickedSongIsTakenOutAtEveryPositionTheServerHoldsIt() =
+        runTest {
+            open(listOf("a"))
+            synced("a", "b", "a")
+            model.ui.first { it.membership(playlist) == PlaylistMembership.All }
+            val closed = closing()
+            model.toggle(playlist)
+            closed.await()
+            assertEquals(listOf(listOf(0, 2)), server.removed)
+            assertEquals(listOf("b"), server.songs("p"))
+            assertEquals(listOf("b"), db.queueDao().playlistSongIds(1, "p"))
+            assertEquals(UiMessage(R.string.playlist_song_removed, listOf("Mix")), messages.receive())
+            awaitMembership(PlaylistMembership.None)
+        }
+
+    @Test
+    fun aStaleTickRemovesNothingAndRefreshesTheMirror() =
+        runTest {
+            open(listOf("a"))
+            mirror("a")
+            server.put("p", "Mix", "b", "c")
+            model.ui.first { it.membership(playlist) == PlaylistMembership.All }
+            val closed = closing()
+            model.toggle(playlist)
+            closed.await()
+            assertEquals(emptyList<List<Int>>(), server.removed)
+            assertEquals(listOf("b", "c"), server.songs("p"))
+            assertEquals(listOf("b", "c"), db.queueDao().playlistSongIds(1, "p"))
+            awaitMembership(PlaylistMembership.None)
+        }
+
+    @Test
+    fun removingSeveralSongsAsksFirstAndCancelWritesNothing() =
+        runTest {
+            synced("a", "x", "b", "c", "a")
+            model.ui.first { it.membership(playlist) == PlaylistMembership.All }
+            val closed = closing()
+            model.toggle(playlist)
+            assertEquals(playlist, model.ui.value.pendingRemoval)
+            model.dismissRemoval()
+            assertNull(model.ui.value.pendingRemoval)
+            assertEquals(emptyList<List<Int>>(), server.removed)
+            assertFalse(closed.isCompleted)
+            assertNoMessage()
+
+            model.toggle(playlist)
+            model.confirmRemoval()
+            closed.await()
+            assertEquals(listOf("x"), server.songs("p"))
+            assertEquals(
+                UiMessage(pluralsId = R.plurals.playlist_songs_removed, quantity = 4, args = listOf(4, "Mix")),
+                messages.receive(),
+            )
+        }
+
+    @Test
+    fun skippingDuplicatesRetainsItsPlanAcrossAPartialWriteRetry() =
+        runTest {
+            val closed = closing()
             server.failNext = FakePlaylistWriter.Failure.AfterFirstSong
-            model.resolveDuplicates(skip = true)
+            model.toggle(playlist)
             model.ui.first { it.error != null && it.busy == null }
             assertEquals(listOf("a", "b"), server.songs("p"))
             assertFalse(closed.isCompleted)
             assertNoMessage()
 
-            model.addTo(playlist)
+            model.toggle(playlist)
             closed.await()
             assertEquals(listOf(listOf("b", "c"), listOf("c")), server.appended)
             assertEquals(listOf("a", "b", "c"), server.songs("p"))
@@ -106,13 +193,11 @@ class AddToPlaylistRetryTest {
         }
 
     @Test
-    fun skippingAnEntirelyPresentSelectionClosesWithoutWriting() =
+    fun aPlaylistTheMirrorDoesNotShowAsHoldingEverythingIsFilledWithoutWritingDuplicates() =
         runTest {
             server.put("p", "Mix", "a", "b", "c")
-            val closed = backgroundScope.async(start = CoroutineStart.UNDISPATCHED) { model.done.first() }
-            model.addTo(playlist)
-            model.ui.first { it.duplicatesIn != null && it.busy == null }
-            model.resolveDuplicates(skip = true)
+            val closed = closing()
+            model.toggle(playlist)
             closed.await()
             assertEquals(emptyList<List<String>>(), server.appended)
             assertEquals(UiMessage(R.string.playlist_already_has_songs, listOf("Mix")), messages.receive())
@@ -121,7 +206,7 @@ class AddToPlaylistRetryTest {
     @Test
     fun creationRetryKeepsDraftAndFinishesTheSamePlaylist() =
         runTest {
-            val closed = backgroundScope.async(start = CoroutineStart.UNDISPATCHED) { model.done.first() }
+            val closed = closing()
             model.setNewName("  Road trip  ")
             server.failNext = FakePlaylistWriter.Failure.AfterFirstSong
             model.create()
@@ -138,19 +223,6 @@ class AddToPlaylistRetryTest {
             assertEquals(listOf(listOf("a", "b", "c"), listOf("b", "c")), server.appended)
             assertEquals(UiMessage(R.string.playlist_created, listOf("Road trip")), messages.receive())
             assertNull(model.ui.value.error)
-        }
-
-    @Test
-    fun dismissingDuplicatePromptDoesNotWriteOrCloseTheSheet() =
-        runTest {
-            val closed = backgroundScope.async(start = CoroutineStart.UNDISPATCHED) { model.done.first() }
-            model.addTo(playlist)
-            model.ui.first { it.duplicatesIn != null && it.busy == null }
-            model.dismissDuplicates()
-            assertNull(model.ui.value.duplicatesIn)
-            assertFalse(closed.isCompleted)
-            assertEquals(emptyList<List<String>>(), server.appended)
-            assertNoMessage()
         }
 
     private fun assertNoMessage() {

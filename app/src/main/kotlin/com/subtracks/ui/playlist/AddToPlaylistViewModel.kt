@@ -34,6 +34,9 @@ data class AddToPlaylistRequest(
     val songIds: List<String>,
 )
 
+/** How much of the selection a playlist holds, for the mark beside it (iOS #14). */
+enum class PlaylistMembership { None, Some, All }
+
 data class AddToPlaylistUi(
     val query: String = "",
     val recent: List<Playlist> = emptyList(),
@@ -41,9 +44,14 @@ data class AddToPlaylistUi(
     /** The playlist being written to, or [CREATING] while a new one is made. */
     val busy: String? = null,
     val error: UiMessage? = null,
-    /** A playlist that already holds some of the songs, waiting for Add anyway or Skip. */
-    val duplicatesIn: Playlist? = null,
+    /** Playlist id to how much of the selection it holds, from the mirror; missing means none. */
+    val membership: Map<String, PlaylistMembership> = emptyMap(),
+    /** A playlist holding every selected song, waiting for the user to confirm removing them (several songs). */
+    val pendingRemoval: Playlist? = null,
+    val songCount: Int = 0,
 ) {
+    fun membership(playlist: Playlist): PlaylistMembership = membership[playlist.id] ?: PlaylistMembership.None
+
     val canCreate: Boolean get() = newName.isNotBlank() && busy == null
 
     companion object {
@@ -79,10 +87,17 @@ class AddToPlaylistViewModel(
         viewModelScope.launch { recentAtOpen.value = playlists.recentDestinations(request.sourceId).first() }
     }
 
+    private val selection = request.songIds.distinct()
+
     val ui: StateFlow<AddToPlaylistUi> =
-        combine(state, recentAtOpen, ownerName) { current, recent, owner ->
+        combine(state, recentAtOpen, ownerName, playlists.membership(request.sourceId, selection)) { current, recent, owner, held ->
             val query = current.query.trim()
             current.copy(
+                songCount = selection.size,
+                membership =
+                    held.mapValues { (_, count) ->
+                        if (count >= selection.size) PlaylistMembership.All else PlaylistMembership.Some
+                    },
                 recent =
                     recent.orEmpty().filter {
                         owner != null &&
@@ -105,20 +120,43 @@ class AddToPlaylistViewModel(
 
     fun setNewName(name: String) = state.update { it.copy(newName = name, error = null) }
 
-    fun addTo(playlist: Playlist) {
-        val addition = additions.getOrPut(playlist.id) { PlaylistAddition(request.sourceId, playlist.id, request.songIds, Duplicates.Ask) }
+    /**
+     * A tap on a playlist, as on iOS: one that holds every selected song takes them out (asking first for several),
+     * any other is filled in with the songs it lacks, never adding a duplicate.
+     */
+    fun toggle(playlist: Playlist) {
+        if (ui.value.membership(playlist) != PlaylistMembership.All) return addTo(playlist)
+        if (selection.size == 1) removeFrom(playlist) else state.update { it.copy(pendingRemoval = playlist) }
+    }
+
+    fun confirmRemoval() {
+        val playlist = state.value.pendingRemoval ?: return
+        state.update { it.copy(pendingRemoval = null) }
+        removeFrom(playlist)
+    }
+
+    fun dismissRemoval() = state.update { it.copy(pendingRemoval = null) }
+
+    private fun addTo(playlist: Playlist) {
+        val addition = additions.getOrPut(playlist.id) { PlaylistAddition(request.sourceId, playlist.id, request.songIds, Duplicates.Skip) }
         run(playlist.id) { finish(playlist, playlists.add(addition)) }
     }
 
-    /** Answers the duplicate question: [skip] adds only the songs the playlist lacks, otherwise all of them. */
-    fun resolveDuplicates(skip: Boolean) {
-        val playlist = state.value.duplicatesIn ?: return
-        additions.getValue(playlist.id).duplicates = if (skip) Duplicates.Skip else Duplicates.Keep
-        state.update { it.copy(duplicatesIn = null) }
-        addTo(playlist)
+    private fun removeFrom(playlist: Playlist) {
+        run(playlist.id) {
+            val removed = playlists.removeSongs(request.sourceId, playlist.id, selection)
+            // A later tap on the same playlist starts a fresh addition.
+            additions.remove(playlist.id)
+            showMessage(
+                if (selection.size == 1 || removed == 0) {
+                    UiMessage(R.string.playlist_song_removed, listOf(playlist.name))
+                } else {
+                    UiMessage(pluralsId = R.plurals.playlist_songs_removed, quantity = removed, args = listOf(removed, playlist.name))
+                },
+            )
+            finished.trySend(Unit)
+        }
     }
-
-    fun dismissDuplicates() = state.update { it.copy(duplicatesIn = null) }
 
     fun create() {
         val name = state.value.newName.trim()
@@ -139,7 +177,7 @@ class AddToPlaylistViewModel(
     ) {
         when (outcome) {
             AddOutcome.Duplicates -> {
-                state.update { it.copy(duplicatesIn = playlist) }
+                error("Additions from the sheet skip duplicates, which never asks")
             }
 
             is AddOutcome.Added -> {
