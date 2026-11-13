@@ -13,7 +13,9 @@ import com.subtracks.data.model.SongItem
 import com.subtracks.data.model.StoredQueueOrder
 import com.subtracks.data.model.StoredQueueOrderEntry
 import com.subtracks.data.model.UpNextEntry
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
@@ -745,6 +747,37 @@ class QueueRepository(
         if (afterFirst <= to) items += contextPlayRange(snapshot, afterFirst - block, to - block)
         return items
     }
+
+    /**
+     * Song IDs for saving a captured queue as a playlist, in combined playback order. Each emission is bounded;
+     * the collector must consume a batch before the next is resolved. Queue/library edits invalidate the export.
+     */
+    fun playlistBatches(
+        snapshot: QueueSnapshot,
+        sourceId: Long,
+        batchSize: Int = 100,
+    ): Flow<List<String>> =
+        flow {
+            require(batchSize in 1..100) { "Playlist batches must contain 1 to 100 songs" }
+            require(snapshot.entries.all { it.entry.sourceId == sourceId } && snapshot.upNext.all { it.entry.sourceId == sourceId }) {
+                "A server playlist cannot contain another source's songs"
+            }
+            var position = 0L
+            check(snapshot.version == queueVersion.get()) { "Queue or library changed during playlist export" }
+            while (position < snapshot.size) {
+                check(snapshot.version == queueVersion.get()) { "Queue or library changed during playlist export" }
+                val count = minOf(batchSize.toLong(), snapshot.size - position).toInt()
+                val batch = range(snapshot, position, position + count - 1)
+                check(batch.size == count && batch.indices.all { batch[it].position == position + it }) {
+                    "A song disappeared during playlist export"
+                }
+                require(batch.all { it.item.song.sourceId == sourceId }) { "A server playlist cannot contain another source's songs" }
+                check(snapshot.version == queueVersion.get()) { "Queue or library changed during playlist export" }
+                emit(batch.map { it.item.song.id })
+                position += count
+            }
+            check(snapshot.version == queueVersion.get()) { "Queue or library changed during playlist export" }
+        }
 
     suspend fun window(
         snapshot: QueueSnapshot,

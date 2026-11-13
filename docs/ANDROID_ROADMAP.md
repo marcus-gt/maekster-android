@@ -557,6 +557,9 @@ sending an edit. Failed readback closes with an error; sync can reconcile later.
 `docs/handoffs/M2.9-move-abandonment.md`.
 Playlist mirror writes now invalidate queue caches, including conflict and not-found refreshes, so
 subsequent snapshots see changed lengths/order without a sync. See `docs/handoffs/M2.9-playlist-queue-cache.md`.
+Save-queue foundation: a bounded cold export of song-ID batches in captured playback order,
+including shuffle/up-next/duplicates, with source and mutation checks. Dialog and server-save
+workflow remain open; see `docs/handoffs/M2.9-queue-export.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

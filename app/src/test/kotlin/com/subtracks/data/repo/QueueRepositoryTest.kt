@@ -20,6 +20,8 @@ import com.subtracks.data.model.StoredQueueOrder
 import com.subtracks.data.model.StoredQueueOrderEntry
 import com.subtracks.data.prefs.SongSort
 import com.subtracks.data.prefs.StarredFilter
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -44,6 +46,119 @@ class QueueRepositoryTest {
     fun tearDown() {
         db.close()
     }
+
+    @Test
+    fun playlistExportPreservesCombinedShuffleOrderAndDuplicates() =
+        runTest {
+            seedLibrary()
+            repository.replace(
+                listOf(repository.albumEntry(1, "al1"), repository.songEntry(1, "s1")),
+                upNext = listOf(repository.songEntry(1, "s4"), repository.songEntry(1, "s4")),
+                upNextAnchor = 1,
+            )
+            repository.setShuffle(42)
+            val snapshot = repository.snapshot()
+            val expected = resolveAll(snapshot)
+            val batches = repository.playlistBatches(snapshot, 1, batchSize = 2).toList()
+            assertEquals(expected, batches.flatten())
+            assertEquals(listOf(2, 2, 2), batches.map { it.size })
+            assertEquals(2, batches.flatten().count { it == "s4" })
+            repository.setCursor(3)
+            assertEquals(expected, repository.playlistBatches(snapshot, 1, batchSize = 3).toList().flatten())
+        }
+
+    @Test
+    fun playlistExportDoesNotResolvePastTheBatchTheCollectorRequests() =
+        runTest {
+            seedLibrary()
+            val entry = repository.songEntry(1, "s1")
+            val snapshot = QueueSnapshot(listOf(ResolvedQueueEntry(entry, 1_000_000_000)))
+            val before = repository.resolvedRowCount
+            // A synthetic huge snapshot whose first row exists: taking one single-row batch must not visit its tail.
+            assertEquals(listOf(listOf("s1")), repository.playlistBatches(snapshot, 1, batchSize = 1).take(1).toList())
+            assertEquals(1L, repository.resolvedRowCount - before)
+        }
+
+    @Test
+    fun playlistExportRejectsChangesBeforeOrBetweenBatches() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1")))
+            val snapshot = repository.snapshot()
+            var emitted = 0
+            val failure =
+                runCatching {
+                    repository.playlistBatches(snapshot, 1, batchSize = 1).collect {
+                        emitted++
+                        repository.invalidateLibraryCache()
+                    }
+                }.exceptionOrNull()
+            assertTrue(failure is IllegalStateException)
+            assertEquals(1, emitted)
+            emitted = 0
+            assertTrue(
+                runCatching {
+                    repository.playlistBatches(snapshot, 1).collect { emitted++ }
+                }.exceptionOrNull() is IllegalStateException,
+            )
+            assertEquals(0, emitted)
+        }
+
+    @Test
+    fun playlistExportPreservesRetainedShufflePrefixes() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1"), repository.albumEntry(1, "al2")))
+            repository.setShuffle(42)
+            val before = repository.snapshot()
+            val expected = resolveAll(before).take(3)
+            assertTrue(repository.clearUpcoming(before, 2))
+            val retained = repository.snapshot()
+            assertTrue(retained.orders.isNotEmpty())
+            assertEquals(expected, repository.playlistBatches(retained, 1, 2).toList().flatten())
+        }
+
+    @Test
+    fun playlistExportNeverEmitsAnIncompleteBatchOrClaimsCompletionAfterAnEdit() =
+        runTest {
+            seedLibrary()
+            val invalid = QueueSnapshot(listOf(ResolvedQueueEntry(repository.songEntry(1, "s1"), 2)))
+            var emitted = 0
+            assertTrue(
+                runCatching {
+                    repository.playlistBatches(invalid, 1, 2).collect { emitted++ }
+                }.exceptionOrNull() is IllegalStateException,
+            )
+            assertEquals(0, emitted)
+            val valid = QueueSnapshot(listOf(ResolvedQueueEntry(repository.songEntry(1, "s1"), 1)))
+            assertTrue(
+                runCatching {
+                    repository.playlistBatches(valid, 1).collect {
+                        emitted++
+                        repository.invalidateLibraryCache()
+                    }
+                }.exceptionOrNull() is IllegalStateException,
+            )
+            assertEquals(1, emitted)
+        }
+
+    @Test
+    fun playlistExportRejectsMixedSourcesAndInvalidBatchSizesBeforeReading() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.songEntry(1, "s1")))
+            val captured = repository.snapshot()
+            val mixed = captured.copy(upNext = listOf(ResolvedQueueEntry(repository.songEntry(2, "foreign"), 1)))
+            val before = repository.resolvedRowCount
+            assertTrue(runCatching { repository.playlistBatches(mixed, 1).toList() }.exceptionOrNull() is IllegalArgumentException)
+            for (size in listOf(0, -1, 101, Int.MAX_VALUE)) {
+                assertTrue(
+                    runCatching { repository.playlistBatches(captured, 1, size).toList() }.exceptionOrNull() is IllegalArgumentException,
+                )
+            }
+            assertEquals(before, repository.resolvedRowCount)
+            assertTrue(repository.playlistBatches(QueueSnapshot(emptyList(), version = captured.version), 1).toList().isEmpty())
+        }
 
     @Test
     fun shuffledClearUpcomingKeepsPlayedOrderAfterRestartAndUnshuffle() =
