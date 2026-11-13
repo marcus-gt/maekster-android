@@ -482,6 +482,9 @@ Room in one transaction. Additions and creations keep their state across retries
 songs or playlists); remove/reorder refuse to act on a playlist that changed elsewhere and refresh
 it instead. Room + fake-server tests with two mutations; no schema change, no UI yet.
 See `docs/handoffs/M2.9-playlist-repository.md`.
+Part C adds recent playlist destinations (schema 50, `playlist_destinations`, cascade on server
+delete): the newest five per server, recorded only after a successful addition, resolved through
+the mirror. DAO/repository tests with two mutations. See `docs/handoffs/M2.9-playlist-destinations.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

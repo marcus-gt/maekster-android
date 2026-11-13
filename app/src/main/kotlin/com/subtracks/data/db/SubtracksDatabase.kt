@@ -23,6 +23,7 @@ import com.subtracks.data.model.Pin
 import com.subtracks.data.model.PinKindConverter
 import com.subtracks.data.model.PlaybackCursor
 import com.subtracks.data.model.Playlist
+import com.subtracks.data.model.PlaylistDestination
 import com.subtracks.data.model.PlaylistSearch
 import com.subtracks.data.model.PlaylistSong
 import com.subtracks.data.model.QueueEntry
@@ -73,8 +74,9 @@ import com.subtracks.data.model.UpNextEntry
         StoredQueueOrder::class,
         StoredQueueOrderEntry::class,
         CachedLyrics::class,
+        PlaylistDestination::class,
     ],
-    version = 49,
+    version = 50,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -106,4 +108,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun searchHistoryDao(): SearchHistoryDao
 
     abstract fun lyricsCacheDao(): LyricsCacheDao
+
+    abstract fun playlistDestinationDao(): PlaylistDestinationDao
 }

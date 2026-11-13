@@ -1,9 +1,11 @@
 package com.subtracks.data.repo
 
 import com.subtracks.data.db.SubtracksDatabase
+import com.subtracks.data.model.Playlist
 import com.subtracks.data.playlist.PlaylistAppendIntent
 import com.subtracks.data.source.PlaylistDetail
 import com.subtracks.data.source.PlaylistWriter
+import kotlinx.coroutines.flow.Flow
 
 /** Why a playlist edit did not happen; any other failure is the server's or the network's own exception. */
 class PlaylistEditException(
@@ -55,7 +57,11 @@ class PlaylistCreation(
 class PlaylistRepository(
     private val db: SubtracksDatabase,
     private val writerFor: suspend (sourceId: Long) -> PlaylistWriter?,
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
+    /** The playlists songs were last added to on [sourceId], newest first (only successful additions). */
+    fun recentDestinations(sourceId: Long): Flow<List<Playlist>> = db.playlistDestinationDao().recent(sourceId)
+
     suspend fun add(addition: PlaylistAddition) {
         val writer = writer(addition.sourceId)
         val current = fresh(writer, addition.sourceId, addition.playlistId)
@@ -63,6 +69,7 @@ class PlaylistRepository(
         val missing = intent.remaining(current.songIds())
         if (missing.isNotEmpty()) writer.append(addition.playlistId, missing)
         refresh(writer, addition.sourceId, addition.playlistId)
+        db.playlistDestinationDao().record(addition.sourceId, addition.playlistId, now())
     }
 
     suspend fun create(creation: PlaylistCreation): String {
@@ -76,6 +83,8 @@ class PlaylistRepository(
         if (creation.songIds.isNotEmpty()) {
             val addition = creation.addition ?: PlaylistAddition(creation.sourceId, id, creation.songIds).also { creation.addition = it }
             add(addition)
+        } else {
+            db.playlistDestinationDao().record(creation.sourceId, id, now())
         }
         return id
     }

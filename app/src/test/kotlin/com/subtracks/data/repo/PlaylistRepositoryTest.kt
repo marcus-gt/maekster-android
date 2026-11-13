@@ -36,7 +36,7 @@ class PlaylistRepositoryTest {
                 listOf("a", "b", "c", "x").map { Song(1, it, null, null, it.uppercase(), null, null, 60, null, null, null) },
             )
             server = FakePlaylistWriter(1)
-            repository = PlaylistRepository(db) { if (online) server else null }
+            repository = PlaylistRepository(db, writerFor = { if (online) server else null })
         }
 
     @After
@@ -83,6 +83,19 @@ class PlaylistRepositoryTest {
                     .first()!!
                     .songCount,
             )
+        }
+
+    @Test
+    fun onlySuccessfulAdditionsBecomeRecentDestinations() =
+        runTest {
+            server.put("p", "Mix")
+            server.put("q", "Other")
+            mirror("q")
+            repository.add(PlaylistAddition(1, "p", listOf("a")))
+            server.failNext = FakePlaylistWriter.Failure.BeforeWrite
+            assertTrue(runCatching { repository.add(PlaylistAddition(1, "q", listOf("a"))) }.isFailure)
+            val created = repository.create(PlaylistCreation(1, "Empty", emptyList()))
+            assertEquals(listOf(created, "p"), repository.recentDestinations(1).first().map { it.id })
         }
 
     @Test
