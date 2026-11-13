@@ -428,6 +428,10 @@ Part B adds SAX decoding for structured multilingual timed/plain lyrics and clas
 text (including embedded LRC). Provider offsets and stable timing order are retained; invalid timed
 lines are skipped. It reuses the existing response/error and XXE protections. Network/cache/UI
 wiring remains; see `docs/handoffs/M2.8-server-lyrics-decoding.md`.
+Part C adds LyricsProvider and the source-scoped SubsonicLyricsProvider. Song-ID lookup is preferred;
+empty/unsupported responses fall back to classic artist/title lookup. Auth, HTTP server errors,
+malformed data, transport failures and cancellation do not trigger fallback. No DI/UI/cache wiring
+yet; see `docs/handoffs/M2.8-server-lyrics-provider.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
