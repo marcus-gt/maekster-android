@@ -200,6 +200,25 @@ class PlaylistRepository(
         remove(sourceId, playlistId, listOf(position), shown)
     }
 
+    /** Moves the occurrence at [position] to [destination], its index in the resulting playlist. */
+    suspend fun moveEntry(
+        sourceId: Long,
+        playlistId: String,
+        position: Int,
+        songId: String,
+        destination: Int,
+    ) {
+        val shown = db.libraryDao().playlistEntrySongIds(sourceId, playlistId)
+        if (shown.getOrNull(position) != songId) {
+            val writer = writer(sourceId)
+            changed(fresh(writer, sourceId, playlistId))
+        }
+        require(destination in shown.indices) { "Destination outside the playlist" }
+        val ordered = shown.toMutableList()
+        ordered.add(destination, ordered.removeAt(position))
+        reorder(sourceId, playlistId, ordered, shown)
+    }
+
     /** Puts the playlist in [ordered] order; it must hold the same songs as [shownSongIds], the order shown. */
     suspend fun reorder(
         sourceId: Long,

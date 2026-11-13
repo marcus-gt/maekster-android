@@ -245,6 +245,40 @@ class PlaylistRepositoryTest {
         }
 
     @Test
+    fun movingAnEntryPreservesDuplicatesAndUnresolvedSongs() =
+        runTest {
+            server.put("p", "Mix", "a", "gone", "b", "a")
+            mirror("p", "a", "gone", "b", "a")
+            repository.moveEntry(1, "p", 3, "a", 1)
+            assertEquals(listOf("a", "a", "gone", "b"), server.songs("p"))
+            assertEquals(listOf("a", "a", "gone", "b"), db.libraryDao().playlistEntrySongIds(1, "p"))
+            repository.moveEntry(1, "p", 0, "a", 3)
+            assertEquals(listOf("a", "gone", "b", "a"), db.libraryDao().playlistEntrySongIds(1, "p"))
+        }
+
+    @Test
+    fun movingAStaleEntryRefreshesWithoutWriting() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "c")
+            mirror("p", "a", "b", "c")
+            expect(PlaylistEditException.Reason.Changed) { repository.moveEntry(1, "p", 1, "c", 0) }
+            assertEquals(listOf("a", "b", "c"), server.songs("p"))
+            server.put("p", "Mix", "x", "a", "b", "c")
+            expect(PlaylistEditException.Reason.Changed) { repository.moveEntry(1, "p", 1, "b", 0) }
+            assertEquals(listOf("x", "a", "b", "c"), mirrored("p"))
+            assertTrue(server.replaced.isEmpty())
+        }
+
+    @Test
+    fun movingOutsideThePlaylistIsRejected() =
+        runTest {
+            server.put("p", "Mix", "a", "b")
+            mirror("p", "a", "b")
+            assertTrue(runCatching { repository.moveEntry(1, "p", 0, "a", 2) }.exceptionOrNull() is IllegalArgumentException)
+            assertEquals(listOf("a", "b"), server.songs("p"))
+        }
+
+    @Test
     fun aRetriedCreationFinishesThePlaylistAlreadyMade() =
         runTest {
             val creation = PlaylistCreation(1, "Saved queue", listOf("a", "b"))

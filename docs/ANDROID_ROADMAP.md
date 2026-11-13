@@ -538,7 +538,10 @@ the test playlist and back; see `docs/handoffs/M2.9-rename-playlist.md`.
 Part G is done in code and tests: "Delete playlist" with an iOS-style confirmation (keep or remove
 downloads, purged only after the server confirms), snackbar and page close. On API 37 only the
 dialog and Cancel were checked; a real delete awaits user authorization. See
-`docs/handoffs/M2.9-delete-playlist.md`. Next: reorder.
+`docs/handoffs/M2.9-delete-playlist.md`.
+Reorder entry foundation adds a position-based repository move, preserving duplicate occurrences and
+unresolved mirror entries and refusing stale edits. Reorder UI remains next; see
+`docs/handoffs/M2.9-reorder-entry.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
