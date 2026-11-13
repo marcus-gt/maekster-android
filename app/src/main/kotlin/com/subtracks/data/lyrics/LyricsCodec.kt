@@ -15,6 +15,7 @@ internal object LyricsCodec {
             tracks.put(
                 JSONObject()
                     .put("synced", track.synced)
+                    .put("instrumental", track.instrumental)
                     .put("language", track.language)
                     .put("offsetMs", track.offsetMs)
                     .put("lines", lines),
@@ -31,6 +32,7 @@ internal object LyricsCodec {
             (0 until tracks.length()).map { index ->
                 val track = tracks.getJSONObject(index)
                 val synced = track.get("synced") as? Boolean ?: return null
+                val instrumental = if (track.has("instrumental")) track.get("instrumental") as? Boolean ?: return null else false
                 val language = (track.get("language") as? String)?.takeIf { it.isNotBlank() } ?: return null
                 val offsetMs = track.long("offsetMs") ?: return null
                 val values = track.getJSONArray("lines")
@@ -42,8 +44,13 @@ internal object LyricsCodec {
                         if ((synced && (start == null || start < 0)) || (!synced && start != null)) return null
                         LyricsLine(text, start)
                     }
-                if (lines.isEmpty() || (synced && lines.zipWithNext().any { (a, b) -> a.startMs!! > b.startMs!! })) return null
-                Lyrics(lines, synced, language, offsetMs)
+                if (instrumental && (synced || lines.isNotEmpty())) return null
+                if ((!instrumental && lines.isEmpty()) ||
+                    (synced && lines.zipWithNext().any { (a, b) -> a.startMs!! > b.startMs!! })
+                ) {
+                    return null
+                }
+                Lyrics(lines, synced, language, offsetMs, instrumental)
             }
         } catch (_: JSONException) {
             null

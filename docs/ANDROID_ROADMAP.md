@@ -438,7 +438,11 @@ Offline orchestration and UI were still pending at that checkpoint; see `docs/ha
 Part E adds cache-first Server/LRCLIB/Auto selection with explicit offline and opt-in inputs,
 provider provenance, positive-only cache writes and cancellation-safe fallback. Auto prefers synced
 server lyrics, then permitted external timings over server plain; cached disabled providers stay
-excluded. No DI/settings/UI or actual LRCLIB client yet; see `docs/handoffs/M2.8-lyrics-orchestration.md`.
+excluded. DI/settings/UI and an actual LRCLIB client were still pending there; see `docs/handoffs/M2.8-lyrics-orchestration.md`.
+Part F implements the isolated LRCLIB HTTPS provider: four-field metadata query and branded
+identification, cancellable requests, sequential pacing, Retry-After cooldown with jitter, typed
+errors and plain/LRC/instrumental decoding. Instrumental markers round-trip through the cache;
+older payloads remain readable. No runtime/opt-in/settings/UI wiring yet; see `docs/handoffs/M2.8-lrclib-provider.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

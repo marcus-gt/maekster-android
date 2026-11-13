@@ -81,6 +81,7 @@ class LyricsCacheTest {
                 listOf(
                     Lyrics(listOf(LyricsLine("夜 🎵", 0), LyricsLine("Again", 1000), LyricsLine("Translation", 1000)), true, "ja", -250),
                     Lyrics(listOf(LyricsLine("Blåbær\n\"quoted\"")), false, "nb", 125),
+                    Lyrics(emptyList(), synced = false, instrumental = true),
                 )
             cache.put(1, "a", LyricsProviderId.Server, tracks, 100)
             assertEquals(tracks, LyricsCache(db.lyricsCacheDao()).read(1, "a", LyricsProviderId.Server))
@@ -88,6 +89,12 @@ class LyricsCacheTest {
             assertEquals(emptyList<Lyrics>(), cache.read(1, "empty", LyricsProviderId.Server))
             assertNull(cache.read(1, "missing", LyricsProviderId.Server))
         }
+
+    @Test
+    fun previousVersionOnePayloadWithoutInstrumentalFieldStillReads() {
+        val payload = """{"version":1,"tracks":[{"synced":false,"language":"en","offsetMs":0,"lines":[{"text":"Line","startMs":null}]}]}"""
+        assertEquals(listOf(Lyrics(listOf(LyricsLine("Line")), synced = false, language = "en")), LyricsCodec.decode(payload))
+    }
 
     @Test
     fun corruptOrUnknownPayloadIsACacheMiss() =

@@ -10,4 +10,5 @@ data class Lyrics(
     val synced: Boolean,
     val language: String = "und",
     val offsetMs: Long = 0,
+    val instrumental: Boolean = false,
 )
