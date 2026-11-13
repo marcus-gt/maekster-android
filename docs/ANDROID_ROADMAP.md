@@ -517,8 +517,12 @@ Stateful route failure/retry dismissal now has a Compose regression (mutation ca
 completion callback). API 37 with user-authorized configured server: created ONLY a new
 `maekster development test` playlist, observed success snackbar/dismissal, reopened fresh form
 and verified Recent/1 song. See `docs/handoffs/M2.9-route-completion.md`.
-Remaining Part D device checks: add to that dedicated playlist, duplicate choices, real failure/retry,
-and AppRoot Back/IME behavior. Existing playlists must remain untouched.
+API 37 existing-destination add and duplicate choices verified on that playlist: Skip keeps the count,
+Add anyway keeps the duplicate, a distinct song adds without a prompt (now 3 songs). Add anyway exposed
+a playlist-detail crash (rows keyed by song id); rows now key by entry position, with a regression.
+See `docs/handoffs/M2.9-device-duplicates.md`.
+Remaining Part D device checks: real failure/retry and AppRoot Back/IME behavior. Existing playlists
+must remain untouched.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

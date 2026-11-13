@@ -168,7 +168,7 @@ fun PlaylistDetailScreen(
             )
         },
         content = { rowModifier ->
-            items(count = songs.itemCount, key = songs.itemKey { it.song.id }) { index ->
+            items(count = songs.itemCount, key = songs.itemKey { it.position }) { index ->
                 val item = songs[index]
                 if (item != null) {
                     SongRow(

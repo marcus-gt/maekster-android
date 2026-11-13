@@ -2,11 +2,13 @@ package com.subtracks.ui.library
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.remember
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToNode
@@ -45,17 +47,20 @@ class PlaylistDetailScreenTest {
             owner = "alex",
         )
 
-    private fun render(totals: ListTotals?) {
+    private fun render(
+        totals: ListTotals?,
+        songIds: List<String> = listOf("s0", "s1", "s2"),
+    ) {
         val items =
-            (0 until 3).map { index ->
+            songIds.mapIndexed { index, songId ->
                 PlaylistSongItem(
                     song =
                         Song(
                             sourceId = 1,
-                            id = "s$index",
+                            id = songId,
                             albumId = null,
                             artistId = null,
-                            title = "Song $index",
+                            title = "Song ${songId.removePrefix("s")}",
                             album = null,
                             artist = "Artist",
                             duration = 200,
@@ -91,6 +96,14 @@ class PlaylistDetailScreenTest {
         composeRule.onNodeWithTag(PLAYLIST_SUMMARY_TAG).assertTextEquals("3 songs · 1 hr 5 min")
         composeRule.onNodeWithText("alex · Updated 2 days ago").assertExists()
         composeRule.onNodeWithText("99 songs", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun aSongAddedTwiceShowsBothEntries() {
+        render(ListTotals(songCount = 3, duration = 600), songIds = listOf("s0", "s1", "s0"))
+
+        composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag(PLAYLIST_SUMMARY_TAG))
+        composeRule.onAllNodesWithText("Song 0").assertCountEquals(2)
     }
 
     @Test
