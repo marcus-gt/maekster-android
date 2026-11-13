@@ -485,8 +485,7 @@ See `docs/handoffs/M2.9-playlist-repository.md`.
 Part C adds recent playlist destinations (schema 50, `playlist_destinations`, cascade on server
 delete): the newest five per server, recorded only after a successful addition, resolved through
 the mirror. DAO/repository tests with two mutations. See `docs/handoffs/M2.9-playlist-destinations.md`.
-Part D's add-to-playlist sheet implementation is committed, but broader UI/retry verification remains
-unfinished. Its Recent destinations now wait for the signed-in owner and exclude other owners,
+Part D's add-to-playlist sheet is committed and verified (status at the end of this section). Its Recent destinations now wait for the signed-in owner and exclude other owners,
 matching the paged list's eligibility rule; unknown-owner playlists remain compatible.
 See `docs/handoffs/M2.9-recent-ownership.md` for this bounded follow-up.
 Duplicate choices and partial-write/creation retries now have ViewModel-to-Room/fake-server tests,
@@ -524,7 +523,11 @@ See `docs/handoffs/M2.9-device-duplicates.md`.
 Real network failure/retry verified on API 37: offline add keeps the sheet with error and retry hint
 and sends no write; after reconnecting, the same row retries with exactly one `updatePlaylist`,
 snackbar and dismissal (4 entries). See `docs/handoffs/M2.9-device-failure-retry.md`.
-Remaining Part D device check: AppRoot Back/IME behavior. Existing playlists must remain untouched.
+AppRoot Back/IME verified on API 37 with the real route, from album detail and from Now Playing:
+Back 1 hides the keyboard (query/draft kept), Back 2 closes only the sheet, Back 3 pops the route or
+closes Now Playing; reopening starts fresh; no writes. See `docs/handoffs/M2.9-approot-back-ime.md`.
+**Part D status (13 Nov 2026):** done. Unverified: API 35, landscape, TalkBack, real IME at large
+font, and a lost server response on device (JVM-tested only). Membership toggles are a later part.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
