@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
@@ -55,6 +56,15 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun playbackLyricsRowOpensPrivacyControls() {
+        composeRule.setContent { MaeksterTheme { Settings(page = SettingsPage.Playback) } }
+        scrollTo(text(R.string.lyrics_title))
+        composeRule.onNodeWithText(text(R.string.lyrics_title)).performClick()
+        composeRule.onNodeWithText(text(R.string.lyrics_source_title)).assertIsDisplayed()
+        composeRule.onNodeWithText(text(R.string.lyrics_allow_lrclib)).assertExists()
+    }
+
+    @Test
     fun everySettingIsOnItsPage() {
         val page = mutableStateOf<SettingsPage?>(null)
         composeRule.setContent { MaeksterTheme { Settings(page = page.value) } }
@@ -80,6 +90,7 @@ class SettingsScreenTest {
                     listOf(
                         R.string.settings_music_options_scrobble_title,
                         R.string.settings_music_options_keep_screen_on_title,
+                        R.string.lyrics_title,
                         R.string.settings_network_options_max_bitrate_wifi_title,
                         R.string.settings_network_options_max_bitrate_mobile_title,
                         R.string.settings_replay_gain_title,

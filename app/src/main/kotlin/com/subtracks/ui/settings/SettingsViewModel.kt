@@ -2,10 +2,12 @@ package com.subtracks.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.subtracks.data.lyrics.LyricsSource
 import com.subtracks.data.model.Source
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
 import com.subtracks.data.prefs.HomeLayout
+import com.subtracks.data.prefs.LyricsPreferences
 import com.subtracks.data.prefs.ReplayGainMode
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StreamQuality
@@ -23,6 +25,24 @@ class SettingsViewModel(
     private val sourceRepository: SourceRepository,
     private val userPreferences: UserPreferences,
 ) : ViewModel() {
+    val lyrics = userPreferences.lyrics().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LyricsPreferences())
+
+    fun setLyricsSource(source: LyricsSource) {
+        viewModelScope.launch { userPreferences.setLyricsSource(source) }
+    }
+
+    fun setLrclibAllowed(allowed: Boolean) {
+        viewModelScope.launch { userPreferences.setLrclibAllowed(allowed) }
+    }
+
+    fun setShowCurrentLyricLine(show: Boolean) {
+        viewModelScope.launch { userPreferences.setShowCurrentLyricLine(show) }
+    }
+
+    fun setLyricsTimingOffsetMs(offset: Int) {
+        viewModelScope.launch { userPreferences.setLyricsTimingOffsetMs(offset) }
+    }
+
     val sources: StateFlow<List<Source>> =
         sourceRepository.sources().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

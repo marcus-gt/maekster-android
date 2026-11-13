@@ -452,6 +452,10 @@ Part H persists atomic lyric settings in DataStore: Auto source, LRCLIB opt-in o
 current-line preview on, correction clamped to ±3000ms on read/write. Choosing LRCLIB never grants
 permission; disabling it resets an LRCLIB-only choice to Auto. No UI/runtime wiring yet;
 see `docs/handoffs/M2.8-lyrics-preferences.md`.
+Part I adds Settings > Playback > Lyrics: source, explicit LRCLIB opt-in with the privacy disclosure
+beside it (LRCLIB source disabled until allowed), current-line preview and ±3000ms correction.
+Normal/2× font dialog tests with a gate mutation; emulator checked. No player wiring yet;
+see `docs/handoffs/M2.8-lyrics-settings-ui.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

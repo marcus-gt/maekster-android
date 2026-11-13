@@ -79,9 +79,11 @@ import com.subtracks.MaeksterBrand
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.UiMessages
+import com.subtracks.data.lyrics.LyricsSource
 import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
 import com.subtracks.data.prefs.HomeLayout
+import com.subtracks.data.prefs.LyricsPreferences
 import com.subtracks.data.prefs.MAX_REPLAY_GAIN_PREAMP_DB
 import com.subtracks.data.prefs.MIN_REPLAY_GAIN_PREAMP_DB
 import com.subtracks.data.prefs.ReplayGainMode
@@ -136,6 +138,7 @@ private enum class SettingsDialog {
     SortNames,
     Theme,
     Home,
+    Lyrics,
 }
 
 @Composable
@@ -171,6 +174,7 @@ fun SettingsRoute(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val materialYou by viewModel.materialYou.collectAsStateWithLifecycle()
     val homeLayout by viewModel.homeLayout.collectAsStateWithLifecycle()
+    val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     SettingsScreen(
@@ -192,6 +196,11 @@ fun SettingsRoute(
         materialYou = materialYou,
         homeLayout = homeLayout,
         onHomeLayoutChange = viewModel::setHomeLayout,
+        lyrics = lyrics,
+        onLyricsSourceChange = viewModel::setLyricsSource,
+        onLrclibAllowedChange = viewModel::setLrclibAllowed,
+        onShowCurrentLyricLineChange = viewModel::setShowCurrentLyricLine,
+        onLyricsTimingOffsetChange = viewModel::setLyricsTimingOffsetMs,
         keepScreenOn = keepScreenOn,
         offline = offline,
         verboseLogging = verboseLogging,
@@ -292,6 +301,11 @@ fun SettingsScreen(
     page: SettingsPage? = null,
     onOpenPage: (SettingsPage) -> Unit = {},
     needsSignIn: Set<Long> = emptySet(),
+    lyrics: LyricsPreferences = LyricsPreferences(),
+    onLyricsSourceChange: (LyricsSource) -> Unit = {},
+    onLrclibAllowedChange: (Boolean) -> Unit = {},
+    onShowCurrentLyricLineChange: (Boolean) -> Unit = {},
+    onLyricsTimingOffsetChange: (Int) -> Unit = {},
 ) {
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     DismissOnRequest(dismissals) { dialog = null }
@@ -410,6 +424,13 @@ fun SettingsScreen(
                             description = stringResource(R.string.settings_music_options_keep_screen_on_description),
                             checked = keepScreenOn,
                             onCheckedChange = onKeepScreenOnChange,
+                        )
+                    }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.lyrics_title),
+                            value = lyricsSourceLabel(lyrics.source),
+                            onClick = { dialog = SettingsDialog.Lyrics },
                         )
                     }
                     item { SectionHeader(stringResource(R.string.settings_streaming_name)) }
@@ -549,6 +570,17 @@ fun SettingsScreen(
             SyncModeDialog(
                 selected = syncMode,
                 onSelect = onSyncModeChange,
+                onDismiss = { dialog = null },
+            )
+        }
+
+        SettingsDialog.Lyrics -> {
+            LyricsSettingsDialog(
+                settings = lyrics,
+                onSource = onLyricsSourceChange,
+                onAllowLrclib = onLrclibAllowedChange,
+                onShowCurrentLine = onShowCurrentLyricLineChange,
+                onTimingOffset = onLyricsTimingOffsetChange,
                 onDismiss = { dialog = null },
             )
         }

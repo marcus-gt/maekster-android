@@ -472,4 +472,16 @@
         <item quantity="other">%1$d plays</item>
     </plurals>
 
+    <string name="lyrics_title">Lyrics</string>
+    <string name="lyrics_source_title">Lyrics source</string>
+    <string name="lyrics_source_auto">Auto</string>
+    <string name="lyrics_source_server">Server</string>
+    <string name="lyrics_source_lrclib">LRCLIB</string>
+    <string name="lyrics_allow_lrclib">Allow LRCLIB lookups</string>
+    <string name="lyrics_privacy_disclosure">LRCLIB lookups send the track title, artist, album and duration to lrclib.net over HTTPS. Your server address, credentials and custom headers are never shared. When disabled, Auto uses only your server and cached LRCLIB lyrics stay hidden.</string>
+    <string name="lyrics_current_line_setting">Show current line in player</string>
+    <string name="lyrics_timing_correction">Timing correction</string>
+    <string name="lyrics_timing_value">%1$d ms</string>
+    <string name="lyrics_timing_description">Positive correction shows lyrics later; negative correction shows them earlier.</string>
+
 </resources>
