@@ -205,7 +205,7 @@ fun appModule(
     viewModel { QueueViewModel(get(), get(), get(), get()) }
     single {
         val sources = get<SourceRepository>()
-        PlaylistRepository(get(), writerFor = sources::playlistWriter)
+        PlaylistRepository(get(), writerFor = sources::playlistWriter, libraryChanged = get<QueueRepository>()::invalidateLibraryCache)
     }
     viewModel { params ->
         val request = params.get<AddToPlaylistRequest>()

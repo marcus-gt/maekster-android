@@ -27,6 +27,8 @@ class PlaylistRepositoryTest {
     private lateinit var server: FakePlaylistWriter
     private lateinit var repository: PlaylistRepository
     private var online = true
+    private lateinit var queue: QueueRepository
+    private var invalidations = 0
 
     @Before
     fun setUp() =
@@ -37,7 +39,16 @@ class PlaylistRepositoryTest {
                 listOf("a", "b", "c", "x").map { Song(1, it, null, null, it.uppercase(), null, null, 60, null, null, null) },
             )
             server = FakePlaylistWriter(1)
-            repository = PlaylistRepository(db, writerFor = { if (online) server else null })
+            queue = QueueRepository(db)
+            repository =
+                PlaylistRepository(
+                    db,
+                    writerFor = { if (online) server else null },
+                    libraryChanged = {
+                        invalidations++
+                        queue.invalidateLibraryCache()
+                    },
+                )
         }
 
     @After
@@ -68,6 +79,64 @@ class PlaylistRepositoryTest {
             assertEquals(reason, failure.reason)
         }
     }
+
+    @Test
+    fun queueLengthsFollowAddRemoveAndDeleteWithoutASync() =
+        runTest {
+            server.put("p", "Mix", "a", "b")
+            mirror("p", "a", "b")
+            queue.replace(listOf(queue.playlistEntry(1, "p")))
+            assertEquals(2L, queue.snapshot().size)
+            repository.add(PlaylistAddition(1, "p", listOf("c", "a")))
+            assertEquals(4L, queue.snapshot().size)
+            repository.removeEntry(1, "p", 3, "a")
+            assertEquals(3L, queue.snapshot().size)
+            repository.delete(1, "p")
+            assertEquals(0L, queue.snapshot().size)
+        }
+
+    @Test
+    fun queueLengthsFollowConflictAndNotFoundRefreshes() =
+        runTest {
+            server.put("p", "Mix", "a", "b")
+            mirror("p", "a", "b")
+            queue.replace(listOf(queue.playlistEntry(1, "p")))
+            assertEquals(2L, queue.snapshot().size)
+            server.put("p", "Mix", "x", "a", "b")
+            expect(PlaylistEditException.Reason.Changed) { repository.removeEntry(1, "p", 0, "a") }
+            assertEquals(3L, queue.snapshot().size)
+            server.playlists.remove("p")
+            expect(PlaylistEditException.Reason.NotFound) { repository.add(PlaylistAddition(1, "p", listOf("c"))) }
+            assertEquals(0L, queue.snapshot().size)
+        }
+
+    @Test
+    fun failedWritesLeaveTheQueueCacheAndMirrorAlone() =
+        runTest {
+            server.put("p", "Mix", "a", "b")
+            mirror("p", "a", "b")
+            queue.replace(listOf(queue.playlistEntry(1, "p")))
+            assertEquals(2L, queue.snapshot().size)
+            server.failNext = FakePlaylistWriter.Failure.BeforeWrite
+            assertTrue(runCatching { repository.add(PlaylistAddition(1, "p", listOf("c"))) }.isFailure)
+            assertEquals(0, invalidations)
+            assertEquals(2L, queue.snapshot().size)
+        }
+
+    @Test
+    fun reorderAndFailedDownloadCleanupAlsoInvalidateTheQueue() =
+        runTest {
+            server.put("p", "Mix", "a", "b")
+            mirror("p", "a", "b")
+            queue.replace(listOf(queue.playlistEntry(1, "p")))
+            val version = invalidations
+            repository.moveEntry(1, "p", 1, "b", 0)
+            assertEquals(version + 1, invalidations)
+            assertEquals("b", queue.itemAt(queue.snapshot(), 0)?.song?.id)
+            assertEquals(2L, queue.snapshot().size)
+            assertTrue(runCatching { repository.delete(1, "p") { throw IOException("disk") } }.isFailure)
+            assertEquals(0L, queue.snapshot().size)
+        }
 
     @Test
     fun addingMirrorsTheServerResult() =

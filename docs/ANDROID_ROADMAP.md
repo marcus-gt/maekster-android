@@ -546,6 +546,8 @@ positions and snackbar feedback. Drag reordering remains open; see `docs/handoff
 Failed reorders now retain their intent in the repository: a matching retry can recover an ordered
 prefix or a lost success response, while conflicting edits refresh instead of writing. Retry state
 is process-local; see `docs/handoffs/M2.9-reorder-retry.md`.
+Playlist mirror writes now invalidate queue caches, including conflict and not-found refreshes, so
+subsequent snapshots see changed lengths/order without a sync. See `docs/handoffs/M2.9-playlist-queue-cache.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

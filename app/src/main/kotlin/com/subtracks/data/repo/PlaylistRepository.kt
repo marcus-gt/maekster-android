@@ -86,6 +86,7 @@ class PlaylistRepository(
     private val db: SubtracksDatabase,
     private val writerFor: suspend (sourceId: Long) -> PlaylistWriter?,
     private val now: () -> Long = System::currentTimeMillis,
+    private val libraryChanged: () -> Unit = {},
 ) {
     private data class ReorderIntent(
         val shown: List<String>,
@@ -142,7 +143,7 @@ class PlaylistRepository(
         val id =
             creation.playlistId ?: run {
                 val created = writer.create(creation.name) ?: throw PlaylistEditException(PlaylistEditException.Reason.NotReported)
-                db.libraryDao().replacePlaylist(created.playlist, created.songs)
+                mirror(created)
                 created.playlist.id.also { creation.playlistId = it }
             }
         if (creation.songIds.isNotEmpty()) {
@@ -273,7 +274,7 @@ class PlaylistRepository(
         try {
             afterServerDelete()
         } finally {
-            db.libraryDao().removePlaylist(sourceId, playlistId)
+            removeMirror(sourceId, playlistId)
         }
     }
 
@@ -286,7 +287,7 @@ class PlaylistRepository(
         playlistId: String,
     ): PlaylistDetail =
         writer.playlist(playlistId) ?: run {
-            db.libraryDao().removePlaylist(sourceId, playlistId)
+            removeMirror(sourceId, playlistId)
             throw PlaylistEditException(PlaylistEditException.Reason.NotFound)
         }
 
@@ -296,12 +297,25 @@ class PlaylistRepository(
         playlistId: String,
     ) {
         val detail = fresh(writer, sourceId, playlistId)
-        db.libraryDao().replacePlaylist(detail.playlist, detail.songs)
+        mirror(detail)
     }
 
     private suspend fun changed(current: PlaylistDetail): Nothing {
-        db.libraryDao().replacePlaylist(current.playlist, current.songs)
+        mirror(current)
         throw PlaylistEditException(PlaylistEditException.Reason.Changed)
+    }
+
+    private suspend fun mirror(detail: PlaylistDetail) {
+        db.libraryDao().replacePlaylist(detail.playlist, detail.songs)
+        libraryChanged()
+    }
+
+    private suspend fun removeMirror(
+        sourceId: Long,
+        playlistId: String,
+    ) {
+        db.libraryDao().removePlaylist(sourceId, playlistId)
+        libraryChanged()
     }
 
     private fun PlaylistDetail.songIds() = songs.map { it.songId }
