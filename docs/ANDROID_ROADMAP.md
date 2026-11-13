@@ -432,6 +432,9 @@ Part C adds LyricsProvider and the source-scoped SubsonicLyricsProvider. Song-ID
 empty/unsupported responses fall back to classic artist/title lookup. Auth, HTTP server errors,
 malformed data, transport failures and cancellation do not trigger fallback. No DI/UI/cache wiring
 yet; see `docs/handoffs/M2.8-server-lyrics-provider.md`.
+Part D adds provider-specific Room storage (schema 49), versioned strict JSON payloads and typed
+cache read/write/invalidate. Source deletion cascades; corrupt/unknown data is a cache miss.
+Offline orchestration and UI remain; see `docs/handoffs/M2.8-lyrics-cache.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

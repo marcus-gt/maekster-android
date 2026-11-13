@@ -850,6 +850,18 @@ val MIGRATION_46_47 =
         }
     }
 
+val MIGRATION_48_49 =
+    object : Migration(48, 49) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS lyrics_cache (sourceId INTEGER NOT NULL, songId TEXT NOT NULL, " +
+                    "provider TEXT NOT NULL, payload TEXT NOT NULL, fetchedAt INTEGER NOT NULL, " +
+                    "PRIMARY KEY(sourceId, songId, provider), " +
+                    "FOREIGN KEY(sourceId) REFERENCES sources(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+        }
+    }
+
 val MIGRATION_47_48 =
     object : Migration(47, 48) {
         override suspend fun migrate(connection: SQLiteConnection) {
@@ -945,4 +957,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_45_46,
         MIGRATION_46_47,
         MIGRATION_47_48,
+        MIGRATION_48_49,
     )

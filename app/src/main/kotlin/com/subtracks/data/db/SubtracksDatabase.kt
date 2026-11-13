@@ -13,6 +13,7 @@ import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.ArtistRefsConverter
 import com.subtracks.data.model.ArtistSearch
 import com.subtracks.data.model.ArtworkSeed
+import com.subtracks.data.model.CachedLyrics
 import com.subtracks.data.model.Disc
 import com.subtracks.data.model.DownloadErrorConverter
 import com.subtracks.data.model.DownloadStatusConverter
@@ -71,8 +72,9 @@ import com.subtracks.data.model.UpNextEntry
         SearchHistoryEntry::class,
         StoredQueueOrder::class,
         StoredQueueOrderEntry::class,
+        CachedLyrics::class,
     ],
-    version = 48,
+    version = 49,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -102,4 +104,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun pinDao(): PinDao
 
     abstract fun searchHistoryDao(): SearchHistoryDao
+
+    abstract fun lyricsCacheDao(): LyricsCacheDao
 }
