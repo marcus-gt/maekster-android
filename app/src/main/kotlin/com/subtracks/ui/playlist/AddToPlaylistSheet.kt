@@ -69,16 +69,17 @@ fun AddToPlaylistRoute(
     onDismiss: () -> Unit,
 ) {
     PlaylistSheetScope(request) {
-        AddToPlaylistContent(request, onDismiss)
+        val viewModel: AddToPlaylistViewModel = koinViewModel(key = request.toString()) { parametersOf(request) }
+        val sources: SourceRepository = koinInject()
+        AddToPlaylistContent(viewModel, onDismiss, coverArt = { sources.coverArt(it, thumbnail = true) })
     }
 }
 
 @Composable
-private fun AddToPlaylistContent(
-    request: AddToPlaylistRequest,
+internal fun AddToPlaylistContent(
+    viewModel: AddToPlaylistViewModel,
     onDismiss: () -> Unit,
-    viewModel: AddToPlaylistViewModel = koinViewModel(key = request.toString()) { parametersOf(request) },
-    sources: SourceRepository = koinInject(),
+    coverArt: (String?) -> CoverArtRef?,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val destinations = viewModel.destinations.collectAsLazyPagingItems()
@@ -86,7 +87,7 @@ private fun AddToPlaylistContent(
     AddToPlaylistSheet(
         ui = ui,
         destinations = destinations,
-        coverArt = { sources.coverArt(it, thumbnail = true) },
+        coverArt = coverArt,
         onQuery = viewModel::setQuery,
         onNewName = viewModel::setNewName,
         onCreate = viewModel::create,

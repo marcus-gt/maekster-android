@@ -513,7 +513,12 @@ records Recent and emits completion. Skipping mirror refresh fails; see `docs/ha
 API 37 portrait IME smoke check passes in a debug-only in-memory sheet preview: fields/results
 stay above the full keyboard, Back hides IME then dismisses. No personal-source writes; see
 `docs/handoffs/M2.9-sheet-ime.md`. AppRoot-specific back behavior still needs an isolated source.
-Remaining Part D device checks: real-server add/create/duplicates/failure/retry and actual snackbar/dismissal.
+Stateful route failure/retry dismissal now has a Compose regression (mutation catches missing
+completion callback). API 37 with user-authorized configured server: created ONLY a new
+`maekster development test` playlist, observed success snackbar/dismissal, reopened fresh form
+and verified Recent/1 song. See `docs/handoffs/M2.9-route-completion.md`.
+Remaining Part D device checks: add to that dedicated playlist, duplicate choices, real failure/retry,
+and AppRoot Back/IME behavior. Existing playlists must remain untouched.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
