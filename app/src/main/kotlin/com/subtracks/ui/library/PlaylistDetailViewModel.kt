@@ -95,6 +95,7 @@ class PlaylistDetailViewModel(
             },
             showMessage = showMessage,
             retryMove = { playlists.retryReorder(requireNotNull(moveSourceId), playlistId) },
+            abandonMove = { playlists.abandonReorder(requireNotNull(moveSourceId), playlistId) },
         )
     val moving = mover.busy
     val moveError = mover.error

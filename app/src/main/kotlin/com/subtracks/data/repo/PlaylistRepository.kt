@@ -276,6 +276,18 @@ class PlaylistRepository(
         reorder(sourceId, playlistId, intent.ordered, intent.shown)
     }
 
+    /** Forgets an abandoned reorder and mirrors the server's current state without sending an edit. */
+    suspend fun abandonReorder(
+        sourceId: Long,
+        playlistId: String,
+    ) {
+        reorderMutex.withLock {
+            pendingReorders.remove(sourceId to playlistId)
+            val current = writer(sourceId).playlist(playlistId)
+            if (current == null) removeMirror(sourceId, playlistId) else mirror(current)
+        }
+    }
+
     /**
      * Deletes the playlist on the server, then runs [afterServerDelete] (for example removing its downloads, which are
      * found through the mirror) and only then drops the mirror rows, even if [afterServerDelete] fails.

@@ -549,6 +549,9 @@ is process-local; see `docs/handoffs/M2.9-reorder-retry.md`.
 Failed adjacent moves now offer a retained Retry/Cancel dialog. Retry uses the original repository
 intent even after mirror refresh; preflight failures retain an unverified intent that must pass
 normal server validation. See `docs/handoffs/M2.9-move-recovery.md`.
+Cancel now discards the retry intent and reads the current server playlist back into Room without
+sending an edit. Failed readback closes with an error; sync can reconcile later. See
+`docs/handoffs/M2.9-move-abandonment.md`.
 Playlist mirror writes now invalidate queue caches, including conflict and not-found refreshes, so
 subsequent snapshots see changed lengths/order without a sync. See `docs/handoffs/M2.9-playlist-queue-cache.md`.
 

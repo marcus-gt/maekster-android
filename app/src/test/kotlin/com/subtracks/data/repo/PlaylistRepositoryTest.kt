@@ -353,6 +353,51 @@ class PlaylistRepositoryTest {
         }
 
     @Test
+    fun abandoningAPartialMoveMirrorsTheServerWithoutSendingAnotherEdit() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "c")
+            mirror("p", "a", "b", "c")
+            queue.replace(listOf(queue.playlistEntry(1, "p")))
+            assertEquals(3L, queue.snapshot().size)
+            server.failNext = FakePlaylistWriter.Failure.AfterFirstSong
+            assertTrue(runCatching { repository.moveEntry(1, "p", 2, "c", 0) }.isFailure)
+            repository.abandonReorder(1, "p")
+            assertEquals(listOf("c"), mirrored("p"))
+            assertEquals(1L, queue.snapshot().size)
+            assertEquals(1, server.replaced.size)
+            expect(PlaylistEditException.Reason.Changed) { repository.retryReorder(1, "p") }
+        }
+
+    @Test
+    fun abandoningOfflineForgetsTheIntentEvenWhenReadbackCannotRun() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "c")
+            mirror("p", "a", "b", "c")
+            server.failNext = FakePlaylistWriter.Failure.AfterFirstSong
+            assertTrue(runCatching { repository.moveEntry(1, "p", 2, "c", 0) }.isFailure)
+            online = false
+            expect(PlaylistEditException.Reason.Offline) { repository.abandonReorder(1, "p") }
+            online = true
+            expect(PlaylistEditException.Reason.Changed) { repository.retryReorder(1, "p") }
+            assertEquals(listOf("a", "b", "c"), mirrored("p"))
+            assertEquals(1, server.replaced.size)
+        }
+
+    @Test
+    fun abandoningAPlaylistDeletedElsewhereDropsTheMirror() =
+        runTest {
+            server.put("p", "Mix", "a")
+            mirror("p", "a")
+            queue.replace(listOf(queue.playlistEntry(1, "p")))
+            assertEquals(1L, queue.snapshot().size)
+            server.playlists.remove("p")
+            repository.abandonReorder(1, "p")
+            assertNull(db.libraryDao().playlist(1, "p").first())
+            assertEquals(0L, queue.snapshot().size)
+            assertTrue(server.replaced.isEmpty())
+        }
+
+    @Test
     fun preflightFailureRetainsTheMoveButDoesNotAuthorizePartialRecovery() =
         runTest {
             server.put("p", "Mix", "a", "b", "c")

@@ -81,6 +81,69 @@ class PlaylistEntryMoverTest {
         }
 
     @Test
+    fun abandonmentWaitsForReadbackAndNeverReportsMoveSuccess() =
+        runTest {
+            val finish = CompletableDeferred<Unit>()
+            var abandoned = 0
+            var retries = 0
+            val messages = mutableListOf<UiMessage>()
+            val mover =
+                PlaylistEntryMover(
+                    backgroundScope,
+                    { _, _, _ -> throw IOException("write failed") },
+                    messages::add,
+                    retryMove = { retries++ },
+                    abandonMove = {
+                        abandoned++
+                        finish.await()
+                    },
+                )
+            mover.move(1, "song", 0)
+            runCurrent()
+            messages.clear()
+            mover.dismissFailure()
+            assertTrue(mover.busy.value)
+            mover.retry()
+            mover.dismissFailure()
+            runCurrent()
+            assertEquals(1, abandoned)
+            assertTrue(mover.error.value != null)
+            finish.complete(Unit)
+            runCurrent()
+            assertFalse(mover.busy.value)
+            assertEquals(null, mover.error.value)
+            assertEquals(0, retries)
+            assertTrue(messages.isEmpty())
+        }
+
+    @Test
+    fun failedAbandonmentStillClosesWithAnErrorAndCannotReplay() =
+        runTest {
+            val messages = mutableListOf<UiMessage>()
+            var retries = 0
+            val mover =
+                PlaylistEntryMover(
+                    backgroundScope,
+                    { _, _, _ -> throw IOException("write failed") },
+                    messages::add,
+                    retryMove = { retries++ },
+                    abandonMove = { throw IOException("read failed") },
+                )
+            mover.move(1, "song", 0)
+            runCurrent()
+            messages.clear()
+            mover.dismissFailure()
+            runCurrent()
+            assertFalse(mover.busy.value)
+            assertEquals(null, mover.error.value)
+            mover.retry()
+            runCurrent()
+            assertEquals(0, retries)
+            assertEquals(1, messages.size)
+            assertFalse(messages.single() == UiMessage(R.string.playlist_song_moved))
+        }
+
+    @Test
     fun aFailureReportsAnErrorAndAllowsAnotherAttemptWithoutSuccess() =
         runTest {
             var fail = true

@@ -14,6 +14,7 @@ internal class PlaylistEntryMover(
     private val move: suspend (Long, String, Int) -> Unit,
     private val showMessage: (UiMessage) -> Unit,
     private val retryMove: (suspend () -> Unit)? = null,
+    private val abandonMove: suspend () -> Unit = {},
 ) {
     private val moving = MutableStateFlow(false)
     val busy = moving.asStateFlow()
@@ -22,9 +23,21 @@ internal class PlaylistEntryMover(
     private var retained: (suspend () -> Unit)? = null
 
     fun dismissFailure() {
-        if (moving.value) return
+        if (moving.value || failure.value == null) return
+        moving.value = true
         retained = null
-        failure.value = null
+        scope.launch {
+            try {
+                abandonMove()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                showMessage(playlistEditMessage(error))
+            } finally {
+                failure.value = null
+                moving.value = false
+            }
+        }
     }
 
     fun retry() {
