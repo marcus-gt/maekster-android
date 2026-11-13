@@ -566,8 +566,9 @@ Save-queue operation: the export is staged into a Room draft (schema 51), then c
 batches of 100 and verified by bounded readback; a retry resumes the same playlist without resending
 lost batches, also after process death. Dialog/menu remain open; see `docs/handoffs/M2.9-queue-save.md`.
 "Save queue as playlist…" is now in the queue options menu (online, non-empty): a name dialog captures
-the queue on Save, keeps the capture for Retry after a failure, and discards it on close. JVM-tested;
-the emulator check awaits authorization for a server write. See `docs/handoffs/M2.9-save-queue-ui.md`.
+the queue on Save, keeps the capture for Retry after a failure, and discards it on close. Verified on
+API 37: offline Save fails with no server write, Retry creates one 12-song playlist in queue order with
+snackbar, Home and Recent updated without sync. See `docs/handoffs/M2.9-save-queue-ui.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
