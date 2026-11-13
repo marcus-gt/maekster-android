@@ -414,7 +414,16 @@ state (schema 48). Current track/time and manual-block boundaries survive; unshu
 order, and Undo restores the exact sparse shuffle. Pre-fix regression, full build/tests/lint and
 normal/2× UI renders pass. Emulator clear preserved the paused track/time; timed Undo was not
 activated before expiry. See `docs/handoffs/M2.7-shuffled-clear-upcoming.md`.
-Next: final M2.7 parity review, then M2.8 lyrics.
+M2.7 implementation review (13 Nov): required slice behavior is covered by Parts A–U. Queue
+remains a separate Android route (documented platform interpretation); optional track sharing is
+deferred. Device recovery/process-death, API 35/37 matrix and physical checks remain open; this is
+not a device-validation sign-off.
+
+**M2.8 status (13 Nov 2026):** in progress. Part A adds plain Kotlin Lyrics/LyricsLine values and
+an LRC parser for repeated leading timestamps, millisecond fractions, signed provider offsets,
+enhanced word-tag stripping, Unicode and stable equal-time ordering. Metadata and malformed
+entries are ignored; no usable timed text returns null. Provider/cache/UI integration remains.
+See `docs/handoffs/M2.8-lrc-parser.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
