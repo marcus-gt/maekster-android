@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -77,10 +78,12 @@ sealed interface MenuTarget {
     val subtitle: String?
     val coverArt: CoverArtRef?
 
+    /** [playlistPosition] is the entry's place when the song was opened from its playlist's page. */
     data class Song(
         val song: SongModel,
         override val coverArt: CoverArtRef? = null,
         val download: SongDownload? = null,
+        val playlistPosition: Long? = null,
     ) : MenuTarget {
         override val title: String get() = song.title
 
@@ -150,6 +153,7 @@ class ItemActions(
     val setStar: (StarType, String, Boolean) -> Unit = { _, _, _ -> },
     val viewAlbum: ((String) -> Unit)? = null,
     val viewArtist: ((String) -> Unit)? = null,
+    val removeFromPlaylist: ((MenuTarget.Song) -> Unit)? = null,
 )
 
 class ContextMenuHost {
@@ -261,6 +265,13 @@ fun ItemContextMenu(
                     onAddToPlaylist?.let { add ->
                         MenuItem(Icons.AutoMirrored.Rounded.PlaylistAdd, stringResource(R.string.add_to_playlist)) {
                             replaceWith { add(target.song) }
+                        }
+                    }
+                    if (target.playlistPosition != null) {
+                        actions.removeFromPlaylist?.let { remove ->
+                            MenuItem(Icons.Rounded.RemoveCircleOutline, stringResource(R.string.remove_from_playlist)) {
+                                dismiss { remove(target) }
+                            }
                         }
                     }
                     DownloadItem(target.download, target.song, actions, ::dismiss)

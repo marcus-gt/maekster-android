@@ -8,10 +8,12 @@ import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTouchInput
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,8 +21,10 @@ import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.Song
+import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,6 +54,7 @@ class PlaylistDetailScreenTest {
     private fun render(
         totals: ListTotals?,
         songIds: List<String> = listOf("s0", "s1", "s2"),
+        onSongLongClick: (MenuTarget) -> Unit = {},
     ) {
         val items =
             songIds.mapIndexed { index, songId ->
@@ -82,6 +87,7 @@ class PlaylistDetailScreenTest {
                     totals = totals,
                     onBack = {},
                     onSongClick = {},
+                    onSongLongClick = onSongLongClick,
                 )
             }
         }
@@ -104,6 +110,17 @@ class PlaylistDetailScreenTest {
 
         composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag(PLAYLIST_SUMMARY_TAG))
         composeRule.onAllNodesWithText("Song 0").assertCountEquals(2)
+    }
+
+    @Test
+    fun theMenuOfASecondCopyKnowsWhichEntryItIs() {
+        var opened: MenuTarget? = null
+        render(ListTotals(songCount = 3, duration = 600), songIds = listOf("s0", "s1", "s0"), onSongLongClick = { opened = it })
+
+        composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag(PLAYLIST_SUMMARY_TAG))
+        composeRule.onAllNodesWithText("Song 0")[1].performTouchInput { longClick() }
+
+        assertEquals(2L, (opened as? MenuTarget.Song)?.playlistPosition)
     }
 
     @Test

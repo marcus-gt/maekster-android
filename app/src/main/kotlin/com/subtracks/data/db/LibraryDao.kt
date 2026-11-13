@@ -698,6 +698,13 @@ interface LibraryDao {
         ids: Collection<String>,
     )
 
+    /** Every entry's song in order, including songs the mirror has no row for, so indices are server positions. */
+    @Query("SELECT songId FROM playlist_songs WHERE sourceId = :sourceId AND playlistId = :playlistId ORDER BY position")
+    suspend fun playlistEntrySongIds(
+        sourceId: Long,
+        playlistId: String,
+    ): List<String>
+
     @Query("DELETE FROM playlist_songs WHERE sourceId = :sourceId AND playlistId = :playlistId AND position >= :position")
     suspend fun deletePlaylistSongsFrom(
         sourceId: Long,

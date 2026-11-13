@@ -7,14 +7,11 @@ import androidx.paging.cachedIn
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.data.model.Playlist
-import com.subtracks.data.net.connectionErrorMessage
 import com.subtracks.data.repo.AddOutcome
 import com.subtracks.data.repo.Duplicates
 import com.subtracks.data.repo.PlaylistAddition
 import com.subtracks.data.repo.PlaylistCreation
-import com.subtracks.data.repo.PlaylistEditException
 import com.subtracks.data.repo.PlaylistRepository
-import com.subtracks.data.source.subsonic.SubsonicException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -170,32 +167,10 @@ class AddToPlaylistViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                state.update { it.copy(error = messageFor(failure)) }
+                state.update { it.copy(error = playlistEditMessage(failure)) }
             } finally {
                 state.update { it.copy(busy = null) }
             }
         }
     }
-
-    private fun messageFor(failure: Exception): UiMessage =
-        when {
-            failure is PlaylistEditException -> {
-                UiMessage(
-                    when (failure.reason) {
-                        PlaylistEditException.Reason.Offline -> R.string.playlist_edit_offline
-                        PlaylistEditException.Reason.NotFound -> R.string.playlist_edit_not_found
-                        PlaylistEditException.Reason.Changed -> R.string.playlist_edit_changed
-                        PlaylistEditException.Reason.NotReported -> R.string.playlist_edit_not_reported
-                    },
-                )
-            }
-
-            failure is SubsonicException && failure.uiMessage != null -> {
-                failure.uiMessage
-            }
-
-            else -> {
-                connectionErrorMessage(failure) ?: UiMessage(R.string.playlist_edit_failed)
-            }
-        }
 }

@@ -152,6 +152,38 @@ class PlaylistRepositoryTest {
         }
 
     @Test
+    fun removingAnEntryDropsOnlyThatCopyOfTheSong() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "a")
+            mirror("p", "a", "b", "a")
+            repository.removeEntry(1, "p", position = 2, songId = "a")
+            assertEquals(listOf(listOf(2)), server.removed)
+            assertEquals(listOf("a", "b"), server.songs("p"))
+            assertEquals(listOf("a", "b"), mirrored("p"))
+        }
+
+    @Test
+    fun removingAnEntryCountsSongsTheMirrorHasNoRowFor() =
+        runTest {
+            server.put("p", "Mix", "gone", "a", "b")
+            mirror("p", "gone", "a", "b")
+            repository.removeEntry(1, "p", position = 2, songId = "b")
+            assertEquals(listOf("gone", "a"), server.songs("p"))
+        }
+
+    @Test
+    fun aStaleMenuRemovesNothing() =
+        runTest {
+            server.put("p", "Mix", "a", "b", "c")
+            mirror("p", "a", "b", "c")
+            expect(PlaylistEditException.Reason.Changed) {
+                repository.removeEntry(1, "p", position = 1, songId = "c")
+            }
+            assertEquals(emptyList<List<Int>>(), server.removed)
+            assertEquals(listOf("a", "b", "c"), server.songs("p"))
+        }
+
+    @Test
     fun aPlaylistChangedElsewhereIsRefreshedInsteadOfLosingTheWrongSong() =
         runTest {
             server.put("p", "Mix", "x", "a", "b")

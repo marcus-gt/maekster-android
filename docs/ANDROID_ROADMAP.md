@@ -528,6 +528,10 @@ Back 1 hides the keyboard (query/draft kept), Back 2 closes only the sheet, Back
 closes Now Playing; reopening starts fresh; no writes. See `docs/handoffs/M2.9-approot-back-ime.md`.
 **Part D status (13 Nov 2026):** done. Unverified: API 35, landscape, TalkBack, real IME at large
 font, and a lost server response on device (JVM-tested only). Membership toggles are a later part.
+Part E is done: "Remove from playlist" in a song's menu on its playlist page, for the user's own
+playlists outside offline mode. It removes that exact entry (duplicates safe), refusing when the
+mirror or server order changed, with a snackbar either way. Verified on API 37 on the test playlist;
+see `docs/handoffs/M2.9-remove-from-playlist.md`. Next: rename/delete, then reorder.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

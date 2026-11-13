@@ -497,6 +497,7 @@
     <string name="lyrics_show_all">Show all lyrics</string>
 
     <string name="add_to_playlist">Add to playlist…</string>
+    <string name="remove_from_playlist">Remove from playlist</string>
     <string name="add_to_playlist_title">Add to playlist</string>
     <string name="add_to_playlist_search">Search playlists</string>
     <string name="add_to_playlist_recent">Recent</string>
@@ -512,6 +513,7 @@
     <string name="playlist_songs_added">Added to %1$s</string>
     <string name="playlist_already_has_songs">Already in %1$s</string>
     <string name="playlist_created">Created %1$s</string>
+    <string name="playlist_song_removed">Removed from %1$s</string>
     <string name="playlist_edit_offline">Playlists can\'t be changed offline</string>
     <string name="playlist_edit_not_found">That playlist is no longer on the server</string>
     <string name="playlist_edit_changed">The playlist changed on the server and has been refreshed. Try again.</string>

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.subtracks.R
+import com.subtracks.UiMessage
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.DownloadList
@@ -15,8 +17,11 @@ import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.LibraryRepository
+import com.subtracks.data.repo.PlaylistRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.playback.PlaybackController
+import com.subtracks.ui.playlist.playlistEditMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,8 +30,19 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/**
+ * Songs can be removed online from the user's own playlists, or from ones whose owner the server did not say or
+ * when the user is unknown (the add sheet's rule).
+ */
+internal fun canRemoveSongs(
+    playlist: Playlist?,
+    offline: Boolean,
+    user: String?,
+): Boolean = !offline && playlist != null && (playlist.owner == null || user == null || playlist.owner == user)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetailViewModel(
@@ -35,8 +51,13 @@ class PlaylistDetailViewModel(
     private val playbackController: PlaybackController,
     private val downloadRepository: DownloadRepository,
     private val playlistId: String,
+    private val playlists: PlaylistRepository,
+    private val owner: suspend (Long) -> String?,
+    private val showMessage: (UiMessage) -> Unit,
 ) : ViewModel() {
     private val sourceId = libraryRepository.activeSourceId.filterNotNull()
+
+    private val ownerName: Flow<String?> = sourceId.mapLatest { owner(it) }
 
     val playlist: StateFlow<Playlist?> =
         sourceId
@@ -58,6 +79,27 @@ class PlaylistDetailViewModel(
         downloadRepository.states()
 
     val offline: StateFlow<Boolean> = sourceRepository.offline
+
+    val canRemove: StateFlow<Boolean> =
+        combine(playlist, offline, ownerName, ::canRemoveSongs)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Removes the entry at [position], which the user saw holding [songId]. */
+    fun removeFromPlaylist(
+        position: Long,
+        songId: String,
+    ) {
+        viewModelScope.launch {
+            try {
+                playlists.removeEntry(sourceId.first(), playlistId, position.toInt(), songId)
+                showMessage(UiMessage(R.string.playlist_song_removed, listOf(playlist.value?.name.orEmpty())))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                showMessage(playlistEditMessage(failure))
+            }
+        }
+    }
 
     val downloadStatus: StateFlow<ListDownloadStatus> =
         sourceId

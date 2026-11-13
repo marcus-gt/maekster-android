@@ -182,6 +182,24 @@ class PlaylistRepository(
         refresh(writer, sourceId, playlistId)
     }
 
+    /**
+     * Removes the one entry at [position] that the user saw as [songId] (a playlist can hold a song twice). If the
+     * mirror no longer has [songId] there, nothing is removed and the playlist is refreshed.
+     */
+    suspend fun removeEntry(
+        sourceId: Long,
+        playlistId: String,
+        position: Int,
+        songId: String,
+    ) {
+        val shown = db.libraryDao().playlistEntrySongIds(sourceId, playlistId)
+        if (shown.getOrNull(position) != songId) {
+            val writer = writer(sourceId)
+            changed(fresh(writer, sourceId, playlistId))
+        }
+        remove(sourceId, playlistId, listOf(position), shown)
+    }
+
     /** Puts the playlist in [ordered] order; it must hold the same songs as [shownSongIds], the order shown. */
     suspend fun reorder(
         sourceId: Long,
