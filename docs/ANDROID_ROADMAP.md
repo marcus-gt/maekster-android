@@ -609,6 +609,10 @@ bytes, cancel) and the offline Home card. It also found and fixed a crash: the d
 refresh, a `@RawQuery` UPDATE outside a transaction, ran on a read-only pooled connection (regression
 from b2a1716b). See `docs/handoffs/M2.10-emulator-check.md`.
 
+**M2.11 status (14 Nov 2026):** in progress. Part A (C11, D8): swiping the app away keeps music playing.
+A paused, ended or empty player still stops the service. Emulator-verified. See
+`docs/handoffs/M2.11-swipe-away.md`. Next: stream quality presets plus Custom, then restore edge cases.
+
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
   skip to downloaded). Process death during playback, then restore. Lyrics with Navidrome-embedded LRC and LRCLIB fallback.

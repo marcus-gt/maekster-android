@@ -170,9 +170,15 @@ class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
+    // Swiping the app away keeps music going, as on iOS; a paused or finished player stops the service (D8).
     @OptIn(UnstableApi::class)
     override fun onTaskRemoved(rootIntent: Intent?) {
-        pauseAllPlayersAndStopSelf()
+        val player = session?.player
+        val keep =
+            player != null &&
+                keepPlayingOnTaskRemoved(player.playWhenReady, player.playbackState, player.mediaItemCount)
+        Log.i("playback", "task removed: ${if (keep) "still playing, keeping the service" else "stopping"}")
+        if (!keep) pauseAllPlayersAndStopSelf()
     }
 
     private fun observeStar(songId: String?) {
@@ -235,6 +241,19 @@ class PlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 }
+
+/**
+ * Whether the service outlives a swipe from recents: only while the user wants playback (playing or
+ * buffering towards it) and there is something to play. Paused, idle after an error, or ended stops it.
+ */
+internal fun keepPlayingOnTaskRemoved(
+    playWhenReady: Boolean,
+    playbackState: Int,
+    mediaItemCount: Int,
+): Boolean =
+    playWhenReady &&
+        mediaItemCount > 0 &&
+        (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING)
 
 // The command keeps its old name so controllers that already know it keep working.
 internal val STAR_COMMAND = SessionCommand("com.subtracks.STAR", Bundle.EMPTY)
