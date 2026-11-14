@@ -154,8 +154,10 @@ fun SettingsRoute(
     page: SettingsPage? = null,
     onOpenPage: (SettingsPage) -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
+    storageViewModel: StorageViewModel = koinViewModel(),
     uiMessages: UiMessages = koinInject(),
 ) {
+    val storage by storageViewModel.ui.collectAsStateWithLifecycle()
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val activeSourceId by viewModel.activeSourceId.collectAsStateWithLifecycle()
     val needsSignIn by viewModel.needsSignIn.collectAsStateWithLifecycle()
@@ -248,6 +250,9 @@ fun SettingsRoute(
         dismissals = dismissals,
         page = page,
         onOpenPage = onOpenPage,
+        storage = storage,
+        onClearArtwork = storageViewModel::clearArtwork,
+        onSyncNow = storageViewModel::syncNow,
     )
 }
 
@@ -308,6 +313,9 @@ fun SettingsScreen(
     onLrclibAllowedChange: (Boolean) -> Unit = {},
     onShowCurrentLyricLineChange: (Boolean) -> Unit = {},
     onLyricsTimingOffsetChange: (Int) -> Unit = {},
+    storage: StorageUi = StorageUi(),
+    onClearArtwork: () -> Unit = {},
+    onSyncNow: () -> Unit = {},
 ) {
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     DismissOnRequest(dismissals) { dialog = null }
@@ -505,7 +513,9 @@ fun SettingsScreen(
                             onClick = onOpenDownloads,
                         )
                     }
+                    item { ArtworkStorageSection(storage, onClearArtwork) }
                     item { SectionHeader(stringResource(R.string.settings_library_sync_name)) }
+                    item { LibraryStorageRows(storage, onSyncNow) }
                     item {
                         ValueRow(
                             title = stringResource(R.string.settings_sync_auto_title),
@@ -762,7 +772,7 @@ private fun LazyListScope.rootItems(
 
 /** A setting that opens a dialog; [value] shows its current choice. */
 @Composable
-private fun ValueRow(
+internal fun ValueRow(
     title: String,
     value: String,
     onClick: () -> Unit,
@@ -805,7 +815,7 @@ private fun SwitchRow(
 
 /** A row with a leading icon that runs [onClick], or just informs when it is null. */
 @Composable
-private fun ActionRow(
+internal fun ActionRow(
     title: String,
     icon: ImageVector,
     onClick: (() -> Unit)?,
@@ -1257,7 +1267,7 @@ private fun <T> ChoiceGroup(
 }
 
 @Composable
-private fun SectionHeader(text: String) {
+internal fun SectionHeader(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleLarge,

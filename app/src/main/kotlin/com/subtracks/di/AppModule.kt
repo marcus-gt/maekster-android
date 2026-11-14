@@ -72,8 +72,11 @@ import com.subtracks.ui.playlist.RenamePlaylistViewModel
 import com.subtracks.ui.playlist.SaveQueueViewModel
 import com.subtracks.ui.search.SearchViewModel
 import com.subtracks.ui.settings.AddSourceViewModel
+import com.subtracks.ui.settings.CoilArtworkCache
 import com.subtracks.ui.settings.QuickPlaylistsSettingsViewModel
 import com.subtracks.ui.settings.SettingsViewModel
+import com.subtracks.ui.settings.StorageViewModel
+import com.subtracks.ui.settings.activeLibraryCounts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -193,6 +196,17 @@ fun appModule(
     viewModel { params -> HomeListViewModel(get(), get(), get(), params.get()) }
     viewModel { SearchViewModel(get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get()) }
+    viewModel {
+        val sync = get<SyncManager>()
+        val database = context.getDatabasePath("subtracks.db")
+        StorageViewModel(
+            counts = activeLibraryCounts(get()),
+            syncStatus = sync.status,
+            requestSync = { sync.requestSync() },
+            artworkCache = CoilArtworkCache(context.applicationContext),
+            databaseFiles = { listOf(database, File("${database.path}-wal")) },
+        )
+    }
     viewModel {
         DownloadsViewModel(
             get(),

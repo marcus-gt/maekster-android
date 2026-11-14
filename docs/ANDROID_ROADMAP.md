@@ -598,6 +598,9 @@ still deletes it (iOS `OfflineLibraryRemovalPlanner`). See `docs/handoffs/M2.10-
 Part B adds a Transfers section to the Downloads screen (iOS DownloadActivitySection): every song not yet
 on the device with Downloading (progress, bytes), Queued or the failure reason, plus Retry for failures
 and Cancel. See `docs/handoffs/M2.10-download-transfers.md`.
+Part C extends Settings > Storage: cover cache size with "Clear artwork cache" (confirmed; download
+artwork kept), and under Library sync the active server's counts, database size and "Sync library now".
+See `docs/handoffs/M2.10-storage-page.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

@@ -139,6 +139,17 @@
     <string name="settings_streaming_name">Streaming</string>
     <string name="settings_volume_name">Volume</string>
     <string name="settings_library_sync_name">Library sync</string>
+    <string name="settings_library_contents">Library on this device</string>
+    <string name="settings_library_counts">%1$s artists · %2$s albums · %3$s songs · %4$s playlists</string>
+    <string name="settings_library_database">Database size</string>
+    <string name="settings_library_sync_now">Sync library now</string>
+    <string name="settings_library_syncing">Syncing…</string>
+    <string name="settings_artwork">Artwork</string>
+    <string name="settings_artwork_usage">Cached covers</string>
+    <string name="settings_artwork_clear">Clear artwork cache</string>
+    <string name="settings_artwork_clear_title">Clear artwork cache?</string>
+    <string name="settings_artwork_clear_body">Cached covers are deleted and load again when needed. Covers of downloaded music are kept.</string>
+    <string name="settings_clear">Clear</string>
     <string name="settings_music_options_scrobble_description_on">Send now playing and play counts</string>
     <string name="settings_music_options_scrobble_title">Scrobble to server</string>
     <string name="settings_replay_gain_mode_album">Album gain</string>
