@@ -4,6 +4,7 @@ import androidx.room3.Dao
 import androidx.room3.Query
 import androidx.room3.Upsert
 import com.subtracks.data.model.DownloadArtwork
+import com.subtracks.data.model.DownloadCollection
 import com.subtracks.data.model.DownloadedSong
 import com.subtracks.data.model.EntityDownloadStatus
 import com.subtracks.data.model.ListDownloadStatus
@@ -61,6 +62,23 @@ interface DownloadDao {
 
     @Query("SELECT * FROM song_downloads ORDER BY rowid")
     suspend fun all(): List<SongDownload>
+
+    @Query("INSERT OR IGNORE INTO download_collections (sourceId, kind, refId) VALUES (:sourceId, :kind, :refId)")
+    suspend fun recordCollection(
+        sourceId: Long,
+        kind: String,
+        refId: String,
+    )
+
+    @Query("DELETE FROM download_collections WHERE sourceId = :sourceId AND kind = :kind AND refId = :refId")
+    suspend fun forgetCollection(
+        sourceId: Long,
+        kind: String,
+        refId: String,
+    )
+
+    @Query("SELECT * FROM download_collections WHERE sourceId = :sourceId")
+    suspend fun collections(sourceId: Long): List<DownloadCollection>
 
     @Query(
         "SELECT COALESCE((SELECT songCount FROM artists " +

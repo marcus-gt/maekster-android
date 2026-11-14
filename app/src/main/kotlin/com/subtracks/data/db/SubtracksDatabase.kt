@@ -15,6 +15,7 @@ import com.subtracks.data.model.ArtistSearch
 import com.subtracks.data.model.ArtworkSeed
 import com.subtracks.data.model.CachedLyrics
 import com.subtracks.data.model.Disc
+import com.subtracks.data.model.DownloadCollection
 import com.subtracks.data.model.DownloadErrorConverter
 import com.subtracks.data.model.DownloadStatusConverter
 import com.subtracks.data.model.PendingAction
@@ -81,8 +82,9 @@ import com.subtracks.data.model.UpNextEntry
         PlaylistSaveDraft::class,
         PlaylistSaveDraftSong::class,
         QuickPlaylist::class,
+        DownloadCollection::class,
     ],
-    version = 52,
+    version = 53,
     exportSchema = true,
 )
 @ColumnTypeConverters(

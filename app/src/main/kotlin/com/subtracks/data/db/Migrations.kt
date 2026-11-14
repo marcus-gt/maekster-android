@@ -907,6 +907,35 @@ val MIGRATION_51_52 =
         }
     }
 
+/**
+ * Records download collections. Lists already fully downloaded (every song has a download row) are recorded so
+ * their songs keep the new protection; partial lists and artists are not guessed.
+ */
+val MIGRATION_52_53 =
+    object : Migration(52, 53) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS download_collections (sourceId INTEGER NOT NULL, kind TEXT NOT NULL, " +
+                    "refId TEXT NOT NULL, PRIMARY KEY(sourceId, kind, refId), " +
+                    "FOREIGN KEY(sourceId) REFERENCES sources(id) ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+            connection.execSQL(
+                "INSERT OR IGNORE INTO download_collections (sourceId, kind, refId) " +
+                    "SELECT p.sourceId, 'Playlist', p.id FROM playlists p " +
+                    "WHERE EXISTS (SELECT 1 FROM playlist_songs ps WHERE ps.sourceId = p.sourceId AND ps.playlistId = p.id) " +
+                    "AND NOT EXISTS (SELECT 1 FROM playlist_songs ps WHERE ps.sourceId = p.sourceId AND ps.playlistId = p.id " +
+                    "AND NOT EXISTS (SELECT 1 FROM song_downloads d WHERE d.sourceId = ps.sourceId AND d.songId = ps.songId))",
+            )
+            connection.execSQL(
+                "INSERT OR IGNORE INTO download_collections (sourceId, kind, refId) " +
+                    "SELECT a.sourceId, 'Album', a.id FROM albums a " +
+                    "WHERE EXISTS (SELECT 1 FROM songs s WHERE s.sourceId = a.sourceId AND s.albumId = a.id) " +
+                    "AND NOT EXISTS (SELECT 1 FROM songs s WHERE s.sourceId = a.sourceId AND s.albumId = a.id " +
+                    "AND NOT EXISTS (SELECT 1 FROM song_downloads d WHERE d.sourceId = s.sourceId AND d.songId = s.id))",
+            )
+        }
+    }
+
 val MIGRATION_47_48 =
     object : Migration(47, 48) {
         override suspend fun migrate(connection: SQLiteConnection) {
@@ -1006,4 +1035,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_49_50,
         MIGRATION_50_51,
         MIGRATION_51_52,
+        MIGRATION_52_53,
     )
