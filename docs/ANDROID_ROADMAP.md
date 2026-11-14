@@ -602,8 +602,12 @@ Part C extends Settings > Storage: cover cache size with "Clear artwork cache" (
 artwork kept), and under Library sync the active server's counts, database size and "Sync library now".
 See `docs/handoffs/M2.10-storage-page.md`.
 Part D leads offline Home with an offline card (iOS OfflineHomeCard): "Offline mode", the number of songs
-available offline (opening them when there are any) and "Turn off offline mode". M2.10's parts are done
-in code and JVM tests; an emulator check remains. See `docs/handoffs/M2.10-offline-home-card.md`.
+available offline (opening them when there are any) and "Turn off offline mode". See
+`docs/handoffs/M2.10-offline-home-card.md`.
+**M2.10 status (14 Nov 2026):** complete. The emulator check passed for Storage, Transfers (progress,
+bytes, cancel) and the offline Home card. It also found and fixed a crash: the downloaded-artist-art
+refresh, a `@RawQuery` UPDATE outside a transaction, ran on a read-only pooled connection (regression
+from b2a1716b). See `docs/handoffs/M2.10-emulator-check.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

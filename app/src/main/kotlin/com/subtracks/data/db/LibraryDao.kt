@@ -355,6 +355,8 @@ interface LibraryDao {
     @RawQuery
     suspend fun recomputeDownloadedArtistArt(query: RoomRawQuery): Int
 
+    // Room runs a @RawQuery on a read-only pooled connection; the transaction moves this UPDATE to the writer.
+    @Transaction
     suspend fun recomputeDownloadedArtistArt(
         sourceId: Long,
         artistIds: List<String>,
