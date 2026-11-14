@@ -374,6 +374,11 @@
     <string name="download_network_wifi_only">Wi-Fi only</string>
     <string name="manage_downloads">Manage downloads</string>
     <string name="maximum_bitrate">Maximum bitrate</string>
+    <string name="quality_title">Quality</string>
+    <string name="quality_original">Original</string>
+    <string name="quality_mp3_320">MP3 320 kbps</string>
+    <string name="quality_mp3_192">MP3 192 kbps</string>
+    <string name="quality_custom">Custom</string>
     <string name="stream_quality_server_default">Server default</string>
     <string name="required">Required</string>
     <string name="server_address_placeholder">https://music.example.com</string>

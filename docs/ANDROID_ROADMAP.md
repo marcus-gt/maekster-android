@@ -611,7 +611,10 @@ from b2a1716b). See `docs/handoffs/M2.10-emulator-check.md`.
 
 **M2.11 status (14 Nov 2026):** in progress. Part A (C11, D8): swiping the app away keeps music playing.
 A paused, ended or empty player still stops the service. Emulator-verified. See
-`docs/handoffs/M2.11-swipe-away.md`. Next: stream quality presets plus Custom, then restore edge cases.
+`docs/handoffs/M2.11-swipe-away.md`.
+Part B: the Wi-Fi, Mobile and Download quality dialogs lead with iOS's presets (Original, MP3 320, MP3
+192) plus Custom, which reveals any bitrate and format; rows name the preset. Storage is unchanged. See
+`docs/handoffs/M2.11-quality-presets.md`. Next: restore edge cases (deleted song, changed source).
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

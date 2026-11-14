@@ -13,6 +13,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
@@ -211,9 +212,79 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Material You colours").assertDoesNotExist()
     }
 
+    @Test
+    fun qualityRowsNameTheirPresetOrTheCustomChoice() {
+        renderPage(SettingsPage.Playback, "Stream quality: Mobile") {
+            Settings(
+                page = SettingsPage.Playback,
+                wifiQuality = StreamQuality(),
+                mobileQuality = StreamQuality(maxBitrate = 192, format = "mp3"),
+            )
+        }
+
+        composeRule.onNodeWithText("Original").assertExists()
+        composeRule.onNodeWithText("MP3 192 kbps").assertExists()
+    }
+
+    @Test
+    fun aCustomQualityKeepsItsBitrateAndFormatSummary() {
+        renderPage(SettingsPage.Playback, "Stream quality: Wi-Fi") {
+            Settings(page = SettingsPage.Playback, wifiQuality = StreamQuality(maxBitrate = 256, format = "opus"))
+        }
+
+        composeRule.onNodeWithText("opus · 256kbps").assertExists()
+    }
+
+    @Test
+    fun choosingAPresetSavesItsBitrateAndFormat() {
+        var requested: StreamQuality? = null
+        renderPage(SettingsPage.Playback, "Stream quality: Wi-Fi") {
+            Settings(page = SettingsPage.Playback, onWifiQualityChange = { requested = it })
+        }
+
+        composeRule.onNodeWithText("Stream quality: Wi-Fi").performClick()
+        composeRule.onNodeWithText("Maximum bitrate").assertDoesNotExist()
+        composeRule.onNodeWithText("MP3 320 kbps").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(StreamQuality(maxBitrate = 320, format = "mp3"), requested)
+    }
+
+    @Test
+    fun customRevealsAnyBitrateAndFormat() {
+        var requested: StreamQuality? = null
+        renderPage(SettingsPage.Playback, "Stream quality: Wi-Fi") {
+            Settings(page = SettingsPage.Playback, onWifiQualityChange = { requested = it })
+        }
+
+        composeRule.onNodeWithText("Stream quality: Wi-Fi").performClick()
+        composeRule.onNodeWithText("Custom").performClick()
+        composeRule.onNodeWithText("256kbps").performScrollTo().performClick()
+        composeRule.onNodeWithText("opus").performScrollTo().performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.waitForIdle()
+
+        assertEquals(StreamQuality(maxBitrate = 256, format = "opus"), requested)
+    }
+
+    @Test
+    fun aCustomQualityOpensWithCustomChosen() {
+        renderPage(SettingsPage.Playback, "Stream quality: Wi-Fi") {
+            Settings(page = SettingsPage.Playback, wifiQuality = StreamQuality(maxBitrate = 96, format = "opus"))
+        }
+
+        composeRule.onNodeWithText("Stream quality: Wi-Fi").performClick()
+
+        composeRule.onNodeWithText("Maximum bitrate").assertExists()
+    }
+
     @Composable
     private fun Settings(
         page: SettingsPage?,
+        wifiQuality: StreamQuality = StreamQuality(),
+        mobileQuality: StreamQuality = StreamQuality(),
+        onWifiQualityChange: (StreamQuality) -> Unit = {},
         keepScreenOn: Boolean = false,
         onKeepScreenOnChange: (Boolean) -> Unit = {},
         onSortNameModeChange: (SortNameMode) -> Unit = {},
@@ -226,8 +297,8 @@ class SettingsScreenTest {
         SettingsScreen(
             sources = emptyList(),
             activeSourceId = null,
-            wifiQuality = StreamQuality(),
-            mobileQuality = StreamQuality(),
+            wifiQuality = wifiQuality,
+            mobileQuality = mobileQuality,
             syncConcurrency = 1,
             downloadQuality = StreamQuality(),
             downloadOverMetered = false,
@@ -235,7 +306,7 @@ class SettingsScreenTest {
             keepScreenOn = keepScreenOn,
             onSelectSource = {},
             onEditServer = {},
-            onWifiQualityChange = {},
+            onWifiQualityChange = onWifiQualityChange,
             onMobileQualityChange = {},
             onSyncConcurrencyChange = {},
             onDownloadQualityChange = {},
