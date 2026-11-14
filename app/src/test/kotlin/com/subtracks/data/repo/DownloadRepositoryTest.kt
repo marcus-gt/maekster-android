@@ -1480,6 +1480,18 @@ class DownloadRepositoryTest {
         }
 
     @Test
+    fun theManagementViewCarriesWhyADownloadFailed() =
+        runTest {
+            seedLibrary()
+            runBlocking { db.downloadDao().upsert(SongDownload(1, "s1", DownloadStatus.Failed, error = DownloadError.NoSpace)) }
+
+            val song = runBlocking { repository.downloadedSongs(1).first() }.single()
+
+            assertEquals(DownloadStatus.Failed, song.status)
+            assertEquals(DownloadError.NoSpace, song.error)
+        }
+
+    @Test
     fun removingOneSongDeletesItEvenWhenADownloadedPlaylistHoldsIt() =
         runTest {
             seedLibrary()

@@ -124,6 +124,7 @@ data class DownloadedSong(
     val artistSort: String = artistName.orEmpty(),
     val albumSort: String = albumName.orEmpty(),
     val songSort: String = title,
+    val error: DownloadError? = null,
 ) {
     val progress: Float?
         get() = fractionOf(bytes, total)

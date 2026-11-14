@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.subtracks.data.media.readAudioEncoding
 import com.subtracks.data.model.AudioEncoding
 import com.subtracks.data.model.DownloadList
+import com.subtracks.data.model.DownloadStatus
 import com.subtracks.data.model.DownloadedSong
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.LibraryRepository
@@ -52,11 +53,34 @@ class DownloadsViewModel(
 ) : ViewModel() {
     private val sourceId = libraryRepository.activeSourceId.filterNotNull()
 
+    private val songs = sourceId.flatMapLatest { downloadRepository.downloadedSongs(it) }
+
     val tree: StateFlow<DownloadTree> =
-        sourceId
-            .flatMapLatest { downloadRepository.downloadedSongs(it) }
+        songs
             .map { buildTree(it, unknownArtist, unknownAlbum) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DownloadTree())
+
+    /** Songs not yet on the device, as iOS's Transfers section: running, then queued, then failed. */
+    val transfers: StateFlow<List<DownloadedSong>> =
+        songs
+            .map(::transfersOf)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Starts a failed download again. */
+    fun retry(song: DownloadedSong) {
+        viewModelScope.launch { downloadRepository.download(song.sourceId, song.songId) }
+    }
+
+    /** Stops an active transfer, or clears a failed one. */
+    fun cancelTransfer(song: DownloadedSong) {
+        viewModelScope.launch {
+            if (song.status == DownloadStatus.Failed) {
+                downloadRepository.remove(song.sourceId, song.songId)
+            } else {
+                downloadRepository.cancel(song.sourceId, listOf(song.songId))
+            }
+        }
+    }
 
     fun deleteAll() {
         viewModelScope.launch {
@@ -92,6 +116,17 @@ class DownloadsViewModel(
     suspend fun encoding(song: DownloadedSong): AudioEncoding? =
         downloadRepository.localFile(song.sourceId, song.songId)?.let { readAudioEncoding(it) }
 }
+
+internal fun transfersOf(songs: List<DownloadedSong>): List<DownloadedSong> =
+    songs
+        .filter { it.status != DownloadStatus.Completed }
+        .sortedBy {
+            when (it.status) {
+                DownloadStatus.Running -> 0
+                DownloadStatus.Queued -> 1
+                else -> 2
+            }
+        }
 
 internal fun buildTree(
     songs: List<DownloadedSong>,

@@ -193,6 +193,9 @@
     <string name="cancel_downloads">Cancel downloads</string>
     <string name="retry_download">Retry download</string>
     <string name="download_cancel_of">Cancel download of %1$s</string>
+    <string name="downloads_transfers">Transfers</string>
+    <string name="download_retry_of">Retry download of %1$s</string>
+    <string name="download_progress_bytes">%1$s of %2$s</string>
     <string name="download_delete_of">Delete download of %1$s</string>
     <string name="download_delete_all_of">Delete downloads of %1$s</string>
     <plurals name="downloads_albums_size">

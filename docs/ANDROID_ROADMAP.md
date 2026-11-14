@@ -595,6 +595,9 @@ verified on API 37; an on-device removal awaits authorization. See `docs/handoff
 `download_collections`, backfilled for fully downloaded albums/playlists): removing or cancelling an
 album, playlist or artist keeps the songs another downloaded collection holds, while removing one song
 still deletes it (iOS `OfflineLibraryRemovalPlanner`). See `docs/handoffs/M2.10-download-ownership.md`.
+Part B adds a Transfers section to the Downloads screen (iOS DownloadActivitySection): every song not yet
+on the device with Downloading (progress, bytes), Queued or the failure reason, plus Retry for failures
+and Cancel. See `docs/handoffs/M2.10-download-transfers.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

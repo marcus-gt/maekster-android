@@ -169,7 +169,7 @@ interface DownloadDao {
             "d.bytes AS bytes, d.total AS total, " +
             "COALESCE(NULLIF(ar.sortName, ''), NULLIF(al.albumArtistSort, ''), ar.name, al.albumArtist, '') AS artistSort, " +
             "COALESCE(NULLIF(al.sortName, ''), al.name, '') AS albumSort, " +
-            "COALESCE(NULLIF(s.sortName, ''), s.title, '') AS songSort " +
+            "COALESCE(NULLIF(s.sortName, ''), s.title, '') AS songSort, d.error AS error " +
             "FROM song_downloads d " +
             "JOIN songs s ON s.sourceId = d.sourceId AND s.id = d.songId " +
             "LEFT JOIN albums al ON al.sourceId = s.sourceId AND al.id = s.albumId " +
