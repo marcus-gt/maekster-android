@@ -247,6 +247,8 @@ private fun HomeFeedContent(
             onSongPlay = viewModel::playDownloaded,
             onLongClick = onLongClick,
             onMore = onDownloadedMore,
+            offlineSongCount = viewModel.offlineSongCount.collectAsStateWithLifecycle().value,
+            onTurnOffOffline = viewModel::turnOffOfflineMode,
         )
     } else {
         val feed by viewModel.feed.collectAsStateWithLifecycle()
@@ -425,6 +427,8 @@ fun OfflineHomeScreen(
     pins: LazyPagingItems<PinnedItem>? = null,
     onPinnedClick: (PinnedItem) -> Unit = {},
     onPinnedLongClick: (PinnedItem) -> Unit = {},
+    offlineSongCount: Int? = null,
+    onTurnOffOffline: (() -> Unit)? = null,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         BoxWithConstraints(modifier.fillMaxSize()) {
@@ -434,6 +438,16 @@ fun OfflineHomeScreen(
                 contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
             ) {
                 homeTitle()
+                if (onTurnOffOffline != null) {
+                    item(key = "offline-card") {
+                        OfflineHomeCard(
+                            songCount = offlineSongCount,
+                            onBrowse = { onMore(OfflineListKind.Songs) },
+                            onTurnOff = onTurnOffOffline,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                }
                 if (HomeShelf.Pinned in layout.visible) {
                     pinnedSection(pins, HomeShelf.Pinned in layout.grids, pinColumns, coverArt, onPinnedClick, onPinnedLongClick)
                 }

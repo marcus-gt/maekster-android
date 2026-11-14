@@ -197,6 +197,9 @@ class LibraryRepository(
         limit: Int,
     ): Flow<List<AlbumSongItem>> = db.libraryDao().downloadedSongs(sourceId, limit)
 
+    /** How many of [sourceId]'s songs can play offline. */
+    fun downloadedSongCount(sourceId: Long): Flow<Int> = db.downloadDao().completedCount(sourceId)
+
     fun downloadedSongsPage(sourceId: Long): Flow<PagingData<AlbumSongItem>> = pager(60) { db.libraryDao().homeDownloadedSongs(sourceId) }
 
     fun searchAlbums(

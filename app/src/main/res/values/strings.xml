@@ -145,6 +145,14 @@
     <string name="settings_library_sync_now">Sync library now</string>
     <string name="settings_library_syncing">Syncing…</string>
     <string name="settings_artwork">Artwork</string>
+    <string name="home_offline_title">Offline mode</string>
+    <string name="home_offline_loading">Loading…</string>
+    <string name="home_offline_nothing">No music saved on this device.</string>
+    <plurals name="home_offline_songs">
+        <item quantity="one">%1$d song available offline</item>
+        <item quantity="other">%1$d songs available offline</item>
+    </plurals>
+    <string name="home_offline_turn_off">Turn off offline mode</string>
     <string name="settings_artwork_usage">Cached covers</string>
     <string name="settings_artwork_clear">Clear artwork cache</string>
     <string name="settings_artwork_clear_title">Clear artwork cache?</string>

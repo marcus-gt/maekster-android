@@ -601,6 +601,9 @@ and Cancel. See `docs/handoffs/M2.10-download-transfers.md`.
 Part C extends Settings > Storage: cover cache size with "Clear artwork cache" (confirmed; download
 artwork kept), and under Library sync the active server's counts, database size and "Sync library now".
 See `docs/handoffs/M2.10-storage-page.md`.
+Part D leads offline Home with an offline card (iOS OfflineHomeCard): "Offline mode", the number of songs
+available offline (opening them when there are any) and "Turn off offline mode". M2.10's parts are done
+in code and JVM tests; an emulator check remains. See `docs/handoffs/M2.10-offline-home-card.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

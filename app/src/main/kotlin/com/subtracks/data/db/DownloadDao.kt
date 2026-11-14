@@ -80,6 +80,10 @@ interface DownloadDao {
     @Query("SELECT * FROM download_collections WHERE sourceId = :sourceId")
     suspend fun collections(sourceId: Long): List<DownloadCollection>
 
+    /** How many songs of [sourceId] are fully on the device. */
+    @Query("SELECT COUNT(*) FROM song_downloads WHERE sourceId = :sourceId AND status = 'Completed'")
+    fun completedCount(sourceId: Long): Flow<Int>
+
     @Query(
         "SELECT COALESCE((SELECT songCount FROM artists " +
             "WHERE sourceId = :sourceId AND id = :artistId), 0) AS total, " +

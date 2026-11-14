@@ -1480,6 +1480,20 @@ class DownloadRepositoryTest {
         }
 
     @Test
+    fun onlyCompletedSongsCountAsAvailableOffline() =
+        runTest {
+            seedLibrary()
+            runBlocking {
+                db.downloadDao().upsert(SongDownload(1, "s1", DownloadStatus.Completed))
+                db.downloadDao().upsert(SongDownload(1, "s2", DownloadStatus.Running))
+                assertEquals(1, db.downloadDao().completedCount(1).first())
+                db.downloadDao().upsert(SongDownload(1, "s2", DownloadStatus.Failed))
+                assertEquals(1, db.downloadDao().completedCount(1).first())
+                assertEquals(0, db.downloadDao().completedCount(2).first())
+            }
+        }
+
+    @Test
     fun theManagementViewCarriesWhyADownloadFailed() =
         runTest {
             seedLibrary()
