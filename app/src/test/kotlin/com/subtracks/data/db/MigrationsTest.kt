@@ -74,6 +74,25 @@ class MigrationsTest {
         }
 
     @Test
+    fun thePositionSongMigrationKeepsTheCursorAndLeavesTheSongUnknown() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 53)
+                connection.execSQL(
+                    "INSERT INTO playback_cursor (id, queuePosition, positionMs, shuffleEnabled, repeatMode, " +
+                        "shuffleSeed, shuffleSize, upNextAnchor, sourceLabel) VALUES (1, 12, 3456, 0, 0, 0, 0, 0, 'Album')",
+                )
+                MIGRATION_53_54.migrate(connection)
+                connection.prepare("SELECT queuePosition, positionMs, positionSongId FROM playback_cursor").use { row ->
+                    assertTrue(row.step())
+                    assertEquals(12L, row.getLong(0))
+                    assertEquals(3456L, row.getLong(1))
+                    assertTrue(row.isNull(2))
+                }
+            }
+        }
+
+    @Test
     fun everyExportedVersionIsCoveredByAContiguousMigrationChain() {
         val chain = MIGRATIONS.sortedBy { it.startVersion }
         assertEquals(versions.dropLast(1), chain.map { it.startVersion })
@@ -249,6 +268,47 @@ class MigrationsTest {
                 assertEquals("http://img", text(migrated, "SELECT artistImageUrl FROM artists WHERE id = 'ar1'"))
                 assertEquals("a\u001fb", text(migrated, "SELECT coverArts FROM artists WHERE id = 'ar1'"))
                 assertEquals("c", text(migrated, "SELECT downloadedCoverArts FROM artists WHERE id = 'ar1'"))
+            }
+        }
+
+    @Test
+    fun theDownloadCollectionMigrationRecordsOnlyFullyDownloadedLists() =
+        runTest {
+            driver.open(":memory:").use { migrated ->
+                applySchema(migrated, 52)
+                migrated.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                migrated.execSQL(
+                    "INSERT INTO albums (sourceId, id, artistId, name, albumArtist, created, coverArt, genre, " +
+                        "year, starred, songCount) VALUES " +
+                        "(1, 'full', NULL, 'Full', NULL, 0, NULL, NULL, NULL, NULL, 2), " +
+                        "(1, 'partial', NULL, 'Partial', NULL, 0, NULL, NULL, NULL, NULL, 2)",
+                )
+                migrated.execSQL(
+                    "INSERT INTO songs (sourceId, id, albumId, artistId, title) VALUES " +
+                        "(1, 'f1', 'full', NULL, 'F1'), (1, 'f2', 'full', NULL, 'F2'), " +
+                        "(1, 'p1', 'partial', NULL, 'P1'), (1, 'p2', 'partial', NULL, 'P2')",
+                )
+                migrated.execSQL(
+                    "INSERT INTO playlists (sourceId, id, name, comment, coverArt, songCount, created) VALUES " +
+                        "(1, 'pl-full', 'Full', NULL, NULL, 2, 0), (1, 'pl-partial', 'Partial', NULL, NULL, 2, 0), " +
+                        "(1, 'pl-empty', 'Empty', NULL, NULL, 0, 0)",
+                )
+                migrated.execSQL(
+                    "INSERT INTO playlist_songs (sourceId, playlistId, songId, position) VALUES " +
+                        "(1, 'pl-full', 'f1', 0), (1, 'pl-full', 'p1', 1), (1, 'pl-partial', 'p1', 0), (1, 'pl-partial', 'p2', 1)",
+                )
+                migrated.execSQL(
+                    "INSERT INTO song_downloads (sourceId, songId, status, bytes, total) VALUES " +
+                        "(1, 'f1', 'Completed', 1, 1), (1, 'f2', 'Running', 0, 1), (1, 'p1', 'Completed', 1, 1)",
+                )
+
+                MIGRATION_52_53.migrate(migrated)
+
+                val recorded = mutableListOf<String>()
+                migrated.prepare("SELECT kind || ':' || refId FROM download_collections ORDER BY kind, refId").use { row ->
+                    while (row.step()) recorded += row.getText(0)
+                }
+                assertEquals(listOf("Album:full", "Playlist:pl-full"), recorded)
             }
         }
 

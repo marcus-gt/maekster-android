@@ -275,6 +275,7 @@ class DownloadRepository(
         // below hands over at most IN_FLIGHT_LIMIT, which bounds the platform's queue.
         val promoted =
             mutex.withLock {
+                db.downloadDao().recordCollection(sourceId, list.name, refId)
                 songIds.forEach { songId ->
                     try {
                         queueIfAbsentLocked(sourceId, songId)
@@ -319,7 +320,7 @@ class DownloadRepository(
         list: DownloadList,
         refId: String,
     ) = withContext(dispatcher) {
-        mutex.withLock { removeListRows(sourceId, list, refId) { it.status.isActive } }
+        mutex.withLock { releaseList(sourceId, list, refId) { it.status.isActive } }
     }
 
     suspend fun deleteAll(
@@ -327,8 +328,29 @@ class DownloadRepository(
         list: DownloadList,
         refId: String,
     ) = withContext(dispatcher) {
-        mutex.withLock { removeListRows(sourceId, list, refId) { it.status == DownloadStatus.Completed } }
+        mutex.withLock { releaseList(sourceId, list, refId) { it.status == DownloadStatus.Completed } }
     }
+
+    /**
+     * Forgets the list as a downloaded collection, then removes its [selecting] rows except the songs another
+     * recorded collection still holds: a song shared with a downloaded playlist survives removing its album.
+     */
+    private suspend fun releaseList(
+        sourceId: Long,
+        list: DownloadList,
+        refId: String,
+        selecting: (SongDownload) -> Boolean,
+    ) {
+        db.downloadDao().forgetCollection(sourceId, list.name, refId)
+        val retained = retainedSongIds(sourceId)
+        removeListRows(sourceId, list, refId) { selecting(it) && it.songId !in retained }
+    }
+
+    private suspend fun retainedSongIds(sourceId: Long): Set<String> =
+        db.downloadDao().collections(sourceId).flatMapTo(HashSet()) { collection ->
+            val kind = DownloadList.entries.firstOrNull { it.name == collection.kind } ?: return@flatMapTo emptyList()
+            songIds(sourceId, kind, collection.refId)
+        }
 
     /**
      * One binder call for the platform, one delete per chunk and one sweep, rather than a round of
@@ -366,7 +388,7 @@ class DownloadRepository(
         list: DownloadList,
         refId: String,
     ) = withContext(dispatcher) {
-        mutex.withLock { removeListRows(sourceId, list, refId) { true } }
+        mutex.withLock { releaseList(sourceId, list, refId) { true } }
     }
 
     suspend fun removeSource(sourceId: Long) =

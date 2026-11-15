@@ -7,6 +7,7 @@ import androidx.paging.PagingSource
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.data.db.LetterBucket
+import com.subtracks.data.db.LibraryCounts
 import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.albumCollectionsPageQuery
@@ -195,6 +196,9 @@ class LibraryRepository(
         sourceId: Long,
         limit: Int,
     ): Flow<List<AlbumSongItem>> = db.libraryDao().downloadedSongs(sourceId, limit)
+
+    /** How many of [sourceId]'s songs can play offline. */
+    fun downloadedSongCount(sourceId: Long): Flow<Int> = db.downloadDao().completedCount(sourceId)
 
     fun downloadedSongsPage(sourceId: Long): Flow<PagingData<AlbumSongItem>> = pager(60) { db.libraryDao().homeDownloadedSongs(sourceId) }
 
@@ -547,6 +551,9 @@ class LibraryRepository(
         playlistId: String,
         downloaded: Boolean,
     ): Flow<ListTotals> = db.libraryDao().playlistTotals(sourceId, playlistId, downloaded)
+
+    /** How many artists, albums, songs and playlists the mirror holds for [sourceId]. */
+    fun libraryCounts(sourceId: Long): Flow<LibraryCounts> = db.libraryDao().libraryCounts(sourceId)
 
     private val starLock = Mutex()
 

@@ -362,6 +362,23 @@ class QueueRepositoryTest {
         }
 
     @Test
+    fun theSavedPositionKnowsItsSongUntilTheCursorMoves() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.albumEntry(1, "al1")))
+            repository.setCursor(1)
+            repository.setPosition(1234, "s2")
+            repository.setCursor(1)
+            assertEquals("s2", repository.positionSongId())
+            assertEquals(1234L, repository.cursorPositionMs())
+
+            repository.setCursor(0)
+
+            assertEquals(null, repository.positionSongId())
+            assertEquals(0L, repository.cursorPositionMs())
+        }
+
+    @Test
     fun clearUpcomingKeepsTheCurrentContextTrackAndItsPosition() =
         runTest {
             seedLibrary()

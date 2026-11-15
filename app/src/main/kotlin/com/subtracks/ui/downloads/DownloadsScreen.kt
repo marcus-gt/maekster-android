@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,6 +78,7 @@ fun DownloadsRoute(
     viewModel: DownloadsViewModel = koinViewModel(),
 ) {
     val tree by viewModel.tree.collectAsStateWithLifecycle()
+    val transfers by viewModel.transfers.collectAsStateWithLifecycle()
     var pending by remember { mutableStateOf<DownloadDeleteTarget?>(null) }
     DismissOnRequest(dismissals) { pending = null }
     DownloadsScreen(
@@ -90,6 +92,9 @@ fun DownloadsRoute(
             }
         },
         onCancel = viewModel::cancelSongs,
+        transfers = transfers,
+        onRetry = viewModel::retry,
+        onCancelTransfer = viewModel::cancelTransfer,
     )
     when (val dialog = pending) {
         is DownloadDeleteTarget.All -> {
@@ -125,6 +130,9 @@ fun DownloadsScreen(
     onDelete: (DownloadDeleteTarget) -> Unit,
     onCancel: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
+    transfers: List<DownloadedSong> = emptyList(),
+    onRetry: (DownloadedSong) -> Unit = {},
+    onCancelTransfer: (DownloadedSong) -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(emptySet<String>()) }
     Scaffold(
@@ -148,6 +156,19 @@ fun DownloadsScreen(
             modifier = Modifier.padding(padding).fillMaxSize(),
             contentPadding = PaddingValues(bottom = 24.dp),
         ) {
+            if (transfers.isNotEmpty()) {
+                item(key = "transfers") {
+                    Text(
+                        stringResource(R.string.downloads_transfers),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+                    )
+                }
+                items(transfers, key = { "transfer:${it.songId}" }) { song ->
+                    TransferRow(song, onRetry = { onRetry(song) }, onCancel = { onCancelTransfer(song) })
+                }
+            }
             item {
                 SummaryRow(tree, onDelete)
             }
@@ -226,6 +247,59 @@ fun DownloadsScreen(
             }
         }
     }
+}
+
+/** One song not yet on the device: its state (with the reason when it failed), progress, and Retry or Cancel. */
+@Composable
+private fun TransferRow(
+    song: DownloadedSong,
+    onRetry: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(song.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        supportingContent = {
+            Column {
+                val status =
+                    when (song.status) {
+                        DownloadStatus.Running -> stringResource(R.string.status_downloading)
+                        DownloadStatus.Failed -> song.error?.let { stringResource(it.messageRes) } ?: stringResource(R.string.status_failed)
+                        else -> stringResource(R.string.status_queued)
+                    }
+                Text(status, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (song.status == DownloadStatus.Running) {
+                    val progress = song.progress
+                    val bar = Modifier.fillMaxWidth().padding(top = 4.dp)
+                    if (progress ==
+                        null
+                    ) {
+                        LinearProgressIndicator(modifier = bar)
+                    } else {
+                        LinearProgressIndicator(progress = { progress }, modifier = bar)
+                    }
+                    if (song.total > 0) {
+                        Text(
+                            stringResource(R.string.download_progress_bytes, size(song.bytes), size(song.total)),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                }
+            }
+        },
+        trailingContent = {
+            Row {
+                if (song.status == DownloadStatus.Failed) {
+                    IconButton(onClick = onRetry) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.download_retry_of, song.title))
+                    }
+                }
+                IconButton(onClick = onCancel) {
+                    Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.download_cancel_of, song.title))
+                }
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
 }
 
 @Composable

@@ -154,8 +154,10 @@ fun SettingsRoute(
     page: SettingsPage? = null,
     onOpenPage: (SettingsPage) -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
+    storageViewModel: StorageViewModel = koinViewModel(),
     uiMessages: UiMessages = koinInject(),
 ) {
+    val storage by storageViewModel.ui.collectAsStateWithLifecycle()
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val activeSourceId by viewModel.activeSourceId.collectAsStateWithLifecycle()
     val needsSignIn by viewModel.needsSignIn.collectAsStateWithLifecycle()
@@ -248,6 +250,9 @@ fun SettingsRoute(
         dismissals = dismissals,
         page = page,
         onOpenPage = onOpenPage,
+        storage = storage,
+        onClearArtwork = storageViewModel::clearArtwork,
+        onSyncNow = storageViewModel::syncNow,
     )
 }
 
@@ -308,6 +313,9 @@ fun SettingsScreen(
     onLrclibAllowedChange: (Boolean) -> Unit = {},
     onShowCurrentLyricLineChange: (Boolean) -> Unit = {},
     onLyricsTimingOffsetChange: (Int) -> Unit = {},
+    storage: StorageUi = StorageUi(),
+    onClearArtwork: () -> Unit = {},
+    onSyncNow: () -> Unit = {},
 ) {
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     DismissOnRequest(dismissals) { dialog = null }
@@ -505,7 +513,9 @@ fun SettingsScreen(
                             onClick = onOpenDownloads,
                         )
                     }
+                    item { ArtworkStorageSection(storage, onClearArtwork) }
                     item { SectionHeader(stringResource(R.string.settings_library_sync_name)) }
+                    item { LibraryStorageRows(storage, onSyncNow) }
                     item {
                         ValueRow(
                             title = stringResource(R.string.settings_sync_auto_title),
@@ -762,7 +772,7 @@ private fun LazyListScope.rootItems(
 
 /** A setting that opens a dialog; [value] shows its current choice. */
 @Composable
-private fun ValueRow(
+internal fun ValueRow(
     title: String,
     value: String,
     onClick: () -> Unit,
@@ -805,7 +815,7 @@ private fun SwitchRow(
 
 /** A row with a leading icon that runs [onClick], or just informs when it is null. */
 @Composable
-private fun ActionRow(
+internal fun ActionRow(
     title: String,
     icon: ImageVector,
     onClick: (() -> Unit)?,
@@ -822,6 +832,7 @@ private fun ActionRow(
 
 @Composable
 private fun qualityLabel(quality: StreamQuality): String {
+    QualityPreset.of(quality)?.let { return stringResource(it.label) }
     val resources = LocalResources.current
     val format = quality.format ?: stringResource(R.string.stream_quality_server_default)
     return stringResource(R.string.download_status_summary, format, bitrateLabel(resources, quality.maxBitrate))
@@ -1179,6 +1190,8 @@ private fun QualityDialog(
 ) {
     val resources = LocalResources.current
     var draft by remember(quality) { mutableStateOf(quality) }
+    // iOS's presets come first; Custom reveals any bitrate and format and keeps the current choice.
+    var custom by remember(quality) { mutableStateOf(QualityPreset.of(quality) == null) }
     val scrollState = rememberScrollState()
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1187,22 +1200,36 @@ private fun QualityDialog(
             Box {
                 Column(modifier = Modifier.verticalScroll(scrollState)) {
                     ChoiceGroup(
-                        header = stringResource(R.string.maximum_bitrate),
-                        options = bitrateOptions.map { it to bitrateLabel(resources, it) },
-                        selected = draft.maxBitrate,
-                        onSelect = { draft = draft.copy(maxBitrate = it) },
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    ChoiceGroup(
-                        header = stringResource(R.string.settings_network_options_stream_format),
+                        header = stringResource(R.string.quality_title),
                         options =
-                            streamFormats.map {
-                                it to
-                                    (it ?: resources.getString(R.string.settings_network_options_stream_format_server_default))
-                            },
-                        selected = draft.format,
-                        onSelect = { draft = draft.copy(format = it) },
+                            QualityPreset.entries.map { it to resources.getString(it.label) } +
+                                (null to resources.getString(R.string.quality_custom)),
+                        selected = if (custom) null else QualityPreset.of(draft),
+                        onSelect = { preset ->
+                            custom = preset == null
+                            if (preset != null) draft = preset.quality
+                        },
                     )
+                    if (custom) {
+                        Spacer(Modifier.height(16.dp))
+                        ChoiceGroup(
+                            header = stringResource(R.string.maximum_bitrate),
+                            options = bitrateOptions.map { it to bitrateLabel(resources, it) },
+                            selected = draft.maxBitrate,
+                            onSelect = { draft = draft.copy(maxBitrate = it) },
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        ChoiceGroup(
+                            header = stringResource(R.string.settings_network_options_stream_format),
+                            options =
+                                streamFormats.map {
+                                    it to
+                                        (it ?: resources.getString(R.string.settings_network_options_stream_format_server_default))
+                                },
+                            selected = draft.format,
+                            onSelect = { draft = draft.copy(format = it) },
+                        )
+                    }
                 }
                 if (scrollState.canScrollForward) {
                     Box(
@@ -1257,7 +1284,7 @@ private fun <T> ChoiceGroup(
 }
 
 @Composable
-private fun SectionHeader(text: String) {
+internal fun SectionHeader(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleLarge,

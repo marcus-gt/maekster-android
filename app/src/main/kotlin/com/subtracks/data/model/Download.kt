@@ -68,6 +68,28 @@ internal fun fractionOf(
 
 enum class DownloadList { Album, Playlist, Artist }
 
+/**
+ * An album, playlist or artist the user downloaded as a whole. Removing one keeps the songs another recorded
+ * collection still holds (iOS collection ownership); [kind] is a [DownloadList] name.
+ */
+@Entity(
+    tableName = "download_collections",
+    primaryKeys = ["sourceId", "kind", "refId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = Source::class,
+            parentColumns = ["id"],
+            childColumns = ["sourceId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+)
+data class DownloadCollection(
+    val sourceId: Long,
+    val kind: String,
+    val refId: String,
+)
+
 enum class BulkDownloadAction { Download, Cancel, Delete }
 
 data class ListDownloadStatus(
@@ -102,6 +124,7 @@ data class DownloadedSong(
     val artistSort: String = artistName.orEmpty(),
     val albumSort: String = albumName.orEmpty(),
     val songSort: String = title,
+    val error: DownloadError? = null,
 ) {
     val progress: Float?
         get() = fractionOf(bytes, total)

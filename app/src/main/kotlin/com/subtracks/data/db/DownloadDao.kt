@@ -4,6 +4,7 @@ import androidx.room3.Dao
 import androidx.room3.Query
 import androidx.room3.Upsert
 import com.subtracks.data.model.DownloadArtwork
+import com.subtracks.data.model.DownloadCollection
 import com.subtracks.data.model.DownloadedSong
 import com.subtracks.data.model.EntityDownloadStatus
 import com.subtracks.data.model.ListDownloadStatus
@@ -61,6 +62,27 @@ interface DownloadDao {
 
     @Query("SELECT * FROM song_downloads ORDER BY rowid")
     suspend fun all(): List<SongDownload>
+
+    @Query("INSERT OR IGNORE INTO download_collections (sourceId, kind, refId) VALUES (:sourceId, :kind, :refId)")
+    suspend fun recordCollection(
+        sourceId: Long,
+        kind: String,
+        refId: String,
+    )
+
+    @Query("DELETE FROM download_collections WHERE sourceId = :sourceId AND kind = :kind AND refId = :refId")
+    suspend fun forgetCollection(
+        sourceId: Long,
+        kind: String,
+        refId: String,
+    )
+
+    @Query("SELECT * FROM download_collections WHERE sourceId = :sourceId")
+    suspend fun collections(sourceId: Long): List<DownloadCollection>
+
+    /** How many songs of [sourceId] are fully on the device. */
+    @Query("SELECT COUNT(*) FROM song_downloads WHERE sourceId = :sourceId AND status = 'Completed'")
+    fun completedCount(sourceId: Long): Flow<Int>
 
     @Query(
         "SELECT COALESCE((SELECT songCount FROM artists " +
@@ -151,7 +173,7 @@ interface DownloadDao {
             "d.bytes AS bytes, d.total AS total, " +
             "COALESCE(NULLIF(ar.sortName, ''), NULLIF(al.albumArtistSort, ''), ar.name, al.albumArtist, '') AS artistSort, " +
             "COALESCE(NULLIF(al.sortName, ''), al.name, '') AS albumSort, " +
-            "COALESCE(NULLIF(s.sortName, ''), s.title, '') AS songSort " +
+            "COALESCE(NULLIF(s.sortName, ''), s.title, '') AS songSort, d.error AS error " +
             "FROM song_downloads d " +
             "JOIN songs s ON s.sourceId = d.sourceId AND s.id = d.songId " +
             "LEFT JOIN albums al ON al.sourceId = s.sourceId AND al.id = s.albumId " +

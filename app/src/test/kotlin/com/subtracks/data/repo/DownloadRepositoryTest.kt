@@ -1418,6 +1418,106 @@ class DownloadRepositoryTest {
         songCount = 2,
     )
 
+    /** Downloads [lists] as collections, then marks [songIds] finished with files on disk. */
+    private fun downloadedCollections(
+        vararg lists: Pair<DownloadList, String>,
+        songIds: List<String> = listOf("s1", "s2"),
+    ) {
+        runBlocking {
+            lists.forEach { (list, refId) -> repository.downloadAll(1, list, refId) }
+            songIds.forEach {
+                db.downloadDao().upsert(SongDownload(1, it, DownloadStatus.Completed, bytes = 5, total = 5))
+                writeFile(1, it, "audio")
+            }
+        }
+    }
+
+    @Test
+    fun removingAnAlbumKeepsTheSongsADownloadedPlaylistHolds() =
+        runTest {
+            seedLibrary()
+            seedPlaylist(listOf("s1"))
+            downloadedCollections(DownloadList.Album to "al1", DownloadList.Playlist to "pl1")
+
+            runBlocking { repository.deleteAll(1, DownloadList.Album, "al1") }
+
+            assertNotNull(row(1, "s1"))
+            assertTrue(file(1, "s1").exists())
+            assertNull(row(1, "s2"))
+            assertFalse(file(1, "s2").exists())
+        }
+
+    @Test
+    fun removingAPlaylistKeepsTheAlbumSongsAndTheAlbumThenTakesThemAll() =
+        runTest {
+            seedLibrary()
+            seedPlaylist(listOf("s1", "s2"))
+            downloadedCollections(DownloadList.Album to "al1", DownloadList.Playlist to "pl1")
+
+            runBlocking { repository.removeList(1, DownloadList.Playlist, "pl1") }
+            assertEquals(setOf("s1", "s2"), allRows().map { it.songId }.toSet())
+
+            runBlocking { repository.deleteAll(1, DownloadList.Album, "al1") }
+            assertTrue(allRows().isEmpty())
+            assertFalse(file(1, "s1").exists())
+        }
+
+    @Test
+    fun cancellingAListKeepsTheTransfersAnotherCollectionStillNeeds() =
+        runTest {
+            seedLibrary()
+            seedPlaylist(listOf("s1"))
+            runBlocking {
+                repository.downloadAll(1, DownloadList.Album, "al1")
+                repository.downloadAll(1, DownloadList.Playlist, "pl1")
+            }
+            assertTrue(allRows().all { it.status == DownloadStatus.Queued || it.status == DownloadStatus.Running })
+
+            runBlocking { repository.cancelAll(1, DownloadList.Album, "al1") }
+
+            assertNotNull(row(1, "s1"))
+            assertNull(row(1, "s2"))
+        }
+
+    @Test
+    fun onlyCompletedSongsCountAsAvailableOffline() =
+        runTest {
+            seedLibrary()
+            runBlocking {
+                db.downloadDao().upsert(SongDownload(1, "s1", DownloadStatus.Completed))
+                db.downloadDao().upsert(SongDownload(1, "s2", DownloadStatus.Running))
+                assertEquals(1, db.downloadDao().completedCount(1).first())
+                db.downloadDao().upsert(SongDownload(1, "s2", DownloadStatus.Failed))
+                assertEquals(1, db.downloadDao().completedCount(1).first())
+                assertEquals(0, db.downloadDao().completedCount(2).first())
+            }
+        }
+
+    @Test
+    fun theManagementViewCarriesWhyADownloadFailed() =
+        runTest {
+            seedLibrary()
+            runBlocking { db.downloadDao().upsert(SongDownload(1, "s1", DownloadStatus.Failed, error = DownloadError.NoSpace)) }
+
+            val song = runBlocking { repository.downloadedSongs(1).first() }.single()
+
+            assertEquals(DownloadStatus.Failed, song.status)
+            assertEquals(DownloadError.NoSpace, song.error)
+        }
+
+    @Test
+    fun removingOneSongDeletesItEvenWhenADownloadedPlaylistHoldsIt() =
+        runTest {
+            seedLibrary()
+            seedPlaylist(listOf("s1"))
+            downloadedCollections(DownloadList.Playlist to "pl1", songIds = listOf("s1"))
+
+            runBlocking { repository.remove(1, "s1") }
+
+            assertNull(row(1, "s1"))
+            assertFalse(file(1, "s1").exists())
+        }
+
     private fun seedLibrary(address: String = "http://localhost:4533/") {
         runBlocking {
             db.sourcesDao().upsertSource(Source(1, "source", address, isActive = true, createdAt = 0))

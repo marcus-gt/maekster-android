@@ -3502,6 +3502,81 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun restoringAfterTheSavedSongWasDeletedStartsTheNextTrackFromItsBeginning() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 1)
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+        runBlocking {
+            queues.setPosition(12_000L, "s2")
+            // A sync removed the song that was playing.
+            db.libraryDao().deleteSongs(1, listOf("s2"))
+        }
+
+        val restoredHandle = FakePlayerHandle()
+        val restored = controllerOn(dispatcher, restoredHandle)
+        restored.connect()
+        await {
+            restored.state.value.item
+                ?.id == "s3"
+        }
+
+        assertEquals(0L, restored.positionMs.value)
+        assertEquals(
+            "setWindow(size=2, start=1, position=0)",
+            restoredHandle.operations.first { it.startsWith("setWindow") },
+        )
+        assertEquals(0L, runBlocking { queues.cursorPositionMs() })
+    }
+
+    @Test
+    fun restoringFollowsTheSavedSongWhenATrackWasAddedBeforeIt() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 1)
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+        runBlocking {
+            queues.setPosition(12_000L, "s2")
+            // A sync added an earlier track, so the saved cursor now points at the song before s2.
+            db.libraryDao().upsertSongs(
+                listOf(
+                    Song(
+                        sourceId = 1,
+                        id = "s0",
+                        albumId = "al1",
+                        artistId = "ar1",
+                        title = "Song 0",
+                        album = "Album",
+                        artist = "Artist",
+                        duration = 100,
+                        track = 0,
+                        disc = 1,
+                        starred = null,
+                        genre = null,
+                    ),
+                ),
+            )
+        }
+
+        val restoredHandle = FakePlayerHandle()
+        val restored = controllerOn(dispatcher, restoredHandle)
+        restored.connect()
+        await { restored.state.value.item != null }
+
+        assertEquals(
+            "s2",
+            restored.state.value.item
+                ?.id,
+        )
+        assertEquals(12_000L, restored.positionMs.value)
+        assertEquals(2L, runBlocking { queues.cursor() })
+    }
+
+    @Test
     fun restoringResumesFromTheSavedPosition() {
         seedAlbum(3, sourceId = 1)
         controller.playAlbum(1, "al1", 0)

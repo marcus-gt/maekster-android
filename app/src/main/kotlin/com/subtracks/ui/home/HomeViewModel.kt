@@ -78,6 +78,14 @@ class HomeViewModel(
 
     private val activeSource = libraryRepository.activeSourceId.filterNotNull()
 
+    /** Songs playable offline for the offline Home card; null until counted. */
+    val offlineSongCount: StateFlow<Int?> =
+        activeSource
+            .flatMapLatest { libraryRepository.downloadedSongCount(it) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun turnOffOfflineMode() = sourceRepository.setOfflineMode(false)
+
     val pins: Flow<PagingData<PinnedItem>> =
         activeSource.flatMapLatest { libraryRepository.pinnedItems(it) }.cachedIn(viewModelScope)
 

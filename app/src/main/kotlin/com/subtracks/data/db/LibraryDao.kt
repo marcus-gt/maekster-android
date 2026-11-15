@@ -282,11 +282,27 @@ internal val ARTIST_AGGREGATES_SQL =
 internal val ALBUMS_FOR_ARTIST_DOWNLOADED =
     "SELECT * FROM ($DOWNLOADED_ALBUM_DETAILS_FOR_ARTIST) ORDER BY year DESC, sortName COLLATE NOCASE, id"
 
+/** How much of one server's library the mirror holds. */
+data class LibraryCounts(
+    val artists: Long = 0,
+    val albums: Long = 0,
+    val songs: Long = 0,
+    val playlists: Long = 0,
+)
+
 @Dao
 @DaoReturnTypeConverters(PagingSourceDaoReturnTypeConverter::class)
 interface LibraryDao {
     @Upsert
     suspend fun upsertArtists(items: List<Artist>)
+
+    @Query(
+        "SELECT (SELECT COUNT(*) FROM artists WHERE sourceId = :sourceId) AS artists, " +
+            "(SELECT COUNT(*) FROM albums WHERE sourceId = :sourceId) AS albums, " +
+            "(SELECT COUNT(*) FROM songs WHERE sourceId = :sourceId) AS songs, " +
+            "(SELECT COUNT(*) FROM playlists WHERE sourceId = :sourceId) AS playlists",
+    )
+    fun libraryCounts(sourceId: Long): Flow<LibraryCounts>
 
     @Upsert
     suspend fun upsertAlbums(items: List<Album>)
@@ -339,6 +355,8 @@ interface LibraryDao {
     @RawQuery
     suspend fun recomputeDownloadedArtistArt(query: RoomRawQuery): Int
 
+    // Room runs a @RawQuery on a read-only pooled connection; the transaction moves this UPDATE to the writer.
+    @Transaction
     suspend fun recomputeDownloadedArtistArt(
         sourceId: Long,
         artistIds: List<String>,

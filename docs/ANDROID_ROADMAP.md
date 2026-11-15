@@ -469,8 +469,8 @@ showed real server plain lyrics. Synced and LRCLIB lyrics on a device remain unc
 See `docs/handoffs/M2.8-lyrics-pane.md`.
 M2.8 implementation review (13 Nov): every slice item (pane, preview, sources, offset, cache,
 LRCLIB disclosure) is in place. Open decision: prefetching lyrics when a song is downloaded was only
-a suggested technique in FEATURE_PARITY; iOS does not do it and it would batch LRCLIB requests, so it
-waits for a product decision. Device checks (embedded LRC, LRCLIB fallback) remain open.
+a suggested technique in FEATURE_PARITY; iOS does not do it and it would batch LRCLIB requests.
+Decided 15 Nov 2026: follow iOS, so no prefetch. Device checks (embedded LRC, LRCLIB fallback) remain open.
 
 **M2.9 status (13 Nov 2026):** in progress. Part A adds the playlist write foundation: a
 `PlaylistWriter` interface and its Subsonic implementation (create, rename, comment, append, remove,
@@ -589,6 +589,45 @@ Membership toggles are done: rows show none/some/all marks from the mirror; tapp
 removes every occurrence (positions from a fresh server read, with confirmation for several songs),
 and any other tap fills in only the missing songs. The duplicate prompt is gone, as on iOS. Marks were
 verified on API 37; an on-device removal awaits authorization. See `docs/handoffs/M2.9-membership-toggles.md`.
+**M2.9 status (14 Nov 2026):** implementation complete (Navidrome-only verification, issue #11).
+
+**M2.10 status (14 Nov 2026):** in progress. Part A adds download collection ownership (schema 53,
+`download_collections`, backfilled for fully downloaded albums/playlists): removing or cancelling an
+album, playlist or artist keeps the songs another downloaded collection holds, while removing one song
+still deletes it (iOS `OfflineLibraryRemovalPlanner`). See `docs/handoffs/M2.10-download-ownership.md`.
+Part B adds a Transfers section to the Downloads screen (iOS DownloadActivitySection): every song not yet
+on the device with Downloading (progress, bytes), Queued or the failure reason, plus Retry for failures
+and Cancel. See `docs/handoffs/M2.10-download-transfers.md`.
+Part C extends Settings > Storage: cover cache size with "Clear artwork cache" (confirmed; download
+artwork kept), and under Library sync the active server's counts, database size and "Sync library now".
+See `docs/handoffs/M2.10-storage-page.md`.
+Part D leads offline Home with an offline card (iOS OfflineHomeCard): "Offline mode", the number of songs
+available offline (opening them when there are any) and "Turn off offline mode". See
+`docs/handoffs/M2.10-offline-home-card.md`.
+**M2.10 status (14 Nov 2026):** complete. The emulator check passed for Storage, Transfers (progress,
+bytes, cancel) and the offline Home card. It also found and fixed a crash: the downloaded-artist-art
+refresh, a `@RawQuery` UPDATE outside a transaction, ran on a read-only pooled connection (regression
+from b2a1716b). See `docs/handoffs/M2.10-emulator-check.md`.
+
+**M2.11 status (14 Nov 2026):** in progress. Part A (C11, D8): swiping the app away keeps music playing.
+A paused, ended or empty player still stops the service. Emulator-verified. See
+`docs/handoffs/M2.11-swipe-away.md`.
+Part B: the Wi-Fi, Mobile and Download quality dialogs lead with iOS's presets (Original, MP3 320, MP3
+192) plus Custom, which reveals any bitrate and format; rows name the preset. Storage is unchanged. See
+`docs/handoffs/M2.11-quality-presets.md`.
+Part C: the cursor now records which song its saved time belongs to (schema 54, `positionSongId`).
+Restore follows that song within one bounded window when a sync shifted the queue. When the song was
+deleted, the next track starts from 0:00 instead of at the old song's time. A queue from another source
+still stops (existing test). The process-death restore was checked on the emulator. See
+`docs/handoffs/M2.11-restore-edge-cases.md`.
+**M2.11 status (15 Nov 2026):** complete. Open follow-up: an adb media key replaced the queue on the
+emulator (cause unknown; see the Part C handoff).
+
+**Milestone 2 status (15 Nov 2026):** every slice is implemented, and `FEATURE_PARITY.md` statuses have
+been refreshed. Decisions: M2.8 follows iOS (no lyrics prefetch on download). The M2.9 on-device
+removal was authorized and verified. Airplane-mode recovery was checked on the emulator; the media-key
+queue swap could not be reproduced. Still open: the proxy, lyrics and physical-device checks, and the
+other servers (issue #11). See `docs/handoffs/M2-closeout.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

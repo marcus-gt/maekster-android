@@ -14,3 +14,17 @@ fun createTestDatabase(driver: SQLiteDriver = BundledSQLiteDriver()): SubtracksD
         .addSubtracksDatabaseCallbacks()
         .build()
 }
+
+/**
+ * A file-backed database with the same pooled connections as the app: separate read-only reader connections
+ * and one writer. An in-memory database has a single connection, so it cannot catch a write sent to a reader.
+ */
+fun createFileTestDatabase(name: String = "file-test.db"): SubtracksDatabase {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    context.deleteDatabase(name)
+    return Room
+        .databaseBuilder<SubtracksDatabase>(context, context.getDatabasePath(name).absolutePath)
+        .setDriver(BundledSQLiteDriver())
+        .addSubtracksDatabaseCallbacks()
+        .build()
+}

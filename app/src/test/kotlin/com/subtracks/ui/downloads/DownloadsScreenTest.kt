@@ -5,8 +5,10 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.R
 import com.subtracks.data.model.DownloadStatus
 import com.subtracks.data.model.DownloadedSong
 import com.subtracks.ui.theme.MaeksterTheme
@@ -68,6 +70,46 @@ class DownloadsScreenTest {
 
         composeRule.onAllNodesWithContentDescription("Cancel download", substring = true).assertCountEquals(3)
         composeRule.onAllNodesWithContentDescription("Delete download of Done").assertCountEquals(1)
+    }
+
+    @Test
+    fun transfersShowEachStateAndOfferRetryOnlyForFailures() {
+        val queued = active.copy(songId = "s3", title = "Waiting", status = DownloadStatus.Queued, bytes = 0, total = 0)
+        val failed =
+            active.copy(
+                songId = "s4",
+                title = "Broken",
+                status = DownloadStatus.Failed,
+                error = com.subtracks.data.model.DownloadError.ServerRefused,
+            )
+        val retried = mutableListOf<String>()
+        val cancelled = mutableListOf<String>()
+        composeRule.setContent {
+            MaeksterTheme {
+                DownloadsScreen(
+                    tree = DownloadTree(artists = listOf(artist("ar1", "Artist", listOf(active, queued, failed, done)))),
+                    loadEncoding = { null },
+                    onBack = {},
+                    onDelete = {},
+                    onCancel = {},
+                    transfers = transfersOf(listOf(failed, queued, done, active)),
+                    onRetry = { retried += it.songId },
+                    onCancelTransfer = { cancelled += it.songId },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Transfers").assertExists()
+        composeRule.onNodeWithText("Downloading").assertExists()
+        composeRule.onNodeWithText("40 B of 100 B").assertExists()
+        composeRule.onNodeWithText("Queued").assertExists()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.error_download_server_refused)).assertExists()
+        composeRule.onAllNodesWithContentDescription("Retry download", substring = true).assertCountEquals(1)
+        composeRule.onNodeWithContentDescription("Retry download of Broken").performClick()
+        composeRule.onAllNodesWithContentDescription("Cancel download of Waiting")[0].performClick()
+        assertEquals(listOf("s4"), retried)
+        assertEquals(listOf("s3"), cancelled)
+        assertEquals(listOf("s1", "s3", "s4"), transfersOf(listOf(failed, queued, done, active)).map { it.songId })
     }
 
     private fun artist(

@@ -917,6 +917,28 @@ class LibraryDaoTest {
         }
 
     @Test
+    fun downloadedArtistArtWritesThroughPooledConnections() =
+        runTest {
+            // DownloadRepository calls this outside any transaction; a @RawQuery alone runs on a read-only reader.
+            db.close()
+            db = createFileTestDatabase()
+            val sourceId = source()
+            val dao = db.libraryDao()
+            dao.upsertArtists(listOf(artist(sourceId, "ar-1", "Artist", albumCount = 1)))
+            dao.upsertAlbums(
+                listOf(album(sourceId, "al-1", "One", year = 2020, starred = null).copy(artistId = "ar-1", coverArt = "art-1")),
+            )
+            dao.upsertSongs(
+                listOf(song(sourceId, "s1", "One", starred = null).copy(albumId = "al-1", artistId = "ar-1")),
+            )
+            db.downloadDao().upsert(SongDownload(sourceId, "s1", DownloadStatus.Completed))
+
+            dao.recomputeDownloadedArtistArt(sourceId, listOf("ar-1"))
+
+            assertEquals(listOf("art-1"), dao.artistOnce(sourceId, "ar-1")!!.downloadedCoverArts)
+        }
+
+    @Test
     fun freshDatabaseOptimizesArtistSearchTriggers() =
         runTest {
             val triggers =
