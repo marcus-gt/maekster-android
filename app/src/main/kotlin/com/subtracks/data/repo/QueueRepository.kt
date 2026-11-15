@@ -1052,15 +1052,27 @@ class QueueRepository(
 
     suspend fun sourceLabel(): String? = dao.cursor()?.sourceLabel
 
-    suspend fun setPosition(positionMs: Long) =
-        cursorMutex.withLock {
-            dao.setCursor(cursorRow().copy(positionMs = positionMs.coerceAtLeast(0)))
-        }
+    /** The song the saved position belongs to, or null when unknown (older rows, or nothing saved yet). */
+    suspend fun positionSongId(): String? = dao.cursor()?.positionSongId
+
+    /** Saves the playback time in [songId], so a restore can tell when the queue shifted under it. */
+    suspend fun setPosition(
+        positionMs: Long,
+        songId: String? = null,
+    ) = cursorMutex.withLock {
+        dao.setCursor(cursorRow().copy(positionMs = positionMs.coerceAtLeast(0), positionSongId = songId))
+    }
 
     suspend fun setCursor(position: Long) =
         cursorMutex.withLock {
             val row = cursorRow()
-            dao.setCursor(row.copy(queuePosition = position, positionMs = if (row.queuePosition == position) row.positionMs else 0))
+            dao.setCursor(
+                if (row.queuePosition == position) {
+                    row
+                } else {
+                    row.copy(queuePosition = position, positionMs = 0, positionSongId = null)
+                },
+            )
         }
 
     private suspend fun cursorRow(): PlaybackCursor = dao.cursor() ?: PlaybackCursor(queuePosition = 0)

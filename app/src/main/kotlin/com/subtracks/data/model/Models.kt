@@ -609,6 +609,8 @@ data class PlaybackCursor(
     val sourceLabel: String? = null,
     val shuffleRemoved: String? = null,
     @ColumnInfo(defaultValue = "0") val shuffleLinear: Boolean = false,
+    // The song positionMs was saved on; null for rows written before schema 54.
+    val positionSongId: String? = null,
 )
 
 @Entity(

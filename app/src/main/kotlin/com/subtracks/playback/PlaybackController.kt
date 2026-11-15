@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 import kotlin.random.Random
 
 data class QueueItem(
@@ -1101,7 +1102,8 @@ class PlaybackController(
         networkRetry = null
         player?.seekTo(positionMs)
         lastSavedPositionMs = positionMs
-        scope.launch { queueRepository.setPosition(positionMs) }
+        val songId = player?.currentItem?.id
+        scope.launch { queueRepository.setPosition(positionMs, songId) }
     }
 
     fun coverArt(
@@ -1238,18 +1240,46 @@ class PlaybackController(
                 return@withLock
             }
             this.queueSourceId = queueSourceId
-            val savedPositionMs = queueRepository.cursorPositionMs().coerceAtLeast(0)
+            var savedPositionMs = queueRepository.cursorPositionMs().coerceAtLeast(0)
+            val savedSongId = queueRepository.positionSongId()
             val cursor = queueRepository.cursor().coerceIn(0, snapshot.size - 1)
             val anchor = queueRepository.reanchorFor(snapshot, cursor)
             if (anchor.changed) {
                 snapshot = queueRepository.snapshot()
                 this.snapshot = snapshot
                 queueRepository.setCursor(anchor.position)
-                queueRepository.setPosition(savedPositionMs)
+                queueRepository.setPosition(savedPositionMs, savedSongId)
+            }
+            var start = anchor.position
+            if (savedSongId != null) {
+                // A sync may have added or removed songs since the save, shifting positions. Find the saved
+                // song near the cursor; if it is gone, resume the track now at the cursor from its start.
+                val found = restoredSongPosition(snapshot, start, savedSongId)
+                if (found == null) {
+                    Log.i("playback", "restore: saved song $savedSongId is gone; starting the next track")
+                    savedPositionMs = 0
+                    queueRepository.setPosition(0, null)
+                } else if (found != start) {
+                    start = found
+                    queueRepository.setCursor(found)
+                    queueRepository.setPosition(savedPositionMs, savedSongId)
+                }
             }
             lastSavedPositionMs = savedPositionMs
-            loadWindow(anchor.position, autoplay = false, startPositionMs = savedPositionMs)
+            loadWindow(start, autoplay = false, startPositionMs = savedPositionMs)
         }
+
+    /** The position of [songId] closest to [cursor] within one bounded window, or null when it is not there. */
+    private suspend fun restoredSongPosition(
+        snapshot: QueueSnapshot,
+        cursor: Long,
+        songId: String,
+    ): Long? =
+        queueRepository
+            .window(snapshot, cursor, QUEUE_WINDOW_RADIUS)
+            .filter { it.item.song.id == songId }
+            .minByOrNull { abs(it.position - cursor) }
+            ?.position
 
     private suspend fun stop() = startLock.withLock { stopLocked() }
 
@@ -1861,7 +1891,7 @@ class PlaybackController(
                     }
                     if (positionMs - lastSavedPositionMs >= POSITION_SAVE_INTERVAL_MS || positionMs < lastSavedPositionMs) {
                         lastSavedPositionMs = positionMs
-                        queueRepository.setPosition(positionMs)
+                        queueRepository.setPosition(positionMs, player.currentItem?.id)
                     }
                 }
             }
@@ -1871,7 +1901,8 @@ class PlaybackController(
         val player = player ?: return
         val positionMs = player.currentPositionMs
         lastSavedPositionMs = positionMs
-        scope.launch { queueRepository.setPosition(positionMs) }
+        val songId = player.currentItem?.id
+        scope.launch { queueRepository.setPosition(positionMs, songId) }
     }
 
     private fun stopPositionTicker() {

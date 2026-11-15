@@ -936,6 +936,13 @@ val MIGRATION_52_53 =
         }
     }
 
+val MIGRATION_53_54 =
+    object : Migration(53, 54) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL("ALTER TABLE playback_cursor ADD COLUMN positionSongId TEXT")
+        }
+    }
+
 val MIGRATION_47_48 =
     object : Migration(47, 48) {
         override suspend fun migrate(connection: SQLiteConnection) {
@@ -1036,4 +1043,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_50_51,
         MIGRATION_51_52,
         MIGRATION_52_53,
+        MIGRATION_53_54,
     )

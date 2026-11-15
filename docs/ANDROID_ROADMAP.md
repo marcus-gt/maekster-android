@@ -614,7 +614,14 @@ A paused, ended or empty player still stops the service. Emulator-verified. See
 `docs/handoffs/M2.11-swipe-away.md`.
 Part B: the Wi-Fi, Mobile and Download quality dialogs lead with iOS's presets (Original, MP3 320, MP3
 192) plus Custom, which reveals any bitrate and format; rows name the preset. Storage is unchanged. See
-`docs/handoffs/M2.11-quality-presets.md`. Next: restore edge cases (deleted song, changed source).
+`docs/handoffs/M2.11-quality-presets.md`.
+Part C: the cursor now records which song its saved time belongs to (schema 54, `positionSongId`).
+Restore follows that song within one bounded window when a sync shifted the queue. When the song was
+deleted, the next track starts from 0:00 instead of at the old song's time. A queue from another source
+still stops (existing test). The process-death restore was checked on the emulator. See
+`docs/handoffs/M2.11-restore-edge-cases.md`.
+**M2.11 status (15 Nov 2026):** complete. Open follow-up: an adb media key replaced the queue on the
+emulator (cause unknown; see the Part C handoff).
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,

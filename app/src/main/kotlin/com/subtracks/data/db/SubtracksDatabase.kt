@@ -84,7 +84,7 @@ import com.subtracks.data.model.UpNextEntry
         QuickPlaylist::class,
         DownloadCollection::class,
     ],
-    version = 53,
+    version = 54,
     exportSchema = true,
 )
 @ColumnTypeConverters(

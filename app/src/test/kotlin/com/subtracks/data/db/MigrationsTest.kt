@@ -74,6 +74,25 @@ class MigrationsTest {
         }
 
     @Test
+    fun thePositionSongMigrationKeepsTheCursorAndLeavesTheSongUnknown() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 53)
+                connection.execSQL(
+                    "INSERT INTO playback_cursor (id, queuePosition, positionMs, shuffleEnabled, repeatMode, " +
+                        "shuffleSeed, shuffleSize, upNextAnchor, sourceLabel) VALUES (1, 12, 3456, 0, 0, 0, 0, 0, 'Album')",
+                )
+                MIGRATION_53_54.migrate(connection)
+                connection.prepare("SELECT queuePosition, positionMs, positionSongId FROM playback_cursor").use { row ->
+                    assertTrue(row.step())
+                    assertEquals(12L, row.getLong(0))
+                    assertEquals(3456L, row.getLong(1))
+                    assertTrue(row.isNull(2))
+                }
+            }
+        }
+
+    @Test
     fun everyExportedVersionIsCoveredByAContiguousMigrationChain() {
         val chain = MIGRATIONS.sortedBy { it.startVersion }
         assertEquals(versions.dropLast(1), chain.map { it.startVersion })
