@@ -469,8 +469,8 @@ showed real server plain lyrics. Synced and LRCLIB lyrics on a device remain unc
 See `docs/handoffs/M2.8-lyrics-pane.md`.
 M2.8 implementation review (13 Nov): every slice item (pane, preview, sources, offset, cache,
 LRCLIB disclosure) is in place. Open decision: prefetching lyrics when a song is downloaded was only
-a suggested technique in FEATURE_PARITY; iOS does not do it and it would batch LRCLIB requests, so it
-waits for a product decision. Device checks (embedded LRC, LRCLIB fallback) remain open.
+a suggested technique in FEATURE_PARITY; iOS does not do it and it would batch LRCLIB requests.
+Decided 15 Nov 2026: follow iOS, so no prefetch. Device checks (embedded LRC, LRCLIB fallback) remain open.
 
 **M2.9 status (13 Nov 2026):** in progress. Part A adds the playlist write foundation: a
 `PlaylistWriter` interface and its Subsonic implementation (create, rename, comment, append, remove,
@@ -622,6 +622,12 @@ still stops (existing test). The process-death restore was checked on the emulat
 `docs/handoffs/M2.11-restore-edge-cases.md`.
 **M2.11 status (15 Nov 2026):** complete. Open follow-up: an adb media key replaced the queue on the
 emulator (cause unknown; see the Part C handoff).
+
+**Milestone 2 status (15 Nov 2026):** every slice is implemented, and `FEATURE_PARITY.md` statuses have
+been refreshed. Decisions: M2.8 follows iOS (no lyrics prefetch on download). The M2.9 on-device
+removal was authorized and verified. Airplane-mode recovery was checked on the emulator; the media-key
+queue swap could not be reproduced. Still open: the proxy, lyrics and physical-device checks, and the
+other servers (issue #11). See `docs/handoffs/M2-closeout.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
