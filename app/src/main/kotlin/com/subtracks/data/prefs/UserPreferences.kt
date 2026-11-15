@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.subtracks.data.listenbrainz.ListenBrainzApi
 import com.subtracks.data.lyrics.LyricsSource
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.source.DEFAULT_FETCH_CONCURRENCY
@@ -57,6 +58,14 @@ data class ListQuery(
     val descending: Boolean = false,
     val starred: StarredFilter = StarredFilter.Any,
     val downloaded: Boolean = false,
+)
+
+/** The ListenBrainz account; [tokenCiphertext] is sealed by `CredentialStore`, null when signed out. */
+data class ListenBrainzSettings(
+    val tokenCiphertext: String? = null,
+    val root: String = ListenBrainzApi.DEFAULT_ROOT,
+    val username: String? = null,
+    val enabled: Boolean = false,
 )
 
 data class StreamQuality(
@@ -216,6 +225,48 @@ class UserPreferences(
     }
 
     private val scrobblingKey = booleanPreferencesKey("scrobbling")
+
+    fun listenBrainz(): Flow<ListenBrainzSettings> =
+        store.data.map { prefs ->
+            ListenBrainzSettings(
+                tokenCiphertext = prefs[listenBrainzTokenKey],
+                root = prefs[listenBrainzRootKey] ?: ListenBrainzApi.DEFAULT_ROOT,
+                username = prefs[listenBrainzUserKey],
+                enabled = prefs[listenBrainzEnabledKey] ?: false,
+            )
+        }
+
+    /** Stores a validated account (the token already sealed) and turns ListenBrainz scrobbling on. */
+    suspend fun setListenBrainzAccount(
+        tokenCiphertext: String,
+        root: String,
+        username: String,
+    ) {
+        store.edit { prefs ->
+            prefs[listenBrainzTokenKey] = tokenCiphertext
+            prefs[listenBrainzRootKey] = root
+            prefs[listenBrainzUserKey] = username
+            prefs[listenBrainzEnabledKey] = true
+        }
+    }
+
+    suspend fun setListenBrainzEnabled(enabled: Boolean) {
+        store.edit { prefs -> prefs[listenBrainzEnabledKey] = enabled }
+    }
+
+    /** Forgets the token and account; the server address stays for the next sign-in. */
+    suspend fun clearListenBrainzAccount() {
+        store.edit { prefs ->
+            prefs.remove(listenBrainzTokenKey)
+            prefs.remove(listenBrainzUserKey)
+            prefs[listenBrainzEnabledKey] = false
+        }
+    }
+
+    private val listenBrainzTokenKey = stringPreferencesKey("listenbrainz_token")
+    private val listenBrainzRootKey = stringPreferencesKey("listenbrainz_root")
+    private val listenBrainzUserKey = stringPreferencesKey("listenbrainz_username")
+    private val listenBrainzEnabledKey = booleanPreferencesKey("listenbrainz_enabled")
 
     fun replayGainMode(): Flow<ReplayGainMode> =
         store.data.map { prefs ->

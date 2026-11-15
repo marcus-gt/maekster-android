@@ -9,6 +9,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -100,44 +101,71 @@ class ScrobblePolicy(
     }
 }
 
+/** A second place listens go besides the music server, such as ListenBrainz. */
+interface ListenSink {
+    /** Whether this sink wants listens right now. */
+    val active: Flow<Boolean>
+
+    suspend fun nowPlaying(songId: String)
+
+    suspend fun listen(
+        songId: String,
+        startedAtMs: Long,
+    )
+}
+
 class Scrobbler(
     private val sink: ServerActionSink,
+    /** Server scrobbling (the Settings switch). */
     private val enabled: Flow<Boolean>,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val policy: ScrobblePolicy = ScrobblePolicy(),
     private val recordPlay: suspend (songId: String, at: Long) -> Unit = { _, _ -> },
+    private val listens: ListenSink? = null,
 ) {
     private val submitLock = Mutex()
+
+    private data class Targets(
+        val server: Boolean,
+        val listens: Boolean,
+    )
 
     fun attach(
         state: StateFlow<PlaybackState>,
         positionMs: StateFlow<Long>,
     ) {
+        val targets = combine(enabled, listens?.active ?: flowOf(false), ::Targets)
         scope.launch {
-            combine(state, positionMs, enabled, ::Triple)
-                .collect { (current, position, on) ->
-                    if (!on) {
+            combine(state, positionMs, targets, ::Triple)
+                .collect { (current, position, to) ->
+                    // The play policy runs while anything wants listens; each event goes only where enabled.
+                    if (!to.server && !to.listens) {
                         policy.reset()
                         return@collect
                     }
                     val durationMs = current.item?.durationMs?.takeIf { it > 0 } ?: current.durationMs
                     val event = policy.advance(current.item, durationMs, current.isPlaying, position) ?: return@collect
-                    scope.launch { submitLock.withLock { submit(event) } }
+                    scope.launch { submitLock.withLock { submit(event, to) } }
                 }
         }
     }
 
-    private suspend fun submit(event: Scrobble) {
+    private suspend fun submit(
+        event: Scrobble,
+        to: Targets,
+    ) {
         when (event) {
             is Scrobble.NowPlaying -> {
                 Log.i("scrobble", "now playing ${event.songId}")
-                attempt("now playing ${event.songId}") { sink.nowPlaying(event.songId) }
+                if (to.server) attempt("now playing ${event.songId}") { sink.nowPlaying(event.songId) }
+                if (to.listens) attempt("listen now playing ${event.songId}") { listens?.nowPlaying(event.songId) }
             }
 
             is Scrobble.Submission -> {
                 Log.i("scrobble", "submitting ${event.songId}")
                 attempt("record play ${event.songId}") { recordPlay(event.songId, event.time / 1000) }
-                attempt("scrobble ${event.songId}") { sink.scrobble(event.songId, event.time) }
+                if (to.server) attempt("scrobble ${event.songId}") { sink.scrobble(event.songId, event.time) }
+                if (to.listens) attempt("listen ${event.songId}") { listens?.listen(event.songId, event.time) }
             }
         }
     }

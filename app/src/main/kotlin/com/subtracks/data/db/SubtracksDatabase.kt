@@ -20,6 +20,7 @@ import com.subtracks.data.model.DownloadErrorConverter
 import com.subtracks.data.model.DownloadStatusConverter
 import com.subtracks.data.model.PendingAction
 import com.subtracks.data.model.PendingActionKindConverter
+import com.subtracks.data.model.PendingListen
 import com.subtracks.data.model.Pin
 import com.subtracks.data.model.PinKindConverter
 import com.subtracks.data.model.PlayEvent
@@ -85,8 +86,9 @@ import com.subtracks.data.model.UpNextEntry
         QuickPlaylist::class,
         DownloadCollection::class,
         PlayEvent::class,
+        PendingListen::class,
     ],
-    version = 55,
+    version = 56,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -126,4 +128,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun quickPlaylistDao(): QuickPlaylistDao
 
     abstract fun playEventDao(): PlayEventDao
+
+    abstract fun pendingListenDao(): PendingListenDao
 }

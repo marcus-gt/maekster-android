@@ -13,6 +13,9 @@ import com.subtracks.data.download.DownloadEngine
 import com.subtracks.data.download.DownloadNotifier
 import com.subtracks.data.download.OkHttpArtworkFetcher
 import com.subtracks.data.download.SystemDownloadEngine
+import com.subtracks.data.listenbrainz.ListenBrainzRepository
+import com.subtracks.data.listenbrainz.OkHttpListenBrainzApi
+import com.subtracks.data.listenbrainz.toListenTrack
 import com.subtracks.data.lyrics.LrclibProvider
 import com.subtracks.data.lyrics.LyricsCache
 import com.subtracks.data.lyrics.LyricsLoader
@@ -82,8 +85,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.qualifier.named
@@ -176,6 +181,23 @@ fun appModule(
             networkAvailable = networkAvailable(context.applicationContext),
         )
     }
+    single {
+        val sources = get<SourceRepository>()
+        val library = get<LibraryRepository>()
+        ListenBrainzRepository(
+            api = OkHttpListenBrainzApi(),
+            prefs = get(),
+            credentials = get(),
+            pending = get<SubtracksDatabase>().pendingListenDao(),
+            track = { songId ->
+                val sourceId = sources.activeSourceIdOnce()
+                sourceId?.let { library.song(it, songId).first() }?.toListenTrack()
+            },
+        ).also { repository ->
+            // Listens queued while offline or before a restart go out once the app is running again.
+            get<CoroutineScope>().launch { repository.flush() }
+        }
+    }
     single(createdAtStart = true) {
         val playback = get<PlaybackController>()
         Scrobbler(
@@ -183,6 +205,7 @@ fun appModule(
             enabled = get<UserPreferences>().scrobbling(),
             scope = get(),
             recordPlay = get<LibraryRepository>()::recordPlay,
+            listens = get<ListenBrainzRepository>(),
         ).also {
             it.attach(playback.state, playback.positionMs)
         }

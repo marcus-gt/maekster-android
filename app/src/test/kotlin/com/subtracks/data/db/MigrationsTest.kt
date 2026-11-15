@@ -110,6 +110,19 @@ class MigrationsTest {
         }
 
     @Test
+    fun thePendingListensMigrationAddsAnEmptyQueue() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 55)
+                MIGRATION_55_56.migrate(connection)
+                connection.execSQL(
+                    "INSERT INTO pending_listens (listenedAt, trackName, artistName) VALUES (10, 'Song', 'Artist')",
+                )
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM pending_listens WHERE releaseName IS NULL"))
+            }
+        }
+
+    @Test
     fun everyExportedVersionIsCoveredByAContiguousMigrationChain() {
         val chain = MIGRATIONS.sortedBy { it.startVersion }
         assertEquals(versions.dropLast(1), chain.map { it.startVersion })

@@ -959,6 +959,17 @@ val MIGRATION_54_55 =
         }
     }
 
+val MIGRATION_55_56 =
+    object : Migration(55, 56) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `pending_listens` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`listenedAt` INTEGER NOT NULL, `trackName` TEXT NOT NULL, `artistName` TEXT NOT NULL, " +
+                    "`releaseName` TEXT, `durationMs` INTEGER)",
+            )
+        }
+    }
+
 val MIGRATION_47_48 =
     object : Migration(47, 48) {
         override suspend fun migrate(connection: SQLiteConnection) {
@@ -1061,4 +1072,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_52_53,
         MIGRATION_53_54,
         MIGRATION_54_55,
+        MIGRATION_55_56,
     )

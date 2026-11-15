@@ -629,6 +629,17 @@ removal was authorized and verified. Airplane-mode recovery was checked on the e
 queue swap could not be reproduced. Still open: the proxy, lyrics and physical-device checks, and the
 other servers (issue #11). See `docs/handoffs/M2-closeout.md`.
 
+**M3.1 status (15 Nov 2026):** in progress.
+- Part A: plays that reach the scrobble threshold are kept as local `play_events` (schema 55).
+- Part B: a ListenBrainz client (validate-token, submit-listens) with transient and permanent errors.
+- Part C: a sealed token and account in preferences, plus the `pending_listens` offline queue
+  (schema 56). `ListenBrainzRepository` handles connect, `playing_now`, `single`, and import in batches
+  of 1,000. The `Scrobbler` fans out to the server and ListenBrainz independently.
+- Next: Part D, the Settings UI.
+
+See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md` and
+`M3.1-listenbrainz-listens.md`.
+
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
   skip to downloaded). Process death during playback, then restore. Lyrics with Navidrome-embedded LRC and LRCLIB fallback.
