@@ -374,6 +374,19 @@ interface LibraryDao {
         recomputeArtistArt(sourceId)
     }
 
+    /** Snapshots a play of a mirrored song into `play_events`; an unknown song records nothing. */
+    @Query(
+        "INSERT INTO play_events (sourceId, songId, playedAt, title, artist, album, durationMs) " +
+            "SELECT sourceId, id, :at, title, artist, album, " +
+            "CASE WHEN duration > 0 THEN duration * 1000 ELSE NULL END " +
+            "FROM songs WHERE sourceId = :sourceId AND id = :songId",
+    )
+    suspend fun insertPlayEvent(
+        sourceId: Long,
+        songId: String,
+        at: Long,
+    )
+
     @Query(
         "UPDATE songs SET playCount = playCount + 1, played = MAX(COALESCE(played, :at), :at) " +
             "WHERE sourceId = :sourceId AND id = :songId",
@@ -422,13 +435,14 @@ interface LibraryDao {
     ): List<String>
 
     // Counted locally when a scrobble is submitted, so the play sorts move before the next sync; the
-    // sync then overwrites with the server's own number.
+    // sync then overwrites with the server's own number. The play is also kept as a local event.
     @Transaction
     suspend fun recordPlay(
         sourceId: Long,
         songId: String,
         at: Long,
     ) {
+        insertPlayEvent(sourceId, songId, at)
         bumpSongPlay(sourceId, songId, at)
         val albumId = albumIdForSong(sourceId, songId)
         if (albumId != null) bumpAlbumPlay(sourceId, albumId, at)

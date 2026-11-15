@@ -93,6 +93,23 @@ class MigrationsTest {
         }
 
     @Test
+    fun thePlayEventsMigrationAddsAnEmptyCascadingTable() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 54)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                MIGRATION_54_55.migrate(connection)
+                connection.execSQL(
+                    "INSERT INTO play_events (sourceId, songId, playedAt, title) VALUES (1, 'a', 10, 'A')",
+                )
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM play_events"))
+                connection.execSQL("DELETE FROM sources WHERE id = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM play_events"))
+            }
+        }
+
+    @Test
     fun everyExportedVersionIsCoveredByAContiguousMigrationChain() {
         val chain = MIGRATIONS.sortedBy { it.startVersion }
         assertEquals(versions.dropLast(1), chain.map { it.startVersion })

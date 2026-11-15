@@ -22,6 +22,7 @@ import com.subtracks.data.model.PendingAction
 import com.subtracks.data.model.PendingActionKindConverter
 import com.subtracks.data.model.Pin
 import com.subtracks.data.model.PinKindConverter
+import com.subtracks.data.model.PlayEvent
 import com.subtracks.data.model.PlaybackCursor
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistDestination
@@ -83,8 +84,9 @@ import com.subtracks.data.model.UpNextEntry
         PlaylistSaveDraftSong::class,
         QuickPlaylist::class,
         DownloadCollection::class,
+        PlayEvent::class,
     ],
-    version = 54,
+    version = 55,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -122,4 +124,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun playlistSaveDraftDao(): PlaylistSaveDraftDao
 
     abstract fun quickPlaylistDao(): QuickPlaylistDao
+
+    abstract fun playEventDao(): PlayEventDao
 }
