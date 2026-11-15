@@ -152,7 +152,13 @@ class SaveQueueViewModelTest {
             assertEquals(listOf("a", "b"), draft)
 
             store.clear()
-            runCurrent()
+            // The discard suspends on Room's own threads, so one runCurrent() can return before it finishes:
+            // keep running the scheduler until the draft is gone (bounded by wall-clock time).
+            val deadline = System.nanoTime() + 5_000_000_000L
+            while (db.playlistSaveDraftDao().draft(1) != null && System.nanoTime() < deadline) {
+                runCurrent()
+                Thread.sleep(10)
+            }
             assertEquals(emptyList<String>(), db.playlistSaveDraftDao().songIds(1, 0, 10))
             assertNull(db.playlistSaveDraftDao().draft(1))
         }
