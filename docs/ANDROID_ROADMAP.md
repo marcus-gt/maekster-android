@@ -657,7 +657,10 @@ Visual follow-up: equal-height station cards without repeated action labels and 
 Shuffle card; normal and 2× scrolled renders reviewed (see the C2 handoff).
 See `docs/handoffs/M3.2-discover.md`. Part D1 is complete: schema 58 persists the nullable generated-tail boundary, retained by cursor updates
 and cleared by queue replacement. Storage only; no autoplay UI or generation yet. See
-`docs/handoffs/M3.2-extension-boundary.md`. Next: D2, atomic append/truncate and queue-edit handling. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+`docs/handoffs/M3.2-extension-boundary.md`. Part D2 is complete: repository-level atomic append (max 50) and unplayed-tail truncation,
+with stale-context/mode guards and manual context edits promoting retained tracks into ordinary context.
+No autoplay generation/UI yet. See `docs/handoffs/M3.2-extension-operations.md`.
+Next: D3, controller-driven generation/refill. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

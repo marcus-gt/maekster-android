@@ -48,6 +48,100 @@ class QueueRepositoryTest {
     }
 
     @Test
+    fun extensionAppendAndTruncateKeepCurrentHistoryAndManualEntries() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.songEntry(1, "s1")))
+            val original = repository.snapshot()
+            assertTrue(repository.appendExtension(original, 1, listOf("s2", "s3")))
+            assertFalse(repository.appendExtension(original, 1, listOf("s4")))
+            assertEquals(1L, repository.extensionStart())
+            assertTrue(repository.appendExtension(repository.snapshot(), 1, listOf("s4")))
+            assertEquals(1L, repository.extensionStart())
+            repository.setCursor(1)
+            repository.setPosition(1234, "s2")
+            repository.addUpNext(repository.snapshot(), 1, repository.songEntry(1, "s1"), false)
+            assertTrue(repository.truncateExtension(repository.snapshot()))
+            val kept = repository.snapshot()
+            assertEquals(listOf("s1", "s2"), kept.entries.map { it.entry.refId })
+            assertEquals(listOf("s1"), kept.upNext.map { it.entry.refId })
+            assertEquals(1L, repository.cursor())
+            assertEquals(1234L, repository.cursorPositionMs())
+            assertEquals(null, repository.extensionStart())
+        }
+
+    @Test
+    fun extensionRejectsModesWrongSourcesAndUnknownSongsWithoutPartialWrites() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.songEntry(1, "s1")))
+            assertFalse(repository.appendExtension(repository.snapshot(), 2, listOf("s2")))
+            assertFalse(repository.appendExtension(repository.snapshot(), 1, listOf("s2", "missing")))
+            repository.setRepeat(1)
+            assertFalse(repository.appendExtension(repository.snapshot(), 1, listOf("s2")))
+            repository.setRepeat(0)
+            repository.setShuffle(42)
+            assertFalse(repository.appendExtension(repository.snapshot(), 1, listOf("s2")))
+            repository.setShuffle(null)
+            assertTrue(runCatching { repository.appendExtension(repository.snapshot(), 1, List(51) { "s2" }) }.isFailure)
+            assertEquals(listOf("s1"), repository.snapshot().entries.map { it.entry.refId })
+            assertEquals(null, repository.extensionStart())
+        }
+
+    @Test
+    fun manualContextEditsPromoteTheTailSoItCannotBeDeletedLater() =
+        runTest {
+            seedLibrary()
+            repository.replace(listOf(repository.songEntry(1, "s1")))
+            assertTrue(repository.appendExtension(repository.snapshot(), 1, listOf("s2", "s3", "s4")))
+            assertTrue(repository.move(repository.snapshot(), 1, 0))
+            assertEquals(null, repository.extensionStart())
+            assertFalse(repository.truncateExtension(repository.snapshot()))
+            assertEquals(4L, repository.snapshot().size)
+            for (clear in listOf(false, true)) {
+                repository.replace(listOf(repository.songEntry(1, "s1")))
+                assertTrue(repository.appendExtension(repository.snapshot(), 1, listOf("s2", "s3")))
+                if (clear) {
+                    repository.clearUpcoming(repository.snapshot(), 1)
+                } else {
+                    repository.removeAt(repository.snapshot(), 0)
+                }
+                assertEquals(null, repository.extensionStart())
+                assertFalse(repository.truncateExtension(repository.snapshot()))
+                assertEquals(2L, repository.snapshot().size)
+            }
+        }
+
+    @Test
+    fun extensionTruncationKeepsTheManualCurrentSongAndDoesNotResolveTheContext() =
+        runTest {
+            seedLibrary()
+            repository.replace(
+                listOf(repository.albumEntry(1, "al1")),
+                upNext = listOf(repository.songEntry(1, "s4")),
+                upNextAnchor = 0,
+            )
+            assertTrue(repository.appendExtension(repository.snapshot(), 1, listOf("s2", "s3")))
+            val snapshot = repository.snapshot()
+            repository.setCursor(snapshot.anchorPlay + 1)
+            repository.setPosition(456, "s4")
+            val before = repository.resolvedRowCount
+            assertTrue(repository.truncateExtension(snapshot))
+            assertEquals(before, repository.resolvedRowCount)
+            val kept = repository.snapshot()
+            assertEquals(1, kept.entries.size)
+            assertEquals(
+                QueueKind.Album,
+                kept.entries
+                    .single()
+                    .entry.kind,
+            )
+            assertEquals(listOf("s4"), kept.upNext.map { it.entry.refId })
+            assertEquals(snapshot.anchorPlay + 1, repository.cursor())
+            assertEquals(456L, repository.cursorPositionMs())
+        }
+
+    @Test
     fun extensionBoundarySurvivesCursorWritesAndRecreationButNotQueueReplacement() =
         runTest {
             seedLibrary()

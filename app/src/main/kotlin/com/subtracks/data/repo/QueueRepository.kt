@@ -796,6 +796,87 @@ class QueueRepository(
         return range(snapshot, (center - radius).coerceAtLeast(0), (center + radius).coerceAtMost(snapshot.size - 1))
     }
 
+    /** Appends a bounded generated batch only if the context used to build it is still current. */
+    suspend fun appendExtension(
+        snapshot: QueueSnapshot,
+        sourceId: Long,
+        songIds: List<String>,
+    ): Boolean {
+        require(songIds.size <= 50) { "An autoplay batch may contain at most 50 songs" }
+        if (songIds.isEmpty() || snapshot.entries.isEmpty() || snapshot.shuffled) return false
+        return cursorMutex.withLock {
+            val appended =
+                db.useWriterConnection { connection ->
+                    connection.immediateTransaction {
+                        val cursor = cursorRow()
+                        if (snapshot.version != queueVersion.get() || cursor.shuffleEnabled || cursor.repeatMode != 0 ||
+                            snapshot.entries.any { it.entry.sourceId != sourceId } ||
+                            dao.entries() != snapshot.entries.map { it.entry }
+                        ) {
+                            return@immediateTransaction false
+                        }
+                        if (songIds.any { dao.songLength(sourceId, it) != 1L }) return@immediateTransaction false
+                        val start =
+                            snapshot.entries
+                                .last()
+                                .entry.position + 1
+                        dao.insert(songIds.mapIndexed { index, id -> songEntry(sourceId, id).copy(position = start + index) })
+                        dao.setCursor(cursor.copy(extensionStart = cursor.extensionStart ?: start))
+                        true
+                    }
+                }
+            if (appended) queueVersion.incrementAndGet()
+            appended
+        }
+    }
+
+    /** Removes only the unplayed generated suffix, retaining the current song and the manual block. */
+    suspend fun truncateExtension(snapshot: QueueSnapshot): Boolean =
+        cursorMutex.withLock {
+            val truncated =
+                db.useWriterConnection { connection ->
+                    connection.immediateTransaction {
+                        val cursor = cursorRow()
+                        val boundary = cursor.extensionStart ?: return@immediateTransaction false
+                        if (snapshot.version != queueVersion.get() || snapshot.shuffled || cursor.shuffleEnabled ||
+                            dao.entries() != snapshot.entries.map { it.entry }
+                        ) {
+                            return@immediateTransaction false
+                        }
+                        if (cursor.queuePosition !in 0 until snapshot.size ||
+                            cursor.upNextAnchor != snapshot.upNextAnchor
+                        ) {
+                            return@immediateTransaction false
+                        }
+                        var flat =
+                            if (snapshot.isUpNext(cursor.queuePosition)) {
+                                snapshot.upNextAnchor
+                            } else {
+                                snapshot.contextPlay(cursor.queuePosition)
+                            }
+                        val current =
+                            if (flat < 0) {
+                                null
+                            } else {
+                                snapshot.entries.firstOrNull { resolved ->
+                                    if (flat < resolved.length) {
+                                        true
+                                    } else {
+                                        flat -= resolved.length
+                                        false
+                                    }
+                                }
+                            }
+                        val keepThrough = current?.entry?.position?.plus(1) ?: 0L
+                        dao.deleteContextFrom(maxOf(boundary, keepThrough))
+                        dao.setCursor(cursor.copy(extensionStart = null))
+                        true
+                    }
+                }
+            if (truncated) queueVersion.incrementAndGet()
+            truncated
+        }
+
     suspend fun addUpNext(
         snapshot: QueueSnapshot,
         currentPosition: Long,
@@ -919,6 +1000,7 @@ class QueueRepository(
                             shuffleSize = if (snapshot.shuffled) contextCount else cursor.shuffleSize,
                             shuffleRemoved = if (snapshot.shuffled) null else cursor.shuffleRemoved,
                             shuffleLinear = snapshot.shuffled || cursor.shuffleLinear,
+                            extensionStart = null,
                         ),
                     )
                 }
@@ -982,7 +1064,13 @@ class QueueRepository(
                             }
                         dao.clear()
                         dao.insert(entries.mapIndexed { index, entry -> entry.copy(id = 0, position = index.toLong()) })
-                        dao.setCursor(cursor.copy(shuffleRemoved = updatedOrder.encodeRemoved(), upNextAnchor = adjustedAnchor))
+                        dao.setCursor(
+                            cursor.copy(
+                                shuffleRemoved = updatedOrder.encodeRemoved(),
+                                upNextAnchor = adjustedAnchor,
+                                extensionStart = null,
+                            ),
+                        )
                     }
                 }
             }
@@ -1094,6 +1182,7 @@ class QueueRepository(
             transactor.immediateTransaction {
                 dao.clear()
                 dao.insert(entries.mapIndexed { index, entry -> entry.copy(id = 0, position = index.toLong()) })
+                dao.setCursor(cursorRow().copy(extensionStart = null))
             }
         }
         queueVersion.incrementAndGet()
