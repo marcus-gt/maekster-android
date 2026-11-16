@@ -641,7 +641,12 @@ other servers (issue #11). See `docs/handoffs/M2-closeout.md`.
 
 **M3.1 status (16 Nov 2026):** complete. Verified by the user on their device: listens reached
 listenbrainz.org (doubled alongside Navidrome's own relay, as the dialog warns). The offline-queue replay
-against the real service is still unchecked. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+against the real service is still unchecked.
+
+**M3.2 status (16 Nov 2026):** in progress. Part A: Smart Shuffle (iOS three-source blend: favourites,
+recent taste, rediscovery; at most 3 per artist; recent plays skipped), built from the mirror with bounded
+queries and limited to downloads when offline, and played as a labelled mix (`playMix`). No UI yet.
+Next: Instant Mix and stations, then the Discover tab. See `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

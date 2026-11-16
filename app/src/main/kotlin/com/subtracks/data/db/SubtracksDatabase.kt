@@ -130,4 +130,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun playEventDao(): PlayEventDao
 
     abstract fun pendingListenDao(): PendingListenDao
+
+    abstract fun mixDao(): MixDao
 }

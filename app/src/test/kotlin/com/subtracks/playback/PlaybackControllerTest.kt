@@ -148,6 +148,21 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun aMixPlaysInItsOwnOrderWithShuffleOffUnderItsCollectionTitle() {
+        seedAlbum(3, sourceId = 1)
+
+        controller.playMix(1, listOf("s3", "s1"), QueueCollection.SmartShuffle)
+        awaitUntil("mix starts") {
+            controller.state.value.item
+                ?.id == "s3"
+        }
+
+        assertEquals(listOf("s3", "s1"), handle.items.map { it.id })
+        assertFalse(controller.state.value.shuffle)
+        assertEquals("Smart Shuffle", runBlocking { controller.sourceTitle(controller.state.value.context, resources) })
+    }
+
+    @Test
     fun libraryPlaybackPersistsItsCollectionLabelThroughUndo() {
         seedAlbum(3, sourceId = 1)
         controller.playLibrarySongs(1, SongListSpec(), 0)

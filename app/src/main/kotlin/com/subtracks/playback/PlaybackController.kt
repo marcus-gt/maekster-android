@@ -132,6 +132,7 @@ private data class PendingPlay(
     val position: Long,
     val disableShuffle: Boolean,
     val origin: QueueEntry?,
+    val collection: QueueCollection? = null,
 )
 
 private data class PendingShuffle(
@@ -240,9 +241,17 @@ class PlaybackController(
                     val shuffle = pendingShuffle
                     pendingShuffle = null
                     when {
-                        pending != null -> start(pending.entries, pending.position, pending.disableShuffle, pending.origin)
-                        shuffle != null -> startShuffled(shuffle.entries, shuffle.origin)
-                        else -> restore()
+                        pending != null -> {
+                            start(pending.entries, pending.position, pending.disableShuffle, pending.origin, pending.collection)
+                        }
+
+                        shuffle != null -> {
+                            startShuffled(shuffle.entries, shuffle.origin)
+                        }
+
+                        else -> {
+                            restore()
+                        }
                     }
                     _ready.value = true
                 }
@@ -343,6 +352,19 @@ class PlaybackController(
     ) {
         val entry = queueRepository.artistAppearancesEntry(sourceId, artistId)
         if (shuffled) shuffleContext(entry) else playContext(entry, 0, disableShuffle = true)
+    }
+
+    /**
+     * Plays a mix (Smart Shuffle) in its given order: one song entry per pick, labelled as [collection]. The
+     * mix is already shuffled, so shuffle mode is turned off. Bounded by the mix size, never a whole table.
+     */
+    internal fun playMix(
+        sourceId: Long,
+        songIds: List<String>,
+        collection: QueueCollection,
+    ) {
+        if (songIds.isEmpty()) return
+        play(songIds.map { queueRepository.songEntry(sourceId, it) }, 0, disableShuffle = true, collection = collection)
     }
 
     fun shuffleStarred(sourceId: Long) = shuffleContext(queueRepository.starredEntry(sourceId))
@@ -1162,14 +1184,15 @@ class PlaybackController(
         startPosition: Long,
         disableShuffle: Boolean = false,
         origin: QueueEntry? = null,
+        collection: QueueCollection? = null,
     ) {
         unplayableRun = 0
         if (player == null) {
-            pendingPlay = PendingPlay(entries, startPosition, disableShuffle, origin)
+            pendingPlay = PendingPlay(entries, startPosition, disableShuffle, origin, collection)
             connect()
             return
         }
-        scope.launch { start(entries, startPosition, disableShuffle, origin) }
+        scope.launch { start(entries, startPosition, disableShuffle, origin, collection) }
     }
 
     private suspend fun start(
@@ -1177,6 +1200,7 @@ class PlaybackController(
         startPosition: Long,
         disableShuffle: Boolean = false,
         origin: QueueEntry? = null,
+        collection: QueueCollection? = null,
     ) = startLock.withLock {
         windowJob?.cancel()
         windowStart = 0
@@ -1187,7 +1211,7 @@ class PlaybackController(
         shuffleEnabled = !disableShuffle && modes.shuffle
         repeatMode = modes.repeat.toRepeatMode()
         player?.setRepeatOne(repeatMode == RepeatMode.One)
-        queueRepository.replace(entries, sourceLabel = sourceLabelFor(entries, origin))
+        queueRepository.replace(entries, sourceLabel = collection?.storedLabel ?: sourceLabelFor(entries, origin))
         val snapshot = queueRepository.snapshot()
         this.snapshot = snapshot
         queueSourceId = entries.firstOrNull()?.sourceId

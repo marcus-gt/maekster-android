@@ -21,6 +21,7 @@ import com.subtracks.data.lyrics.LyricsCache
 import com.subtracks.data.lyrics.LyricsLoader
 import com.subtracks.data.lyrics.LyricsProvider
 import com.subtracks.data.lyrics.LyricsRepository
+import com.subtracks.data.mix.SmartShuffle
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.Song
 import com.subtracks.data.net.ServerHeaders
@@ -50,6 +51,7 @@ import com.subtracks.playback.MediaSessionConnection
 import com.subtracks.playback.PlaybackController
 import com.subtracks.playback.PlayerConnection
 import com.subtracks.playback.Scrobbler
+import com.subtracks.playback.SmartShufflePlayer
 import com.subtracks.ui.NowPlayingLauncher
 import com.subtracks.ui.RootViewModel
 import com.subtracks.ui.components.PinMenuViewModel
@@ -84,11 +86,13 @@ import com.subtracks.ui.settings.activeLibraryCounts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import org.koin.core.module.dsl.viewModel
@@ -212,6 +216,18 @@ fun appModule(
         }
     }
     single { NowPlayingLauncher() }
+    single {
+        val sources = get<SourceRepository>()
+        val connected =
+            networkAvailable(context.applicationContext).stateIn(get<CoroutineScope>(), SharingStarted.Eagerly, true)
+        SmartShufflePlayer.of(
+            mix = SmartShuffle(get<SubtracksDatabase>().mixDao()),
+            activeSourceId = sources::activeSourceIdOnce,
+            // Offline mode or no network: only downloaded songs can play.
+            downloadedOnly = { sources.offline.value || !connected.value },
+            controller = get(),
+        )
+    }
     viewModel { PinMenuViewModel(get()) }
     viewModel { RootViewModel(get()) }
     viewModel { LibraryViewModel(get(), get(), get(), get(), get(), get()) }
