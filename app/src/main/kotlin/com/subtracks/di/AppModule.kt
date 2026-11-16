@@ -248,6 +248,17 @@ fun appModule(
     viewModel { PinMenuViewModel(get()) }
     viewModel { RootViewModel(get()) }
     viewModel {
+        val sources = get<SourceRepository>()
+        com.subtracks.ui.discover.DiscoverViewModel(
+            sources,
+            get<SubtracksDatabase>().mixDao(),
+            combine(sources.offline, networkAvailable(context.applicationContext)) { offline, connected -> offline || !connected },
+            get(),
+            get(),
+            showMessage,
+        )
+    }
+    viewModel {
         val player = get<InstantMixPlayer>()
         com.subtracks.ui.components.MixMenuViewModel(
             play = { sourceId, seed -> player.play(seed, expectedSourceId = sourceId) },

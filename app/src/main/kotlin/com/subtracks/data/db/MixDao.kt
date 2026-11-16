@@ -27,6 +27,12 @@ private const val DOWNLOADED =
 @Dao
 interface MixDao {
     @Query(
+        "SELECT * FROM artists WHERE sourceId = :sourceId AND credited = 1 " +
+            "ORDER BY (starred IS NOT NULL) DESC, played DESC, name COLLATE NOCASE, id LIMIT 12",
+    )
+    fun stationArtists(sourceId: Long): kotlinx.coroutines.flow.Flow<List<com.subtracks.data.model.Artist>>
+
+    @Query(
         "SELECT pe.songId AS songId, s.artistId AS artistId, " +
             "(SELECT g.genre FROM song_genres g WHERE g.sourceId = pe.sourceId AND g.songId = pe.songId " +
             "ORDER BY g.position LIMIT 1) AS genre FROM play_events pe " +

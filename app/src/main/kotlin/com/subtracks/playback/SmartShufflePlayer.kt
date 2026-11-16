@@ -19,7 +19,7 @@ class SmartShufflePlayer internal constructor(
         val offline = downloadedOnly()
         val songIds = mix.build(sourceId, downloadedOnly = offline)
         Log.i("mix", "smart shuffle: ${songIds.size} songs${if (offline) " (downloads only)" else ""}")
-        if (songIds.isEmpty()) return false
+        if (songIds.isEmpty() || activeSourceId() != sourceId) return false
         start(sourceId, songIds)
         return true
     }

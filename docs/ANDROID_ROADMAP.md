@@ -651,7 +651,9 @@ Room (schema 57), with downloaded-only cache/local fallback offline.
 Part C1 is complete: shared song/album menus offer Instant Mix; artist menus offer Start station.
 Preparation survives menu dismissal, reports empty/error results, and guards against server switches.
 Album action verified through playback on the emulator. See `docs/handoffs/M3.2-instant-mix-menu.md`.
-Next: Part C2, the Discover tab with Smart Shuffle and Stations. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Part C2 is complete: Discover tab with a Smart Shuffle card and up to 12 local artist stations;
+offline shows downloaded-only Smart Shuffle. Both actions verified through playback on the emulator.
+See `docs/handoffs/M3.2-discover.md`. Next: Part D, Autoplay similar (auto-extend). See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

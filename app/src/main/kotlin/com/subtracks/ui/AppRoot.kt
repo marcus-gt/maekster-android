@@ -484,6 +484,12 @@ private fun MainNavigation() {
                                 fadeOut(tween(NAVIGATION_DURATION_MS))
                         },
                     ) {
+                        navigation(startDestination = TopLevelTab.Discover.root, route = TopLevelTab.Discover.graph) {
+                            composable(TopLevelTab.Discover.root) {
+                                com.subtracks.ui.discover
+                                    .DiscoverRoute(onOpenSettings = { navController.navigate(Routes.SETTINGS) })
+                            }
+                        }
                         navigation(startDestination = Routes.HOME, route = TopLevelTab.Home.graph) {
                             composable(Routes.HOME) {
                                 HomeRoute(
