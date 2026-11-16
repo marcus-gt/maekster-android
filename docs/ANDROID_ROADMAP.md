@@ -635,10 +635,13 @@ other servers (issue #11). See `docs/handoffs/M2-closeout.md`.
 - Part C: a sealed token and account in preferences, plus the `pending_listens` offline queue
   (schema 56). `ListenBrainzRepository` handles connect, `playing_now`, `single`, and import in batches
   of 1,000. The `Scrobbler` fans out to the server and ListenBrainz independently.
-- Next: Part D, the Settings UI.
+- Part D: a ListenBrainz row on the Playback page (Off, On, Paused, waiting count) and a dialog to
+  connect with a token (optional server), switch sending, see the queue, and disconnect with
+  confirmation.
 
-See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md` and
-`M3.1-listenbrainz-listens.md`.
+**M3.1 status (16 Nov 2026):** complete in code. Not yet checked against the real ListenBrainz (needs the
+user's token). See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+`M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
@@ -683,8 +686,8 @@ Lidarr is out of scope (D11).
 | **M3.5 AudioMuse-AI** | Per-server AudioMuse URL and token; Moods on Discover (mood radios); Song Path | `mood_scores` cache | Fake server; Song Path does not auto-extend | |
 | **M3.6 Wrapped** | Year and all-time recap from `play_events` (optionally the ListenBrainz history); story pager; share card | Aggregation queries only | Aggregation, streak and insight tests ported from the iOS fixtures | |
 | ~~M3.7 Lidarr~~ | Dropped (D11): legacy from Mixtape, unused in the iOS product | n/a | n/a | Slice number kept so later IDs stay stable |
-| **M3.8 Crossfade (prototype, D15)** | 0–12 s, off by default, disabled on gapless albums | None | Gapless unaffected; transition timing | Prototype first; drop if it destabilises the window |
-| **M3.9 Internet radio** | Station list (synced into Room), live playback outside the queue, the queue resumes afterwards | `radio_stations` | Controller live-mode tests | |
+| **M3.8 Crossfade (prototype, D15)** | **On hold (16 Nov 2026), tracked in issue #13.** 0–12 s, off by default, disabled on gapless albums | None | Gapless unaffected; transition timing | Prototype first; drop if it destabilises the window |
+| **M3.9 Internet radio** | **Dropped (16 Nov 2026): the user does not need internet radio.** Was: station list, live playback outside the queue | — | — | |
 
 - **Manual emulator checks:** Discover offline (only Smart Shuffle from downloads is visible); ListenBrainz listens appear
   on the website; AudioMuse Song Path end to end; local folder on emulated
@@ -743,8 +746,9 @@ All decided on 10 November 2026.
 | D12 | ReplayGain default | **Agreed.** Android Auto mode, on by default |
 | D13 | Multi-server UI | **Keep.** The existing Android server list and switching stay; the feature is wanted on iOS later too |
 | D14 | Translations | **English only.** No translation workflow; the 27 inherited partial locales are removed in M1.1 |
-| D15 | Crossfade | **Agreed.** Prototype in M3.8, drop if it compromises gapless |
+| D15 | Crossfade | **Agreed.** Prototype in M3.8, drop if it compromises gapless. On hold since 16 Nov 2026 (issue #13) |
 | D16 | Casting | **Wanted, later.** Deferred to M4.7 (issue #3); ordinary playback must never depend on Play Services |
+| D17 | Internet radio | **Dropped (16 Nov 2026).** Not needed; M3.9 is skipped |
 
 ## Smallest sensible first implementation slice
 

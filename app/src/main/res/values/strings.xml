@@ -379,6 +379,35 @@
     <string name="quality_mp3_320">MP3 320 kbps</string>
     <string name="quality_mp3_192">MP3 192 kbps</string>
     <string name="quality_custom">Custom</string>
+    <string name="listenbrainz_title">ListenBrainz</string>
+    <string name="listenbrainz_off">Off</string>
+    <string name="listenbrainz_on">On · %1$s</string>
+    <string name="listenbrainz_paused">Paused · %1$s</string>
+    <string name="listenbrainz_sign_in_again">Enter your token again</string>
+    <plurals name="listenbrainz_waiting">
+        <item quantity="one">%1$s · %2$d waiting</item>
+        <item quantity="other">%1$s · %2$d waiting</item>
+    </plurals>
+    <string name="listenbrainz_about">maekster can send what you play to ListenBrainz, an open listening history from the MetaBrainz Foundation. A listen is sent once a song passes the scrobble point.</string>
+    <string name="listenbrainz_duplicates">If your music server already sends listens to ListenBrainz, leave this off to avoid duplicates.</string>
+    <string name="listenbrainz_token">User token</string>
+    <string name="listenbrainz_server">Server</string>
+    <string name="listenbrainz_token_hint">Find your token on listenbrainz.org under Settings, User token.</string>
+    <string name="listenbrainz_connect">Connect</string>
+    <string name="listenbrainz_connecting">Connecting…</string>
+    <string name="listenbrainz_token_unreadable">The saved token can no longer be read. Paste it again to keep sending listens.</string>
+    <string name="listenbrainz_error_invalid">ListenBrainz did not accept this token.</string>
+    <string name="listenbrainz_error_network">Could not reach ListenBrainz. Check your connection and try again.</string>
+    <string name="listenbrainz_error_server">ListenBrainz returned an error. Check the server address and try again.</string>
+    <string name="listenbrainz_connected_as">Connected as %1$s</string>
+    <string name="listenbrainz_send_listens">Send listens</string>
+    <plurals name="listenbrainz_pending">
+        <item quantity="one">%d listen is waiting to be sent.</item>
+        <item quantity="other">%d listens are waiting to be sent.</item>
+    </plurals>
+    <string name="listenbrainz_disconnect">Disconnect</string>
+    <string name="listenbrainz_disconnect_title">Disconnect ListenBrainz?</string>
+    <string name="listenbrainz_disconnect_body">maekster forgets your token and any listens still waiting to be sent.</string>
     <string name="stream_quality_server_default">Server default</string>
     <string name="required">Required</string>
     <string name="server_address_placeholder">https://music.example.com</string>

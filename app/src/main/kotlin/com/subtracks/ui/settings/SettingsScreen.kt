@@ -80,6 +80,7 @@ import com.subtracks.MaeksterBrand
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.UiMessages
+import com.subtracks.data.listenbrainz.ListenBrainzState
 import com.subtracks.data.lyrics.LyricsSource
 import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
@@ -141,6 +142,7 @@ private enum class SettingsDialog {
     Home,
     Lyrics,
     QuickPlaylists,
+    ListenBrainz,
 }
 
 @Composable
@@ -155,9 +157,11 @@ fun SettingsRoute(
     onOpenPage: (SettingsPage) -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
     storageViewModel: StorageViewModel = koinViewModel(),
+    listenBrainzViewModel: ListenBrainzSettingsViewModel = koinViewModel(),
     uiMessages: UiMessages = koinInject(),
 ) {
     val storage by storageViewModel.ui.collectAsStateWithLifecycle()
+    val listenBrainz by listenBrainzViewModel.state.collectAsStateWithLifecycle()
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val activeSourceId by viewModel.activeSourceId.collectAsStateWithLifecycle()
     val needsSignIn by viewModel.needsSignIn.collectAsStateWithLifecycle()
@@ -253,6 +257,7 @@ fun SettingsRoute(
         storage = storage,
         onClearArtwork = storageViewModel::clearArtwork,
         onSyncNow = storageViewModel::syncNow,
+        listenBrainz = listenBrainz,
     )
 }
 
@@ -316,6 +321,7 @@ fun SettingsScreen(
     storage: StorageUi = StorageUi(),
     onClearArtwork: () -> Unit = {},
     onSyncNow: () -> Unit = {},
+    listenBrainz: ListenBrainzState = ListenBrainzState(),
 ) {
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     DismissOnRequest(dismissals) { dialog = null }
@@ -435,6 +441,13 @@ fun SettingsScreen(
                             description = stringResource(R.string.settings_music_options_scrobble_description_on),
                             checked = scrobbling,
                             onCheckedChange = onScrobblingChange,
+                        )
+                    }
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.listenbrainz_title),
+                            value = listenBrainzSummary(listenBrainz),
+                            onClick = { dialog = SettingsDialog.ListenBrainz },
                         )
                     }
                     item {
@@ -632,6 +645,10 @@ fun SettingsScreen(
 
         SettingsDialog.Home -> {
             HomeLayoutDialog(homeLayout, onHomeLayoutChange, onDismiss = { dialog = null })
+        }
+
+        SettingsDialog.ListenBrainz -> {
+            ListenBrainzSettingsRoute(onDismiss = { dialog = null })
         }
 
         SettingsDialog.QuickPlaylists -> {

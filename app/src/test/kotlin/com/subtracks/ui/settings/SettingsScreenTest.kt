@@ -90,6 +90,7 @@ class SettingsScreenTest {
                 SettingsPage.Playback to
                     listOf(
                         R.string.settings_music_options_scrobble_title,
+                        R.string.listenbrainz_title,
                         R.string.settings_music_options_keep_screen_on_title,
                         R.string.lyrics_title,
                         R.string.settings_network_options_max_bitrate_wifi_title,
