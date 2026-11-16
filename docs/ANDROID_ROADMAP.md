@@ -639,8 +639,9 @@ other servers (issue #11). See `docs/handoffs/M2-closeout.md`.
   connect with a token (optional server), switch sending, see the queue, and disconnect with
   confirmation.
 
-**M3.1 status (16 Nov 2026):** complete in code. Not yet checked against the real ListenBrainz (needs the
-user's token). See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+**M3.1 status (16 Nov 2026):** complete. Verified by the user on their device: listens reached
+listenbrainz.org (doubled alongside Navidrome's own relay, as the dialog warns). The offline-queue replay
+against the real service is still unchecked. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
