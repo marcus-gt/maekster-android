@@ -4,6 +4,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.data.mix.QueueBuilderPicks
+import com.subtracks.data.mix.QueueBuilderSelection
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.source.DEFAULT_FETCH_CONCURRENCY
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,6 +19,20 @@ import java.io.File
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
 class UserPreferencesTest {
+    @Test
+    fun queueBuilderPicksAreKeptPerServerWithALengthOnTheSliderSteps() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(QueueBuilderPicks(), prefs.queueBuilderPicks(1).first())
+            val jazz90s = QueueBuilderPicks(QueueBuilderSelection(genres = setOf("jazz"), decades = setOf(1990)), length = 63)
+            prefs.setQueueBuilderPicks(1, jazz90s)
+            assertEquals(jazz90s.copy(length = 65), prefs.queueBuilderPicks(1).first())
+            assertEquals(QueueBuilderPicks(), prefs.queueBuilderPicks(2).first())
+            prefs.setQueueBuilderPicks(2, QueueBuilderPicks(length = 500))
+            assertEquals(120, prefs.queueBuilderPicks(2).first().length)
+            assertEquals(65, prefs.queueBuilderPicks(1).first().length)
+        }
+
     @Test
     fun autoplayDefaultsOffAndPersistsAcrossReaders() =
         runTest {

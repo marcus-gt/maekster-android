@@ -25,7 +25,12 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -45,10 +50,30 @@ import org.koin.compose.viewmodel.koinViewModel
 fun DiscoverRoute(
     onOpenSettings: () -> Unit,
     viewModel: DiscoverViewModel = koinViewModel(),
+    builderViewModel: QueueBuilderViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val autoplay by viewModel.autoplaySimilar.collectAsStateWithLifecycle()
+    val builder by builderViewModel.state.collectAsStateWithLifecycle()
+    val building by builderViewModel.building.collectAsStateWithLifecycle()
+    var editing by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) { builderViewModel.refresh() }
+    val actions =
+        remember(builderViewModel) {
+            QueueBuilderActions(
+                toggleGenre = builderViewModel::toggleGenre,
+                toggleDecade = builderViewModel::toggleDecade,
+                clearGenres = builderViewModel::clearGenres,
+                clearDecades = builderViewModel::clearDecades,
+                reset = builderViewModel::reset,
+                setLength = builderViewModel::setLength,
+                build = { builderViewModel.build(onStarted = { editing = false }) },
+            )
+        }
+    if (editing) {
+        QueueBuilderSheet(builder, building, actions, onDismiss = { editing = false })
+    }
     DiscoverScreen(
         state,
         busy,
@@ -58,6 +83,13 @@ fun DiscoverRoute(
         viewModel::art,
         autoplaySimilar = autoplay,
         onAutoplayChange = viewModel::setAutoplaySimilar,
+        queueBuilder = builder,
+        queueBuilderBuilding = building,
+        onOpenQueueBuilder = {
+            builderViewModel.refresh()
+            editing = true
+        },
+        onPlayQueueBuilder = { builderViewModel.build() },
     )
 }
 
@@ -72,6 +104,10 @@ fun DiscoverScreen(
     artistArt: (Artist) -> ArtistArt = { ArtistArt() },
     autoplaySimilar: Boolean = false,
     onAutoplayChange: (Boolean) -> Unit = {},
+    queueBuilder: QueueBuilderState = QueueBuilderState(loading = false),
+    queueBuilderBuilding: Boolean = false,
+    onOpenQueueBuilder: () -> Unit = {},
+    onPlayQueueBuilder: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -106,6 +142,9 @@ fun DiscoverScreen(
                         }
                     }
                 }
+            }
+            item {
+                QueueBuilderCard(queueBuilder, queueBuilderBuilding, onOpenQueueBuilder, onPlayQueueBuilder)
             }
             item {
                 Row(

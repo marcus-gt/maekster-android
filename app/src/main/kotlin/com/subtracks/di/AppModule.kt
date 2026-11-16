@@ -54,6 +54,7 @@ import com.subtracks.playback.InstantMixPlayer
 import com.subtracks.playback.MediaSessionConnection
 import com.subtracks.playback.PlaybackController
 import com.subtracks.playback.PlayerConnection
+import com.subtracks.playback.QueueBuilderPlayer
 import com.subtracks.playback.Scrobbler
 import com.subtracks.playback.SmartShufflePlayer
 import com.subtracks.ui.NowPlayingLauncher
@@ -254,6 +255,30 @@ fun appModule(
             activeSourceId = sources::activeSourceIdOnce,
             downloadedOnly = get(named("mixDownloadedOnly")),
             controller = get(),
+        )
+    }
+    single {
+        QueueBuilderPlayer.of(
+            builder = get(),
+            activeSourceId = get<SourceRepository>()::activeSourceIdOnce,
+            downloadedOnly = get(named("mixDownloadedOnly")),
+            controller = get(),
+        )
+    }
+    viewModel {
+        val sources = get<SourceRepository>()
+        val player = get<QueueBuilderPlayer>()
+        com.subtracks.ui.discover.QueueBuilderViewModel(
+            activeSourceId = sources.activeSourceId(),
+            offline =
+                combine(
+                    sources.offline,
+                    networkAvailable(context.applicationContext),
+                ) { offline, connected -> offline || !connected },
+            builder = get(),
+            preferences = get(),
+            play = player::play,
+            showMessage = showMessage,
         )
     }
     viewModel { PinMenuViewModel(get()) }

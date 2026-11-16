@@ -12,6 +12,34 @@ data class QueueBuilderSelection(
     val decades: Set<Int> = emptySet(),
 )
 
+/** The remembered picks and queue length (15 to 120 songs in steps of 5). */
+data class QueueBuilderPicks(
+    val selection: QueueBuilderSelection = QueueBuilderSelection(),
+    val length: Int = DEFAULT_LENGTH,
+) {
+    companion object {
+        const val MIN_LENGTH = 15
+        const val MAX_LENGTH = 120
+        const val LENGTH_STEP = 5
+        const val DEFAULT_LENGTH = 50
+
+        fun clampLength(length: Int): Int {
+            val clamped = length.coerceIn(MIN_LENGTH, MAX_LENGTH)
+            return MIN_LENGTH + (clamped - MIN_LENGTH + LENGTH_STEP / 2) / LENGTH_STEP * LENGTH_STEP
+        }
+    }
+}
+
+/**
+ * [selection] without picks the index no longer offers (a genre retagged away, a decade without songs, or
+ * genres without downloads offline), so a remembered pick never silently narrows a build to nothing.
+ */
+fun QueueBuilderIndex.available(selection: QueueBuilderSelection): QueueBuilderSelection =
+    QueueBuilderSelection(
+        genres = selection.genres.filterTo(mutableSetOf()) { key -> genres.any { it.key == key } },
+        decades = selection.decades.filterTo(mutableSetOf()) { it in decades },
+    )
+
 /** One genre as the library tags it, however it is spelled or cased, and the songs carrying it. */
 data class QueueBuilderGenre(
     val key: String,

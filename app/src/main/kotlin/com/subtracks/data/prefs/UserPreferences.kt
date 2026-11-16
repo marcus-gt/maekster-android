@@ -9,9 +9,12 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.subtracks.data.listenbrainz.ListenBrainzApi
 import com.subtracks.data.lyrics.LyricsSource
+import com.subtracks.data.mix.QueueBuilderPicks
+import com.subtracks.data.mix.QueueBuilderSelection
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.source.DEFAULT_FETCH_CONCURRENCY
 import kotlinx.coroutines.flow.Flow
@@ -297,6 +300,36 @@ class UserPreferences(
     }
 
     private val autoplaySimilarKey = booleanPreferencesKey("autoplay_similar")
+
+    /** The Queue Builder picks and length for one server; genre keys come from that server's library. */
+    fun queueBuilderPicks(sourceId: Long): Flow<QueueBuilderPicks> =
+        store.data.map { prefs ->
+            QueueBuilderPicks(
+                selection =
+                    QueueBuilderSelection(
+                        genres = prefs[queueBuilderGenresKey(sourceId)].orEmpty(),
+                        decades = prefs[queueBuilderDecadesKey(sourceId)].orEmpty().mapNotNull { it.toIntOrNull() }.toSet(),
+                    ),
+                length = QueueBuilderPicks.clampLength(prefs[queueBuilderLengthKey(sourceId)] ?: QueueBuilderPicks.DEFAULT_LENGTH),
+            )
+        }
+
+    suspend fun setQueueBuilderPicks(
+        sourceId: Long,
+        picks: QueueBuilderPicks,
+    ) {
+        store.edit {
+            it[queueBuilderGenresKey(sourceId)] = picks.selection.genres
+            it[queueBuilderDecadesKey(sourceId)] = picks.selection.decades.mapTo(mutableSetOf()) { decade -> decade.toString() }
+            it[queueBuilderLengthKey(sourceId)] = QueueBuilderPicks.clampLength(picks.length)
+        }
+    }
+
+    private fun queueBuilderGenresKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_genres_$sourceId")
+
+    private fun queueBuilderDecadesKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_decades_$sourceId")
+
+    private fun queueBuilderLengthKey(sourceId: Long) = intPreferencesKey("queue_builder_length_$sourceId")
 
     fun keepScreenOn(): Flow<Boolean> = store.data.map { prefs -> prefs[keepScreenOnKey] ?: false }
 

@@ -190,6 +190,8 @@ class PlaybackControllerTest {
             assertEquals(SourceHeading("Smart Shuffle"), controller.sourceHeading(null, resources, generated = true))
             queues.replace(emptyList(), sourceLabel = QueueCollection.InstantMix.storedLabel)
             assertEquals(SourceHeading("Instant Mix"), controller.sourceHeading(null, resources, generated = true))
+            queues.replace(emptyList(), sourceLabel = QueueCollection.QueueBuilder.storedLabel)
+            assertEquals(SourceHeading("Queue Builder"), controller.sourceHeading(null, resources, generated = true))
             queues.replace(emptyList(), sourceLabel = QueueCollection.Favorites.storedLabel)
             assertEquals(SourceHeading("Similar to Favorites", similar = true), controller.sourceHeading(null, resources, generated = true))
             queues.replace(emptyList())

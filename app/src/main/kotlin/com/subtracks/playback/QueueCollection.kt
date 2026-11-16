@@ -20,6 +20,7 @@ internal enum class QueueCollection(
     Downloads(QueueKind.Downloaded, "\u0000maekster:collection:downloads", R.string.downloads_title),
     SmartShuffle(null, "\u0000maekster:collection:smart-shuffle", R.string.smart_shuffle_title, endless = true),
     InstantMix(null, "\u0000maekster:collection:instant-mix", R.string.instant_mix_title, endless = true),
+    QueueBuilder(null, "\u0000maekster:collection:queue-builder", R.string.queue_builder_title, endless = true),
     ;
 
     companion object {

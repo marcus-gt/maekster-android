@@ -9,6 +9,8 @@ import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.PlaylistRepository
 import com.subtracks.playback.PlaybackController
+import com.subtracks.playback.QueueBuilderPlayer
+import com.subtracks.ui.discover.QueueBuilderViewModel
 import com.subtracks.ui.playback.LyricsViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,5 +84,16 @@ class AppModuleTest {
         assertSame(lyrics, koin.get<LyricsRepository>())
         assertNotNull(koin.get<LyricsViewModel>())
         assertSame(koin.get<PlaylistRepository>(), koin.get<PlaylistRepository>())
+    }
+
+    @Test
+    fun theModuleResolvesTheQueueBuilder() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val serverHeaders = ServerHeaders()
+        val http = OkHttpClient.Builder().addNetworkInterceptor(serverHeaders.interceptor()).build()
+        koin = startKoin { modules(appModule(context, http, serverHeaders)) }.koin
+
+        assertSame(koin.get<QueueBuilderPlayer>(), koin.get<QueueBuilderPlayer>())
+        assertNotNull(koin.get<QueueBuilderViewModel>())
     }
 }

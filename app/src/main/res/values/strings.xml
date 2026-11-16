@@ -390,6 +390,35 @@
     <string name="discover_stations_description">Start with an artist. See where the music takes you.</string>
     <string name="discover_stations_empty">Sync your library to find artist stations here.</string>
     <string name="instant_mix_title">Instant Mix</string>
+    <string name="queue_builder_title">Queue Builder</string>
+    <string name="queue_builder_anything">Anything in your library</string>
+    <string name="queue_builder_offline">Offline: built from your downloaded music.</string>
+    <string name="queue_builder_play">Play</string>
+    <string name="queue_builder_edit">Edit picks</string>
+    <string name="queue_builder_reset">Reset</string>
+    <string name="queue_builder_clear">Clear</string>
+    <string name="queue_builder_genres">Genres</string>
+    <string name="queue_builder_filter_genres">Filter genres</string>
+    <string name="queue_builder_genres_none">No genre picked: every genre is included.</string>
+    <string name="queue_builder_genres_some">Songs with any picked genre are included.</string>
+    <string name="queue_builder_genres_empty">No genres in your library yet.</string>
+    <string name="queue_builder_decades">Decades</string>
+    <string name="queue_builder_decades_none">No decade picked: every year is included, by album year.</string>
+    <string name="queue_builder_decades_some">Songs from any picked decade are included, by album year.</string>
+    <string name="queue_builder_decade">%1$ds</string>
+    <string name="queue_builder_chip">%1$s (%2$d)</string>
+    <string name="queue_builder_length">Length</string>
+    <plurals name="queue_builder_songs">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
+    </plurals>
+    <plurals name="queue_builder_matching">
+        <item quantity="one">%d matching song</item>
+        <item quantity="other">%d matching songs</item>
+    </plurals>
+    <string name="queue_builder_build">Build queue</string>
+    <string name="queue_builder_building">Building…</string>
+    <string name="queue_builder_no_match">No songs match these picks. Try a broader selection.</string>
     <string name="start_station">Start station</string>
     <string name="mix_preparing">Preparing mix…</string>
     <string name="mix_empty">No songs available for this mix. Offline mixes need downloaded songs.</string>
