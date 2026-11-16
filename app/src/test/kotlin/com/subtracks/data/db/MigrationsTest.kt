@@ -141,6 +141,32 @@ class MigrationsTest {
         }
 
     @Test
+    fun extensionBoundaryMigrationPreservesPlaybackAndStartsWithoutATail() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 57)
+                connection.execSQL(
+                    "INSERT INTO playback_cursor (id, queuePosition, positionMs, positionSongId, sourceLabel) " +
+                        "VALUES (1, 12, 3456, 'song', 'Album')",
+                )
+                MIGRATION_57_58.migrate(connection)
+                connection
+                    .prepare(
+                        "SELECT queuePosition, positionMs, positionSongId, sourceLabel, extensionStart FROM playback_cursor",
+                    ).use { row ->
+                        assertTrue(row.step())
+                        assertEquals(12L, row.getLong(0))
+                        assertEquals(3456L, row.getLong(1))
+                        assertEquals("song", row.getText(2))
+                        assertEquals("Album", row.getText(3))
+                        assertTrue(row.isNull(4))
+                    }
+                connection.execSQL("UPDATE playback_cursor SET extensionStart = 50")
+                assertEquals(50L, long(connection, "SELECT extensionStart FROM playback_cursor"))
+            }
+        }
+
+    @Test
     fun everyExportedVersionIsCoveredByAContiguousMigrationChain() {
         val chain = MIGRATIONS.sortedBy { it.startVersion }
         assertEquals(versions.dropLast(1), chain.map { it.startVersion })

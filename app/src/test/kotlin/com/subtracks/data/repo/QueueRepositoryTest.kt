@@ -48,6 +48,24 @@ class QueueRepositoryTest {
     }
 
     @Test
+    fun extensionBoundarySurvivesCursorWritesAndRecreationButNotQueueReplacement() =
+        runTest {
+            seedLibrary()
+            val entries = listOf(repository.songEntry(1, "s1"), repository.songEntry(1, "s4"))
+            repository.replace(entries)
+            val dao = db.queueDao()
+            dao.setCursor(dao.cursor()!!.copy(extensionStart = 1))
+            repository.setCursor(1)
+            repository.setPosition(1234, "s4")
+            repository.setRepeat(2)
+            repository.setShuffle(42)
+            assertEquals(1L, db.queueDao().cursor()!!.extensionStart)
+            assertEquals(1L, QueueRepository(db).extensionStart())
+            repository.replace(entries)
+            assertEquals(null, repository.extensionStart())
+        }
+
+    @Test
     fun playlistExportPreservesCombinedShuffleOrderAndDuplicates() =
         runTest {
             seedLibrary()

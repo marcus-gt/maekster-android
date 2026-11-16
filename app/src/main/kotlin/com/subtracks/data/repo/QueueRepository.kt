@@ -609,7 +609,15 @@ class QueueRepository(
         writeUpNext(upNext)
         if (shuffleOrder == null) setShuffle(shuffleSeed) else setShuffleOrder(shuffleOrder)
         cursorMutex.withLock {
-            dao.setCursor(cursorRow().copy(queuePosition = 0, positionMs = 0, upNextAnchor = upNextAnchor, sourceLabel = sourceLabel))
+            dao.setCursor(
+                cursorRow().copy(
+                    queuePosition = 0,
+                    positionMs = 0,
+                    upNextAnchor = upNextAnchor,
+                    sourceLabel = sourceLabel,
+                    extensionStart = null,
+                ),
+            )
         }
         db.queueOrderDao().prune()
         orderCache.clear()
@@ -1051,6 +1059,8 @@ class QueueRepository(
     suspend fun cursorPositionMs(): Long = dao.cursor()?.positionMs ?: 0
 
     suspend fun sourceLabel(): String? = dao.cursor()?.sourceLabel
+
+    suspend fun extensionStart(): Long? = dao.cursor()?.extensionStart
 
     /** The song the saved position belongs to, or null when unknown (older rows, or nothing saved yet). */
     suspend fun positionSongId(): String? = dao.cursor()?.positionSongId

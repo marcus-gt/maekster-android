@@ -90,7 +90,7 @@ import com.subtracks.data.model.UpNextEntry
         PendingListen::class,
         SimilarSong::class,
     ],
-    version = 57,
+    version = 58,
     exportSchema = true,
 )
 @ColumnTypeConverters(
