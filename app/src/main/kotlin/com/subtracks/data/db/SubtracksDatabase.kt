@@ -35,6 +35,7 @@ import com.subtracks.data.model.QueueEntry
 import com.subtracks.data.model.QueueKindConverter
 import com.subtracks.data.model.QuickPlaylist
 import com.subtracks.data.model.SearchHistoryEntry
+import com.subtracks.data.model.SimilarSong
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongArtistRef
 import com.subtracks.data.model.SongDownload
@@ -87,8 +88,9 @@ import com.subtracks.data.model.UpNextEntry
         DownloadCollection::class,
         PlayEvent::class,
         PendingListen::class,
+        SimilarSong::class,
     ],
-    version = 56,
+    version = 57,
     exportSchema = true,
 )
 @ColumnTypeConverters(

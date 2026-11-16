@@ -1,7 +1,10 @@
 package com.subtracks.data.db
 
 import androidx.room3.Dao
+import androidx.room3.Insert
 import androidx.room3.Query
+import androidx.room3.Transaction
+import com.subtracks.data.model.SimilarSong
 
 /** A song a mix may pick, with the artist used to keep any one artist from dominating. */
 data class MixCandidate(
@@ -101,4 +104,90 @@ interface MixDao {
         downloadedOnly: Boolean,
         limit: Int,
     ): List<MixCandidate>
+
+    /** Which of [ids] the mirror holds (and, with [downloadedOnly], has downloaded); order not kept. */
+    @Query("SELECT s.id AS id, s.artistId AS artistId FROM songs s WHERE s.sourceId = :sourceId AND s.id IN (:ids) AND $DOWNLOADED")
+    suspend fun existing(
+        sourceId: Long,
+        ids: List<String>,
+        downloadedOnly: Boolean,
+    ): List<MixCandidate>
+
+    @Query(
+        "SELECT songId AS id, artistId FROM similar_songs " +
+            "WHERE sourceId = :sourceId AND seedKind = :seedKind AND seedId = :seedId ORDER BY position",
+    )
+    suspend fun cachedSimilar(
+        sourceId: Long,
+        seedKind: String,
+        seedId: String,
+    ): List<MixCandidate>
+
+    @Query("DELETE FROM similar_songs WHERE sourceId = :sourceId AND seedKind = :seedKind AND seedId = :seedId")
+    suspend fun deleteSimilar(
+        sourceId: Long,
+        seedKind: String,
+        seedId: String,
+    )
+
+    @Insert
+    suspend fun insertSimilar(rows: List<SimilarSong>)
+
+    /** Replaces one seed's cached answer, so a stale list never mixes with a new one. */
+    @Transaction
+    suspend fun replaceSimilar(
+        sourceId: Long,
+        seedKind: String,
+        seedId: String,
+        songs: List<MixCandidate>,
+        fetchedAt: Long,
+    ) {
+        deleteSimilar(sourceId, seedKind, seedId)
+        insertSimilar(
+            songs.mapIndexed { position, song ->
+                SimilarSong(sourceId, seedKind, seedId, position, song.id, song.artistId, fetchedAt)
+            },
+        )
+    }
+
+    @Query("SELECT artistId FROM songs WHERE sourceId = :sourceId AND id = :songId")
+    suspend fun songArtist(
+        sourceId: Long,
+        songId: String,
+    ): String?
+
+    @Query("SELECT artistId FROM albums WHERE sourceId = :sourceId AND id = :albumId")
+    suspend fun albumArtist(
+        sourceId: Long,
+        albumId: String,
+    ): String?
+
+    @Query(
+        "SELECT DISTINCT genre FROM song_genres WHERE sourceId = :sourceId AND songId = :songId ORDER BY position LIMIT :limit",
+    )
+    suspend fun songGenres(
+        sourceId: Long,
+        songId: String,
+        limit: Int,
+    ): List<String>
+
+    @Query(
+        "SELECT g.genre FROM song_genres g JOIN songs s ON s.sourceId = g.sourceId AND s.id = g.songId " +
+            "WHERE g.sourceId = :sourceId AND s.albumId = :albumId GROUP BY g.genre ORDER BY COUNT(*) DESC LIMIT :limit",
+    )
+    suspend fun albumGenres(
+        sourceId: Long,
+        albumId: String,
+        limit: Int,
+    ): List<String>
+
+    @Query(
+        "SELECT g.genre FROM song_genres g JOIN songs s ON s.sourceId = g.sourceId AND s.id = g.songId " +
+            "WHERE g.sourceId = :sourceId AND s.artistId = :artistId GROUP BY g.genre ORDER BY COUNT(*) DESC LIMIT :limit",
+    )
+    suspend fun artistGenres(
+        sourceId: Long,
+        artistId: String,
+        limit: Int,
+    ): List<String>
 }

@@ -380,6 +380,7 @@
     <string name="quality_mp3_192">MP3 192 kbps</string>
     <string name="quality_custom">Custom</string>
     <string name="smart_shuffle_title">Smart Shuffle</string>
+    <string name="instant_mix_title">Instant Mix</string>
     <string name="listenbrainz_title">ListenBrainz</string>
     <string name="listenbrainz_off">Off</string>
     <string name="listenbrainz_on">On · %1$s</string>

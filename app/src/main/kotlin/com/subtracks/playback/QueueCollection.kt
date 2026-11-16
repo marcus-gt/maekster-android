@@ -17,6 +17,7 @@ internal enum class QueueCollection(
     Favorites(QueueKind.Starred, "\u0000maekster:collection:favorites", R.string.resources_filter_starred),
     Downloads(QueueKind.Downloaded, "\u0000maekster:collection:downloads", R.string.downloads_title),
     SmartShuffle(null, "\u0000maekster:collection:smart-shuffle", R.string.smart_shuffle_title),
+    InstantMix(null, "\u0000maekster:collection:instant-mix", R.string.instant_mix_title),
     ;
 
     companion object {

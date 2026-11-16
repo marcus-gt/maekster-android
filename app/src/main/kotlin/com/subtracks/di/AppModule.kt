@@ -21,6 +21,8 @@ import com.subtracks.data.lyrics.LyricsCache
 import com.subtracks.data.lyrics.LyricsLoader
 import com.subtracks.data.lyrics.LyricsProvider
 import com.subtracks.data.lyrics.LyricsRepository
+import com.subtracks.data.mix.InstantMix
+import com.subtracks.data.mix.SimilarSongs
 import com.subtracks.data.mix.SmartShuffle
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.Song
@@ -47,6 +49,7 @@ import com.subtracks.data.sync.AutoSync
 import com.subtracks.data.sync.SyncManager
 import com.subtracks.data.sync.SyncNotifier
 import com.subtracks.log.Log
+import com.subtracks.playback.InstantMixPlayer
 import com.subtracks.playback.MediaSessionConnection
 import com.subtracks.playback.PlaybackController
 import com.subtracks.playback.PlayerConnection
@@ -216,15 +219,29 @@ fun appModule(
         }
     }
     single { NowPlayingLauncher() }
-    single {
+    single { SmartShuffle(get<SubtracksDatabase>().mixDao()) }
+    // Offline mode or no network: mixes may only use downloaded songs.
+    single(named("mixDownloadedOnly")) {
         val sources = get<SourceRepository>()
         val connected =
             networkAvailable(context.applicationContext).stateIn(get<CoroutineScope>(), SharingStarted.Eagerly, true)
+        val downloadedOnly: () -> Boolean = { sources.offline.value || !connected.value }
+        downloadedOnly
+    }
+    single {
         SmartShufflePlayer.of(
-            mix = SmartShuffle(get<SubtracksDatabase>().mixDao()),
+            mix = get(),
+            activeSourceId = get<SourceRepository>()::activeSourceIdOnce,
+            downloadedOnly = get(named("mixDownloadedOnly")),
+            controller = get(),
+        )
+    }
+    single {
+        val sources = get<SourceRepository>()
+        InstantMixPlayer.of(
+            mix = InstantMix(get<SubtracksDatabase>().mixDao(), SimilarSongs(sources::similarSongs), get()),
             activeSourceId = sources::activeSourceIdOnce,
-            // Offline mode or no network: only downloaded songs can play.
-            downloadedOnly = { sources.offline.value || !connected.value },
+            downloadedOnly = get(named("mixDownloadedOnly")),
             controller = get(),
         )
     }

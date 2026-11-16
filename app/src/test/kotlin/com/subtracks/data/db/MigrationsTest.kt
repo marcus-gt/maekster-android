@@ -123,6 +123,24 @@ class MigrationsTest {
         }
 
     @Test
+    fun theSimilarSongsMigrationAddsAnEmptyCascadingCache() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 56)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                MIGRATION_56_57.migrate(connection)
+                connection.execSQL(
+                    "INSERT INTO similar_songs (sourceId, seedKind, seedId, position, songId, fetchedAt) " +
+                        "VALUES (1, 'song', 'a', 0, 'b', 5)",
+                )
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM similar_songs"))
+                connection.execSQL("DELETE FROM sources WHERE id = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM similar_songs"))
+            }
+        }
+
+    @Test
     fun everyExportedVersionIsCoveredByAContiguousMigrationChain() {
         val chain = MIGRATIONS.sortedBy { it.startVersion }
         assertEquals(versions.dropLast(1), chain.map { it.startVersion })
