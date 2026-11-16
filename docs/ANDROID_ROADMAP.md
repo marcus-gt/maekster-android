@@ -667,8 +667,11 @@ bounded player-window refresh and tail trimming on disable/repeat/shuffle; Koin 
 no visible toggle yet. See `docs/handoffs/M3.2-autoplay-controller.md`.
 Part D4a is complete: DataStore opt-in (off by default), Autoplay similar switch on Discover, controller
 follows the preference and drops an unplayed generated tail on restore when disabled. See
-`docs/handoffs/M3.2-autoplay-setting.md`.
-Next: D4b, Similar to … provenance labels and device checks of refill. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+`docs/handoffs/M3.2-autoplay-setting.md`. Part D4b is complete: the current song autoplay appended after a
+finite source is labelled "Similar to …" in the queue and Now Playing headers (endless Smart Shuffle and
+Instant Mix keep their names); refill, labels and disable trimming verified on the emulator. See
+`docs/handoffs/M3.2-autoplay-labels.md`. Part D is complete.
+Next: Part E, Queue Builder (local). See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

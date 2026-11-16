@@ -62,6 +62,7 @@ import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.QueueWindowItem
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.playback.PlaybackController
+import com.subtracks.playback.SourceHeading
 import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.rememberViewportFill
@@ -306,9 +307,12 @@ fun QueueRoute(
     // The item's album keeps the header stable while the async name lookup runs, so it does not
     // flash the fallback when tapping between context and manually queued tracks.
     val fallbackTitle = playback.item?.album?.takeIf { it.isNotBlank() } ?: stringResource(R.string.queue_next_from_here)
-    val sourceTitle = remember(queueContext) { mutableStateOf(fallbackTitle) }
-    LaunchedEffect(queueContext, titleResources) {
-        sourceTitle.value = controller.sourceTitle(queueContext, titleResources)?.takeIf { it.isNotBlank() } ?: fallbackTitle
+    val generated = playback.generated
+    val sourceTitle = remember(queueContext, generated) { mutableStateOf(SourceHeading(fallbackTitle)) }
+    LaunchedEffect(queueContext, generated, titleResources) {
+        sourceTitle.value =
+            controller.sourceHeading(queueContext, titleResources, generated)?.takeIf { it.title.isNotBlank() }
+                ?: SourceHeading(fallbackTitle)
     }
     LaunchedEffect(playback.shuffle, open) { if (open) viewModel.open() }
     LaunchedEffect(playback.layout) { if (open) viewModel.reconcile() }
@@ -328,7 +332,8 @@ fun QueueRoute(
         currentPosition = playback.position,
         currentSongId = playback.item?.id,
         shuffle = playback.shuffle,
-        contextTitle = sourceTitle.value,
+        contextTitle = sourceTitle.value.title,
+        contextSimilar = sourceTitle.value.similar,
         onClearUpNext = controller::clearUpNext,
         canClearUpcoming = playback.canClearUpcoming,
         onClearUpcoming = controller::clearUpcoming,
@@ -367,6 +372,7 @@ fun QueueScreen(
     generation: Int = 0,
     shuffle: Boolean = false,
     contextTitle: String? = null,
+    contextSimilar: Boolean = false,
     onClearUpNext: () -> Unit = {},
     canClearUpcoming: Boolean = false,
     onClearUpcoming: suspend () -> Boolean = { false },
@@ -436,7 +442,7 @@ fun QueueScreen(
                         Text(stringResource(R.string.queue_title))
                         contextTitle?.takeIf { it.isNotBlank() }?.let {
                             Text(
-                                stringResource(R.string.queue_playing_from, it),
+                                if (contextSimilar) it else stringResource(R.string.queue_playing_from, it),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

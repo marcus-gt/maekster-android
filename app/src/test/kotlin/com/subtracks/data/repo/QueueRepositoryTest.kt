@@ -180,6 +180,20 @@ class QueueRepositoryTest {
         }
 
     @Test
+    fun onlyContextSongsFromTheExtensionBoundaryAreGenerated() {
+        fun song(
+            id: String,
+            position: Long,
+        ) = ResolvedQueueEntry(repository.songEntry(1, id).copy(position = position), 1)
+        val entries = listOf(song("s1", 0), song("s2", 1), song("s10", 2))
+        // Positions: 0 = s1, 1 = queued up next, 2 = s2, 3 = s10 (appended by autoplay).
+        val snapshot = QueueSnapshot(entries, upNext = listOf(song("u1", 0)), upNextAnchor = 0, extensionStart = 2)
+        assertEquals(listOf(false, false, false, true), (0L..3L).map(snapshot::isGenerated))
+        assertFalse(snapshot.copy(extensionStart = null).isGenerated(3))
+        assertFalse(QueueSnapshot(entries, shuffle = ShuffleState(1, 3), extensionStart = 2).isGenerated(2))
+    }
+
+    @Test
     fun playlistExportDoesNotResolvePastTheBatchTheCollectorRequests() =
         runTest {
             seedLibrary()

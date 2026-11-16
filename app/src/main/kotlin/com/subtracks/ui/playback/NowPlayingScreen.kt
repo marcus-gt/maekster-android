@@ -245,9 +245,11 @@ fun NowPlayingRoute(
     val titleResources = LocalResources.current
     val queueContext = state.context
     val fallbackTitle = state.item?.album?.takeIf { it.isNotBlank() } ?: stringResource(R.string.navigation_tabs_library)
-    val sourceTitle = remember(queueContext) { mutableStateOf(fallbackTitle) }
-    LaunchedEffect(queueContext, titleResources) {
-        sourceTitle.value = controller.sourceTitle(queueContext, titleResources)?.takeIf { it.isNotBlank() } ?: fallbackTitle
+    val generated = state.generated
+    val sourceTitle = remember(queueContext, generated) { mutableStateOf(fallbackTitle) }
+    LaunchedEffect(queueContext, generated, titleResources) {
+        sourceTitle.value =
+            controller.sourceTitle(queueContext, titleResources, generated)?.takeIf { it.isNotBlank() } ?: fallbackTitle
     }
 
     fun artFor(item: QueueItem) =

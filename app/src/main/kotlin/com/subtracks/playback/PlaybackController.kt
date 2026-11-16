@@ -75,6 +75,14 @@ data class PlaybackState(
     val playbackOrigin: PlaybackOrigin? = null,
     val canClearUpcoming: Boolean = false,
     val waiting: PlaybackWaiting? = null,
+    /** The current song was appended by autoplay after the original queue ran out. */
+    val generated: Boolean = false,
+)
+
+/** What the queue is playing from; [similar] when autoplay has taken over from a source that ended. */
+data class SourceHeading(
+    val title: String,
+    val similar: Boolean = false,
 )
 
 private sealed interface QueueUndo {
@@ -1935,14 +1943,32 @@ class PlaybackController(
     suspend fun sourceTitle(
         context: QueueContext?,
         resources: Resources,
-    ): String? {
+        generated: Boolean = false,
+    ): String? = sourceHeading(context, resources, generated)?.title
+
+    /**
+     * The queue's source for [context]. When [generated], a song autoplay appended after a finite source reads
+     * "Similar to …"; endless mixes keep their own name, and an unnamed source has no heading.
+     */
+    suspend fun sourceHeading(
+        context: QueueContext?,
+        resources: Resources,
+        generated: Boolean = false,
+    ): SourceHeading? {
         queueRepository.sourceLabel()?.let { label ->
-            return QueueCollection.fromStored(label)?.let { resources.getString(it.title) } ?: label
+            val collection = QueueCollection.fromStored(label)
+            val name = collection?.let { resources.getString(it.title) } ?: label
+            if (generated && collection?.endless != true) {
+                return SourceHeading(resources.getString(R.string.queue_similar_to, name), similar = true)
+            }
+            return SourceHeading(name)
         }
-        return context?.let {
-            QueueCollection.forKind(it.kind)?.let { collection -> resources.getString(collection.title) }
-                ?: queueRepository.sourceName(it.kind, it.sourceId, it.refId)
-        }
+        if (generated) return null
+        return context
+            ?.let {
+                QueueCollection.forKind(it.kind)?.let { collection -> resources.getString(collection.title) }
+                    ?: queueRepository.sourceName(it.kind, it.sourceId, it.refId)
+            }?.let { SourceHeading(it) }
     }
 
     private fun updateBuffering() {
@@ -2012,6 +2038,7 @@ class PlaybackController(
                 audioEncoding = player.audioEncoding.takeIf { player.currentItem != null },
                 playbackOrigin = player.playbackOrigin.takeIf { player.currentItem != null },
                 canClearUpcoming = snapshot?.let { position != null && position < it.size - 1 } == true,
+                generated = snapshot?.let { position != null && it.isGenerated(position) } == true,
             )
         _positionMs.value = player.currentPositionMs
         scheduleAutoplay(position)

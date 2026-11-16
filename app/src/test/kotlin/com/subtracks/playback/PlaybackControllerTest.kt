@@ -153,6 +153,51 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun autoplaySongsAfterAFiniteSourceAreLabelledSimilarToIt() {
+        seedAlbum(20, sourceId = 1)
+        runBlocking {
+            prefs.setAutoplaySimilar(true)
+            queues.replace(listOf(queues.songEntry(1, "s1"), queues.songEntry(1, "s2")), sourceLabel = "Jazz tunes")
+            queues.appendExtension(queues.snapshot(), 1, listOf("s10"))
+            queues.setCursor(0)
+        }
+        controller.connect()
+        await {
+            controller.ready.value && controller.state.value.item
+                ?.id == "s1"
+        }
+        assertFalse(controller.state.value.generated)
+        assertEquals(
+            SourceHeading("Jazz tunes"),
+            runBlocking { controller.sourceHeading(controller.state.value.context, resources, generated = false) },
+        )
+        controller.playAt(2)
+        await {
+            controller.state.value.item
+                ?.id == "s10"
+        }
+        assertTrue(controller.state.value.generated)
+        assertEquals(
+            SourceHeading("Similar to Jazz tunes", similar = true),
+            runBlocking { controller.sourceHeading(controller.state.value.context, resources, generated = true) },
+        )
+    }
+
+    @Test
+    fun endlessMixesKeepTheirNameWhenAutoplayExtendsThem() {
+        runBlocking {
+            queues.replace(emptyList(), sourceLabel = QueueCollection.SmartShuffle.storedLabel)
+            assertEquals(SourceHeading("Smart Shuffle"), controller.sourceHeading(null, resources, generated = true))
+            queues.replace(emptyList(), sourceLabel = QueueCollection.InstantMix.storedLabel)
+            assertEquals(SourceHeading("Instant Mix"), controller.sourceHeading(null, resources, generated = true))
+            queues.replace(emptyList(), sourceLabel = QueueCollection.Favorites.storedLabel)
+            assertEquals(SourceHeading("Similar to Favorites", similar = true), controller.sourceHeading(null, resources, generated = true))
+            queues.replace(emptyList())
+            assertNull(controller.sourceHeading(QueueContext(QueueKind.Song, 1, "s10"), resources, generated = true))
+        }
+    }
+
+    @Test
     fun persistedAutoplayPreferenceDrivesRefillAndTruncation() {
         networkAvailable.value = true
         seedAlbum(20, sourceId = 1)

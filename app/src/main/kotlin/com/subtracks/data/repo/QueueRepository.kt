@@ -40,6 +40,7 @@ private data class LoadedSnapshot(
     val shuffle: ShuffleState?,
     val anchor: Long,
     val orders: Map<Long, RetainedQueueOrder>,
+    val extensionStart: Long?,
 )
 
 private data class QueueRef(
@@ -145,6 +146,7 @@ data class QueueSnapshot(
     val upNextAnchor: Long = 0,
     val version: Long = 0,
     val orders: Map<Long, RetainedQueueOrder> = emptyMap(),
+    val extensionStart: Long? = null,
 ) {
     val contextSize: Long = entries.sumOf { it.length }
 
@@ -206,6 +208,15 @@ data class QueueSnapshot(
     }
 
     fun isAlbumContext(position: Long): Boolean = locate(position)?.first?.kind == QueueKind.Album
+
+    /** Whether [position] plays a song autoplay appended after the original queue ran out. */
+    fun isGenerated(position: Long): Boolean {
+        val start = extensionStart ?: return false
+        if (shuffled || isUpNext(position)) return false
+        val flat = flatContext(contextPlay(position)) ?: return false
+        val entry = locateIn(entries, flat)?.first ?: return false
+        return entry.position >= start
+    }
 }
 
 private fun entryIndexAfter(
@@ -658,10 +669,18 @@ class QueueRepository(
                         } else {
                             null
                         }
-                    LoadedSnapshot(entries, upNext, shuffle, row?.upNextAnchor ?: 0L, orderCache.toMap())
+                    LoadedSnapshot(entries, upNext, shuffle, row?.upNextAnchor ?: 0L, orderCache.toMap(), row?.extensionStart)
                 }
             }
-        return QueueSnapshot(loaded.entries, loaded.upNext, loaded.shuffle, loaded.anchor, version, loaded.orders)
+        return QueueSnapshot(
+            loaded.entries,
+            loaded.upNext,
+            loaded.shuffle,
+            loaded.anchor,
+            version,
+            loaded.orders,
+            loaded.extensionStart,
+        )
     }
 
     suspend fun modes(): QueueModes {

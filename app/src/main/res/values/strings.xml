@@ -10,6 +10,7 @@
     <string name="queue_clear_upcoming">Clear upcoming</string>
     <string name="queue_upcoming_cleared">Upcoming tracks cleared</string>
     <string name="queue_playing_from">Playing from %1$s</string>
+    <string name="queue_similar_to">Similar to %1$s</string>
     <string name="queue_up_next_cleared">Up next cleared</string>
     <string name="playback_origin_streaming">Streaming</string>
     <string name="playback_origin_downloaded">Downloaded</string>
