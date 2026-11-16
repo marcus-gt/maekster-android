@@ -660,7 +660,9 @@ and cleared by queue replacement. Storage only; no autoplay UI or generation yet
 `docs/handoffs/M3.2-extension-boundary.md`. Part D2 is complete: repository-level atomic append (max 50) and unplayed-tail truncation,
 with stale-context/mode guards and manual context edits promoting retained tracks into ordinary context.
 No autoplay generation/UI yet. See `docs/handoffs/M3.2-extension-operations.md`.
-Next: D3, controller-driven generation/refill. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Part D3a is complete: an unwired refill coordinator gates at <=15 remaining, filters nearby/recent
+songs and offline candidates, coalesces in-flight attempts and appends through D2. No runtime observer
+or toggle yet. See `docs/handoffs/M3.2-autoplay-refill.md`. Next: D3b, controller wiring and cancellation. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
