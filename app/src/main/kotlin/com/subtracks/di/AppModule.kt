@@ -22,6 +22,7 @@ import com.subtracks.data.lyrics.LyricsLoader
 import com.subtracks.data.lyrics.LyricsProvider
 import com.subtracks.data.lyrics.LyricsRepository
 import com.subtracks.data.mix.InstantMix
+import com.subtracks.data.mix.QueueBuilder
 import com.subtracks.data.mix.SimilarSongs
 import com.subtracks.data.mix.SmartShuffle
 import com.subtracks.data.model.DownloadList
@@ -229,6 +230,7 @@ fun appModule(
     }
     single { NowPlayingLauncher() }
     single { SmartShuffle(get<SubtracksDatabase>().mixDao()) }
+    single { QueueBuilder(get<SubtracksDatabase>().mixDao()) }
     // Offline mode or no network: mixes may only use downloaded songs.
     single(named("mixDownloadedOnly")) {
         val sources = get<SourceRepository>()

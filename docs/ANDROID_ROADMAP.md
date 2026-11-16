@@ -671,7 +671,11 @@ follows the preference and drops an unplayed generated tail on restore when disa
 finite source is labelled "Similar to …" in the queue and Now Playing headers (endless Smart Shuffle and
 Instant Mix keep their names); refill, labels and disable trimming verified on the emulator. See
 `docs/handoffs/M3.2-autoplay-labels.md`. Part D is complete.
-Next: Part E, Queue Builder (local). See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Part E (Queue Builder, local) is split into E1 engine, E2 Discover card and picker, E3 refill with its own
+picks, E4 genre taxonomy (licence review first); moods wait for AudioMuse. Part E1 is complete: genre and
+decade index, exact match count and bounded random build from the mirror, downloads-only offline. No UI yet.
+See `docs/handoffs/M3.2-queue-builder-engine.md`.
+Next: E2, the Queue Builder card and picker on Discover. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

@@ -19,9 +19,34 @@ data class RecentPlay(
     val genre: String?,
 )
 
+/** One stored genre spelling: the rows using it, and the distinct songs carrying it. */
+data class GenreSpelling(
+    val genre: String,
+    val uses: Long,
+    val songCount: Long,
+)
+
+/** Songs whose album was released in [decade] (its first year). */
+data class DecadeCount(
+    val decade: Int,
+    val songCount: Long,
+)
+
 private const val DOWNLOADED =
     "(:downloadedOnly = 0 OR EXISTS (SELECT 1 FROM song_downloads d " +
         "WHERE d.sourceId = s.sourceId AND d.songId = s.id AND d.status = 'Completed'))"
+
+private const val GENRE_DOWNLOADED =
+    "(:downloadedOnly = 0 OR EXISTS (SELECT 1 FROM song_downloads d " +
+        "WHERE d.sourceId = g.sourceId AND d.songId = g.songId AND d.status = 'Completed'))"
+
+private const val BUILDER_FROM = "FROM songs s LEFT JOIN albums a ON a.sourceId = s.sourceId AND a.id = s.albumId"
+
+// Any picked genre and any picked decade; songs without a year drop out once a decade is picked.
+private const val BUILDER_MATCH =
+    "s.sourceId = :sourceId AND (:anyGenre = 1 OR EXISTS (SELECT 1 FROM song_genres g " +
+        "WHERE g.sourceId = s.sourceId AND g.songId = s.id AND g.genre IN (:genres))) " +
+        "AND (:anyDecade = 1 OR (a.year > 0 AND (a.year / 10) * 10 IN (:decades))) AND $DOWNLOADED"
 
 /** Bounded, random reads from the mirror for Smart Shuffle and other local mixes. Never loads a whole table. */
 @Dao
@@ -194,6 +219,47 @@ interface MixDao {
     suspend fun artistGenres(
         sourceId: Long,
         artistId: String,
+        limit: Int,
+    ): List<String>
+
+    /** Every stored genre spelling with its use and song counts, one row per spelling (not per song). */
+    @Query(
+        "SELECT g.genre AS genre, COUNT(*) AS uses, COUNT(DISTINCT g.songId) AS songCount FROM song_genres g " +
+            "WHERE g.sourceId = :sourceId AND $GENRE_DOWNLOADED GROUP BY g.genre",
+    )
+    suspend fun genreSpellings(
+        sourceId: Long,
+        downloadedOnly: Boolean,
+    ): List<GenreSpelling>
+
+    @Query(
+        "SELECT (a.year / 10) * 10 AS decade, COUNT(*) AS songCount $BUILDER_FROM " +
+            "WHERE s.sourceId = :sourceId AND a.year > 0 AND $DOWNLOADED GROUP BY decade ORDER BY decade",
+    )
+    suspend fun decadeCounts(
+        sourceId: Long,
+        downloadedOnly: Boolean,
+    ): List<DecadeCount>
+
+    @Query("SELECT COUNT(*) $BUILDER_FROM WHERE $BUILDER_MATCH")
+    suspend fun builderMatchCount(
+        sourceId: Long,
+        anyGenre: Boolean,
+        genres: List<String>,
+        anyDecade: Boolean,
+        decades: List<Int>,
+        downloadedOnly: Boolean,
+    ): Long
+
+    @Query("SELECT s.id $BUILDER_FROM WHERE $BUILDER_MATCH AND s.id NOT IN (:excluded) ORDER BY RANDOM() LIMIT :limit")
+    suspend fun builderSongs(
+        sourceId: Long,
+        anyGenre: Boolean,
+        genres: List<String>,
+        anyDecade: Boolean,
+        decades: List<Int>,
+        excluded: List<String>,
+        downloadedOnly: Boolean,
         limit: Int,
     ): List<String>
 }
