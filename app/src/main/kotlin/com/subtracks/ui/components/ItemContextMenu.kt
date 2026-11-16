@@ -217,6 +217,7 @@ fun ItemContextMenu(
     pinned: Boolean? = null,
     onSetPinned: ((Boolean) -> Unit)? = null,
     onAddToPlaylist: ((SongModel) -> Unit)? = null,
+    onInstantMix: ((MenuTarget) -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -261,6 +262,14 @@ fun ItemContextMenu(
                     .verticalScroll(rememberScrollState()),
         ) {
             MenuHeader(target)
+            if (target.mixRequest() != null && onInstantMix != null) {
+                MenuItem(
+                    Icons.AutoMirrored.Rounded.QueueMusic,
+                    stringResource(if (target is MenuTarget.Artist) R.string.start_station else R.string.instant_mix_title),
+                ) {
+                    dismiss { onInstantMix(target) }
+                }
+            }
             if (target !is MenuTarget.Song && pinned != null && onSetPinned != null) {
                 MenuItem(Icons.Rounded.PushPin, stringResource(if (pinned) R.string.unpin_from_home else R.string.pin_to_home)) {
                     dismiss { onSetPinned(!pinned) }

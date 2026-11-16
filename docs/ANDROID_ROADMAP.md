@@ -647,8 +647,11 @@ against the real service is still unchecked.
 recent taste, rediscovery; at most 3 per artist; recent plays skipped), built from the mirror with bounded
 queries and limited to downloads when offline, and played as a labelled mix (`playMix`). No UI yet.
 Part B is complete: Instant Mix and artist-station engine/playback, explicit server similarity cached in
-Room (schema 57), with downloaded-only cache/local fallback offline. UI entry points remain Part C.
-Next: the Discover tab. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Room (schema 57), with downloaded-only cache/local fallback offline.
+Part C1 is complete: shared song/album menus offer Instant Mix; artist menus offer Start station.
+Preparation survives menu dismissal, reports empty/error results, and guards against server switches.
+Album action verified through playback on the emulator. See `docs/handoffs/M3.2-instant-mix-menu.md`.
+Next: Part C2, the Discover tab with Smart Shuffle and Stations. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

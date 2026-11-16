@@ -46,6 +46,7 @@ fun PinMenuRoute(
     onInfo: (MenuTarget) -> Unit,
     onChooseArtists: (List<ArtistRef>) -> Unit,
     onAddToPlaylist: ((Song) -> Unit)? = null,
+    onInstantMix: ((MenuTarget) -> Unit)? = null,
     viewModel: PinMenuViewModel = koinViewModel(),
 ) {
     val ref = target.pinRef()
@@ -60,6 +61,7 @@ fun PinMenuRoute(
             pinned = pinned,
             onSetPinned = ref?.let { reference -> { value -> viewModel.setPinned(reference, value) } },
             onAddToPlaylist = onAddToPlaylist,
+            onInstantMix = onInstantMix,
         )
     }
 }

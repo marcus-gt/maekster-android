@@ -247,6 +247,13 @@ fun appModule(
     }
     viewModel { PinMenuViewModel(get()) }
     viewModel { RootViewModel(get()) }
+    viewModel {
+        val player = get<InstantMixPlayer>()
+        com.subtracks.ui.components.MixMenuViewModel(
+            play = { sourceId, seed -> player.play(seed, expectedSourceId = sourceId) },
+            showMessage = showMessage,
+        )
+    }
     viewModel { LibraryViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { LibraryHubViewModel(get(), get(), get()) }
     viewModel { HomeViewModel(get(), get(), get(), get(), get()) }

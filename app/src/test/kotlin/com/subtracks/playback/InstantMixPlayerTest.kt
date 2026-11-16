@@ -46,6 +46,23 @@ class InstantMixPlayerTest {
     }
 
     @Test
+    fun aStaleMenuCannotStartOnAnotherSource() =
+        runTest {
+            val sourceId = db.sourcesDao().insertSource(Source(name = "s", address = "http://x", isActive = true, createdAt = 0))
+            db.libraryDao().upsertSongs(listOf(Song(sourceId, "a", "al", "ar", "Song", "Album", "Artist", 100, 1, 1, null)))
+            assertFalse(player(sourceId, offline = false).play(MixSeed.Song("a"), expectedSourceId = sourceId + 1))
+            var active: Long? = sourceId
+            val mix =
+                InstantMix(db.mixDao(), { _, _, _ ->
+                    active = null
+                    emptyList()
+                }, SmartShuffle(db.mixDao()))
+            val player = InstantMixPlayer(mix, { active }, { false }) { id, songs -> started = id to songs }
+            assertFalse(player.play(MixSeed.Song("a"), expectedSourceId = sourceId))
+            assertNull(started)
+        }
+
+    @Test
     fun noServerOrAnEmptyLibraryPlaysNothing() =
         runTest {
             assertFalse(player(sourceId = null, offline = false).play(MixSeed.Artist("ar-b")))

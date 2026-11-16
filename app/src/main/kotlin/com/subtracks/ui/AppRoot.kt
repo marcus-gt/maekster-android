@@ -1039,6 +1039,7 @@ private fun MainNavigation() {
                         onInfo = { infoTarget = it },
                         onChooseArtists = { artistChooser = it },
                         onAddToPlaylist = { song -> addToPlaylist = AddToPlaylistRequest(song.sourceId, listOf(song.id)) },
+                        onInstantMix = koinViewModel<com.subtracks.ui.components.MixMenuViewModel>()::start,
                     )
                 }
 

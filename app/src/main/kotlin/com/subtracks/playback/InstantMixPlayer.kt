@@ -14,10 +14,14 @@ class InstantMixPlayer internal constructor(
     private val start: (sourceId: Long, songIds: List<String>) -> Unit,
 ) {
     /** False when there is nothing to play: no server, or nothing at all to mix. */
-    suspend fun play(seed: MixSeed): Boolean {
+    suspend fun play(
+        seed: MixSeed,
+        expectedSourceId: Long? = null,
+    ): Boolean {
         val sourceId = activeSourceId() ?: return false
+        if (expectedSourceId != null && sourceId != expectedSourceId) return false
         val songIds = mix.build(sourceId, seed, online = !downloadedOnly()).songIds
-        if (songIds.isEmpty()) return false
+        if (songIds.isEmpty() || activeSourceId() != sourceId) return false
         start(sourceId, songIds)
         return true
     }
