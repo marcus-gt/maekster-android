@@ -8,6 +8,9 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -35,7 +38,8 @@ class DiscoverScreenTest {
         }
         composeRule.onNodeWithText("Smart Shuffle").performClick()
         assertEquals(true, shuffled)
-        composeRule.onNodeWithText("Start station").performClick()
+        composeRule.onNodeWithText("Start station").assertDoesNotExist()
+        composeRule.onNodeWithText(artist.name).performClick()
         assertEquals(artist, selected)
     }
 
@@ -60,11 +64,23 @@ class DiscoverScreenTest {
             CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, scale)) {
                 MaeksterTheme {
                     Surface {
-                        DiscoverScreen(DiscoverState(artists = listOf(artist)), false, {}, {}, {})
+                        DiscoverScreen(
+                            DiscoverState(
+                                artists = listOf(artist.copy(name = "Weval"), artist.copy(id = "long", name = "Takuya Nakamura")),
+                            ),
+                            false,
+                            {},
+                            {},
+                            {},
+                        )
                     }
                 }
             }
         }
         composeRule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
+        composeRule.onNodeWithText("Stations").performScrollTo()
+        composeRule.onRoot().performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/${name}_stations.png")
     }
 }

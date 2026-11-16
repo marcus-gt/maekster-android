@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
@@ -72,9 +73,11 @@ fun DiscoverScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Icon(Icons.Rounded.Shuffle, contentDescription = null)
-                        Text(stringResource(R.string.smart_shuffle_title), style = MaterialTheme.typography.headlineMedium)
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Rounded.Shuffle, contentDescription = null)
+                            Text(stringResource(R.string.smart_shuffle_title), style = MaterialTheme.typography.titleLarge)
+                        }
                         Text(
                             stringResource(if (state.offline) R.string.discover_shuffle_offline else R.string.discover_shuffle_description),
                         )
@@ -103,8 +106,13 @@ fun DiscoverScreen(
                                 Card(onClick = { onStation(artist) }, enabled = !busy, modifier = Modifier.width(152.dp)) {
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                         ArtistIcon(artist, artistArt(artist), Modifier.size(120.dp))
-                                        Text(artist.name, style = MaterialTheme.typography.titleMedium)
-                                        Text(stringResource(R.string.start_station), style = MaterialTheme.typography.labelLarge)
+                                        Text(
+                                            artist.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            minLines = 2,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
                                     }
                                 }
                             }

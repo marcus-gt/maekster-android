@@ -653,6 +653,8 @@ Preparation survives menu dismissal, reports empty/error results, and guards aga
 Album action verified through playback on the emulator. See `docs/handoffs/M3.2-instant-mix-menu.md`.
 Part C2 is complete: Discover tab with a Smart Shuffle card and up to 12 local artist stations;
 offline shows downloaded-only Smart Shuffle. Both actions verified through playback on the emulator.
+Visual follow-up: equal-height station cards without repeated action labels and a more compact Smart
+Shuffle card; normal and 2× scrolled renders reviewed (see the C2 handoff).
 See `docs/handoffs/M3.2-discover.md`. Next: Part D, Autoplay similar (auto-extend). See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
