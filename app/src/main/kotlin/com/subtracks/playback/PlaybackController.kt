@@ -155,6 +155,7 @@ class PlaybackController(
     private val showMessage: (UiMessage) -> Unit = {},
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
     networkAvailable: Flow<Boolean> = flowOf(true),
+    private val autoplayFactory: ((() -> Boolean) -> AutoplayRefill)? = null,
 ) {
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state
@@ -169,6 +170,11 @@ class PlaybackController(
     private var pendingPlay: PendingPlay? = null
     private var networkRetry: NetworkRetry? = null
     private var playbackIntentVersion = 0L
+    private var autoplayEnabled = false
+    private var networkConnected = true
+    private var autoplayJob: Job? = null
+    private var autoplayAttempt: Triple<Long, Long, Long>? = null
+    private val autoplay by lazy { autoplayFactory?.invoke { autoplayEnabled } }
     private var pendingShuffle: PendingShuffle? = null
     private var positionJob: Job? = null
     private var windowJob: Job? = null
@@ -196,7 +202,16 @@ class PlaybackController(
 
     init {
         scope.launch {
-            networkAvailable.collect { available -> if (available) retryNetworkPlayback() }
+            networkAvailable.collect { available ->
+                if (networkConnected != available && autoplayEnabled) {
+                    playbackIntentVersion++
+                    autoplayJob?.cancel()
+                    autoplayAttempt = null
+                }
+                networkConnected = available
+                if (available) retryNetworkPlayback()
+                if (autoplayEnabled) refresh()
+            }
         }
         scope.launch {
             sourceRepository.activeSourceId().collect { sourceId ->
@@ -208,6 +223,11 @@ class PlaybackController(
         }
         scope.launch {
             sourceRepository.offline.collect {
+                if (autoplayEnabled) {
+                    playbackIntentVersion++
+                    autoplayJob?.cancel()
+                    autoplayAttempt = null
+                }
                 if (it) networkRetry = null
                 reloadForOffline()
             }
@@ -1067,7 +1087,79 @@ class PlaybackController(
         refresh(position)
     }
 
+    fun setAutoplaySimilar(enabled: Boolean) {
+        if (autoplayEnabled == enabled && enabled) return
+        playbackIntentVersion++
+        autoplayEnabled = enabled
+        autoplayJob?.cancel()
+        autoplayAttempt = null
+        scope.launch {
+            startLock.withLock {
+                if (!autoplayEnabled) truncateAutoplayLocked()
+                refresh()
+            }
+        }
+    }
+
+    private suspend fun truncateAutoplayLocked() {
+        if (queueRepository.extensionStart() == null) return
+        val current = currentPosition() ?: return
+        val snap = snapshot ?: return
+        queueRepository.setCursor(current)
+        if (!queueRepository.truncateExtension(snap)) return
+        val updated = readSnapshot()
+        snapshot = updated
+        layoutVersion++
+        windowJob?.cancel()
+        rebuildWindow(queueRepository.window(updated, current, QUEUE_WINDOW_RADIUS), current)
+    }
+
+    private fun scheduleAutoplay(position: Long?) {
+        val snap = snapshot ?: return
+        if (!autoplayEnabled || shuffleEnabled || repeatMode != RepeatMode.Off ||
+            player?.playWhenReady != true || position == null ||
+            snap.size - position - 1 > AutoplayRefill.REMAINING_THRESHOLD
+        ) {
+            autoplayJob?.cancel()
+            return
+        }
+        val coordinator = autoplay ?: return
+        val key = Triple(snap.version, position, playbackIntentVersion)
+        if (autoplayAttempt == key) return
+        autoplayJob?.cancel()
+        autoplayAttempt = key
+        autoplayJob =
+            scope.launch {
+                try {
+                    coordinator.extend(snap, position, offline || !networkConnected) { expected, sourceId, picks ->
+                        startLock.withLock {
+                            if (!autoplayEnabled || autoplayAttempt != key || playbackIntentVersion != key.third ||
+                                currentPosition() != position || sourceRepository.activeSourceIdOnce() != sourceId ||
+                                shuffleEnabled || repeatMode != RepeatMode.Off
+                            ) {
+                                return@withLock false
+                            }
+                            if (!queueRepository.appendExtension(expected, sourceId, picks)) return@withLock false
+                            val updated = readSnapshot()
+                            snapshot = updated
+                            layoutVersion++
+                            windowJob?.cancel()
+                            rebuildWindow(queueRepository.window(updated, position, QUEUE_WINDOW_RADIUS), position)
+                            refresh(position)
+                            true
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    Log.w("playback", "autoplay refill failed")
+                }
+            }
+    }
+
     fun cycleRepeat() {
+        playbackIntentVersion++
+        autoplayAttempt = null
         val next =
             when (repeatMode) {
                 RepeatMode.Off -> RepeatMode.All
@@ -1076,13 +1168,24 @@ class PlaybackController(
             }
         repeatMode = next
         player?.setRepeatOne(next == RepeatMode.One)
-        scope.launch { queueRepository.setRepeat(next.ordinal) }
+        autoplayJob?.cancel()
+        scope.launch {
+            startLock.withLock {
+                if (next != RepeatMode.Off) truncateAutoplayLocked()
+                queueRepository.setRepeat(next.ordinal)
+                refresh()
+            }
+        }
         refresh()
     }
 
     fun toggleShuffle() {
+        playbackIntentVersion++
+        autoplayAttempt = null
+        autoplayJob?.cancel()
         scope.launch {
             startLock.withLock {
+                if (!shuffleEnabled) truncateAutoplayLocked()
                 val snapshot = readSnapshot()
                 this@PlaybackController.snapshot = snapshot
                 if (snapshot.size == 0L) return@withLock
@@ -1120,6 +1223,7 @@ class PlaybackController(
     }
 
     fun seekTo(positionMs: Long) {
+        autoplayJob?.cancel()
         playbackIntentVersion++
         networkRetry = null
         player?.seekTo(positionMs)
@@ -1308,6 +1412,8 @@ class PlaybackController(
     private suspend fun stop() = startLock.withLock { stopLocked() }
 
     private fun stopLocked() {
+        autoplayJob?.cancel()
+        autoplayAttempt = null
         playbackIntentVersion++
         networkRetry = null
         windowJob?.cancel()
@@ -1899,6 +2005,7 @@ class PlaybackController(
                 canClearUpcoming = snapshot?.let { position != null && position < it.size - 1 } == true,
             )
         _positionMs.value = player.currentPositionMs
+        scheduleAutoplay(position)
         if (player.isPlaying) startPositionTicker() else stopPositionTicker()
     }
 

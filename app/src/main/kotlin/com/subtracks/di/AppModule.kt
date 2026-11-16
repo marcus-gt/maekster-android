@@ -179,6 +179,10 @@ fun appModule(
     single(createdAtStart = true) { SyncNotifier(context.applicationContext, get<SyncManager>().status, scope = get()).also { it.start() } }
     single<PlayerConnection> { MediaSessionConnection(context.applicationContext, get(), get()) }
     single {
+        val sources = get<SourceRepository>()
+        val queues = get<QueueRepository>()
+        val dao = get<SubtracksDatabase>().mixDao()
+        val mix = InstantMix(dao, SimilarSongs(sources::similarSongs), get())
         PlaybackController(
             get(),
             get(),
@@ -187,6 +191,10 @@ fun appModule(
             showMessage = showMessage,
             scope = get(named("playback")),
             networkAvailable = networkAvailable(context.applicationContext),
+            autoplayFactory = { enabled ->
+                com.subtracks.playback.AutoplayRefill
+                    .of(queues, dao, mix, enabled, sources::activeSourceIdOnce)
+            },
         )
     }
     single {

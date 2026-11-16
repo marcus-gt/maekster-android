@@ -21,6 +21,7 @@ class AutoplayRefill(
         snapshot: QueueSnapshot,
         position: Long,
         downloadedOnly: Boolean,
+        commit: suspend (QueueSnapshot, Long, List<String>) -> Boolean = queue::appendExtension,
     ): Boolean {
         if (!enabled() || snapshot.shuffled || position !in 0 until snapshot.size ||
             snapshot.size - position - 1 > REMAINING_THRESHOLD || !refill.tryLock()
@@ -44,7 +45,7 @@ class AutoplayRefill(
             val known = if (candidates.isEmpty()) emptySet() else dao.existing(sourceId, candidates, downloadedOnly).map { it.id }.toSet()
             val picks = candidates.filter { it in known && it !in nearby && it !in recent }
             if (!enabled() || activeSourceId() != sourceId) return false
-            return queue.appendExtension(snapshot, sourceId, picks)
+            return commit(snapshot, sourceId, picks)
         } finally {
             refill.unlock()
         }

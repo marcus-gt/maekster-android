@@ -662,7 +662,10 @@ with stale-context/mode guards and manual context edits promoting retained track
 No autoplay generation/UI yet. See `docs/handoffs/M3.2-extension-operations.md`.
 Part D3a is complete: an unwired refill coordinator gates at <=15 remaining, filters nearby/recent
 songs and offline candidates, coalesces in-flight attempts and appends through D2. No runtime observer
-or toggle yet. See `docs/handoffs/M3.2-autoplay-refill.md`. Next: D3b, controller wiring and cancellation. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+or toggle yet. See `docs/handoffs/M3.2-autoplay-refill.md`. Part D3b is complete: controller enable/disable API, refill scheduling, cancellation/serialized commit,
+bounded player-window refresh and tail trimming on disable/repeat/shuffle; Koin wiring. Off by default,
+no visible toggle yet. See `docs/handoffs/M3.2-autoplay-controller.md`.
+Next: D4, persisted opt-in/control and provenance labels. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

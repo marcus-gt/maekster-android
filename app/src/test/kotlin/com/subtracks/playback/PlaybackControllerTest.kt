@@ -78,6 +78,7 @@ class PlaybackControllerTest {
     private lateinit var handle: FakePlayerHandle
     private lateinit var controller: PlaybackController
     private val messages = CopyOnWriteArrayList<String>()
+    private var autoplayGenerate: suspend () -> List<String> = { emptyList() }
     private val networkAvailable = MutableStateFlow(false)
     private lateinit var resources: Resources
 
@@ -120,6 +121,9 @@ class PlaybackControllerTest {
                 showMessage = { messages += it.resolve(resources) },
                 scope = controllerScope,
                 networkAvailable = networkAvailable,
+                autoplayFactory = { enabled ->
+                    AutoplayRefill(queues, db.mixDao(), { _, _, _ -> autoplayGenerate() }, enabled, sources::activeSourceIdOnce)
+                },
             )
     }
 
@@ -145,6 +149,102 @@ class PlaybackControllerTest {
                 queues.replace(emptyList())
             }
         }
+    }
+
+    @Test
+    fun autoplayAppendsWithoutRestartingAndDisableTrimsOnlyTheTail() {
+        networkAvailable.value = true
+        seedAlbum(20, sourceId = 1)
+        autoplayGenerate = { listOf("s10", "s11", "s12") }
+        controller.playMix(1, listOf("s1", "s2"), QueueCollection.InstantMix)
+        await { controller.state.value.isPlaying }
+        handle.positionMs = 1234
+        controller.setAutoplaySimilar(true)
+        await { runBlocking { queues.snapshot().size } == 5L }
+        await { handle.items.any { it.id == "s10" } }
+        assertEquals(
+            "s1",
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals(1234L, handle.currentPositionMs)
+        controller.setAutoplaySimilar(false)
+        await { runBlocking { queues.extensionStart() } == null && handle.items.size == 2 }
+        assertEquals(listOf("s1", "s2"), handle.items.map { it.id })
+        assertEquals(1234L, handle.currentPositionMs)
+    }
+
+    @Test
+    fun enteringShuffleOrRepeatTrimsTheGeneratedTail() {
+        networkAvailable.value = true
+        seedAlbum(20, sourceId = 1)
+        autoplayGenerate = { listOf("s10", "s11") }
+        controller.playMix(1, listOf("s1", "s2"), QueueCollection.InstantMix)
+        await { controller.state.value.isPlaying }
+        controller.setAutoplaySimilar(true)
+        await { runBlocking { queues.snapshot().size } == 4L }
+        controller.toggleShuffle()
+        await { controller.state.value.shuffle }
+        assertEquals(2L, runBlocking { queues.snapshot().size })
+        assertNull(runBlocking { queues.extensionStart() })
+        controller.toggleShuffle()
+        await { !controller.state.value.shuffle }
+        controller.playAt(1)
+        await { runBlocking { queues.snapshot().size } == 4L }
+        controller.cycleRepeat()
+        await { controller.state.value.repeat != RepeatMode.Off && runBlocking { queues.extensionStart() } == null }
+        assertEquals(2L, runBlocking { queues.snapshot().size })
+    }
+
+    @Test
+    fun aCancelledAutoplayResultCannotChangeTheReplacementQueue() {
+        networkAvailable.value = true
+        seedAlbum(20, sourceId = 1)
+        val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        autoplayGenerate = {
+            started.complete(Unit)
+            release.await()
+            listOf("s10")
+        }
+        controller.playMix(1, listOf("s1", "s2"), QueueCollection.InstantMix)
+        await { controller.state.value.isPlaying }
+        controller.setAutoplaySimilar(true)
+        runBlocking { withTimeout(TEST_TIMEOUT_MS) { started.await() } }
+        controller.setAutoplaySimilar(false)
+        controller.playMix(1, listOf("s3"), QueueCollection.InstantMix)
+        await {
+            controller.state.value.item
+                ?.id == "s3"
+        }
+        release.complete(Unit)
+        runBlocking { withContext(dispatcher) { } }
+        assertEquals(1L, runBlocking { queues.snapshot().size })
+        assertEquals(listOf("s3"), handle.items.map { it.id })
+    }
+
+    @Test
+    fun losingNetworkCancelsAnOnlineAutoplayRequest() {
+        networkAvailable.value = true
+        seedAlbum(20, sourceId = 1)
+        val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val cancelled = kotlinx.coroutines.CompletableDeferred<Unit>()
+        autoplayGenerate = {
+            started.complete(Unit)
+            try {
+                kotlinx.coroutines.awaitCancellation()
+            } finally {
+                cancelled.complete(Unit)
+            }
+        }
+        controller.playMix(1, listOf("s1", "s2"), QueueCollection.InstantMix)
+        await { controller.state.value.isPlaying }
+        controller.setAutoplaySimilar(true)
+        runBlocking { withTimeout(TEST_TIMEOUT_MS) { started.await() } }
+        networkAvailable.value = false
+        runBlocking { withTimeout(TEST_TIMEOUT_MS) { cancelled.await() } }
+        controller.setAutoplaySimilar(false)
+        assertEquals(2L, runBlocking { queues.snapshot().size })
     }
 
     @Test
