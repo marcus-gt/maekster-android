@@ -665,7 +665,10 @@ songs and offline candidates, coalesces in-flight attempts and appends through D
 or toggle yet. See `docs/handoffs/M3.2-autoplay-refill.md`. Part D3b is complete: controller enable/disable API, refill scheduling, cancellation/serialized commit,
 bounded player-window refresh and tail trimming on disable/repeat/shuffle; Koin wiring. Off by default,
 no visible toggle yet. See `docs/handoffs/M3.2-autoplay-controller.md`.
-Next: D4, persisted opt-in/control and provenance labels. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Part D4a is complete: DataStore opt-in (off by default), Autoplay similar switch on Discover, controller
+follows the preference and drops an unplayed generated tail on restore when disabled. See
+`docs/handoffs/M3.2-autoplay-setting.md`.
+Next: D4b, Similar to … provenance labels and device checks of refill. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

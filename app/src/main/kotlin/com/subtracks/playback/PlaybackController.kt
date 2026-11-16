@@ -26,7 +26,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -156,6 +158,7 @@ class PlaybackController(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
     networkAvailable: Flow<Boolean> = flowOf(true),
     private val autoplayFactory: ((() -> Boolean) -> AutoplayRefill)? = null,
+    private val autoplayPreference: Flow<Boolean>? = null,
 ) {
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state
@@ -201,6 +204,7 @@ class PlaybackController(
     private var windowFiltered = false
 
     init {
+        scope.launch { autoplayPreference?.distinctUntilChanged()?.collect { setAutoplaySimilar(it) } }
         scope.launch {
             networkAvailable.collect { available ->
                 if (networkConnected != available && autoplayEnabled) {
@@ -1338,6 +1342,7 @@ class PlaybackController(
 
     private suspend fun restore() =
         startLock.withLock {
+            autoplayPreference?.first()?.let { autoplayEnabled = it }
             windowJob?.cancel()
             windowStart = 0
             windowEnd = -1
@@ -1395,6 +1400,10 @@ class PlaybackController(
             }
             lastSavedPositionMs = savedPositionMs
             loadWindow(start, autoplay = false, startPositionMs = savedPositionMs)
+            if (!autoplayEnabled) {
+                truncateAutoplayLocked()
+                refresh()
+            }
         }
 
     /** The position of [songId] closest to [cursor] within one bounded window, or null when it is not there. */

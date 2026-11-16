@@ -121,6 +121,7 @@ class PlaybackControllerTest {
                 showMessage = { messages += it.resolve(resources) },
                 scope = controllerScope,
                 networkAvailable = networkAvailable,
+                autoplayPreference = prefs.autoplaySimilar(),
                 autoplayFactory = { enabled ->
                     AutoplayRefill(queues, db.mixDao(), { _, _, _ -> autoplayGenerate() }, enabled, sources::activeSourceIdOnce)
                 },
@@ -149,6 +150,38 @@ class PlaybackControllerTest {
                 queues.replace(emptyList())
             }
         }
+    }
+
+    @Test
+    fun persistedAutoplayPreferenceDrivesRefillAndTruncation() {
+        networkAvailable.value = true
+        seedAlbum(20, sourceId = 1)
+        autoplayGenerate = { listOf("s10") }
+        controller.playMix(1, listOf("s1", "s2"), QueueCollection.InstantMix)
+        await { controller.state.value.isPlaying }
+        runBlocking { prefs.setAutoplaySimilar(true) }
+        await { runBlocking { queues.snapshot().size } == 3L }
+        runBlocking { prefs.setAutoplaySimilar(false) }
+        await { runBlocking { queues.snapshot().size } == 2L }
+        assertNull(runBlocking { queues.extensionStart() })
+    }
+
+    @Test
+    fun disabledAutoplayRestorationKeepsCurrentSongTimeAndDropsUnplayedTail() {
+        seedAlbum(20, sourceId = 1)
+        runBlocking {
+            queues.replace(listOf(queues.songEntry(1, "s1"), queues.songEntry(1, "s2")))
+            queues.appendExtension(queues.snapshot(), 1, listOf("s10", "s11"))
+            queues.setCursor(0)
+            queues.setPosition(2345, "s1")
+        }
+        controller.connect()
+        await {
+            controller.ready.value && controller.state.value.item
+                ?.id == "s1" && runBlocking { queues.extensionStart() } == null
+        }
+        assertEquals(2L, runBlocking { queues.snapshot().size })
+        assertEquals(2345L, handle.currentPositionMs)
     }
 
     @Test

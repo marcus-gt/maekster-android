@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Card
@@ -20,13 +21,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,7 +48,17 @@ fun DiscoverRoute(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
-    DiscoverScreen(state, busy, viewModel::smartShuffle, viewModel::station, onOpenSettings, viewModel::art)
+    val autoplay by viewModel.autoplaySimilar.collectAsStateWithLifecycle()
+    DiscoverScreen(
+        state,
+        busy,
+        viewModel::smartShuffle,
+        viewModel::station,
+        onOpenSettings,
+        viewModel::art,
+        autoplaySimilar = autoplay,
+        onAutoplayChange = viewModel::setAutoplaySimilar,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +70,8 @@ fun DiscoverScreen(
     onStation: (Artist) -> Unit,
     onOpenSettings: () -> Unit,
     artistArt: (Artist) -> ArtistArt = { ArtistArt() },
+    autoplaySimilar: Boolean = false,
+    onAutoplayChange: (Boolean) -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -63,6 +79,7 @@ fun DiscoverScreen(
             actions = { SettingsAction(false, onOpenSettings) },
         )
         LazyColumn(
+            modifier = Modifier.testTag("discoverList"),
             contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
@@ -88,6 +105,26 @@ fun DiscoverScreen(
                             }
                         }
                     }
+                }
+            }
+            item {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(value = autoplaySimilar, role = Role.Switch, onValueChange = onAutoplayChange)
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.autoplay_similar), style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            stringResource(R.string.autoplay_similar_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = autoplaySimilar, onCheckedChange = null)
                 }
             }
             if (!state.offline) {

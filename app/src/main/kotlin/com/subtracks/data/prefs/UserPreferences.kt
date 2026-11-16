@@ -290,6 +290,14 @@ class UserPreferences(
 
     private val replayGainPreampKey = floatPreferencesKey("replay_gain_preamp_db")
 
+    fun autoplaySimilar(): Flow<Boolean> = store.data.map { it[autoplaySimilarKey] ?: false }
+
+    suspend fun setAutoplaySimilar(enabled: Boolean) {
+        store.edit { it[autoplaySimilarKey] = enabled }
+    }
+
+    private val autoplaySimilarKey = booleanPreferencesKey("autoplay_similar")
+
     fun keepScreenOn(): Flow<Boolean> = store.data.map { prefs -> prefs[keepScreenOnKey] ?: false }
 
     suspend fun setKeepScreenOn(enabled: Boolean) {

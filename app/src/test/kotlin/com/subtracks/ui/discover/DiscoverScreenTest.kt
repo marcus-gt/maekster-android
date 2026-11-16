@@ -3,12 +3,18 @@ package com.subtracks.ui.discover
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.Density
@@ -39,8 +45,32 @@ class DiscoverScreenTest {
         composeRule.onNodeWithText("Smart Shuffle").performClick()
         assertEquals(true, shuffled)
         composeRule.onNodeWithText("Start station").assertDoesNotExist()
+        composeRule.onRoot().performTouchInput { swipeUp() }
         composeRule.onNodeWithText(artist.name).performClick()
         assertEquals(artist, selected)
+    }
+
+    @Test fun autoplaySwitchCanBeEnabledAndDisabled() {
+        var enabled by mutableStateOf(false)
+        composeRule.setContent {
+            MaeksterTheme {
+                DiscoverScreen(
+                    DiscoverState(),
+                    false,
+                    {},
+                    {},
+                    {},
+                    autoplaySimilar = enabled,
+                    onAutoplayChange = { enabled = it },
+                )
+            }
+        }
+        composeRule
+            .onNodeWithText("Autoplay similar")
+            .assertIsOff()
+            .performClick()
+            .assertIsOn()
+        composeRule.onNodeWithText("Autoplay similar").performClick().assertIsOff()
     }
 
     @Test fun offlineHidesStations() {
@@ -78,8 +108,9 @@ class DiscoverScreenTest {
             }
         }
         composeRule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
-        composeRule.onNodeWithText("Stations").performScrollTo()
-        composeRule.onRoot().performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag("discoverList").performScrollToIndex(1)
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/${name}_autoplay.png")
+        composeRule.onNodeWithTag("discoverList").performScrollToIndex(3)
         composeRule.waitForIdle()
         composeRule.onRoot().captureRoboImage("src/test/screenshots/${name}_stations.png")
     }

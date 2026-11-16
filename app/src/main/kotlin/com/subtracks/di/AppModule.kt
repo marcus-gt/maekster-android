@@ -191,6 +191,7 @@ fun appModule(
             showMessage = showMessage,
             scope = get(named("playback")),
             networkAvailable = networkAvailable(context.applicationContext),
+            autoplayPreference = get<UserPreferences>().autoplaySimilar(),
             autoplayFactory = { enabled ->
                 com.subtracks.playback.AutoplayRefill
                     .of(queues, dao, mix, enabled, sources::activeSourceIdOnce)
@@ -264,6 +265,7 @@ fun appModule(
             get(),
             get(),
             showMessage,
+            get(),
         )
     }
     viewModel {

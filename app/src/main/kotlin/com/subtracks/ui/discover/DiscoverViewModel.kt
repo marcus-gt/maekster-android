@@ -37,6 +37,7 @@ class DiscoverViewModel(
     private val shuffle: SmartShufflePlayer,
     private val station: InstantMixPlayer,
     private val showMessage: (UiMessage) -> Unit,
+    private val preferences: com.subtracks.data.prefs.UserPreferences,
 ) : ViewModel() {
     val state =
         combine(sources.activeSourceId(), offline) { id, off -> id to off }
@@ -49,6 +50,15 @@ class DiscoverViewModel(
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiscoverState())
     private val _busy = MutableStateFlow(false)
     val busy = _busy.asStateFlow()
+
+    val autoplaySimilar =
+        preferences
+            .autoplaySimilar()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setAutoplaySimilar(enabled: Boolean) {
+        viewModelScope.launch { preferences.setAutoplaySimilar(enabled) }
+    }
 
     fun smartShuffle() = start { shuffle.play() }
 

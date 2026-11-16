@@ -18,6 +18,19 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class UserPreferencesTest {
     @Test
+    fun autoplayDefaultsOffAndPersistsAcrossReaders() =
+        runTest {
+            val file = File.createTempFile("autoplay", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            assertEquals(false, UserPreferences(store).autoplaySimilar().first())
+            UserPreferences(store).setAutoplaySimilar(true)
+            assertEquals(true, UserPreferences(store).autoplaySimilar().first())
+            UserPreferences(store).setAutoplaySimilar(false)
+            assertEquals(false, UserPreferences(store).autoplaySimilar().first())
+            file.delete()
+        }
+
+    @Test
     fun quickPlaylistsAlsoFavoriteDefaultsToOnAndIsRemembered() =
         runTest {
             val file = File.createTempFile("quick-playlists", ".preferences_pb").apply { delete() }
