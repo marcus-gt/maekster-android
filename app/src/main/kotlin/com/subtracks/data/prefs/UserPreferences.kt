@@ -9,8 +9,13 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.subtracks.data.audiomuse.QueueBuilderMood
+import com.subtracks.data.listenbrainz.ListenBrainzApi
 import com.subtracks.data.lyrics.LyricsSource
+import com.subtracks.data.mix.QueueBuilderPicks
+import com.subtracks.data.mix.QueueBuilderSelection
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.source.DEFAULT_FETCH_CONCURRENCY
 import kotlinx.coroutines.flow.Flow
@@ -57,6 +62,14 @@ data class ListQuery(
     val descending: Boolean = false,
     val starred: StarredFilter = StarredFilter.Any,
     val downloaded: Boolean = false,
+)
+
+/** The ListenBrainz account; [tokenCiphertext] is sealed by `CredentialStore`, null when signed out. */
+data class ListenBrainzSettings(
+    val tokenCiphertext: String? = null,
+    val root: String = ListenBrainzApi.DEFAULT_ROOT,
+    val username: String? = null,
+    val enabled: Boolean = false,
 )
 
 data class StreamQuality(
@@ -217,6 +230,48 @@ class UserPreferences(
 
     private val scrobblingKey = booleanPreferencesKey("scrobbling")
 
+    fun listenBrainz(): Flow<ListenBrainzSettings> =
+        store.data.map { prefs ->
+            ListenBrainzSettings(
+                tokenCiphertext = prefs[listenBrainzTokenKey],
+                root = prefs[listenBrainzRootKey] ?: ListenBrainzApi.DEFAULT_ROOT,
+                username = prefs[listenBrainzUserKey],
+                enabled = prefs[listenBrainzEnabledKey] ?: false,
+            )
+        }
+
+    /** Stores a validated account (the token already sealed) and turns ListenBrainz scrobbling on. */
+    suspend fun setListenBrainzAccount(
+        tokenCiphertext: String,
+        root: String,
+        username: String,
+    ) {
+        store.edit { prefs ->
+            prefs[listenBrainzTokenKey] = tokenCiphertext
+            prefs[listenBrainzRootKey] = root
+            prefs[listenBrainzUserKey] = username
+            prefs[listenBrainzEnabledKey] = true
+        }
+    }
+
+    suspend fun setListenBrainzEnabled(enabled: Boolean) {
+        store.edit { prefs -> prefs[listenBrainzEnabledKey] = enabled }
+    }
+
+    /** Forgets the token and account; the server address stays for the next sign-in. */
+    suspend fun clearListenBrainzAccount() {
+        store.edit { prefs ->
+            prefs.remove(listenBrainzTokenKey)
+            prefs.remove(listenBrainzUserKey)
+            prefs[listenBrainzEnabledKey] = false
+        }
+    }
+
+    private val listenBrainzTokenKey = stringPreferencesKey("listenbrainz_token")
+    private val listenBrainzRootKey = stringPreferencesKey("listenbrainz_root")
+    private val listenBrainzUserKey = stringPreferencesKey("listenbrainz_username")
+    private val listenBrainzEnabledKey = booleanPreferencesKey("listenbrainz_enabled")
+
     fun replayGainMode(): Flow<ReplayGainMode> =
         store.data.map { prefs ->
             prefs[replayGainModeKey]?.let { stored -> ReplayGainMode.entries.firstOrNull { it.name == stored } } ?: ReplayGainMode.Auto
@@ -238,6 +293,83 @@ class UserPreferences(
         this?.takeIf { it.isFinite() }?.coerceIn(MIN_REPLAY_GAIN_PREAMP_DB, MAX_REPLAY_GAIN_PREAMP_DB) ?: 0f
 
     private val replayGainPreampKey = floatPreferencesKey("replay_gain_preamp_db")
+
+    fun discoverLayout(): Flow<DiscoverLayout> = store.data.map { DiscoverLayout.decode(it[discoverLayoutKey]) }
+
+    suspend fun setDiscoverLayout(layout: DiscoverLayout) {
+        store.edit { it[discoverLayoutKey] = layout.encode() }
+    }
+
+    private val discoverLayoutKey = stringPreferencesKey("discover_layout")
+
+    fun autoplaySimilar(): Flow<Boolean> = store.data.map { it[autoplaySimilarKey] ?: false }
+
+    suspend fun setAutoplaySimilar(enabled: Boolean) {
+        store.edit { it[autoplaySimilarKey] = enabled }
+    }
+
+    private val autoplaySimilarKey = booleanPreferencesKey("autoplay_similar")
+
+    /** Fresh releases from MusicBrainz and Cover Art Archive; a third-party integration, so off until turned on (D10). */
+    fun freshReleasesEnabled(): Flow<Boolean> = store.data.map { it[freshReleasesKey] ?: false }
+
+    suspend fun setFreshReleasesEnabled(enabled: Boolean) {
+        store.edit { it[freshReleasesKey] = enabled }
+    }
+
+    private val freshReleasesKey = booleanPreferencesKey("fresh_releases_enabled")
+
+    /** Photos of recommended artists from MusicBrainz, Wikidata and Wikimedia Commons; off until turned on (D10). */
+    fun externalArtistImagesEnabled(): Flow<Boolean> = store.data.map { it[externalArtistImagesKey] ?: false }
+
+    suspend fun setExternalArtistImagesEnabled(enabled: Boolean) {
+        store.edit { it[externalArtistImagesKey] = enabled }
+    }
+
+    private val externalArtistImagesKey = booleanPreferencesKey("external_artist_images_enabled")
+
+    /** The Queue Builder picks and length for one server; sub-genre keys come from that server's library. */
+    fun queueBuilderPicks(sourceId: Long): Flow<QueueBuilderPicks> =
+        store.data.map { prefs ->
+            QueueBuilderPicks(
+                selection =
+                    QueueBuilderSelection(
+                        mains = prefs[queueBuilderMainsKey(sourceId)].orEmpty(),
+                        tags = prefs[queueBuilderTagsKey(sourceId)].orEmpty(),
+                        decades = prefs[queueBuilderDecadesKey(sourceId)].orEmpty().mapNotNull { it.toIntOrNull() }.toSet(),
+                        moods =
+                            prefs[queueBuilderMoodsKey(sourceId)]
+                                .orEmpty()
+                                .mapNotNullTo(mutableSetOf()) { name -> QueueBuilderMood.entries.firstOrNull { it.wireName == name } },
+                    ),
+                length = QueueBuilderPicks.clampLength(prefs[queueBuilderLengthKey(sourceId)] ?: QueueBuilderPicks.DEFAULT_LENGTH),
+            )
+        }
+
+    suspend fun setQueueBuilderPicks(
+        sourceId: Long,
+        picks: QueueBuilderPicks,
+    ) {
+        store.edit {
+            it[queueBuilderMainsKey(sourceId)] = picks.selection.mains
+            it[queueBuilderTagsKey(sourceId)] = picks.selection.tags
+            it[queueBuilderDecadesKey(sourceId)] = picks.selection.decades.mapTo(mutableSetOf()) { decade -> decade.toString() }
+            it[queueBuilderMoodsKey(sourceId)] = picks.selection.moods.mapTo(mutableSetOf()) { mood -> mood.wireName }
+            it[queueBuilderLengthKey(sourceId)] = QueueBuilderPicks.clampLength(picks.length)
+            // Flat genre picks from the first Queue Builder build; main genres and sub-genres replaced them.
+            it.remove(stringSetPreferencesKey("queue_builder_genres_$sourceId"))
+        }
+    }
+
+    private fun queueBuilderMainsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_mains_$sourceId")
+
+    private fun queueBuilderTagsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_tags_$sourceId")
+
+    private fun queueBuilderMoodsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_moods_$sourceId")
+
+    private fun queueBuilderDecadesKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_decades_$sourceId")
+
+    private fun queueBuilderLengthKey(sourceId: Long) = intPreferencesKey("queue_builder_length_$sourceId")
 
     fun keepScreenOn(): Flow<Boolean> = store.data.map { prefs -> prefs[keepScreenOnKey] ?: false }
 

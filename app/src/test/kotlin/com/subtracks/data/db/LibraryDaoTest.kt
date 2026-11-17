@@ -917,6 +917,48 @@ class LibraryDaoTest {
         }
 
     @Test
+    fun aRecordedPlayKeepsASnapshotEventThatOutlivesTheSong() =
+        runTest {
+            val sourceId = source()
+            val dao = db.libraryDao()
+            dao.upsertSongs(listOf(song(sourceId, "s1", "One", starred = null)))
+
+            dao.recordPlay(sourceId, "s1", 1_700_000_000)
+            dao.recordPlay(sourceId, "unknown", 1_700_000_100)
+            dao.deleteSongs(sourceId, listOf("s1"))
+
+            val events = db.playEventDao().between(sourceId, 0, Long.MAX_VALUE)
+            assertEquals(1, events.size)
+            val event = events.single()
+            assertEquals("s1", event.songId)
+            assertEquals(1_700_000_000L, event.playedAt)
+            assertEquals("One", event.title)
+            assertEquals("Artist", event.artist)
+            assertEquals("Album", event.album)
+            assertEquals(200_000L, event.durationMs)
+        }
+
+    @Test
+    fun playEventsAreReadPerSourceAndRangeAndGoWithTheirSource() =
+        runTest {
+            val sourceId = source()
+            val other = source()
+            val dao = db.libraryDao()
+            dao.upsertSongs(listOf(song(sourceId, "s1", "One", starred = null), song(other, "s1", "Other", starred = null)))
+            dao.recordPlay(sourceId, "s1", 100)
+            dao.recordPlay(sourceId, "s1", 200)
+            dao.recordPlay(other, "s1", 150)
+
+            assertEquals(listOf(100L), db.playEventDao().between(sourceId, 100, 200).map { it.playedAt })
+            assertEquals(listOf("Other"), db.playEventDao().between(other, 0, 1_000).map { it.title })
+
+            db.sourcesDao().deleteSource(sourceId)
+
+            assertEquals(0L, db.playEventDao().count(sourceId))
+            assertEquals(1L, db.playEventDao().count(other))
+        }
+
+    @Test
     fun downloadedArtistArtWritesThroughPooledConnections() =
         runTest {
             // DownloadRepository calls this outside any transaction; a @RawQuery alone runs on a read-only reader.

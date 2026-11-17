@@ -943,6 +943,77 @@ val MIGRATION_53_54 =
         }
     }
 
+val MIGRATION_54_55 =
+    object : Migration(54, 55) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `play_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`sourceId` INTEGER NOT NULL, `songId` TEXT NOT NULL, `playedAt` INTEGER NOT NULL, " +
+                    "`title` TEXT NOT NULL, `artist` TEXT, `album` TEXT, `durationMs` INTEGER, " +
+                    "FOREIGN KEY(`sourceId`) REFERENCES `sources`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            connection.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_play_events_sourceId_playedAt` ON `play_events` (`sourceId`, `playedAt`)",
+            )
+            connection.execSQL("CREATE INDEX IF NOT EXISTS `index_play_events_playedAt` ON `play_events` (`playedAt`)")
+        }
+    }
+
+val MIGRATION_55_56 =
+    object : Migration(55, 56) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `pending_listens` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`listenedAt` INTEGER NOT NULL, `trackName` TEXT NOT NULL, `artistName` TEXT NOT NULL, " +
+                    "`releaseName` TEXT, `durationMs` INTEGER)",
+            )
+        }
+    }
+
+val MIGRATION_56_57 =
+    object : Migration(56, 57) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `similar_songs` (`sourceId` INTEGER NOT NULL, `seedKind` TEXT NOT NULL, " +
+                    "`seedId` TEXT NOT NULL, `position` INTEGER NOT NULL, `songId` TEXT NOT NULL, `artistId` TEXT, " +
+                    "`fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`sourceId`, `seedKind`, `seedId`, `position`), " +
+                    "FOREIGN KEY(`sourceId`) REFERENCES `sources`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            connection.execSQL("CREATE INDEX IF NOT EXISTS `index_similar_songs_sourceId` ON `similar_songs` (`sourceId`)")
+        }
+    }
+
+val MIGRATION_57_58 =
+    object : Migration(57, 58) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL("ALTER TABLE playback_cursor ADD COLUMN extensionStart INTEGER")
+        }
+    }
+
+/** The fresh-releases feed: its stored result, refresh times and MusicBrainz name lookups, per server. */
+val MIGRATION_58_59 =
+    object : Migration(58, 59) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            val cascade = "FOREIGN KEY(`sourceId`) REFERENCES `sources`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE"
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `fresh_releases` (`sourceId` INTEGER NOT NULL, `id` TEXT NOT NULL, " +
+                    "`position` INTEGER NOT NULL, `title` TEXT NOT NULL, `artistName` TEXT NOT NULL, `firstReleaseDate` TEXT, " +
+                    "`typeLabel` TEXT NOT NULL, PRIMARY KEY(`sourceId`, `id`), $cascade )",
+            )
+            connection.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_fresh_releases_sourceId_position` ON `fresh_releases` (`sourceId`, `position`)",
+            )
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `fresh_release_state` (`sourceId` INTEGER NOT NULL, `refreshedAt` INTEGER, " +
+                    "`attemptedAt` INTEGER NOT NULL, PRIMARY KEY(`sourceId`), $cascade )",
+            )
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `musicbrainz_names` (`sourceId` INTEGER NOT NULL, `name` TEXT NOT NULL, " +
+                    "`musicBrainzId` TEXT, `triedAt` INTEGER NOT NULL, PRIMARY KEY(`sourceId`, `name`), $cascade )",
+            )
+        }
+    }
+
 val MIGRATION_47_48 =
     object : Migration(47, 48) {
         override suspend fun migrate(connection: SQLiteConnection) {
@@ -988,6 +1059,41 @@ private suspend fun backfillArtistArt(connection: SQLiteConnection) {
         }
     }
 }
+
+val MIGRATION_59_60 =
+    object : Migration(59, 60) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `similar_artists_cache` (`sourceId` INTEGER NOT NULL, " +
+                    "`artistId` TEXT NOT NULL, `payload` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`sourceId`, `artistId`), " +
+                    "FOREIGN KEY(`sourceId`) REFERENCES `sources`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+        }
+    }
+
+val MIGRATION_60_61 =
+    object : Migration(60, 61) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `audiomuse_config` (`sourceId` INTEGER NOT NULL, " +
+                    "`url` TEXT NOT NULL, `tokenCiphertext` TEXT, PRIMARY KEY(`sourceId`), " +
+                    "FOREIGN KEY(`sourceId`) REFERENCES `sources`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+        }
+    }
+
+val MIGRATION_61_62 =
+    object : Migration(61, 62) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `audiomuse_mood_scores` (`sourceId` INTEGER NOT NULL, " +
+                    "`songId` TEXT NOT NULL, `configurationKey` TEXT NOT NULL, `payload` TEXT NOT NULL, " +
+                    "PRIMARY KEY(`sourceId`, `songId`), " +
+                    "FOREIGN KEY(`sourceId`) REFERENCES `audiomuse_config`(`sourceId`) ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+        }
+    }
 
 val MIGRATIONS: Array<Migration> =
     arrayOf(
@@ -1044,4 +1150,12 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_51_52,
         MIGRATION_52_53,
         MIGRATION_53_54,
+        MIGRATION_54_55,
+        MIGRATION_55_56,
+        MIGRATION_56_57,
+        MIGRATION_57_58,
+        MIGRATION_58_59,
+        MIGRATION_59_60,
+        MIGRATION_60_61,
+        MIGRATION_61_62,
     )

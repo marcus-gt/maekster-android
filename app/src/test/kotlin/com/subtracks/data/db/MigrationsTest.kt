@@ -93,6 +93,150 @@ class MigrationsTest {
         }
 
     @Test
+    fun audioMuseScoreMigrationPreservesConfigurationAndCascadesOnDisconnect() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 61)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                connection.execSQL("INSERT INTO audiomuse_config VALUES (1, 'https://muse', 'sealed')")
+                MIGRATION_61_62.migrate(connection)
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM audiomuse_config"))
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM audiomuse_mood_scores"))
+                connection.execSQL("INSERT INTO audiomuse_mood_scores VALUES (1, 'song', 'key', '{}')")
+                connection.execSQL("DELETE FROM audiomuse_config WHERE sourceId = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM audiomuse_mood_scores"))
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM sources"))
+            }
+        }
+
+    @Test
+    fun audioMuseConfigurationMigrationStartsDisconnectedAndCascadesOnSourceDeletion() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 60)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                MIGRATION_60_61.migrate(connection)
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM audiomuse_config"))
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM sources"))
+                connection.execSQL("INSERT INTO audiomuse_config VALUES (1, 'https://muse', 'sealed')")
+                connection.execSQL("DELETE FROM sources WHERE id = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM audiomuse_config"))
+            }
+        }
+
+    @Test
+    fun theSimilarArtistsCacheMigrationCascadesOnServerDeletion() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 59)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                MIGRATION_59_60.migrate(connection)
+                connection.execSQL("INSERT INTO similar_artists_cache VALUES (1, 'artist', '{}', 100)")
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM similar_artists_cache"))
+                connection.execSQL("DELETE FROM sources WHERE id = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM similar_artists_cache"))
+            }
+        }
+
+    @Test
+    fun theFreshReleasesMigrationAddsCascadingPerServerTables() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 58)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                MIGRATION_58_59.migrate(connection)
+                connection.execSQL(
+                    "INSERT INTO fresh_releases (sourceId, id, position, title, artistName, firstReleaseDate, typeLabel) " +
+                        "VALUES (1, 'g', 0, 'T', 'A', NULL, 'Album')",
+                )
+                connection.execSQL("INSERT INTO fresh_release_state (sourceId, refreshedAt, attemptedAt) VALUES (1, NULL, 5)")
+                connection.execSQL("INSERT INTO musicbrainz_names (sourceId, name, musicBrainzId, triedAt) VALUES (1, 'a', NULL, 5)")
+                connection.execSQL("DELETE FROM sources WHERE id = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM fresh_releases"))
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM fresh_release_state"))
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM musicbrainz_names"))
+            }
+        }
+
+    @Test
+    fun thePlayEventsMigrationAddsAnEmptyCascadingTable() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 54)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                MIGRATION_54_55.migrate(connection)
+                connection.execSQL(
+                    "INSERT INTO play_events (sourceId, songId, playedAt, title) VALUES (1, 'a', 10, 'A')",
+                )
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM play_events"))
+                connection.execSQL("DELETE FROM sources WHERE id = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM play_events"))
+            }
+        }
+
+    @Test
+    fun thePendingListensMigrationAddsAnEmptyQueue() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 55)
+                MIGRATION_55_56.migrate(connection)
+                connection.execSQL(
+                    "INSERT INTO pending_listens (listenedAt, trackName, artistName) VALUES (10, 'Song', 'Artist')",
+                )
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM pending_listens WHERE releaseName IS NULL"))
+            }
+        }
+
+    @Test
+    fun theSimilarSongsMigrationAddsAnEmptyCascadingCache() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 56)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                MIGRATION_56_57.migrate(connection)
+                connection.execSQL(
+                    "INSERT INTO similar_songs (sourceId, seedKind, seedId, position, songId, fetchedAt) " +
+                        "VALUES (1, 'song', 'a', 0, 'b', 5)",
+                )
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM similar_songs"))
+                connection.execSQL("DELETE FROM sources WHERE id = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM similar_songs"))
+            }
+        }
+
+    @Test
+    fun extensionBoundaryMigrationPreservesPlaybackAndStartsWithoutATail() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 57)
+                connection.execSQL(
+                    "INSERT INTO playback_cursor (id, queuePosition, positionMs, positionSongId, sourceLabel) " +
+                        "VALUES (1, 12, 3456, 'song', 'Album')",
+                )
+                MIGRATION_57_58.migrate(connection)
+                connection
+                    .prepare(
+                        "SELECT queuePosition, positionMs, positionSongId, sourceLabel, extensionStart FROM playback_cursor",
+                    ).use { row ->
+                        assertTrue(row.step())
+                        assertEquals(12L, row.getLong(0))
+                        assertEquals(3456L, row.getLong(1))
+                        assertEquals("song", row.getText(2))
+                        assertEquals("Album", row.getText(3))
+                        assertTrue(row.isNull(4))
+                    }
+                connection.execSQL("UPDATE playback_cursor SET extensionStart = 50")
+                assertEquals(50L, long(connection, "SELECT extensionStart FROM playback_cursor"))
+            }
+        }
+
+    @Test
     fun everyExportedVersionIsCoveredByAContiguousMigrationChain() {
         val chain = MIGRATIONS.sortedBy { it.startVersion }
         assertEquals(versions.dropLast(1), chain.map { it.startVersion })

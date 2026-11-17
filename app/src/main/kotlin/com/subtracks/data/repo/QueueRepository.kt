@@ -40,6 +40,7 @@ private data class LoadedSnapshot(
     val shuffle: ShuffleState?,
     val anchor: Long,
     val orders: Map<Long, RetainedQueueOrder>,
+    val extensionStart: Long?,
 )
 
 private data class QueueRef(
@@ -145,6 +146,7 @@ data class QueueSnapshot(
     val upNextAnchor: Long = 0,
     val version: Long = 0,
     val orders: Map<Long, RetainedQueueOrder> = emptyMap(),
+    val extensionStart: Long? = null,
 ) {
     val contextSize: Long = entries.sumOf { it.length }
 
@@ -206,6 +208,15 @@ data class QueueSnapshot(
     }
 
     fun isAlbumContext(position: Long): Boolean = locate(position)?.first?.kind == QueueKind.Album
+
+    /** Whether [position] plays a song autoplay appended after the original queue ran out. */
+    fun isGenerated(position: Long): Boolean {
+        val start = extensionStart ?: return false
+        if (shuffled || isUpNext(position)) return false
+        val flat = flatContext(contextPlay(position)) ?: return false
+        val entry = locateIn(entries, flat)?.first ?: return false
+        return entry.position >= start
+    }
 }
 
 private fun entryIndexAfter(
@@ -609,7 +620,15 @@ class QueueRepository(
         writeUpNext(upNext)
         if (shuffleOrder == null) setShuffle(shuffleSeed) else setShuffleOrder(shuffleOrder)
         cursorMutex.withLock {
-            dao.setCursor(cursorRow().copy(queuePosition = 0, positionMs = 0, upNextAnchor = upNextAnchor, sourceLabel = sourceLabel))
+            dao.setCursor(
+                cursorRow().copy(
+                    queuePosition = 0,
+                    positionMs = 0,
+                    upNextAnchor = upNextAnchor,
+                    sourceLabel = sourceLabel,
+                    extensionStart = null,
+                ),
+            )
         }
         db.queueOrderDao().prune()
         orderCache.clear()
@@ -650,10 +669,18 @@ class QueueRepository(
                         } else {
                             null
                         }
-                    LoadedSnapshot(entries, upNext, shuffle, row?.upNextAnchor ?: 0L, orderCache.toMap())
+                    LoadedSnapshot(entries, upNext, shuffle, row?.upNextAnchor ?: 0L, orderCache.toMap(), row?.extensionStart)
                 }
             }
-        return QueueSnapshot(loaded.entries, loaded.upNext, loaded.shuffle, loaded.anchor, version, loaded.orders)
+        return QueueSnapshot(
+            loaded.entries,
+            loaded.upNext,
+            loaded.shuffle,
+            loaded.anchor,
+            version,
+            loaded.orders,
+            loaded.extensionStart,
+        )
     }
 
     suspend fun modes(): QueueModes {
@@ -788,6 +815,87 @@ class QueueRepository(
         return range(snapshot, (center - radius).coerceAtLeast(0), (center + radius).coerceAtMost(snapshot.size - 1))
     }
 
+    /** Appends a bounded generated batch only if the context used to build it is still current. */
+    suspend fun appendExtension(
+        snapshot: QueueSnapshot,
+        sourceId: Long,
+        songIds: List<String>,
+    ): Boolean {
+        require(songIds.size <= 50) { "An autoplay batch may contain at most 50 songs" }
+        if (songIds.isEmpty() || snapshot.entries.isEmpty() || snapshot.shuffled) return false
+        return cursorMutex.withLock {
+            val appended =
+                db.useWriterConnection { connection ->
+                    connection.immediateTransaction {
+                        val cursor = cursorRow()
+                        if (snapshot.version != queueVersion.get() || cursor.shuffleEnabled || cursor.repeatMode != 0 ||
+                            snapshot.entries.any { it.entry.sourceId != sourceId } ||
+                            dao.entries() != snapshot.entries.map { it.entry }
+                        ) {
+                            return@immediateTransaction false
+                        }
+                        if (songIds.any { dao.songLength(sourceId, it) != 1L }) return@immediateTransaction false
+                        val start =
+                            snapshot.entries
+                                .last()
+                                .entry.position + 1
+                        dao.insert(songIds.mapIndexed { index, id -> songEntry(sourceId, id).copy(position = start + index) })
+                        dao.setCursor(cursor.copy(extensionStart = cursor.extensionStart ?: start))
+                        true
+                    }
+                }
+            if (appended) queueVersion.incrementAndGet()
+            appended
+        }
+    }
+
+    /** Removes only the unplayed generated suffix, retaining the current song and the manual block. */
+    suspend fun truncateExtension(snapshot: QueueSnapshot): Boolean =
+        cursorMutex.withLock {
+            val truncated =
+                db.useWriterConnection { connection ->
+                    connection.immediateTransaction {
+                        val cursor = cursorRow()
+                        val boundary = cursor.extensionStart ?: return@immediateTransaction false
+                        if (snapshot.version != queueVersion.get() || snapshot.shuffled || cursor.shuffleEnabled ||
+                            dao.entries() != snapshot.entries.map { it.entry }
+                        ) {
+                            return@immediateTransaction false
+                        }
+                        if (cursor.queuePosition !in 0 until snapshot.size ||
+                            cursor.upNextAnchor != snapshot.upNextAnchor
+                        ) {
+                            return@immediateTransaction false
+                        }
+                        var flat =
+                            if (snapshot.isUpNext(cursor.queuePosition)) {
+                                snapshot.upNextAnchor
+                            } else {
+                                snapshot.contextPlay(cursor.queuePosition)
+                            }
+                        val current =
+                            if (flat < 0) {
+                                null
+                            } else {
+                                snapshot.entries.firstOrNull { resolved ->
+                                    if (flat < resolved.length) {
+                                        true
+                                    } else {
+                                        flat -= resolved.length
+                                        false
+                                    }
+                                }
+                            }
+                        val keepThrough = current?.entry?.position?.plus(1) ?: 0L
+                        dao.deleteContextFrom(maxOf(boundary, keepThrough))
+                        dao.setCursor(cursor.copy(extensionStart = null))
+                        true
+                    }
+                }
+            if (truncated) queueVersion.incrementAndGet()
+            truncated
+        }
+
     suspend fun addUpNext(
         snapshot: QueueSnapshot,
         currentPosition: Long,
@@ -911,6 +1019,7 @@ class QueueRepository(
                             shuffleSize = if (snapshot.shuffled) contextCount else cursor.shuffleSize,
                             shuffleRemoved = if (snapshot.shuffled) null else cursor.shuffleRemoved,
                             shuffleLinear = snapshot.shuffled || cursor.shuffleLinear,
+                            extensionStart = null,
                         ),
                     )
                 }
@@ -974,7 +1083,13 @@ class QueueRepository(
                             }
                         dao.clear()
                         dao.insert(entries.mapIndexed { index, entry -> entry.copy(id = 0, position = index.toLong()) })
-                        dao.setCursor(cursor.copy(shuffleRemoved = updatedOrder.encodeRemoved(), upNextAnchor = adjustedAnchor))
+                        dao.setCursor(
+                            cursor.copy(
+                                shuffleRemoved = updatedOrder.encodeRemoved(),
+                                upNextAnchor = adjustedAnchor,
+                                extensionStart = null,
+                            ),
+                        )
                     }
                 }
             }
@@ -1052,6 +1167,8 @@ class QueueRepository(
 
     suspend fun sourceLabel(): String? = dao.cursor()?.sourceLabel
 
+    suspend fun extensionStart(): Long? = dao.cursor()?.extensionStart
+
     /** The song the saved position belongs to, or null when unknown (older rows, or nothing saved yet). */
     suspend fun positionSongId(): String? = dao.cursor()?.positionSongId
 
@@ -1084,6 +1201,7 @@ class QueueRepository(
             transactor.immediateTransaction {
                 dao.clear()
                 dao.insert(entries.mapIndexed { index, entry -> entry.copy(id = 0, position = index.toLong()) })
+                dao.setCursor(cursorRow().copy(extensionStart = null))
             }
         }
         queueVersion.incrementAndGet()

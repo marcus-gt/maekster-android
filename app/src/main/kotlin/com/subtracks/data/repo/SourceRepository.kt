@@ -3,10 +3,12 @@ package com.subtracks.data.repo
 import com.subtracks.R
 import com.subtracks.UiException
 import com.subtracks.UiMessage
+import com.subtracks.data.db.MixCandidate
 import com.subtracks.data.db.StoredSubsonicConfig
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.download.ArtworkStore
 import com.subtracks.data.lyrics.Lyrics
+import com.subtracks.data.mix.MixSeed
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.Source
@@ -31,6 +33,7 @@ import com.subtracks.data.source.streamLengthSuffix
 import com.subtracks.data.source.subsonic.SubsonicClient
 import com.subtracks.data.source.subsonic.SubsonicLyricsProvider
 import com.subtracks.data.source.subsonic.SubsonicPlaylistWriter
+import com.subtracks.data.source.subsonic.SubsonicSimilarSongs
 import com.subtracks.log.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -409,6 +412,34 @@ class SourceRepository(
         val config = sourceConfigOnce(song.sourceId) ?: error("No configured source")
         check(!config.needsSignIn) { "The source needs signing in" }
         return SubsonicLyricsProvider(config.id, config.toClient()).fetch(song)
+    }
+
+    /** The server's similar songs for an Instant Mix seed; an explicit action, never part of browsing (D9). */
+    suspend fun similarSongs(
+        sourceId: Long,
+        seed: MixSeed,
+        count: Int,
+    ): List<MixCandidate> {
+        check(!_offline.value) { "Offline mode is on" }
+        val config = sourceConfigOnce(sourceId) ?: error("No configured source")
+        check(!config.needsSignIn) { "The source needs signing in" }
+        return SubsonicSimilarSongs(config.toClient()).similar(seed, count)
+    }
+
+    /** Source-specific provider, with its own headers, even if the active server changes during construction. */
+    suspend fun similarArtists(sourceId: Long): com.subtracks.data.recommendations.SimilarArtists? {
+        if (_offline.value) return null
+        val config = sourceConfigOnce(sourceId)?.takeIf { !it.needsSignIn } ?: return null
+        return com.subtracks.data.source.subsonic.SubsonicSimilarArtists(
+            client(
+                config.address,
+                config.username,
+                config.password,
+                config.useTokenAuth,
+                headersOverride = config.headers,
+                onTokenAuthUnsupported = { disableTokenAuth(config.id) },
+            ),
+        )
     }
 
     private fun SubsonicConfig.toClient(): SubsonicClient =

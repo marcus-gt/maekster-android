@@ -611,6 +611,8 @@ data class PlaybackCursor(
     @ColumnInfo(defaultValue = "0") val shuffleLinear: Boolean = false,
     // The song positionMs was saved on; null for rows written before schema 54.
     val positionSongId: String? = null,
+    /** Position of the first generated queue_entries reference; null when there is no autoplay tail. */
+    val extensionStart: Long? = null,
 )
 
 @Entity(

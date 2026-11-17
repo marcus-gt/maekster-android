@@ -26,7 +26,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -73,6 +75,14 @@ data class PlaybackState(
     val playbackOrigin: PlaybackOrigin? = null,
     val canClearUpcoming: Boolean = false,
     val waiting: PlaybackWaiting? = null,
+    /** The current song was appended by autoplay after the original queue ran out. */
+    val generated: Boolean = false,
+)
+
+/** What the queue is playing from; [similar] when autoplay has taken over from a source that ended. */
+data class SourceHeading(
+    val title: String,
+    val similar: Boolean = false,
 )
 
 private sealed interface QueueUndo {
@@ -132,6 +142,7 @@ private data class PendingPlay(
     val position: Long,
     val disableShuffle: Boolean,
     val origin: QueueEntry?,
+    val collection: QueueCollection? = null,
 )
 
 private data class PendingShuffle(
@@ -154,6 +165,10 @@ class PlaybackController(
     private val showMessage: (UiMessage) -> Unit = {},
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
     networkAvailable: Flow<Boolean> = flowOf(true),
+    private val autoplayFactory: ((() -> Boolean) -> AutoplayRefill)? = null,
+    private val autoplayPreference: Flow<Boolean>? = null,
+    /** More songs from the server's Queue Builder picks: (sourceId, songs to skip, count, downloads only). */
+    private val builtQueueRefill: (suspend (Long, Set<String>, Int, Boolean) -> List<String>)? = null,
 ) {
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state
@@ -168,6 +183,21 @@ class PlaybackController(
     private var pendingPlay: PendingPlay? = null
     private var networkRetry: NetworkRetry? = null
     private var playbackIntentVersion = 0L
+    private var playbackCommandVersion = 0L
+    private var autoplayEnabled = false
+
+    /** The queue was built by the Queue Builder, so it refills from its own picks whatever the autoplay setting. */
+    private var builtQueue = false
+
+    /** The queue is a [QueueCollection.finite] one (a Song Path), so nothing may extend it. */
+    private var finiteQueue = false
+
+    /** Autoplay or a Queue Builder refill may extend the queue. */
+    private val refillActive: Boolean get() = !finiteQueue && (autoplayEnabled || (builtQueue && builtQueueRefill != null))
+    private var networkConnected = true
+    private var autoplayJob: Job? = null
+    private var autoplayAttempt: Triple<Long, Long, Long>? = null
+    private val autoplay by lazy { autoplayFactory?.invoke { autoplayEnabled } }
     private var pendingShuffle: PendingShuffle? = null
     private var positionJob: Job? = null
     private var windowJob: Job? = null
@@ -194,8 +224,18 @@ class PlaybackController(
     private var windowFiltered = false
 
     init {
+        scope.launch { autoplayPreference?.distinctUntilChanged()?.collect { setAutoplaySimilar(it) } }
         scope.launch {
-            networkAvailable.collect { available -> if (available) retryNetworkPlayback() }
+            networkAvailable.collect { available ->
+                if (networkConnected != available && refillActive) {
+                    playbackIntentVersion++
+                    autoplayJob?.cancel()
+                    autoplayAttempt = null
+                }
+                networkConnected = available
+                if (available) retryNetworkPlayback()
+                if (refillActive) refresh()
+            }
         }
         scope.launch {
             sourceRepository.activeSourceId().collect { sourceId ->
@@ -207,6 +247,11 @@ class PlaybackController(
         }
         scope.launch {
             sourceRepository.offline.collect {
+                if (refillActive) {
+                    playbackIntentVersion++
+                    autoplayJob?.cancel()
+                    autoplayAttempt = null
+                }
                 if (it) networkRetry = null
                 reloadForOffline()
             }
@@ -240,9 +285,17 @@ class PlaybackController(
                     val shuffle = pendingShuffle
                     pendingShuffle = null
                     when {
-                        pending != null -> start(pending.entries, pending.position, pending.disableShuffle, pending.origin)
-                        shuffle != null -> startShuffled(shuffle.entries, shuffle.origin)
-                        else -> restore()
+                        pending != null -> {
+                            start(pending.entries, pending.position, pending.disableShuffle, pending.origin, pending.collection)
+                        }
+
+                        shuffle != null -> {
+                            startShuffled(shuffle.entries, shuffle.origin)
+                        }
+
+                        else -> {
+                            restore()
+                        }
                     }
                     _ready.value = true
                 }
@@ -345,6 +398,19 @@ class PlaybackController(
         if (shuffled) shuffleContext(entry) else playContext(entry, 0, disableShuffle = true)
     }
 
+    /**
+     * Plays a mix (Smart Shuffle) in its given order: one song entry per pick, labelled as [collection]. The
+     * mix is already shuffled, so shuffle mode is turned off. Bounded by the mix size, never a whole table.
+     */
+    internal fun playMix(
+        sourceId: Long,
+        songIds: List<String>,
+        collection: QueueCollection,
+    ) {
+        if (songIds.isEmpty()) return
+        play(songIds.map { queueRepository.songEntry(sourceId, it) }, 0, disableShuffle = true, collection = collection)
+    }
+
     fun shuffleStarred(sourceId: Long) = shuffleContext(queueRepository.starredEntry(sourceId))
 
     fun shuffleDownloaded(sourceId: Long) = shuffleContext(queueRepository.downloadedEntry(sourceId))
@@ -436,6 +502,7 @@ class PlaybackController(
     }
 
     fun playAt(position: Long) {
+        playbackCommandVersion++
         scope.launch {
             startLock.withLock {
                 val player = player ?: return@withLock
@@ -780,6 +847,7 @@ class PlaybackController(
         }
 
     fun togglePlayPause() {
+        playbackCommandVersion++
         playbackIntentVersion++
         unplayableRun = 0
         val player = player ?: return
@@ -807,6 +875,7 @@ class PlaybackController(
     }
 
     fun next() {
+        playbackCommandVersion++
         unplayableRun = 0
         advance()
     }
@@ -952,6 +1021,7 @@ class PlaybackController(
     }
 
     fun previous() {
+        playbackCommandVersion++
         unplayableRun = 0
         val player = player ?: return
         if (player.currentPositionMs > RESTART_THRESHOLD_MS) {
@@ -989,6 +1059,7 @@ class PlaybackController(
     }
 
     fun previousTrack() {
+        playbackCommandVersion++
         val snapshot = snapshot ?: return
         if (snapshot.size == 0L) return
         val current = currentPosition() ?: return
@@ -1045,7 +1116,83 @@ class PlaybackController(
         refresh(position)
     }
 
+    fun setAutoplaySimilar(enabled: Boolean) {
+        if (autoplayEnabled == enabled && enabled) return
+        playbackIntentVersion++
+        autoplayEnabled = enabled
+        autoplayJob?.cancel()
+        autoplayAttempt = null
+        scope.launch {
+            startLock.withLock {
+                if (!refillActive) truncateAutoplayLocked()
+                refresh()
+            }
+        }
+    }
+
+    private suspend fun truncateAutoplayLocked() {
+        if (queueRepository.extensionStart() == null) return
+        val current = currentPosition() ?: return
+        val snap = snapshot ?: return
+        queueRepository.setCursor(current)
+        if (!queueRepository.truncateExtension(snap)) return
+        val updated = readSnapshot()
+        snapshot = updated
+        layoutVersion++
+        windowJob?.cancel()
+        rebuildWindow(queueRepository.window(updated, current, QUEUE_WINDOW_RADIUS), current)
+    }
+
+    private fun scheduleAutoplay(position: Long?) {
+        val snap = snapshot ?: return
+        if (!refillActive || shuffleEnabled || repeatMode != RepeatMode.Off ||
+            player?.playWhenReady != true || position == null ||
+            snap.size - position - 1 > AutoplayRefill.REMAINING_THRESHOLD
+        ) {
+            autoplayJob?.cancel()
+            return
+        }
+        val coordinator = autoplay ?: return
+        val ownPicks: OwnPicks? =
+            builtQueueRefill?.takeIf { builtQueue }?.let { refill ->
+                { sourceId, excluded, downloadedOnly -> refill(sourceId, excluded, AutoplayRefill.BATCH_SIZE, downloadedOnly) }
+            }
+        val key = Triple(snap.version, position, playbackIntentVersion)
+        if (autoplayAttempt == key) return
+        autoplayJob?.cancel()
+        autoplayAttempt = key
+        autoplayJob =
+            scope.launch {
+                try {
+                    coordinator.extend(snap, position, offline || !networkConnected, ownPicks) { expected, sourceId, picks ->
+                        startLock.withLock {
+                            if (!refillActive || autoplayAttempt != key || playbackIntentVersion != key.third ||
+                                currentPosition() != position || sourceRepository.activeSourceIdOnce() != sourceId ||
+                                shuffleEnabled || repeatMode != RepeatMode.Off
+                            ) {
+                                return@withLock false
+                            }
+                            if (!queueRepository.appendExtension(expected, sourceId, picks)) return@withLock false
+                            val updated = readSnapshot()
+                            snapshot = updated
+                            layoutVersion++
+                            windowJob?.cancel()
+                            rebuildWindow(queueRepository.window(updated, position, QUEUE_WINDOW_RADIUS), position)
+                            refresh(position)
+                            true
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    Log.w("playback", "autoplay refill failed")
+                }
+            }
+    }
+
     fun cycleRepeat() {
+        playbackIntentVersion++
+        autoplayAttempt = null
         val next =
             when (repeatMode) {
                 RepeatMode.Off -> RepeatMode.All
@@ -1054,13 +1201,24 @@ class PlaybackController(
             }
         repeatMode = next
         player?.setRepeatOne(next == RepeatMode.One)
-        scope.launch { queueRepository.setRepeat(next.ordinal) }
+        autoplayJob?.cancel()
+        scope.launch {
+            startLock.withLock {
+                if (next != RepeatMode.Off) truncateAutoplayLocked()
+                queueRepository.setRepeat(next.ordinal)
+                refresh()
+            }
+        }
         refresh()
     }
 
     fun toggleShuffle() {
+        playbackIntentVersion++
+        autoplayAttempt = null
+        autoplayJob?.cancel()
         scope.launch {
             startLock.withLock {
+                if (!shuffleEnabled) truncateAutoplayLocked()
                 val snapshot = readSnapshot()
                 this@PlaybackController.snapshot = snapshot
                 if (snapshot.size == 0L) return@withLock
@@ -1098,6 +1256,7 @@ class PlaybackController(
     }
 
     fun seekTo(positionMs: Long) {
+        autoplayJob?.cancel()
         playbackIntentVersion++
         networkRetry = null
         player?.seekTo(positionMs)
@@ -1157,19 +1316,23 @@ class PlaybackController(
         return target?.takeIf { it != at }?.let { queueItemAt(snapshot, it) }
     }
 
+    internal fun currentPlaybackIntent(): Long = playbackCommandVersion
+
     private fun play(
         entries: List<QueueEntry>,
         startPosition: Long,
         disableShuffle: Boolean = false,
         origin: QueueEntry? = null,
+        collection: QueueCollection? = null,
     ) {
+        playbackCommandVersion++
         unplayableRun = 0
         if (player == null) {
-            pendingPlay = PendingPlay(entries, startPosition, disableShuffle, origin)
+            pendingPlay = PendingPlay(entries, startPosition, disableShuffle, origin, collection)
             connect()
             return
         }
-        scope.launch { start(entries, startPosition, disableShuffle, origin) }
+        scope.launch { start(entries, startPosition, disableShuffle, origin, collection) }
     }
 
     private suspend fun start(
@@ -1177,6 +1340,7 @@ class PlaybackController(
         startPosition: Long,
         disableShuffle: Boolean = false,
         origin: QueueEntry? = null,
+        collection: QueueCollection? = null,
     ) = startLock.withLock {
         windowJob?.cancel()
         windowStart = 0
@@ -1187,7 +1351,7 @@ class PlaybackController(
         shuffleEnabled = !disableShuffle && modes.shuffle
         repeatMode = modes.repeat.toRepeatMode()
         player?.setRepeatOne(repeatMode == RepeatMode.One)
-        queueRepository.replace(entries, sourceLabel = sourceLabelFor(entries, origin))
+        queueRepository.replace(entries, sourceLabel = collection?.storedLabel ?: sourceLabelFor(entries, origin))
         val snapshot = queueRepository.snapshot()
         this.snapshot = snapshot
         queueSourceId = entries.firstOrNull()?.sourceId
@@ -1210,6 +1374,7 @@ class PlaybackController(
 
     private suspend fun restore() =
         startLock.withLock {
+            autoplayPreference?.first()?.let { autoplayEnabled = it }
             windowJob?.cancel()
             windowStart = 0
             windowEnd = -1
@@ -1228,6 +1393,7 @@ class PlaybackController(
             } else if (!snapshot.shuffled) {
                 shuffleEnabled = false
             }
+            updateQueueKind()
             this.snapshot = snapshot
             val queueSourceId =
                 snapshot.entries
@@ -1267,6 +1433,10 @@ class PlaybackController(
             }
             lastSavedPositionMs = savedPositionMs
             loadWindow(start, autoplay = false, startPositionMs = savedPositionMs)
+            if (!refillActive) {
+                truncateAutoplayLocked()
+                refresh()
+            }
         }
 
     /** The position of [songId] closest to [cursor] within one bounded window, or null when it is not there. */
@@ -1284,6 +1454,8 @@ class PlaybackController(
     private suspend fun stop() = startLock.withLock { stopLocked() }
 
     private fun stopLocked() {
+        autoplayJob?.cancel()
+        autoplayAttempt = null
         playbackIntentVersion++
         networkRetry = null
         windowJob?.cancel()
@@ -1756,10 +1928,17 @@ class PlaybackController(
         if (repeatMode == RepeatMode.All) jumpTo(0)
     }
 
+    private suspend fun updateQueueKind() {
+        val collection = queueRepository.sourceLabel()?.let(QueueCollection::fromStored)
+        builtQueue = collection == QueueCollection.QueueBuilder
+        finiteQueue = collection?.finite == true
+    }
+
     private fun Int.toRepeatMode(): RepeatMode = RepeatMode.entries.getOrElse(this) { RepeatMode.Off }
 
     private suspend fun readSnapshot(): QueueSnapshot {
         val snapshot = queueRepository.snapshot()
+        updateQueueKind()
         if (!snapshot.shuffled) {
             if (shuffleEnabled && snapshot.size > 0L) queueRepository.setShuffle(null)
             shuffleEnabled = false
@@ -1796,14 +1975,32 @@ class PlaybackController(
     suspend fun sourceTitle(
         context: QueueContext?,
         resources: Resources,
-    ): String? {
+        generated: Boolean = false,
+    ): String? = sourceHeading(context, resources, generated)?.title
+
+    /**
+     * The queue's source for [context]. When [generated], a song autoplay appended after a finite source reads
+     * "Similar to …"; endless mixes keep their own name, and an unnamed source has no heading.
+     */
+    suspend fun sourceHeading(
+        context: QueueContext?,
+        resources: Resources,
+        generated: Boolean = false,
+    ): SourceHeading? {
         queueRepository.sourceLabel()?.let { label ->
-            return QueueCollection.fromStored(label)?.let { resources.getString(it.title) } ?: label
+            val collection = QueueCollection.fromStored(label)
+            val name = collection?.let { resources.getString(it.title) } ?: label
+            if (generated && collection?.endless != true) {
+                return SourceHeading(resources.getString(R.string.queue_similar_to, name), similar = true)
+            }
+            return SourceHeading(name)
         }
-        return context?.let {
-            QueueCollection.forKind(it.kind)?.let { collection -> resources.getString(collection.title) }
-                ?: queueRepository.sourceName(it.kind, it.sourceId, it.refId)
-        }
+        if (generated) return null
+        return context
+            ?.let {
+                QueueCollection.forKind(it.kind)?.let { collection -> resources.getString(collection.title) }
+                    ?: queueRepository.sourceName(it.kind, it.sourceId, it.refId)
+            }?.let { SourceHeading(it) }
     }
 
     private fun updateBuffering() {
@@ -1873,8 +2070,10 @@ class PlaybackController(
                 audioEncoding = player.audioEncoding.takeIf { player.currentItem != null },
                 playbackOrigin = player.playbackOrigin.takeIf { player.currentItem != null },
                 canClearUpcoming = snapshot?.let { position != null && position < it.size - 1 } == true,
+                generated = snapshot?.let { position != null && it.isGenerated(position) } == true,
             )
         _positionMs.value = player.currentPositionMs
+        scheduleAutoplay(position)
         if (player.isPlaying) startPositionTicker() else stopPositionTicker()
     }
 

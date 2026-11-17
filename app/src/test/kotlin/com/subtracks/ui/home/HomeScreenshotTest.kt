@@ -50,7 +50,7 @@ class HomeScreenshotTest {
             }
         }
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("Recently added").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText("Your favorite songs").fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onRoot().captureRoboImage("src/test/screenshots/home.png")
     }
@@ -69,7 +69,7 @@ class HomeScreenshotTest {
             }
         }
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("Recently added").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText("Your favorite songs").fetchSemanticsNodes().isNotEmpty()
         }
         repeat(2) {
             composeRule.onRoot().performTouchInput {

@@ -210,6 +210,7 @@ fun ArtistDetailRoute(
     setStar: (StarType, String, Boolean) -> Unit,
     viewModel: ArtistDetailViewModel = koinViewModel(key = artistId) { parametersOf(artistId) },
     playbackController: PlaybackController = koinInject(),
+    onViewArtist: (String) -> Unit = {},
 ) {
     val artist by viewModel.artist.collectAsStateWithLifecycle()
     val artistName by viewModel.artistName.collectAsStateWithLifecycle()
@@ -270,6 +271,7 @@ fun ArtistDetailRoute(
         onShuffle = viewModel::shuffle,
         onPlayShelf = viewModel::playShelf,
         onPlayAppearances = viewModel::playAppearances,
+        similarArtists = { SimilarArtistsSectionRoute(artistId, onViewArtist) },
     )
 
     PendingDownloadDeleteConfirmation(pendingDelete) { pending ->
@@ -307,6 +309,7 @@ fun ArtistDetailScreen(
     onShuffle: () -> Unit = {},
     onPlayShelf: (List<Album>, Boolean) -> Unit = { _, _ -> },
     onPlayAppearances: (Boolean) -> Unit = {},
+    similarArtists: (@Composable () -> Unit)? = null,
 ) {
     val listState = rememberRestorableLazyGridState(albumsLoaded)
     val shelves = remember(albums.albumCredits) { albums.albumCredits.releaseShelves() }
@@ -559,6 +562,9 @@ fun ArtistDetailScreen(
                                 onSizeChanged = { albumHeightPx = it },
                             )
                         }
+                    }
+                    similarArtists?.let { section ->
+                        item(key = "similarArtists", span = { GridItemSpan(maxLineSpan) }) { section() }
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Spacer(Modifier.height(fill))

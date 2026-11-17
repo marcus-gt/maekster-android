@@ -6,6 +6,7 @@ import com.subtracks.data.lyrics.LyricsSource
 import com.subtracks.data.model.Source
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
+import com.subtracks.data.prefs.DiscoverLayout
 import com.subtracks.data.prefs.HomeLayout
 import com.subtracks.data.prefs.LyricsPreferences
 import com.subtracks.data.prefs.ReplayGainMode
@@ -126,6 +127,29 @@ class SettingsViewModel(
 
     fun setHomeLayout(layout: HomeLayout) {
         viewModelScope.launch { userPreferences.setHomeLayout(layout) }
+    }
+
+    val discoverLayout =
+        userPreferences.discoverLayout().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiscoverLayout())
+    val autoplaySimilar = userPreferences.autoplaySimilar().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val freshReleasesEnabled = userPreferences.freshReleasesEnabled().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val externalArtistImagesEnabled =
+        userPreferences.externalArtistImagesEnabled().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setDiscoverLayout(layout: DiscoverLayout) {
+        viewModelScope.launch { userPreferences.setDiscoverLayout(layout) }
+    }
+
+    fun setAutoplaySimilar(enabled: Boolean) {
+        viewModelScope.launch { userPreferences.setAutoplaySimilar(enabled) }
+    }
+
+    fun setFreshReleasesEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferences.setFreshReleasesEnabled(enabled) }
+    }
+
+    fun setExternalArtistImagesEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferences.setExternalArtistImagesEnabled(enabled) }
     }
 
     val offline: StateFlow<Boolean> = sourceRepository.offline

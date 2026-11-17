@@ -374,6 +374,19 @@ interface LibraryDao {
         recomputeArtistArt(sourceId)
     }
 
+    /** Snapshots a play of a mirrored song into `play_events`; an unknown song records nothing. */
+    @Query(
+        "INSERT INTO play_events (sourceId, songId, playedAt, title, artist, album, durationMs) " +
+            "SELECT sourceId, id, :at, title, artist, album, " +
+            "CASE WHEN duration > 0 THEN duration * 1000 ELSE NULL END " +
+            "FROM songs WHERE sourceId = :sourceId AND id = :songId",
+    )
+    suspend fun insertPlayEvent(
+        sourceId: Long,
+        songId: String,
+        at: Long,
+    )
+
     @Query(
         "UPDATE songs SET playCount = playCount + 1, played = MAX(COALESCE(played, :at), :at) " +
             "WHERE sourceId = :sourceId AND id = :songId",
@@ -422,13 +435,14 @@ interface LibraryDao {
     ): List<String>
 
     // Counted locally when a scrobble is submitted, so the play sorts move before the next sync; the
-    // sync then overwrites with the server's own number.
+    // sync then overwrites with the server's own number. The play is also kept as a local event.
     @Transaction
     suspend fun recordPlay(
         sourceId: Long,
         songId: String,
         at: Long,
     ) {
+        insertPlayEvent(sourceId, songId, at)
         bumpSongPlay(sourceId, songId, at)
         val albumId = albumIdForSong(sourceId, songId)
         if (albumId != null) bumpAlbumPlay(sourceId, albumId, at)
@@ -551,6 +565,32 @@ interface LibraryDao {
         sourceId: Long,
         limit: Int,
     ): Flow<List<AlbumSongItem>>
+
+    @Query(
+        "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
+            "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
+            "WHERE songs.sourceId = :sourceId AND songs.played IS NOT NULL " +
+            "ORDER BY songs.played DESC, songs.id LIMIT 8",
+    )
+    fun songPathRecent(sourceId: Long): Flow<List<AlbumSongItem>>
+
+    @Query(
+        "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
+            "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
+            "WHERE songs.sourceId = :sourceId AND songs.playCount > 0 " +
+            "ORDER BY songs.playCount DESC, songs.id LIMIT 8",
+    )
+    fun songPathTop(sourceId: Long): Flow<List<AlbumSongItem>>
+
+    @Query(
+        "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
+            "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
+            "WHERE songs.sourceId = :sourceId AND (:exclude IS NULL OR songs.id != :exclude) ORDER BY RANDOM() LIMIT 1",
+    )
+    suspend fun songPathSurprise(
+        sourceId: Long,
+        exclude: String?,
+    ): AlbumSongItem?
 
     @Query(
         "SELECT * FROM albums WHERE sourceId = :sourceId AND $ALBUM_SEARCH_FILTER " +
@@ -1012,6 +1052,18 @@ interface LibraryDao {
         sourceId: Long,
         artistId: String,
     ): Artist?
+
+    @Query("SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND musicBrainzId = :mbid COLLATE NOCASE LIMIT 2")
+    suspend fun artistsByMusicBrainzId(
+        sourceId: Long,
+        mbid: String,
+    ): List<Artist>
+
+    @Query("SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND name = :name COLLATE NOCASE LIMIT 2")
+    suspend fun artistsByExactName(
+        sourceId: Long,
+        name: String,
+    ): List<Artist>
 
     @Query("SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND id = :artistId")
     fun artist(

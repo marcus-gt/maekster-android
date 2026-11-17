@@ -20,6 +20,15 @@ Paths: `st:` = `app/src/main/kotlin/com/subtracks/`.
 - **Crossfade is demoted** to a product decision (M3.8): Media3 has no built-in crossfade, iOS defaults it to off,
   and building it risks the single-player gapless window.
 
+## M3.C Home/Discover consolidation
+
+**DONE (17 November 2026, user-authorized).** Completed before M3.3 E/further integrations.
+M2.5 covered Home mechanics but did not finish product-level consolidation. Audit inherited sections,
+align Home hierarchy, independently edit both layouts with shared supported sections, and relocate feed
+settings. Preserve customization and separate section visibility from network consent.
+Detailed ordered tasks/acceptance criteria: `docs/HOME_DISCOVER_CONSOLIDATION.md`.
+Verification, known gaps and Git state: `docs/handoffs/M3.C-home-discover.md`. M3.3 E is next.
+
 ## Standard verification for every slice
 
 - `./gradlew :app:assembleDebug`, `:app:testDebugUnitTest`, `:app:ktlintCheck :app:lintDebug` (or the Nix `gradle`
@@ -629,6 +638,102 @@ removal was authorized and verified. Airplane-mode recovery was checked on the e
 queue swap could not be reproduced. Still open: the proxy, lyrics and physical-device checks, and the
 other servers (issue #11). See `docs/handoffs/M2-closeout.md`.
 
+**M3.1 status (15 Nov 2026):** in progress.
+- Part A: plays that reach the scrobble threshold are kept as local `play_events` (schema 55).
+- Part B: a ListenBrainz client (validate-token, submit-listens) with transient and permanent errors.
+- Part C: a sealed token and account in preferences, plus the `pending_listens` offline queue
+  (schema 56). `ListenBrainzRepository` handles connect, `playing_now`, `single`, and import in batches
+  of 1,000. The `Scrobbler` fans out to the server and ListenBrainz independently.
+- Part D: a ListenBrainz row on the Playback page (Off, On, Paused, waiting count) and a dialog to
+  connect with a token (optional server), switch sending, see the queue, and disconnect with
+  confirmation.
+
+**M3.1 status (16 Nov 2026):** complete. Verified by the user on their device: listens reached
+listenbrainz.org (doubled alongside Navidrome's own relay, as the dialog warns). The offline-queue replay
+against the real service is still unchecked.
+
+**M3.2 status (17 Nov 2026):** complete. Close-out: Smart Shuffle, Instant Mix and stations reach Present;
+Auto-extend and Queue Builder reach Present but behaviour differs (documented); Discover is Partial until
+M3.3/M3.5/M3.6 add their sections. On the emulator, Discover offline hides Stations and keeps downloads-only
+Smart Shuffle and Queue Builder, and a 15-song Queue Builder build refilled to 65 with autoplay off. No
+third-party hosts: the only network call is the user's own server (`getSimilarSongs2`) on explicit
+actions or with autoplay on. Queue Builder moods move to M3.5 (AudioMuse). See
+`docs/handoffs/M3.2-closeout.md`. Part A: Smart Shuffle (iOS three-source blend: favourites,
+recent taste, rediscovery; at most 3 per artist; recent plays skipped), built from the mirror with bounded
+queries and limited to downloads when offline, and played as a labelled mix (`playMix`). No UI yet.
+Part B is complete: Instant Mix and artist-station engine/playback, explicit server similarity cached in
+Room (schema 57), with downloaded-only cache/local fallback offline.
+Part C1 is complete: shared song/album menus offer Instant Mix; artist menus offer Start station.
+Preparation survives menu dismissal, reports empty/error results, and guards against server switches.
+Album action verified through playback on the emulator. See `docs/handoffs/M3.2-instant-mix-menu.md`.
+Part C2 is complete: Discover tab with a Smart Shuffle card and up to 12 local artist stations;
+offline shows downloaded-only Smart Shuffle. Both actions verified through playback on the emulator.
+Visual follow-up: equal-height station cards without repeated action labels and a more compact Smart
+Shuffle card; normal and 2× scrolled renders reviewed (see the C2 handoff).
+See `docs/handoffs/M3.2-discover.md`. Part D1 is complete: schema 58 persists the nullable generated-tail boundary, retained by cursor updates
+and cleared by queue replacement. Storage only; no autoplay UI or generation yet. See
+`docs/handoffs/M3.2-extension-boundary.md`. Part D2 is complete: repository-level atomic append (max 50) and unplayed-tail truncation,
+with stale-context/mode guards and manual context edits promoting retained tracks into ordinary context.
+No autoplay generation/UI yet. See `docs/handoffs/M3.2-extension-operations.md`.
+Part D3a is complete: an unwired refill coordinator gates at <=15 remaining, filters nearby/recent
+songs and offline candidates, coalesces in-flight attempts and appends through D2. No runtime observer
+or toggle yet. See `docs/handoffs/M3.2-autoplay-refill.md`. Part D3b is complete: controller enable/disable API, refill scheduling, cancellation/serialized commit,
+bounded player-window refresh and tail trimming on disable/repeat/shuffle; Koin wiring. Off by default,
+no visible toggle yet. See `docs/handoffs/M3.2-autoplay-controller.md`.
+Part D4a is complete: DataStore opt-in (off by default), Autoplay similar switch on Discover, controller
+follows the preference and drops an unplayed generated tail on restore when disabled. See
+`docs/handoffs/M3.2-autoplay-setting.md`. Part D4b is complete: the current song autoplay appended after a
+finite source is labelled "Similar to …" in the queue and Now Playing headers (endless Smart Shuffle and
+Instant Mix keep their names); refill, labels and disable trimming verified on the emulator. See
+`docs/handoffs/M3.2-autoplay-labels.md`. Part D is complete.
+Part E (Queue Builder, local) is split into E1 engine, E2 Discover card and picker, E3 refill with its own
+picks, E4 genre taxonomy (licence review first); moods wait for AudioMuse. Part E1 is complete: genre and
+decade index, exact match count and bounded random build from the mirror, downloads-only offline. No UI yet.
+See `docs/handoffs/M3.2-queue-builder-engine.md`. Part E2 is complete: Discover card (summary, Play, Edit picks)
+and a picker sheet (genre filter, genre and decade chips with counts, length 15–120, match count, Build), picks
+per server, played as an endless "Queue Builder" source; verified on the emulator. See
+`docs/handoffs/M3.2-queue-builder-ui.md`. Part E2b (E4 pulled forward) is complete: Discogs main genres and
+sub-genres, the iOS-style card (genre, sub-genre and decade rows; Reset and Play) and genre columns on the
+page. See `docs/handoffs/M3.2-queue-builder-genres.md`. Part E3 is complete: Queue Builder queues refill from
+their own picks whatever the autoplay setting, fall back to similar songs only with autoplay on, and keep their
+refill across autoplay toggles and restarts. See `docs/handoffs/M3.2-queue-builder-refill.md`.
+**M3.3 status (17 Nov 2026):** in progress. Split into A MusicBrainz client, B fresh-releases engine (Room,
+refresh policy), C Discover Fresh Releases (opt-in, D10, PRIVACY.md), D Similar Artists, E optional external
+artist images. Part A is complete: `MusicBrainz` interface and OkHttp client with a shared 1 req/s limiter,
+503 back-off, certain-only artist name matching and the iOS release-matching rules; not wired yet, so no
+network use. See `docs/handoffs/M3.3-musicbrainz-client.md`. Part B is complete: the fresh-releases engine (90-day
+window, owned-title filtering, two-pass refresh with cached name lookups, 20 h refresh and 15 min back-off), stored
+per server in Room (schema 59: `fresh_releases`, `fresh_release_state`, `musicbrainz_names`) and read offline; the
+mirror is read in keyset pages of 25 artists. Not called yet. See `docs/handoffs/M3.3-fresh-releases-engine.md`.
+Part C is implemented: off-by-default Discover Fresh releases, disclosure, cached offline shelf, external release links,
+app-scoped refresh and cancellation on connectivity/server/opt-in changes. Build, lint, focused tests and normal/2×
+font renders pass; the full suite has the same three Home screenshot timeouts as Part B, all passing on isolated retry.
+Live-service and device checks remain unverified. See `docs/handoffs/M3.3-fresh-releases-ui.md`.
+Part D1 adds the Similar Artists provider contract and Subsonic `getArtistInfo2` adapter, with bounded,
+ordered results including out-of-library artists. It is not wired yet; no new browsing requests.
+See `docs/handoffs/M3.3-similar-artists-provider.md`.
+Part D2 adds schema 60's source/artist-scoped Similar Artists cache, versioned payloads, 24-hour TTL,
+stale-result retention on failure, offline/source guards and serialized refreshes. It remains unwired to browsing.
+See `docs/handoffs/M3.3-similar-artists-cache.md`.
+Part D3a adds source-scoped local resolution (server ID, unique MBID, unique name), singleton cache/repository
+wiring, and source-specific authenticated providers with fixed origin-scoped headers. Cache reads stay local;
+explicit refreshes guard active source and offline/connectivity. No UI calls yet.
+See `docs/handoffs/M3.3-similar-artists-resolution.md`.
+Part D3b adds Similar Artists shelves after artist discography and album tracks. Section composition reads only
+cached data; Find similar artists explicitly refreshes online. Local matches open their resolved artist ids;
+external candidates open a validated MusicBrainz artist page or encoded search. No portraits are fetched.
+Device check verified artist refresh and album reuse of cached results; normal/2× renders reviewed.
+See `docs/handoffs/M3.3-similar-artists-ui.md`.
+Part E is split into E1 resolver and E2 opt-in and UI. E1 is complete: `MusicBrainz.wikidataId`, a P18-only
+`Wikidata` client and `ExternalArtistImages` (MBID or certain name match → Wikidata → Commons, bounded cache of
+definite answers, shared in-flight lookups, failures retried). Not wired; no requests yet.
+See `docs/handoffs/M3.3-artist-images-resolver.md`.
+Part E2 adds the off-by-default Photos of recommended artists setting (D10), disclosure and Privacy host list,
+shared resolver wiring, server artwork for local Similar Artists and Commons photos for external candidates.
+Lookups stop on opt-out, offline and server changes. See `docs/handoffs/M3.3-artist-images-ui.md` for verification.
+S1 Settings > Integrations is implemented. M3.4 Local folders and M3.6 Wrapped remain on hold by user decision (17 Nov 2026). Outstanding live-service/device checks for M3.3 remain in its handoffs. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+`M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
+
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
   art and downloads all succeed; turn the header off and confirm a clear auth error. Airplane mode mid-song (recovery,
   skip to downloaded). Process death during playback, then restore. Lyrics with Navidrome-embedded LRC and LRCLIB fallback.
@@ -668,12 +773,75 @@ Lidarr is out of scope (D11).
 | **M3.1 ListenBrainz scrobbling and play events** | Token setup and validation; now-playing and listens; offline queue; `play_events` recorded per source from scrobble submissions | `pending_listens`, `play_events` (indexed by time and source) | Fake server: submit, retry, invalid token; event recording only on a real submission | Token through `CredentialStore` |
 | **M3.2 Discover v1: Smart Shuffle, Instant Mix, stations, auto-extend** | The Discover tab appears; Smart Shuffle (local, offline-capable); artist stations; Instant Mix (`getSimilarSongs2` plus local fallback); "Autoplay similar" toggle; "Similar to …" labels; Queue Builder (local) | Up-next or context tail entries; `playback_cursor.extensionStart` | Trigger threshold, disable on repeat or shuffle, truncation; bounded batch sizes | D9: on-demand similarity calls allowed as explicit actions, cached in Room, with a local fallback offline |
 | **M3.3 Recommendations and fresh releases** | Fresh releases for library artists (MusicBrainz), Similar Artists shelves, optional external artist images | `recommendation_cache` with a TTL | Rate limiting (1 req/s), offline served from the cache, User-Agent from `MaeksterBrand` | D10: every third-party lookup opt-in per integration and disclosed in Privacy |
-| **M3.4 Local folders** | SAF folder picker, persisted permissions, foreground rescan, local landing, local-only onboarding, local items in the queue | A `sources` Local kind; `local_files` (uri, folderId, relativePath, mtime, tags) | Scanner tests on a fake document tree; revoke and missing-file handling | GrapheneOS Storage Scopes compatible by design |
-| **M3.5 AudioMuse-AI** | Per-server AudioMuse URL and token; Moods on Discover (mood radios); Song Path | `mood_scores` cache | Fake server; Song Path does not auto-extend | |
-| **M3.6 Wrapped** | Year and all-time recap from `play_events` (optionally the ListenBrainz history); story pager; share card | Aggregation queries only | Aggregation, streak and insight tests ported from the iOS fixtures | |
+| **M3.4 Local folders** | **On hold (17 Nov 2026), by user decision.** SAF folder picker, persisted permissions, foreground rescan, local landing, local-only onboarding, local items in the queue | A `sources` Local kind; `local_files` (uri, folderId, relativePath, mtime, tags) | Scanner tests on a fake document tree; revoke and missing-file handling | GrapheneOS Storage Scopes compatible by design |
+| **M3.5 AudioMuse-AI** | **In progress: A1 mood-score client and A2 search/path transport complete (unwired); B1 encrypted per-server configuration storage added (schema 61, unwired); B2 Settings form and Koin configuration wiring added; C1 mood-score cache and Queue Builder ranking added (schema 62, unwired); C2 guarded score fetching added (unwired); C3 local track resolution added (unwired); D1 Discover mood radios added (first AudioMuse feature wired to the UI); B3 AudioMuse connection test added (separate from Save); D2 Queue Builder moods added (D complete); E1 Song Path engine and finite queue added; E2 Discover card and picker complete (user verified song endpoints and picker stability); S1 Settings > Integrations implemented (see `docs/handoffs/S1-integrations-settings.md`). See `docs/handoffs/M3.5-song-path-picker.md`. See `docs/handoffs/M3.5-song-path-engine.md`. See `docs/handoffs/M3.5-queue-builder-moods.md`. See `docs/handoffs/M3.5-audiomuse-connection-test.md`. See `docs/handoffs/M3.5-mood-radios.md`. See `docs/handoffs/M3.5-audiomuse-track-resolution.md`. See `docs/handoffs/M3.5-audiomuse-score-fetch.md`. See `docs/handoffs/M3.5-audiomuse-settings.md`. See `docs/handoffs/M3.5-audiomuse-config-store.md`. See `docs/handoffs/M3.5-audiomuse-scores-client.md` and `docs/handoffs/M3.5-audiomuse-search-path.md`.** Per-server AudioMuse URL and token; Moods on Discover (mood radios) and in Queue Builder; Song Path | `mood_scores` cache | Fake server; Song Path does not auto-extend | |
+| **M3.6 Wrapped** | **On hold (17 Nov 2026), by user decision.** Year and all-time recap from `play_events` (optionally the ListenBrainz history); story pager; share card | Aggregation queries only | Aggregation, streak and insight tests ported from the iOS fixtures | |
 | ~~M3.7 Lidarr~~ | Dropped (D11): legacy from Mixtape, unused in the iOS product | n/a | n/a | Slice number kept so later IDs stay stable |
-| **M3.8 Crossfade (prototype, D15)** | 0–12 s, off by default, disabled on gapless albums | None | Gapless unaffected; transition timing | Prototype first; drop if it destabilises the window |
-| **M3.9 Internet radio** | Station list (synced into Room), live playback outside the queue, the queue resumes afterwards | `radio_stations` | Controller live-mode tests | |
+| **M3.8 Crossfade (prototype, D15)** | **On hold (16 Nov 2026), tracked in issue #13.** 0–12 s, off by default, disabled on gapless albums | None | Gapless unaffected; transition timing | Prototype first; drop if it destabilises the window |
+| **M3.9 Internet radio** | **Dropped (16 Nov 2026): the user does not need internet radio.** Was: station list, live playback outside the queue | — | — | |
+
+### M3.5 remaining scope and UI entry points
+
+- **C — cache and local resolution:** C1 adds the local-only Room mood-score cache (schema 62) and
+  bounded Queue Builder mood ranking; see `docs/handoffs/M3.5-audiomuse-mood-cache.md`.
+  C2 adds explicit-fetch orchestration with configuration/offline/source guards, bounded concurrency and
+  session-only 404 misses; see `docs/handoffs/M3.5-audiomuse-score-fetch.md`. C3 adds source-local ID
+  verification and unique normalized metadata recovery, preserving order/duplicates and downloaded-only
+  eligibility offline; see `docs/handoffs/M3.5-audiomuse-track-resolution.md`. These foundations are
+  not yet called by UI actions. Next is D, wiring them into both mood radios and Queue Builder.
+- **D1 — Discover mood radios (done):** a Moods shelf (Night, Energetic, Workout, Chill, Focus) appears
+  only online with a usable AudioMuse configuration for the active server. A tap runs one sonic search
+  (pool 200), resolves locally, rank-weighted shuffles and plays an endless queue labelled "<Mood> radio";
+  autoplay similar songs continue it. No match, no local match, unavailable and failure each get a message.
+  See `docs/handoffs/M3.5-mood-radios.md`.
+- **D2 — Queue Builder moods (done):** six mood picks rank a pool of genre/decade matches by cached or fetched
+  AudioMuse scores, saved per server, used by refill; unavailable scores are reported, never ignored.
+  See `docs/handoffs/M3.5-queue-builder-moods.md`.
+- **AudioMuse decisions to revisit later (recorded 17 Nov 2026, tracked in issue #16):** current
+  behaviour, kept until the user decides otherwise.
+  1. Queue Builder refill may fetch missing mood scores while online (it continues a queue the user started
+     with moods); offline it uses cached scores only.
+  2. A first mood build on a cold cache can make up to 400 score requests (5 at a time); later builds reuse
+     the cache. Not timed on a real instance; consider a smaller pool, prefetching or a progress hint.
+  3. Not ported: the iOS AudioMuse genre fallback that gives untagged songs a main genre from AudioMuse styles.
+  4. Not ported (user decision): mood radios built from library tags when AudioMuse is not set up.
+  5. Mood radios queue all matches (up to 200) at once and then continue with autoplay similar songs from the
+     current song (only with autoplay on), where iOS queues 50, refills from the rest and then seeds from the
+     top 10 matches. Radio results are not cached; the shelf is hidden offline.
+  6. Queue Builder moods never drop silently: missing scores are reported (iOS drops them with a notice).
+  7. Song Path results are not cached and the card will be hidden offline (like mood radios); the queue heading
+     is plain "Song Path" (iOS: "Song Path · From → To"); path songs are de-duplicated as on iOS.
+- **Order (user decision, 17 Nov 2026):** B3, D2, E1, E2, then S1.
+- **B3 — AudioMuse connection test (DONE 17 Nov 2026; see `docs/handoffs/M3.5-audiomuse-connection-test.md`):** a "Test" action in
+  the AudioMuse settings dialog. iOS shows "Test and Update" and reports e.g. "Connected — 5 tracks matched
+  a test search". On Android: an explicit action (never on typing or opening) that checks the URL/token in the
+  form (including a retained saved token) with warmup + a small fixed test search, then reports connected
+  with the match count, unauthorized (401/403), not found/not AudioMuse, unreachable/timeout or invalid
+  response, without logging the token or exception details. **Decided:** Test stays separate from Save; a
+  test never saves or changes stored settings (unlike iOS "Test and Update"). Offline: disabled with a reason. Tests: fake
+  client for each outcome, busy state, a result cleared when URL/token changes, normal/2× text.
+- **S1 — Settings > Integrations page:** The Settings root now lists Integrations between Storage and About.
+  The page contains ListenBrainz, AudioMuse (shown for the active server), Fresh releases, and recommended
+  artist photos. The existing controls and privacy disclosures moved with them. Fresh releases still open
+  in the browser. See [the S1 handoff](handoffs/S1-integrations-settings.md).
+- **Tag fallback for moods: skipped for now (user decision, 17 Nov 2026).** iOS mood radios fall back to
+  library genre/BPM/mood tags without AudioMuse; Android keeps Moods AudioMuse-only. Do not add it unless asked.
+- **D — moods in Discover and Queue Builder:** include both playable mood radios and mood picks in
+  the existing Queue Builder card/picker. Queue Builder combines moods with its genre/sub-genre and
+  decade picks, saves them per server and uses the same picks when refilling. Mood controls appear
+  only when AudioMuse is configured and usable. Existing genre/decade-only queues keep working.
+  Offline mood filtering/ranking uses cached scores and downloaded candidates; selecting a mood
+  must not trigger browse-time metadata requests or silently ignore an unavailable mood constraint.
+  Acceptance includes combined genre + decade + mood picks, source isolation, refill consistency,
+  disabled/unreadable AudioMuse, offline cache misses and normal/2× text.
+- **E — Song Path:** add the Discover entry point with From/To song-or-mood rows, Swap endpoints,
+  song-count slider and Play. The user supplied an iOS screenshot on 17 November 2026; its visible
+  hierarchy and Android acceptance notes are recorded in
+  [Song Path iOS reference](references/SONG_PATH_IOS.md). Follow the workflow and information hierarchy
+  using Android-native controls, rather than copying iOS visuals. Path playback remains finite.
+  **E1 (done):** `SongPathBuilder`/`SongPathPlayer`, length 5–50 (default 25), finite `QueueCollection.SongPath`
+  never extended. See `docs/handoffs/M3.5-song-path-engine.md`. **E2 (done):** Discover card, Swap, 5–50 slider and local song/mood picker. See
+  `docs/handoffs/M3.5-song-path-picker.md` for verification.
 
 - **Manual emulator checks:** Discover offline (only Smart Shuffle from downloads is visible); ListenBrainz listens appear
   on the website; AudioMuse Song Path end to end; local folder on emulated
@@ -732,8 +900,9 @@ All decided on 10 November 2026.
 | D12 | ReplayGain default | **Agreed.** Android Auto mode, on by default |
 | D13 | Multi-server UI | **Keep.** The existing Android server list and switching stay; the feature is wanted on iOS later too |
 | D14 | Translations | **English only.** No translation workflow; the 27 inherited partial locales are removed in M1.1 |
-| D15 | Crossfade | **Agreed.** Prototype in M3.8, drop if it compromises gapless |
+| D15 | Crossfade | **Agreed.** Prototype in M3.8, drop if it compromises gapless. On hold since 16 Nov 2026 (issue #13) |
 | D16 | Casting | **Wanted, later.** Deferred to M4.7 (issue #3); ordinary playback must never depend on Play Services |
+| D17 | Internet radio | **Dropped (16 Nov 2026).** Not needed; M3.9 is skipped |
 
 ## Smallest sensible first implementation slice
 

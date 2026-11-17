@@ -74,6 +74,23 @@ class LibraryRepository(
 ) {
     val activeSourceId: Flow<Long?> = sourceRepository.activeSourceId()
 
+    fun artistPicks(
+        sourceId: Long,
+        now: Long = System.currentTimeMillis(),
+    ): Flow<List<Artist>> {
+        val dao = db.mixDao()
+        val day = now / 86_400_000L
+        return combine(
+            dao.homeFavoriteArtists(sourceId, day),
+            dao.homeDormantArtists(sourceId, now / 1000 - 90 * 86_400L),
+            dao.homeUnplayedArtists(sourceId, day),
+        ) { favorites, dormant, unplayed ->
+            (0 until 4)
+                .flatMap { index -> listOfNotNull(favorites.getOrNull(index), dormant.getOrNull(index), unplayed.getOrNull(index)) }
+                .distinctBy { it.id }
+        }
+    }
+
     fun pinnedItems(sourceId: Long): Flow<PagingData<PinnedItem>> =
         Pager(PagingConfig(pageSize = 30, enablePlaceholders = false)) { db.pinDao().resolvedPins(sourceId) }.flow
 

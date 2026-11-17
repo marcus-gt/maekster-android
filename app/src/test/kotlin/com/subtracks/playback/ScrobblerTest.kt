@@ -52,6 +52,85 @@ class ScrobblerTest {
 
     private fun TestScope.testScope() = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + SupervisorJob())
 
+    private class RecordingListens(
+        on: Boolean,
+    ) : ListenSink {
+        override val active = MutableStateFlow(on)
+        val calls = mutableListOf<Call>()
+
+        override suspend fun nowPlaying(songId: String) {
+            calls += Call.NowPlaying(songId)
+        }
+
+        override suspend fun listen(
+            songId: String,
+            startedAtMs: Long,
+        ) {
+            calls += Call.Scrobble(songId, startedAtMs)
+        }
+    }
+
+    private fun play(
+        state: MutableStateFlow<PlaybackState>,
+        position: MutableStateFlow<Long>,
+    ) {
+        state.value = PlaybackState(item = QueueItem("s1", "Title", "Artist", "Album", null, durationMs = 30_000), isPlaying = true)
+        var tick = 500L
+        while (tick <= 15_000L) {
+            position.value = tick
+            tick += 500
+        }
+    }
+
+    @Test
+    fun listensGoToTheSecondSinkEvenWithServerScrobblingOff() =
+        runTest {
+            val sink = RecordingSink()
+            val listens = RecordingListens(on = true)
+            val played = mutableListOf<String>()
+            val scrobbler =
+                Scrobbler(
+                    sink = sink,
+                    enabled = flowOf(false),
+                    scope = testScope(),
+                    policy = ScrobblePolicy(now = { 1_000L }),
+                    recordPlay = { songId, _ -> played += songId },
+                    listens = listens,
+                )
+            val state = MutableStateFlow(PlaybackState())
+            val position = MutableStateFlow(0L)
+            scrobbler.attach(state, position)
+
+            play(state, position)
+
+            assertEquals(listOf(Call.NowPlaying("s1"), Call.Scrobble("s1", 1_000L)), listens.calls)
+            assertEquals(emptyList<Call>(), sink.calls)
+            assertEquals(listOf("s1"), played)
+        }
+
+    @Test
+    fun anInactiveSecondSinkHearsNothing() =
+        runTest {
+            val sink = RecordingSink()
+            val listens = RecordingListens(on = false)
+            val scrobbler =
+                Scrobbler(
+                    sink = sink,
+                    enabled = flowOf(true),
+                    scope = testScope(),
+                    policy = ScrobblePolicy(now = { 1_000L }),
+                    listens = listens,
+                )
+            val state = MutableStateFlow(PlaybackState())
+            val position = MutableStateFlow(0L)
+            scrobbler.attach(state, position)
+
+            play(state, position)
+
+            assertEquals(emptyList<Call>(), listens.calls)
+            assertEquals(2, sink.calls.size)
+        }
+
     @Test
     fun sendsNowPlayingThenScrobbleOnce() =
         runTest {

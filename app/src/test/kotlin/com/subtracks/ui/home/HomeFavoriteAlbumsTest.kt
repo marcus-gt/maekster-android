@@ -78,7 +78,7 @@ class HomeFavoriteAlbumsTest {
             }
         }
         composeRule.onRoot().captureRoboImage("src/test/screenshots/home_favorites_$fontScale.png")
-        composeRule.onNodeWithText("Favorite albums").assertExists()
+        composeRule.onNodeWithText("Your favorite albums").assertExists()
         composeRule.onNodeWithText("Sync").assertDoesNotExist()
         composeRule.onNodeWithText("Favorite record").performClick()
         composeRule.onNodeWithText("More").performClick()

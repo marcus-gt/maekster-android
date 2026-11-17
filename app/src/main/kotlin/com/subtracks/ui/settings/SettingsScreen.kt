@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
@@ -80,9 +81,11 @@ import com.subtracks.MaeksterBrand
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.UiMessages
+import com.subtracks.data.listenbrainz.ListenBrainzState
 import com.subtracks.data.lyrics.LyricsSource
 import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
+import com.subtracks.data.prefs.DiscoverLayout
 import com.subtracks.data.prefs.HomeLayout
 import com.subtracks.data.prefs.LyricsPreferences
 import com.subtracks.data.prefs.MAX_REPLAY_GAIN_PREAMP_DB
@@ -110,10 +113,7 @@ private val streamFormats = listOf(null, "mp3", "opus", "ogg", "webm", "aac", "f
 
 private const val PROJECT_HOMEPAGE = MaeksterBrand.REPOSITORY_URL
 
-/**
- * The Settings sub-pages, mirroring the iOS grouping. Servers and About stay on the main page. Integrations joins
- * once it has something to offer (M3); Android-only settings sit in their natural group.
- */
+/** The Settings sub-pages. Servers and About stay on the main page. */
 enum class SettingsPage(
     @param:StringRes val title: Int,
     @param:StringRes val summary: Int,
@@ -122,6 +122,7 @@ enum class SettingsPage(
     Application(R.string.settings_application_name, R.string.settings_application_summary, Icons.Rounded.Palette),
     Playback(R.string.settings_music_name, R.string.settings_playback_summary, Icons.Rounded.PlayCircle),
     Storage(R.string.settings_storage_name, R.string.settings_storage_summary, Icons.Rounded.Storage),
+    Integrations(R.string.settings_integrations_name, R.string.settings_integrations_summary, Icons.Rounded.Extension),
 }
 
 /** The page a route argument names, or null for the main page. */
@@ -139,8 +140,11 @@ private enum class SettingsDialog {
     SortNames,
     Theme,
     Home,
+    Discover,
     Lyrics,
     QuickPlaylists,
+    ListenBrainz,
+    AudioMuse,
 }
 
 @Composable
@@ -155,9 +159,11 @@ fun SettingsRoute(
     onOpenPage: (SettingsPage) -> Unit = {},
     viewModel: SettingsViewModel = koinViewModel(),
     storageViewModel: StorageViewModel = koinViewModel(),
+    listenBrainzViewModel: ListenBrainzSettingsViewModel = koinViewModel(),
     uiMessages: UiMessages = koinInject(),
 ) {
     val storage by storageViewModel.ui.collectAsStateWithLifecycle()
+    val listenBrainz by listenBrainzViewModel.state.collectAsStateWithLifecycle()
     val sources by viewModel.sources.collectAsStateWithLifecycle()
     val activeSourceId by viewModel.activeSourceId.collectAsStateWithLifecycle()
     val needsSignIn by viewModel.needsSignIn.collectAsStateWithLifecycle()
@@ -178,6 +184,10 @@ fun SettingsRoute(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val materialYou by viewModel.materialYou.collectAsStateWithLifecycle()
     val homeLayout by viewModel.homeLayout.collectAsStateWithLifecycle()
+    val discoverLayout by viewModel.discoverLayout.collectAsStateWithLifecycle()
+    val autoplaySimilar by viewModel.autoplaySimilar.collectAsStateWithLifecycle()
+    val freshReleasesEnabled by viewModel.freshReleasesEnabled.collectAsStateWithLifecycle()
+    val externalArtistImagesEnabled by viewModel.externalArtistImagesEnabled.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -200,6 +210,14 @@ fun SettingsRoute(
         materialYou = materialYou,
         homeLayout = homeLayout,
         onHomeLayoutChange = viewModel::setHomeLayout,
+        discoverLayout = discoverLayout,
+        onDiscoverLayoutChange = viewModel::setDiscoverLayout,
+        autoplaySimilar = autoplaySimilar,
+        onAutoplayChange = viewModel::setAutoplaySimilar,
+        freshReleasesEnabled = freshReleasesEnabled,
+        onFreshReleasesChange = viewModel::setFreshReleasesEnabled,
+        externalArtistImagesEnabled = externalArtistImagesEnabled,
+        onExternalArtistImagesChange = viewModel::setExternalArtistImagesEnabled,
         lyrics = lyrics,
         onLyricsSourceChange = viewModel::setLyricsSource,
         onLrclibAllowedChange = viewModel::setLrclibAllowed,
@@ -253,6 +271,7 @@ fun SettingsRoute(
         storage = storage,
         onClearArtwork = storageViewModel::clearArtwork,
         onSyncNow = storageViewModel::syncNow,
+        listenBrainz = listenBrainz,
     )
 }
 
@@ -280,6 +299,14 @@ fun SettingsScreen(
     materialYou: Boolean = false,
     homeLayout: HomeLayout = HomeLayout(),
     onHomeLayoutChange: (HomeLayout) -> Unit = {},
+    discoverLayout: DiscoverLayout = DiscoverLayout(),
+    onDiscoverLayoutChange: (DiscoverLayout) -> Unit = {},
+    autoplaySimilar: Boolean = false,
+    onAutoplayChange: (Boolean) -> Unit = {},
+    freshReleasesEnabled: Boolean = false,
+    onFreshReleasesChange: (Boolean) -> Unit = {},
+    externalArtistImagesEnabled: Boolean = false,
+    onExternalArtistImagesChange: (Boolean) -> Unit = {},
     materialYouAvailable: Boolean = materialYouSupported,
     onSelectSource: (Long) -> Unit,
     onEditServer: (Long) -> Unit,
@@ -316,6 +343,7 @@ fun SettingsScreen(
     storage: StorageUi = StorageUi(),
     onClearArtwork: () -> Unit = {},
     onSyncNow: () -> Unit = {},
+    listenBrainz: ListenBrainzState = ListenBrainzState(),
 ) {
     var dialog by remember { mutableStateOf<SettingsDialog?>(null) }
     DismissOnRequest(dismissals) { dialog = null }
@@ -393,6 +421,14 @@ fun SettingsScreen(
                                 SettingsDialog.Home
                         })
                     }
+                    item {
+                        ActionRow(
+                            title = stringResource(R.string.settings_discover_sections),
+                            icon = Icons.Rounded.Palette,
+                            onClick = { dialog = SettingsDialog.Discover },
+                        )
+                    }
+
                     if (activeSourceId != null) {
                         item {
                             ActionRow(
@@ -431,12 +467,21 @@ fun SettingsScreen(
                 SettingsPage.Playback -> {
                     item {
                         SwitchRow(
+                            title = stringResource(R.string.autoplay_similar),
+                            description = stringResource(R.string.autoplay_similar_description),
+                            checked = autoplaySimilar,
+                            onCheckedChange = onAutoplayChange,
+                        )
+                    }
+                    item {
+                        SwitchRow(
                             title = stringResource(R.string.settings_music_options_scrobble_title),
                             description = stringResource(R.string.settings_music_options_scrobble_description_on),
                             checked = scrobbling,
                             onCheckedChange = onScrobblingChange,
                         )
                     }
+
                     item {
                         SwitchRow(
                             title = stringResource(R.string.settings_music_options_keep_screen_on_title),
@@ -480,6 +525,41 @@ fun SettingsScreen(
                             title = stringResource(R.string.settings_replay_gain_preamp_title),
                             value = replayGainPreampLabel(LocalResources.current, replayGainPreamp),
                             onClick = { dialog = SettingsDialog.ReplayGainPreamp },
+                        )
+                    }
+                }
+
+                SettingsPage.Integrations -> {
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.listenbrainz_title),
+                            value = listenBrainzSummary(listenBrainz),
+                            onClick = { dialog = SettingsDialog.ListenBrainz },
+                        )
+                    }
+                    if (activeSourceId != null) {
+                        item {
+                            ValueRow(
+                                title = stringResource(R.string.audiomuse_title),
+                                value = sources.firstOrNull { it.id == activeSourceId }?.name.orEmpty(),
+                                onClick = { dialog = SettingsDialog.AudioMuse },
+                            )
+                        }
+                    }
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.fresh_releases_title),
+                            description = stringResource(R.string.fresh_releases_disclosure),
+                            checked = freshReleasesEnabled,
+                            onCheckedChange = onFreshReleasesChange,
+                        )
+                    }
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.external_artist_images_title),
+                            description = stringResource(R.string.external_artist_images_disclosure),
+                            checked = externalArtistImagesEnabled,
+                            onCheckedChange = onExternalArtistImagesChange,
                         )
                     }
                 }
@@ -630,8 +710,22 @@ fun SettingsScreen(
             )
         }
 
+        SettingsDialog.Discover -> {
+            DiscoverLayoutDialog(discoverLayout, onDiscoverLayoutChange, onDismiss = { dialog = null })
+        }
+
         SettingsDialog.Home -> {
             HomeLayoutDialog(homeLayout, onHomeLayoutChange, onDismiss = { dialog = null })
+        }
+
+        SettingsDialog.AudioMuse -> {
+            activeSourceId?.let { sourceId ->
+                AudioMuseSettingsRoute(sourceId, sources.firstOrNull { it.id == sourceId }?.name.orEmpty()) { dialog = null }
+            }
+        }
+
+        SettingsDialog.ListenBrainz -> {
+            ListenBrainzSettingsRoute(onDismiss = { dialog = null })
         }
 
         SettingsDialog.QuickPlaylists -> {

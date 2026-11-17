@@ -13,15 +13,23 @@ import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.ArtistRefsConverter
 import com.subtracks.data.model.ArtistSearch
 import com.subtracks.data.model.ArtworkSeed
+import com.subtracks.data.model.AudioMuseConfig
+import com.subtracks.data.model.CachedAudioMuseScore
 import com.subtracks.data.model.CachedLyrics
+import com.subtracks.data.model.CachedSimilarArtists
 import com.subtracks.data.model.Disc
 import com.subtracks.data.model.DownloadCollection
 import com.subtracks.data.model.DownloadErrorConverter
 import com.subtracks.data.model.DownloadStatusConverter
+import com.subtracks.data.model.FreshRelease
+import com.subtracks.data.model.FreshReleaseState
+import com.subtracks.data.model.MusicBrainzName
 import com.subtracks.data.model.PendingAction
 import com.subtracks.data.model.PendingActionKindConverter
+import com.subtracks.data.model.PendingListen
 import com.subtracks.data.model.Pin
 import com.subtracks.data.model.PinKindConverter
+import com.subtracks.data.model.PlayEvent
 import com.subtracks.data.model.PlaybackCursor
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistDestination
@@ -33,6 +41,7 @@ import com.subtracks.data.model.QueueEntry
 import com.subtracks.data.model.QueueKindConverter
 import com.subtracks.data.model.QuickPlaylist
 import com.subtracks.data.model.SearchHistoryEntry
+import com.subtracks.data.model.SimilarSong
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongArtistRef
 import com.subtracks.data.model.SongDownload
@@ -51,6 +60,8 @@ import com.subtracks.data.model.UpNextEntry
         Source::class,
         SubsonicSource::class,
         SourceHeader::class,
+        AudioMuseConfig::class,
+        CachedAudioMuseScore::class,
         Artist::class,
         ArtistBio::class,
         ArtistSearch::class,
@@ -78,13 +89,20 @@ import com.subtracks.data.model.UpNextEntry
         StoredQueueOrder::class,
         StoredQueueOrderEntry::class,
         CachedLyrics::class,
+        CachedSimilarArtists::class,
         PlaylistDestination::class,
         PlaylistSaveDraft::class,
         PlaylistSaveDraftSong::class,
         QuickPlaylist::class,
         DownloadCollection::class,
+        PlayEvent::class,
+        PendingListen::class,
+        SimilarSong::class,
+        FreshRelease::class,
+        FreshReleaseState::class,
+        MusicBrainzName::class,
     ],
-    version = 54,
+    version = 62,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -100,6 +118,12 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
 
     abstract fun sourcesDao(): SourcesDao
+
+    abstract fun audioMuseConfigDao(): AudioMuseConfigDao
+
+    abstract fun audioMuseScoreDao(): AudioMuseScoreDao
+
+    abstract fun audioMuseTrackDao(): AudioMuseTrackDao
 
     abstract fun queueDao(): QueueDao
 
@@ -117,9 +141,19 @@ abstract class SubtracksDatabase : RoomDatabase() {
 
     abstract fun lyricsCacheDao(): LyricsCacheDao
 
+    abstract fun similarArtistsCacheDao(): SimilarArtistsCacheDao
+
     abstract fun playlistDestinationDao(): PlaylistDestinationDao
 
     abstract fun playlistSaveDraftDao(): PlaylistSaveDraftDao
 
     abstract fun quickPlaylistDao(): QuickPlaylistDao
+
+    abstract fun playEventDao(): PlayEventDao
+
+    abstract fun pendingListenDao(): PendingListenDao
+
+    abstract fun mixDao(): MixDao
+
+    abstract fun freshReleaseDao(): FreshReleaseDao
 }

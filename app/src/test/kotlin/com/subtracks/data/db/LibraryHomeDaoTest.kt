@@ -32,6 +32,32 @@ class LibraryHomeDaoTest {
     }
 
     @Test
+    fun artistPickBucketsAreBoundedDisjointAndSourceScoped() =
+        runTest {
+            val id = source()
+            val other = source()
+            val rows =
+                (1..8).flatMap { index ->
+                    listOf(
+                        Artist(id, "favorite$index", "Favorite $index", 1, 1, credited = true),
+                        Artist(id, "dormant$index", "Dormant $index", 1, null, played = 1, credited = true),
+                        Artist(id, "unplayed$index", "Unplayed $index", 1, null, credited = true),
+                        Artist(other, "foreign$index", "Foreign $index", 1, 1, credited = true),
+                    )
+                }
+            db.libraryDao().upsertArtists(rows)
+            val favorites = db.mixDao().homeFavoriteArtists(id, 100).first()
+            val dormant = db.mixDao().homeDormantArtists(id, 1000).first()
+            val unplayed = db.mixDao().homeUnplayedArtists(id, 100).first()
+            assertEquals(listOf(4, 4, 4), listOf(favorites.size, dormant.size, unplayed.size))
+            org.junit.Assert.assertTrue(favorites.all { it.sourceId == id && it.starred != null })
+            org.junit.Assert.assertTrue(dormant.all { it.sourceId == id && it.starred == null && it.played == 1L })
+            org.junit.Assert.assertTrue(unplayed.all { it.sourceId == id && it.starred == null && it.played == null })
+            assertEquals(12, (favorites + dormant + unplayed).map { it.id }.distinct().size)
+            assertEquals(favorites, db.mixDao().homeFavoriteArtists(id, 100).first())
+        }
+
+    @Test
     fun favoriteAlbumsAreBoundedSourceScopedAndNewestStarFirst() =
         runTest {
             val id = source()

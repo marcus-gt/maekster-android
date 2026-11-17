@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.subtracks.R
+import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.ThemeMode
@@ -52,8 +53,61 @@ class SettingsScreenTest {
         }
         scrollTo(text(R.string.settings_about_actions_licenses))
 
-        assertEquals(SettingsPage.entries, opened)
+        assertEquals(listOf(SettingsPage.Application, SettingsPage.Playback, SettingsPage.Storage, SettingsPage.Integrations), opened)
+        assertEquals(SettingsPage.Integrations, settingsPageFor("Integrations"))
         composeRule.onNodeWithText(text(R.string.settings_theme_title)).assertDoesNotExist()
+    }
+
+    @Test
+    fun autoplayIsChangedFromPlaybackSettings() {
+        val enabled = mutableStateOf(false)
+        composeRule.setContent {
+            MaeksterTheme { Settings(SettingsPage.Playback, autoplay = enabled.value, onAutoplay = { enabled.value = it }) }
+        }
+        scrollTo("Autoplay similar")
+        composeRule.onNodeWithText("Autoplay similar").performClick()
+        assertEquals(true, enabled.value)
+    }
+
+    @Test
+    fun freshReleasesConsentIsChangedFromIntegrationsWithDisclosure() {
+        val enabled = mutableStateOf(false)
+        composeRule.setContent {
+            MaeksterTheme { Settings(SettingsPage.Integrations, fresh = enabled.value, onFresh = { enabled.value = it }) }
+        }
+        scrollTo("Fresh releases")
+        composeRule.onNodeWithText(text(R.string.fresh_releases_disclosure)).assertExists()
+        composeRule.onNodeWithText("Fresh releases").performClick()
+        assertEquals(true, enabled.value)
+    }
+
+    @Test
+    fun recommendedArtistPhotosAreAnIntegrationsOptInWithDisclosure() {
+        val enabled = mutableStateOf(false)
+        composeRule.setContent {
+            MaeksterTheme { Settings(SettingsPage.Integrations, photos = enabled.value, onPhotos = { enabled.value = it }) }
+        }
+        scrollTo(text(R.string.external_artist_images_title))
+        composeRule.onNodeWithText(text(R.string.external_artist_images_disclosure)).assertExists()
+        composeRule.onNodeWithText(text(R.string.external_artist_images_title)).performClick()
+        assertEquals(true, enabled.value)
+    }
+
+    @Test
+    fun audioMuseSettingsAreListedForTheActiveServer() {
+        composeRule.setContent {
+            MaeksterTheme { Settings(SettingsPage.Integrations, server = Source(1, "My server", "https://music", true, 0)) }
+        }
+        scrollTo("AudioMuse-AI")
+        composeRule.onNodeWithText("AudioMuse-AI").assertExists()
+        composeRule.onNodeWithText("My server").assertExists()
+    }
+
+    @Test
+    fun audioMuseSettingsAreHiddenWithoutAnActiveServer() {
+        composeRule.setContent { MaeksterTheme { Settings(SettingsPage.Integrations) } }
+        scrollTo(text(R.string.listenbrainz_title))
+        composeRule.onNodeWithText("AudioMuse-AI").assertDoesNotExist()
     }
 
     @Test
@@ -82,6 +136,8 @@ class SettingsScreenTest {
                     listOf(
                         R.string.settings_network_options_offline_mode,
                         R.string.settings_theme_title,
+                        R.string.settings_home_sections,
+                        R.string.settings_discover_sections,
                         R.string.settings_material_you_title,
                         R.string.settings_sort_names_title,
                         R.string.settings_about_actions_share_logs,
@@ -90,6 +146,7 @@ class SettingsScreenTest {
                 SettingsPage.Playback to
                     listOf(
                         R.string.settings_music_options_scrobble_title,
+                        R.string.autoplay_similar,
                         R.string.settings_music_options_keep_screen_on_title,
                         R.string.lyrics_title,
                         R.string.settings_network_options_max_bitrate_wifi_title,
@@ -97,6 +154,8 @@ class SettingsScreenTest {
                         R.string.settings_replay_gain_title,
                         R.string.settings_replay_gain_preamp_title,
                     ),
+                SettingsPage.Integrations to
+                    listOf(R.string.listenbrainz_title, R.string.fresh_releases_title, R.string.external_artist_images_title),
                 SettingsPage.Storage to
                     listOf(
                         R.string.download_quality,
@@ -293,10 +352,17 @@ class SettingsScreenTest {
         materialYouAvailable: Boolean = true,
         onMaterialYouChange: (Boolean) -> Unit = {},
         onOpenPage: (SettingsPage) -> Unit = {},
+        autoplay: Boolean = false,
+        onAutoplay: (Boolean) -> Unit = {},
+        fresh: Boolean = false,
+        onFresh: (Boolean) -> Unit = {},
+        photos: Boolean = false,
+        onPhotos: (Boolean) -> Unit = {},
+        server: Source? = null,
     ) {
         SettingsScreen(
-            sources = emptyList(),
-            activeSourceId = null,
+            sources = listOfNotNull(server),
+            activeSourceId = server?.id,
             wifiQuality = wifiQuality,
             mobileQuality = mobileQuality,
             syncConcurrency = 1,
@@ -326,6 +392,12 @@ class SettingsScreenTest {
             onBack = {},
             page = page,
             onOpenPage = onOpenPage,
+            autoplaySimilar = autoplay,
+            onAutoplayChange = onAutoplay,
+            freshReleasesEnabled = fresh,
+            onFreshReleasesChange = onFresh,
+            externalArtistImagesEnabled = photos,
+            onExternalArtistImagesChange = onPhotos,
         )
     }
 

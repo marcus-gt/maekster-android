@@ -97,6 +97,9 @@ interface QueueDao {
     @Query("SELECT * FROM queue_entries ORDER BY position, id")
     suspend fun entries(): List<QueueEntry>
 
+    @Query("DELETE FROM queue_entries WHERE position >= :position")
+    suspend fun deleteContextFrom(position: Long)
+
     @Query("DELETE FROM up_next_entries")
     suspend fun clearUpNext()
 

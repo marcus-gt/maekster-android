@@ -484,6 +484,12 @@ private fun MainNavigation() {
                                 fadeOut(tween(NAVIGATION_DURATION_MS))
                         },
                     ) {
+                        navigation(startDestination = TopLevelTab.Discover.root, route = TopLevelTab.Discover.graph) {
+                            composable(TopLevelTab.Discover.root) {
+                                com.subtracks.ui.discover
+                                    .DiscoverRoute(onOpenSettings = { navController.navigate(Routes.SETTINGS) })
+                            }
+                        }
                         navigation(startDestination = Routes.HOME, route = TopLevelTab.Home.graph) {
                             composable(Routes.HOME) {
                                 HomeRoute(
@@ -733,6 +739,7 @@ private fun MainNavigation() {
                                     navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
                                 },
                                 onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { id -> navigateDetail(Routes.ARTIST_DETAIL, "artistId", id, Routes.artist(id)) },
                                 contextMenuHost = contextMenuHost,
                                 setStar = libraryRepository::star,
                             )
@@ -1039,6 +1046,7 @@ private fun MainNavigation() {
                         onInfo = { infoTarget = it },
                         onChooseArtists = { artistChooser = it },
                         onAddToPlaylist = { song -> addToPlaylist = AddToPlaylistRequest(song.sourceId, listOf(song.id)) },
+                        onInstantMix = koinViewModel<com.subtracks.ui.components.MixMenuViewModel>()::start,
                     )
                 }
 

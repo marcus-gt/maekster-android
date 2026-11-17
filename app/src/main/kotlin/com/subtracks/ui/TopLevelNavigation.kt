@@ -2,6 +2,7 @@ package com.subtracks.ui
 
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Search
@@ -31,6 +32,7 @@ enum class TopLevelTab(
 ) {
     Home("tab/home", "home", R.string.navigation_tabs_home, Icons.Rounded.Home),
     Library("tab/library", "library", R.string.navigation_tabs_library, Icons.Rounded.LibraryMusic),
+    Discover("tab/discover", "discover", R.string.discover_title, Icons.Rounded.Explore),
     Search("tab/search", "search", R.string.search, Icons.Rounded.Search),
 }
 

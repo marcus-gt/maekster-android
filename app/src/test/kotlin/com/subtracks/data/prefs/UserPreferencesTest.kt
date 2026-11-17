@@ -4,6 +4,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.data.mix.QueueBuilderPicks
+import com.subtracks.data.mix.QueueBuilderSelection
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.source.DEFAULT_FETCH_CONCURRENCY
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,6 +19,53 @@ import java.io.File
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
 class UserPreferencesTest {
+    @Test
+    fun freshReleasesStayOffUntilTurnedOn() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(false, prefs.freshReleasesEnabled().first())
+            prefs.setFreshReleasesEnabled(true)
+            assertEquals(true, prefs.freshReleasesEnabled().first())
+        }
+
+    @Test
+    fun recommendedArtistPhotosStayOffUntilTurnedOn() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(false, prefs.externalArtistImagesEnabled().first())
+            prefs.setExternalArtistImagesEnabled(true)
+            assertEquals(true, prefs.externalArtistImagesEnabled().first())
+            assertEquals(false, prefs.freshReleasesEnabled().first())
+        }
+
+    @Test
+    fun queueBuilderPicksAreKeptPerServerWithALengthOnTheSliderSteps() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(QueueBuilderPicks(), prefs.queueBuilderPicks(1).first())
+            val jazz90s =
+                QueueBuilderPicks(QueueBuilderSelection(mains = setOf("Jazz"), tags = setOf("techno"), decades = setOf(1990)), length = 63)
+            prefs.setQueueBuilderPicks(1, jazz90s)
+            assertEquals(jazz90s.copy(length = 65), prefs.queueBuilderPicks(1).first())
+            assertEquals(QueueBuilderPicks(), prefs.queueBuilderPicks(2).first())
+            prefs.setQueueBuilderPicks(2, QueueBuilderPicks(length = 500))
+            assertEquals(120, prefs.queueBuilderPicks(2).first().length)
+            assertEquals(65, prefs.queueBuilderPicks(1).first().length)
+        }
+
+    @Test
+    fun autoplayDefaultsOffAndPersistsAcrossReaders() =
+        runTest {
+            val file = File.createTempFile("autoplay", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            assertEquals(false, UserPreferences(store).autoplaySimilar().first())
+            UserPreferences(store).setAutoplaySimilar(true)
+            assertEquals(true, UserPreferences(store).autoplaySimilar().first())
+            UserPreferences(store).setAutoplaySimilar(false)
+            assertEquals(false, UserPreferences(store).autoplaySimilar().first())
+            file.delete()
+        }
+
     @Test
     fun quickPlaylistsAlsoFavoriteDefaultsToOnAndIsRemembered() =
         runTest {
@@ -60,9 +109,9 @@ class UserPreferencesTest {
         val legacy = HomeLayout.decode("FavoriteAlbums,YourPlaylists|Genres")
         assertEquals(emptySet<HomeShelf>(), legacy.grids)
         val decoded = HomeLayout.decode("FavoriteAlbums|Genres|FavoriteAlbums,YourPlaylists,Unknown,Genres,RecentlyStarredSongs")
-        assertEquals(setOf(HomeShelf.FavoriteAlbums, HomeShelf.YourPlaylists), decoded.grids)
+        assertEquals(setOf(HomeShelf.FavoriteAlbums, HomeShelf.YourPlaylists, HomeShelf.Genres), decoded.grids)
         assertEquals(decoded, HomeLayout.decode(decoded.encode()))
-        assertEquals(decoded.copy(grids = setOf(HomeShelf.YourPlaylists)), decoded.grid(HomeShelf.FavoriteAlbums, false))
+        assertEquals(decoded.copy(grids = setOf(HomeShelf.YourPlaylists, HomeShelf.Genres)), decoded.grid(HomeShelf.FavoriteAlbums, false))
     }
 
     @Test
