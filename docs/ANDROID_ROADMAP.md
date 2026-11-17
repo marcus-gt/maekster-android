@@ -797,6 +797,18 @@ Lidarr is out of scope (D11).
 - **D2 — Queue Builder moods (done):** six mood picks rank a pool of genre/decade matches by cached or fetched
   AudioMuse scores, saved per server, used by refill; unavailable scores are reported, never ignored.
   See `docs/handoffs/M3.5-queue-builder-moods.md`.
+- **AudioMuse decisions to revisit later (recorded 17 Nov 2026, tracked in issue #16):** current
+  behaviour, kept until the user decides otherwise.
+  1. Queue Builder refill may fetch missing mood scores while online (it continues a queue the user started
+     with moods); offline it uses cached scores only.
+  2. A first mood build on a cold cache can make up to 400 score requests (5 at a time); later builds reuse
+     the cache. Not timed on a real instance; consider a smaller pool, prefetching or a progress hint.
+  3. Not ported: the iOS AudioMuse genre fallback that gives untagged songs a main genre from AudioMuse styles.
+  4. Not ported (user decision): mood radios built from library tags when AudioMuse is not set up.
+  5. Mood radios queue all matches (up to 200) at once and then continue with autoplay similar songs from the
+     current song (only with autoplay on), where iOS queues 50, refills from the rest and then seeds from the
+     top 10 matches. Radio results are not cached; the shelf is hidden offline.
+  6. Queue Builder moods never drop silently: missing scores are reported (iOS drops them with a notice).
 - **Order (user decision, 17 Nov 2026):** B3 (done), then D2 (done), then E (next). S1's slot is not decided yet; ask.
 - **B3 — AudioMuse connection test (DONE 17 Nov 2026; see `docs/handoffs/M3.5-audiomuse-connection-test.md`):** a "Test" action in
   the AudioMuse settings dialog. iOS shows "Test and Update" and reports e.g. "Connected — 5 tracks matched
