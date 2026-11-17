@@ -389,6 +389,13 @@ class AppScreenshotTest {
     }
 
     @Test
+    fun settingsIntegrations() {
+        setSettingsContent(page = SettingsPage.Integrations)
+        awaitText("AudioMuse-AI")
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/settings_integrations.png")
+    }
+
+    @Test
     fun replayGainPreampDialog() {
         setSettingsContent(page = SettingsPage.Playback)
         composeRule.onNode(hasScrollAction()).performScrollToNode(hasText("Preamp"))

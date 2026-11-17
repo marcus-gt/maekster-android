@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
@@ -112,10 +113,7 @@ private val streamFormats = listOf(null, "mp3", "opus", "ogg", "webm", "aac", "f
 
 private const val PROJECT_HOMEPAGE = MaeksterBrand.REPOSITORY_URL
 
-/**
- * The Settings sub-pages, mirroring the iOS grouping. Servers and About stay on the main page. Integrations joins
- * once it has something to offer (M3); Android-only settings sit in their natural group.
- */
+/** The Settings sub-pages. Servers and About stay on the main page. */
 enum class SettingsPage(
     @param:StringRes val title: Int,
     @param:StringRes val summary: Int,
@@ -124,6 +122,7 @@ enum class SettingsPage(
     Application(R.string.settings_application_name, R.string.settings_application_summary, Icons.Rounded.Palette),
     Playback(R.string.settings_music_name, R.string.settings_playback_summary, Icons.Rounded.PlayCircle),
     Storage(R.string.settings_storage_name, R.string.settings_storage_summary, Icons.Rounded.Storage),
+    Integrations(R.string.settings_integrations_name, R.string.settings_integrations_summary, Icons.Rounded.Extension),
 }
 
 /** The page a route argument names, or null for the main page. */
@@ -429,30 +428,8 @@ fun SettingsScreen(
                             onClick = { dialog = SettingsDialog.Discover },
                         )
                     }
-                    item {
-                        SwitchRow(
-                            title = stringResource(R.string.fresh_releases_title),
-                            description = stringResource(R.string.fresh_releases_disclosure),
-                            checked = freshReleasesEnabled,
-                            onCheckedChange = onFreshReleasesChange,
-                        )
-                    }
-                    item {
-                        SwitchRow(
-                            title = stringResource(R.string.external_artist_images_title),
-                            description = stringResource(R.string.external_artist_images_disclosure),
-                            checked = externalArtistImagesEnabled,
-                            onCheckedChange = onExternalArtistImagesChange,
-                        )
-                    }
+
                     if (activeSourceId != null) {
-                        item {
-                            ValueRow(
-                                title = stringResource(R.string.audiomuse_title),
-                                value = sources.firstOrNull { it.id == activeSourceId }?.name.orEmpty(),
-                                onClick = { dialog = SettingsDialog.AudioMuse },
-                            )
-                        }
                         item {
                             ActionRow(
                                 title = stringResource(R.string.quick_playlists_title),
@@ -504,13 +481,7 @@ fun SettingsScreen(
                             onCheckedChange = onScrobblingChange,
                         )
                     }
-                    item {
-                        ValueRow(
-                            title = stringResource(R.string.listenbrainz_title),
-                            value = listenBrainzSummary(listenBrainz),
-                            onClick = { dialog = SettingsDialog.ListenBrainz },
-                        )
-                    }
+
                     item {
                         SwitchRow(
                             title = stringResource(R.string.settings_music_options_keep_screen_on_title),
@@ -554,6 +525,41 @@ fun SettingsScreen(
                             title = stringResource(R.string.settings_replay_gain_preamp_title),
                             value = replayGainPreampLabel(LocalResources.current, replayGainPreamp),
                             onClick = { dialog = SettingsDialog.ReplayGainPreamp },
+                        )
+                    }
+                }
+
+                SettingsPage.Integrations -> {
+                    item {
+                        ValueRow(
+                            title = stringResource(R.string.listenbrainz_title),
+                            value = listenBrainzSummary(listenBrainz),
+                            onClick = { dialog = SettingsDialog.ListenBrainz },
+                        )
+                    }
+                    if (activeSourceId != null) {
+                        item {
+                            ValueRow(
+                                title = stringResource(R.string.audiomuse_title),
+                                value = sources.firstOrNull { it.id == activeSourceId }?.name.orEmpty(),
+                                onClick = { dialog = SettingsDialog.AudioMuse },
+                            )
+                        }
+                    }
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.fresh_releases_title),
+                            description = stringResource(R.string.fresh_releases_disclosure),
+                            checked = freshReleasesEnabled,
+                            onCheckedChange = onFreshReleasesChange,
+                        )
+                    }
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.external_artist_images_title),
+                            description = stringResource(R.string.external_artist_images_disclosure),
+                            checked = externalArtistImagesEnabled,
+                            onCheckedChange = onExternalArtistImagesChange,
                         )
                     }
                 }

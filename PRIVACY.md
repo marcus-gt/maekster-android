@@ -6,6 +6,8 @@ The only data stored on your device is information about the music on the server
 
 ## Optional third-party services
 
+ListenBrainz, AudioMuse, Fresh releases and recommended artist photos are managed in Settings > Integrations.
+
 Each of these is off until you turn it on, and makes no request while off. None of them ever receives your server address, credentials or custom headers.
 
 | Service | Hosts | When | What is sent |

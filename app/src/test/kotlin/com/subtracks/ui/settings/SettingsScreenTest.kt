@@ -53,7 +53,8 @@ class SettingsScreenTest {
         }
         scrollTo(text(R.string.settings_about_actions_licenses))
 
-        assertEquals(SettingsPage.entries, opened)
+        assertEquals(listOf(SettingsPage.Application, SettingsPage.Playback, SettingsPage.Storage, SettingsPage.Integrations), opened)
+        assertEquals(SettingsPage.Integrations, settingsPageFor("Integrations"))
         composeRule.onNodeWithText(text(R.string.settings_theme_title)).assertDoesNotExist()
     }
 
@@ -69,10 +70,10 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun freshReleasesConsentIsChangedFromApplicationSettingsWithDisclosure() {
+    fun freshReleasesConsentIsChangedFromIntegrationsWithDisclosure() {
         val enabled = mutableStateOf(false)
         composeRule.setContent {
-            MaeksterTheme { Settings(SettingsPage.Application, fresh = enabled.value, onFresh = { enabled.value = it }) }
+            MaeksterTheme { Settings(SettingsPage.Integrations, fresh = enabled.value, onFresh = { enabled.value = it }) }
         }
         scrollTo("Fresh releases")
         composeRule.onNodeWithText(text(R.string.fresh_releases_disclosure)).assertExists()
@@ -81,10 +82,10 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun recommendedArtistPhotosAreAnApplicationOptInWithDisclosure() {
+    fun recommendedArtistPhotosAreAnIntegrationsOptInWithDisclosure() {
         val enabled = mutableStateOf(false)
         composeRule.setContent {
-            MaeksterTheme { Settings(SettingsPage.Application, photos = enabled.value, onPhotos = { enabled.value = it }) }
+            MaeksterTheme { Settings(SettingsPage.Integrations, photos = enabled.value, onPhotos = { enabled.value = it }) }
         }
         scrollTo(text(R.string.external_artist_images_title))
         composeRule.onNodeWithText(text(R.string.external_artist_images_disclosure)).assertExists()
@@ -95,7 +96,7 @@ class SettingsScreenTest {
     @Test
     fun audioMuseSettingsAreListedForTheActiveServer() {
         composeRule.setContent {
-            MaeksterTheme { Settings(SettingsPage.Application, server = Source(1, "My server", "https://music", true, 0)) }
+            MaeksterTheme { Settings(SettingsPage.Integrations, server = Source(1, "My server", "https://music", true, 0)) }
         }
         scrollTo("AudioMuse-AI")
         composeRule.onNodeWithText("AudioMuse-AI").assertExists()
@@ -104,8 +105,8 @@ class SettingsScreenTest {
 
     @Test
     fun audioMuseSettingsAreHiddenWithoutAnActiveServer() {
-        composeRule.setContent { MaeksterTheme { Settings(SettingsPage.Application) } }
-        scrollTo(text(R.string.settings_sort_names_title))
+        composeRule.setContent { MaeksterTheme { Settings(SettingsPage.Integrations) } }
+        scrollTo(text(R.string.listenbrainz_title))
         composeRule.onNodeWithText("AudioMuse-AI").assertDoesNotExist()
     }
 
@@ -137,8 +138,6 @@ class SettingsScreenTest {
                         R.string.settings_theme_title,
                         R.string.settings_home_sections,
                         R.string.settings_discover_sections,
-                        R.string.fresh_releases_title,
-                        R.string.external_artist_images_title,
                         R.string.settings_material_you_title,
                         R.string.settings_sort_names_title,
                         R.string.settings_about_actions_share_logs,
@@ -148,7 +147,6 @@ class SettingsScreenTest {
                     listOf(
                         R.string.settings_music_options_scrobble_title,
                         R.string.autoplay_similar,
-                        R.string.listenbrainz_title,
                         R.string.settings_music_options_keep_screen_on_title,
                         R.string.lyrics_title,
                         R.string.settings_network_options_max_bitrate_wifi_title,
@@ -156,6 +154,8 @@ class SettingsScreenTest {
                         R.string.settings_replay_gain_title,
                         R.string.settings_replay_gain_preamp_title,
                     ),
+                SettingsPage.Integrations to
+                    listOf(R.string.listenbrainz_title, R.string.fresh_releases_title, R.string.external_artist_images_title),
                 SettingsPage.Storage to
                     listOf(
                         R.string.download_quality,

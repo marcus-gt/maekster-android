@@ -137,6 +137,8 @@
     <string name="settings_playback_summary">Scrobbling, streaming quality and ReplayGain</string>
     <string name="settings_storage_name">Storage</string>
     <string name="settings_storage_summary">Downloads and library sync</string>
+    <string name="settings_integrations_name">Integrations</string>
+    <string name="settings_integrations_summary">ListenBrainz, AudioMuse and MusicBrainz</string>
     <string name="settings_streaming_name">Streaming</string>
     <string name="settings_volume_name">Volume</string>
     <string name="settings_library_sync_name">Library sync</string>

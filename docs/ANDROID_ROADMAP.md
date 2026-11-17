@@ -731,7 +731,7 @@ See `docs/handoffs/M3.3-artist-images-resolver.md`.
 Part E2 adds the off-by-default Photos of recommended artists setting (D10), disclosure and Privacy host list,
 shared resolver wiring, server artwork for local Similar Artists and Commons photos for external candidates.
 Lookups stop on opt-out, offline and server changes. See `docs/handoffs/M3.3-artist-images-ui.md` for verification.
-Next: S1 Settings > Integrations; M3.4 Local folders and M3.6 Wrapped are on hold by user decision (17 Nov 2026). Outstanding live-service/device checks for M3.3 remain in its handoffs. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+S1 Settings > Integrations is implemented. M3.4 Local folders and M3.6 Wrapped remain on hold by user decision (17 Nov 2026). Outstanding live-service/device checks for M3.3 remain in its handoffs. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
@@ -774,7 +774,7 @@ Lidarr is out of scope (D11).
 | **M3.2 Discover v1: Smart Shuffle, Instant Mix, stations, auto-extend** | The Discover tab appears; Smart Shuffle (local, offline-capable); artist stations; Instant Mix (`getSimilarSongs2` plus local fallback); "Autoplay similar" toggle; "Similar to …" labels; Queue Builder (local) | Up-next or context tail entries; `playback_cursor.extensionStart` | Trigger threshold, disable on repeat or shuffle, truncation; bounded batch sizes | D9: on-demand similarity calls allowed as explicit actions, cached in Room, with a local fallback offline |
 | **M3.3 Recommendations and fresh releases** | Fresh releases for library artists (MusicBrainz), Similar Artists shelves, optional external artist images | `recommendation_cache` with a TTL | Rate limiting (1 req/s), offline served from the cache, User-Agent from `MaeksterBrand` | D10: every third-party lookup opt-in per integration and disclosed in Privacy |
 | **M3.4 Local folders** | **On hold (17 Nov 2026), by user decision.** SAF folder picker, persisted permissions, foreground rescan, local landing, local-only onboarding, local items in the queue | A `sources` Local kind; `local_files` (uri, folderId, relativePath, mtime, tags) | Scanner tests on a fake document tree; revoke and missing-file handling | GrapheneOS Storage Scopes compatible by design |
-| **M3.5 AudioMuse-AI** | **In progress: A1 mood-score client and A2 search/path transport complete (unwired); B1 encrypted per-server configuration storage added (schema 61, unwired); B2 Settings form and Koin configuration wiring added; C1 mood-score cache and Queue Builder ranking added (schema 62, unwired); C2 guarded score fetching added (unwired); C3 local track resolution added (unwired); D1 Discover mood radios added (first AudioMuse feature wired to the UI); B3 AudioMuse connection test added (separate from Save); D2 Queue Builder moods added (D complete); E1 Song Path engine and finite queue added; E2 Discover card and picker complete (user verified song endpoints and picker stability); next S1 Settings > Integrations. See `docs/handoffs/M3.5-song-path-picker.md`. See `docs/handoffs/M3.5-song-path-engine.md`. See `docs/handoffs/M3.5-queue-builder-moods.md`. See `docs/handoffs/M3.5-audiomuse-connection-test.md`. See `docs/handoffs/M3.5-mood-radios.md`. See `docs/handoffs/M3.5-audiomuse-track-resolution.md`. See `docs/handoffs/M3.5-audiomuse-score-fetch.md`. See `docs/handoffs/M3.5-audiomuse-settings.md`. See `docs/handoffs/M3.5-audiomuse-config-store.md`. See `docs/handoffs/M3.5-audiomuse-scores-client.md` and `docs/handoffs/M3.5-audiomuse-search-path.md`.** Per-server AudioMuse URL and token; Moods on Discover (mood radios) and in Queue Builder; Song Path | `mood_scores` cache | Fake server; Song Path does not auto-extend | |
+| **M3.5 AudioMuse-AI** | **In progress: A1 mood-score client and A2 search/path transport complete (unwired); B1 encrypted per-server configuration storage added (schema 61, unwired); B2 Settings form and Koin configuration wiring added; C1 mood-score cache and Queue Builder ranking added (schema 62, unwired); C2 guarded score fetching added (unwired); C3 local track resolution added (unwired); D1 Discover mood radios added (first AudioMuse feature wired to the UI); B3 AudioMuse connection test added (separate from Save); D2 Queue Builder moods added (D complete); E1 Song Path engine and finite queue added; E2 Discover card and picker complete (user verified song endpoints and picker stability); S1 Settings > Integrations implemented (see `docs/handoffs/S1-integrations-settings.md`). See `docs/handoffs/M3.5-song-path-picker.md`. See `docs/handoffs/M3.5-song-path-engine.md`. See `docs/handoffs/M3.5-queue-builder-moods.md`. See `docs/handoffs/M3.5-audiomuse-connection-test.md`. See `docs/handoffs/M3.5-mood-radios.md`. See `docs/handoffs/M3.5-audiomuse-track-resolution.md`. See `docs/handoffs/M3.5-audiomuse-score-fetch.md`. See `docs/handoffs/M3.5-audiomuse-settings.md`. See `docs/handoffs/M3.5-audiomuse-config-store.md`. See `docs/handoffs/M3.5-audiomuse-scores-client.md` and `docs/handoffs/M3.5-audiomuse-search-path.md`.** Per-server AudioMuse URL and token; Moods on Discover (mood radios) and in Queue Builder; Song Path | `mood_scores` cache | Fake server; Song Path does not auto-extend | |
 | **M3.6 Wrapped** | **On hold (17 Nov 2026), by user decision.** Year and all-time recap from `play_events` (optionally the ListenBrainz history); story pager; share card | Aggregation queries only | Aggregation, streak and insight tests ported from the iOS fixtures | |
 | ~~M3.7 Lidarr~~ | Dropped (D11): legacy from Mixtape, unused in the iOS product | n/a | n/a | Slice number kept so later IDs stay stable |
 | **M3.8 Crossfade (prototype, D15)** | **On hold (16 Nov 2026), tracked in issue #13.** 0–12 s, off by default, disabled on gapless albums | None | Gapless unaffected; transition timing | Prototype first; drop if it destabilises the window |
@@ -811,7 +811,7 @@ Lidarr is out of scope (D11).
   6. Queue Builder moods never drop silently: missing scores are reported (iOS drops them with a notice).
   7. Song Path results are not cached and the card will be hidden offline (like mood radios); the queue heading
      is plain "Song Path" (iOS: "Song Path · From → To"); path songs are de-duplicated as on iOS.
-- **Order (user decision, 17 Nov 2026):** B3 (done), then D2 (done), then E (E1 done, E2 next). S1's slot is not decided yet; ask.
+- **Order (user decision, 17 Nov 2026):** B3, D2, E1, E2, then S1.
 - **B3 — AudioMuse connection test (DONE 17 Nov 2026; see `docs/handoffs/M3.5-audiomuse-connection-test.md`):** a "Test" action in
   the AudioMuse settings dialog. iOS shows "Test and Update" and reports e.g. "Connected — 5 tracks matched
   a test search". On Android: an explicit action (never on typing or opening) that checks the URL/token in the
@@ -820,16 +820,10 @@ Lidarr is out of scope (D11).
   response, without logging the token or exception details. **Decided:** Test stays separate from Save; a
   test never saves or changes stored settings (unlike iOS "Test and Update"). Offline: disabled with a reason. Tests: fake
   client for each outcome, busy state, a result cleared when URL/token changes, normal/2× text.
-- **S1 — Settings > Integrations page (NEXT; added 17 Nov 2026, user request, iOS screenshots):** M1.4 deferred
-  Integrations until there was a first integration; there are now several, scattered: ListenBrainz under
-  Playback; Fresh releases, external artist images and AudioMuse under Application. iOS groups them in one
-  Settings row ("Integrations", puzzle-piece icon) opening a list (ListenBrainz, AudioMuse, Lidarr, Open
-  Releases In). On Android: an Integrations category on the Settings root (between Storage and About)
-  opening a page with ListenBrainz, AudioMuse (per active server, hidden or explained without one), Fresh
-  releases (MusicBrainz) and external artist images (Wikidata/Commons), each keeping its disclosure. Lidarr
-  is out of scope (D11); check whether "Open Releases In" has an Android counterpart before adding it.
-  Move, don't duplicate: every setting stays reachable exactly once. Update `SettingsScreenTest`, the
-  Settings screenshots and PRIVACY.md references if they name a location.
+- **S1 — Settings > Integrations page:** The Settings root now lists Integrations between Storage and About.
+  The page contains ListenBrainz, AudioMuse (shown for the active server), Fresh releases, and recommended
+  artist photos. The existing controls and privacy disclosures moved with them. Fresh releases still open
+  in the browser. See [the S1 handoff](handoffs/S1-integrations-settings.md).
 - **Tag fallback for moods: skipped for now (user decision, 17 Nov 2026).** iOS mood radios fall back to
   library genre/BPM/mood tags without AudioMuse; Android keeps Moods AudioMuse-only. Do not add it unless asked.
 - **D — moods in Discover and Queue Builder:** include both playable mood radios and mood picks in
