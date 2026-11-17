@@ -739,6 +739,7 @@ private fun MainNavigation() {
                                     navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))
                                 },
                                 onViewAlbum = { albumId -> navigateDetail(Routes.ALBUM_DETAIL, "albumId", albumId, Routes.album(albumId)) },
+                                onViewArtist = { id -> navigateDetail(Routes.ARTIST_DETAIL, "artistId", id, Routes.artist(id)) },
                                 contextMenuHost = contextMenuHost,
                                 setStar = libraryRepository::star,
                             )

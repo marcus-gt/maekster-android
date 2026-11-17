@@ -1,6 +1,7 @@
 package com.subtracks.di
 
 import android.content.Context
+import androidx.lifecycle.viewModelScope
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.cancelAndJoinBlocking
@@ -71,6 +72,13 @@ class AppModuleTest {
             koin.get<com.subtracks.data.recommendations.SimilarArtistsRepository>(),
             koin.get<com.subtracks.data.recommendations.SimilarArtistsRepository>(),
         )
+        val model =
+            koin.get<com.subtracks.ui.library.SimilarArtistsViewModel> {
+                org.koin.core.parameter
+                    .parametersOf("seed")
+            }
+        assertNotNull(model)
+        cancelAndJoinBlocking(model.viewModelScope)
     }
 
     @Test

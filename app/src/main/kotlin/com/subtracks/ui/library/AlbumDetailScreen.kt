@@ -155,6 +155,7 @@ fun AlbumDetailRoute(
                 },
         playingSongId = playback.item?.id.takeIf { context?.kind == QueueKind.Album && context.refId == albumId },
         onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
+        similarArtists = { album?.artistId?.let { SimilarArtistsSectionRoute(it, onViewArtist) } },
     )
 
     PendingDownloadDeleteConfirmation(pendingDelete) {
@@ -195,6 +196,7 @@ fun AlbumDetailScreen(
     onArtistClick: (() -> Unit)? = null,
     playingSongId: String? = null,
     onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
+    similarArtists: (@Composable () -> Unit)? = null,
 ) {
     val multiDisc = songs.map { it.disc ?: 1L }.distinct().size > 1
     val resources = LocalResources.current
@@ -279,6 +281,7 @@ fun AlbumDetailScreen(
                     )
                 }
             }
+            similarArtists?.let { section -> item(key = "similarArtists") { section() } }
         },
         modifier = modifier,
     )

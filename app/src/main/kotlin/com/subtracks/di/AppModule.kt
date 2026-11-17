@@ -258,6 +258,17 @@ fun appModule(
             get(named("mixDownloadedOnly")),
         )
     }
+    viewModel { params ->
+        val sources = get<SourceRepository>()
+        val recommendations = get<com.subtracks.data.recommendations.SimilarArtistsRepository>()
+        com.subtracks.ui.library.SimilarArtistsViewModel(
+            params.get(),
+            sources.activeSourceId(),
+            combine(sources.offline, networkAvailable(context.applicationContext)) { off, connected -> off || !connected },
+            recommendations::read,
+            recommendations::refresh,
+        )
+    }
     single { SmartShuffle(get<SubtracksDatabase>().mixDao()) }
     single { QueueBuilder(get<SubtracksDatabase>().mixDao()) }
     // One limiter for every MusicBrainz feature: together they stay at MusicBrainz' one request per second.

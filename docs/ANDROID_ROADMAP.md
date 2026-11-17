@@ -710,7 +710,12 @@ Part D3a adds source-scoped local resolution (server ID, unique MBID, unique nam
 wiring, and source-specific authenticated providers with fixed origin-scoped headers. Cache reads stay local;
 explicit refreshes guard active source and offline/connectivity. No UI calls yet.
 See `docs/handoffs/M3.3-similar-artists-resolution.md`.
-Next: M3.3 D3b, artist/album Similar Artists shelves with explicit refresh and safe local/external actions. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Part D3b adds Similar Artists shelves after artist discography and album tracks. Section composition reads only
+cached data; Find similar artists explicitly refreshes online. Local matches open their resolved artist ids;
+external candidates open a validated MusicBrainz artist page or encoded search. No portraits are fetched.
+Device check verified artist refresh and album reuse of cached results; normal/2× renders reviewed.
+See `docs/handoffs/M3.3-similar-artists-ui.md`.
+Next: M3.3 E, optional external artist images (D10 opt-in/disclosure). See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
