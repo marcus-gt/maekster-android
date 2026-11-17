@@ -688,7 +688,12 @@ sub-genres, the iOS-style card (genre, sub-genre and decade rows; Reset and Play
 page. See `docs/handoffs/M3.2-queue-builder-genres.md`. Part E3 is complete: Queue Builder queues refill from
 their own picks whatever the autoplay setting, fall back to similar songs only with autoplay on, and keep their
 refill across autoplay toggles and restarts. See `docs/handoffs/M3.2-queue-builder-refill.md`.
-Next: M3.3 Recommendations and fresh releases. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+**M3.3 status (17 Nov 2026):** in progress. Split into A MusicBrainz client, B fresh-releases engine (Room,
+refresh policy), C Discover Fresh Releases (opt-in, D10, PRIVACY.md), D Similar Artists, E optional external
+artist images. Part A is complete: `MusicBrainz` interface and OkHttp client with a shared 1 req/s limiter,
+503 back-off, certain-only artist name matching and the iOS release-matching rules; not wired yet, so no
+network use. See `docs/handoffs/M3.3-musicbrainz-client.md`.
+Next: M3.3 B, the fresh-releases engine. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
