@@ -16,9 +16,10 @@ remain active. Follow-up subtasks have their own handoffs. Nothing was pushed.
 - **M4.10:** `PlaybackService` uses Media3's local wake mode with the existing media foreground
   service, audio focus and noisy-route handling. On emulator-5554, playback advanced with the
   screen asleep after leaving the app, and an in-app pause released the ExoPlayer wake lock.
-  The emulator has Play Services installed. Its simulated asleep media-pause key did not pause
-  the player, so validate headset and Bluetooth commands on a physical device. The rest of the
-  route, network, background download, recovery and battery checklist remains open.
+  A follow-up dispatched Play and Pause via Android's media-session service on the same emulator.
+  Pause reached the app while the screen was asleep and released the wake lock. The earlier raw
+  key injection was inconclusive. The emulator has Play Services installed. Real headset and
+  Bluetooth commands, network handoff, background downloads, recovery and battery remain open.
 - **M4.9:** Now Playing names the seek bar, retains transport target space on narrow screens,
   and scrolls to reach lower controls at 200% font. The Compose test checks seek and transport
   controls at 2×. The seek-label test failed before the fix. The expanded test also caught a
