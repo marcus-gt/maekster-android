@@ -1,21 +1,24 @@
 package com.subtracks.data.mix
 
+import com.subtracks.data.audiomuse.QueueBuilderMood
 import com.subtracks.data.db.GenreSpelling
 import com.subtracks.data.db.MixDao
 
 /**
  * What the listener picked: whole main genres ([mains]), single sub-genres ([tags], by [QueueBuilderPill.key])
  * and [decades] (their first year, 1990 for the 1990s). Any picked genre and any picked decade match; nothing
- * picked in a group matches everything in it.
+ * picked in a group matches everything in it. [moods] never widen or narrow that match: they rank the matching
+ * songs by their AudioMuse scores (see `QueueBuilderMoodBuilder`).
  */
 data class QueueBuilderSelection(
     val mains: Set<String> = emptySet(),
     val tags: Set<String> = emptySet(),
     val decades: Set<Int> = emptySet(),
+    val moods: Set<QueueBuilderMood> = emptySet(),
 ) {
     val hasGenre: Boolean get() = mains.isNotEmpty() || tags.isNotEmpty()
 
-    val isEmpty: Boolean get() = !hasGenre && decades.isEmpty()
+    val isEmpty: Boolean get() = !hasGenre && decades.isEmpty() && moods.isEmpty()
 }
 
 /** The remembered picks and queue length (15 to 120 songs in steps of 5). */
@@ -62,12 +65,16 @@ data class QueueBuilderIndex(
  * [selection] without picks the index no longer offers (a genre retagged away, a decade without songs, or
  * genres without downloads offline), so a remembered pick never silently narrows a build to nothing.
  */
-fun QueueBuilderIndex.available(selection: QueueBuilderSelection): QueueBuilderSelection {
+fun QueueBuilderIndex.available(
+    selection: QueueBuilderSelection,
+    moodsAvailable: Boolean = false,
+): QueueBuilderSelection {
     val pills = columns.flatMapTo(mutableSetOf()) { column -> column.pills.map { it.key } }
     return QueueBuilderSelection(
         mains = selection.mains.filterTo(mutableSetOf()) { main -> columns.any { it.main == main } },
         tags = selection.tags.filterTo(mutableSetOf()) { it in pills },
         decades = selection.decades.filterTo(mutableSetOf()) { it in decades },
+        moods = if (moodsAvailable) selection.moods else emptySet(),
     )
 }
 
@@ -183,7 +190,8 @@ class QueueBuilder(
                 .trim()
 
     companion object {
-        const val MAX_COUNT = 200
+        // Mood builds draw a candidate pool of up to 400 songs to rank (QueueBuilderMoodBuilder.poolSize).
+        const val MAX_COUNT = 400
         const val MAX_EXCLUDED = 2_000
     }
 }

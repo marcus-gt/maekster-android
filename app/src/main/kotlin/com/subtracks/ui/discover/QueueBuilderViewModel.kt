@@ -1,9 +1,12 @@
 package com.subtracks.ui.discover
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.subtracks.R
 import com.subtracks.UiMessage
+import com.subtracks.data.audiomuse.QueueBuilderMood
+import com.subtracks.data.mix.MoodShortfall
 import com.subtracks.data.mix.QueueBuilder
 import com.subtracks.data.mix.QueueBuilderIndex
 import com.subtracks.data.mix.QueueBuilderPicks
@@ -11,6 +14,7 @@ import com.subtracks.data.mix.QueueBuilderSelection
 import com.subtracks.data.mix.available
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.log.Log
+import com.subtracks.playback.QueueBuilderOutcome
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -21,9 +25,21 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+/** What to tell the listener after a build: why nothing started, or that picked moods made the queue shorter. */
+@StringRes
+internal fun queueBuilderMessage(outcome: QueueBuilderOutcome): Int? =
+    when (outcome.moodShortfall) {
+        MoodShortfall.SCORES_UNAVAILABLE -> R.string.queue_builder_moods_unavailable
+        MoodShortfall.NO_MOOD_MATCH -> R.string.queue_builder_moods_no_match
+        MoodShortfall.PARTIAL -> R.string.queue_builder_moods_partial
+        null -> if (outcome.started) null else R.string.queue_builder_no_match
+    }
 
 /**
  * What the Queue Builder shows: the genres and decades on offer, the picks still available among them
@@ -36,6 +52,8 @@ data class QueueBuilderState(
     val selection: QueueBuilderSelection = QueueBuilderSelection(),
     val length: Int = QueueBuilderPicks.DEFAULT_LENGTH,
     val matchCount: Long? = null,
+    /** AudioMuse is set up and readable for this server, so moods can be picked (offline they use cached scores). */
+    val moodsAvailable: Boolean = false,
 ) {
     val canBuild: Boolean get() = !loading && matchCount != 0L
 
@@ -65,9 +83,16 @@ class QueueBuilderViewModel(
     offline: Flow<Boolean>,
     private val builder: QueueBuilder,
     private val preferences: UserPreferences,
-    private val play: suspend (QueueBuilderSelection, Int) -> Boolean,
+    private val play: suspend (QueueBuilderSelection, Int) -> QueueBuilderOutcome,
     private val showMessage: (UiMessage) -> Unit,
+    moodsAvailable: (Long) -> Flow<Boolean> = { flowOf(false) },
 ) : ViewModel() {
+    private val moods =
+        activeSourceId
+            .distinctUntilChanged()
+            .flatMapLatest { id -> id?.let(moodsAvailable) ?: flowOf(false) }
+            .distinctUntilChanged()
+
     private val reload = MutableStateFlow(0)
     private val picks = MutableStateFlow<Pair<Long, QueueBuilderPicks>?>(null)
 
@@ -87,8 +112,8 @@ class QueueBuilderViewModel(
             }
 
     val state: StateFlow<QueueBuilderState> =
-        combine(loaded, picks) { index, saved -> index to saved }
-            .mapLatest { (loaded, saved) ->
+        combine(loaded, picks, moods) { index, saved, moodsOn -> Triple(index, saved, moodsOn) }
+            .mapLatest { (loaded, saved, moodsOn) ->
                 when {
                     loaded == null -> {
                         QueueBuilderState(loading = false)
@@ -99,7 +124,7 @@ class QueueBuilderViewModel(
                     }
 
                     else -> {
-                        val selection = loaded.index.available(saved.second.selection)
+                        val selection = loaded.index.available(saved.second.selection, moodsOn)
                         QueueBuilderState(
                             loading = false,
                             offline = loaded.offline,
@@ -107,6 +132,7 @@ class QueueBuilderViewModel(
                             selection = selection,
                             length = saved.second.length,
                             matchCount = builder.matchCount(loaded.sourceId, selection, loaded.offline),
+                            moodsAvailable = moodsOn,
                         )
                     }
                 }
@@ -184,6 +210,10 @@ class QueueBuilderViewModel(
 
     fun clearDecades() = editSelection { it.copy(decades = emptySet()) }
 
+    fun toggleMood(mood: QueueBuilderMood) = editSelection { it.copy(moods = it.moods.toggle(mood)) }
+
+    fun clearMoods() = editSelection { it.copy(moods = emptySet()) }
+
     /** Clears every pick; the length stays. */
     fun reset() {
         editSelection { QueueBuilderSelection() }
@@ -209,11 +239,9 @@ class QueueBuilderViewModel(
         _building.value = true
         viewModelScope.launch {
             try {
-                if (play(current.selection, current.length)) {
-                    onStarted()
-                } else {
-                    showMessage(UiMessage(R.string.queue_builder_no_match))
-                }
+                val outcome = play(current.selection, current.length)
+                if (outcome.started) onStarted()
+                queueBuilderMessage(outcome)?.let { showMessage(UiMessage(it)) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: Exception) {

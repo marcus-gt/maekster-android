@@ -13,6 +13,7 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -197,6 +198,44 @@ class DiscoverScreenTest {
         composeRule.onNodeWithText("Build queue").assertIsNotEnabled()
     }
 
+    @Test fun moodsAppearOnlyWithAudioMuseAndJoinTheSummary() {
+        val calls = mutableListOf<String>()
+        val happy = com.subtracks.data.audiomuse.QueueBuilderMood.HAPPY
+        val party = com.subtracks.data.audiomuse.QueueBuilderMood.PARTY
+        var state by mutableStateOf(builderState(QueueBuilderSelection(mains = setOf("Jazz"))))
+        composeRule.setContent {
+            MaeksterTheme { Surface { QueueBuilderSection(state, null, false, recordingActions(calls)) } }
+        }
+        composeRule.onNodeWithTag("queueBuilderCardMoods").assertDoesNotExist()
+        state = state.copy(moodsAvailable = true, selection = QueueBuilderSelection(mains = setOf("Jazz"), moods = setOf(happy, party)))
+        composeRule.onNodeWithText("Jazz · Happy and Party").assertExists()
+        composeRule.onNodeWithTag("queueBuilderCardMoods").performScrollToKey("party")
+        composeRule.onNodeWithText("Party").assertIsSelected().performClick()
+        assertEquals(listOf("mood PARTY"), calls)
+    }
+
+    @Test fun thePageOffersMoodsWithAudioMuseAndExplainsOfflineRanking() {
+        val calls = mutableListOf<String>()
+        val happy = com.subtracks.data.audiomuse.QueueBuilderMood.HAPPY
+        var state by mutableStateOf(builderState(QueueBuilderSelection()))
+        composeRule.setContent {
+            MaeksterTheme { Surface { QueueBuilderContent(state, building = false, actions = recordingActions(calls)) } }
+        }
+        composeRule.onNodeWithTag("queueBuilderMoods").assertDoesNotExist()
+        state = state.copy(moodsAvailable = true)
+        composeRule.onNodeWithText("No mood picked: songs are not ranked by mood.").performScrollTo()
+        composeRule
+            .onNodeWithText("Sad")
+            .performScrollTo()
+            .assertIsNotSelected()
+            .performClick()
+        assertEquals(listOf("mood SAD"), calls)
+        state = state.copy(selection = QueueBuilderSelection(moods = setOf(happy)))
+        composeRule.onNodeWithText("The matching songs that best fit the picked moods are chosen, using AudioMuse.").performScrollTo()
+        state = state.copy(offline = true)
+        composeRule.onNodeWithText("Offline, only songs AudioMuse has scored before can be ranked by mood.").performScrollTo()
+    }
+
     @Test fun pickerNormal() = renderPicker(1f, "queue_builder")
 
     @Test fun pickerLargeFont() = renderPicker(2f, "queue_builder_2x")
@@ -210,7 +249,14 @@ class DiscoverScreenTest {
                 MaeksterTheme {
                     Surface {
                         QueueBuilderContent(
-                            builderState(QueueBuilderSelection(tags = setOf(contemporary), decades = setOf(1990)), matchCount = 18),
+                            builderState(
+                                QueueBuilderSelection(
+                                    tags = setOf(contemporary),
+                                    decades = setOf(1990),
+                                    moods = setOf(com.subtracks.data.audiomuse.QueueBuilderMood.RELAXED),
+                                ),
+                                matchCount = 18,
+                            ).copy(moodsAvailable = true),
                             building = false,
                             actions = QueueBuilderActions(),
                         )
@@ -219,6 +265,8 @@ class DiscoverScreenTest {
             }
         }
         composeRule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
+        composeRule.onNodeWithTag("queueBuilderMoods").performScrollTo()
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/${name}_moods.png")
     }
 
     private fun recordingActions(calls: MutableList<String>) =
@@ -228,6 +276,7 @@ class DiscoverScreenTest {
             tapMainInCard = { calls += "tapMain $it" },
             togglePill = { pill, main -> calls += "pill $pill $main" },
             toggleDecade = { calls += "decade $it" },
+            toggleMood = { calls += "mood $it" },
             reset = { calls += "reset" },
             build = { calls += "build" },
         )

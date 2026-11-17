@@ -5,9 +5,11 @@ import androidx.room3.useWriterConnection
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.R
 import com.subtracks.UiMessage
+import com.subtracks.data.audiomuse.QueueBuilderMood
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.mix.GenreTaxonomy
+import com.subtracks.data.mix.MoodShortfall
 import com.subtracks.data.mix.QueueBuilder
 import com.subtracks.data.mix.QueueBuilderPicks
 import com.subtracks.data.mix.QueueBuilderSelection
@@ -16,11 +18,13 @@ import com.subtracks.data.model.Song
 import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.prefs.fakeUserPreferences
+import com.subtracks.playback.QueueBuilderOutcome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -43,7 +47,8 @@ class QueueBuilderViewModelTest {
     private val offline = MutableStateFlow(false)
     private val played = mutableListOf<Pair<QueueBuilderSelection, Int>>()
     private val messages = mutableListOf<UiMessage>()
-    private var playResult = true
+    private var playResult = QueueBuilderOutcome(true)
+    private val moodsAvailable = MutableStateFlow(false)
     private var model: QueueBuilderViewModel? = null
 
     @Before
@@ -72,6 +77,7 @@ class QueueBuilderViewModelTest {
                 playResult
             },
             showMessage = { messages += it },
+            moodsAvailable = { id -> moodsAvailable.map { it && id == 1L } },
         ).also { model = it }
 
     private val modal = GenreTaxonomy.DISCOGS.resolve("Modal").key
@@ -180,10 +186,72 @@ class QueueBuilderViewModelTest {
 
         model.clearDecades()
         model.awaitState { it.matchCount == 1L }
-        playResult = false
+        playResult = QueueBuilderOutcome(false)
         model.build()
         runBlocking { withTimeout(5_000) { model.building.first { !it } } }
         assertEquals(listOf(UiMessage(R.string.queue_builder_no_match)), messages)
+    }
+
+    @Test
+    fun moodsArePickedOnlyWithAudioMuseAndSavedPicksReturnWithIt() {
+        activeSource.value = 1
+        moodsAvailable.value = true
+        val model = model()
+        model.awaitState { it.moodsAvailable && it.matchCount == 3L }
+        model.toggleMain("Jazz")
+        model.toggleMood(QueueBuilderMood.HAPPY)
+        model.toggleMood(QueueBuilderMood.PARTY)
+        model.toggleMood(QueueBuilderMood.PARTY)
+        val picked = model.awaitState { it.selection.moods == setOf(QueueBuilderMood.HAPPY) }
+        // Moods rank the matches; they do not change how many songs the genre and decade picks match.
+        assertEquals(2L, picked.matchCount)
+        val saved = runBlocking { withTimeout(5_000) { prefs.queueBuilderPicks(1).first { it.selection.mains.isNotEmpty() } } }
+        assertEquals(setOf(QueueBuilderMood.HAPPY), saved.selection.moods)
+
+        model.build()
+        runBlocking { withTimeout(5_000) { model.building.first { !it } } }
+        assertEquals(QueueBuilderSelection(mains = setOf("Jazz"), moods = setOf(QueueBuilderMood.HAPPY)), played.last().first)
+
+        // AudioMuse removed: moods neither show nor reach the build, but stay saved for when it returns.
+        moodsAvailable.value = false
+        val hidden = model.awaitState { !it.moodsAvailable }
+        assertEquals(QueueBuilderSelection(mains = setOf("Jazz")), hidden.selection)
+        model.build()
+        runBlocking { withTimeout(5_000) { model.building.first { !it } } }
+        assertEquals(QueueBuilderSelection(mains = setOf("Jazz")), played.last().first)
+        moodsAvailable.value = true
+        model.awaitState { it.selection.moods == setOf(QueueBuilderMood.HAPPY) }
+
+        model.reset()
+        model.awaitState { it.selection == QueueBuilderSelection() }
+    }
+
+    @Test
+    fun aMoodLimitedBuildExplainsItself() {
+        activeSource.value = 1
+        moodsAvailable.value = true
+        val model = model()
+        model.awaitState { it.matchCount == 3L }
+        model.toggleMood(QueueBuilderMood.SAD)
+        model.awaitState { it.selection.moods.isNotEmpty() }
+        for (outcome in listOf(
+            QueueBuilderOutcome(false, MoodShortfall.SCORES_UNAVAILABLE),
+            QueueBuilderOutcome(false, MoodShortfall.NO_MOOD_MATCH),
+            QueueBuilderOutcome(true, MoodShortfall.PARTIAL),
+            QueueBuilderOutcome(true),
+        )) {
+            playResult = outcome
+            model.build()
+            runBlocking { withTimeout(5_000) { model.building.first { !it } } }
+        }
+        assertEquals(
+            listOf(
+                R.string.queue_builder_moods_unavailable,
+                R.string.queue_builder_moods_no_match,
+                R.string.queue_builder_moods_partial,
+            ).map { UiMessage(it) },
+            messages,
+        )
     }
 
     @Test

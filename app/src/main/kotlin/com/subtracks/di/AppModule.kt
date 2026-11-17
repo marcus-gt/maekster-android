@@ -10,7 +10,9 @@ import com.subtracks.data.artistimages.OkHttpWikidata
 import com.subtracks.data.artistimages.Wikidata
 import com.subtracks.data.audiomuse.AudioMuseConfiguration
 import com.subtracks.data.audiomuse.AudioMuseConnectionTester
+import com.subtracks.data.audiomuse.AudioMuseMoodCache
 import com.subtracks.data.audiomuse.AudioMuseScoreAccess
+import com.subtracks.data.audiomuse.AudioMuseScoreFetcher
 import com.subtracks.data.audiomuse.AudioMuseTrackResolver
 import com.subtracks.data.audiomuse.MoodRadioBuilder
 import com.subtracks.data.db.SubtracksDatabase
@@ -31,9 +33,9 @@ import com.subtracks.data.lyrics.LyricsProvider
 import com.subtracks.data.lyrics.LyricsRepository
 import com.subtracks.data.mix.InstantMix
 import com.subtracks.data.mix.QueueBuilder
+import com.subtracks.data.mix.QueueBuilderMoodBuilder
 import com.subtracks.data.mix.SimilarSongs
 import com.subtracks.data.mix.SmartShuffle
-import com.subtracks.data.mix.available
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.Song
 import com.subtracks.data.musicbrainz.FreshReleases
@@ -204,7 +206,6 @@ fun appModule(
         val dao = get<SubtracksDatabase>().mixDao()
         val mix = InstantMix(dao, SimilarSongs(sources::similarSongs), get())
         val preferences = get<UserPreferences>()
-        val builder = get<QueueBuilder>()
         PlaybackController(
             get(),
             get(),
@@ -219,11 +220,19 @@ fun appModule(
                     .of(queues, dao, mix, enabled, sources::activeSourceIdOnce)
             },
             // The server's current picks, limited to what the library still offers, as the picker shows them.
-            builtQueueRefill = { sourceId, excluded, count, downloadedOnly ->
-                val picks = preferences.queueBuilderPicks(sourceId).first()
-                val selection = builder.index(sourceId, downloadedOnly).available(picks.selection)
-                builder.build(sourceId, selection, count, downloadedOnly, excluding = excluded)
-            },
+            // Moods too, so a mood queue refills by the same picks (cached scores only when offline).
+            builtQueueRefill =
+                QueueBuilderMoodBuilder
+                    .Refill(
+                        get(),
+                        picks = { preferences.queueBuilderPicks(it).first() },
+                        moodsAvailable = {
+                            get<AudioMuseConfiguration>()
+                                .observe(it)
+                                .first()
+                                .available
+                        },
+                    )::invoke,
         )
     }
     single {
@@ -333,7 +342,7 @@ fun appModule(
     }
     single {
         QueueBuilderPlayer.of(
-            builder = get(),
+            builder = get<QueueBuilderMoodBuilder>(),
             activeSourceId = get<SourceRepository>()::activeSourceIdOnce,
             downloadedOnly = get(named("mixDownloadedOnly")),
             controller = get(),
@@ -353,6 +362,7 @@ fun appModule(
             preferences = get(),
             play = player::play,
             showMessage = showMessage,
+            moodsAvailable = { id -> get<AudioMuseConfiguration>().observe(id).map { it.available } },
         )
     }
     viewModel { PinMenuViewModel(get()) }
@@ -397,6 +407,9 @@ fun appModule(
         AudioMuseTrackResolver(get<SubtracksDatabase>().audioMuseTrackDao(), get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess")))
     }
     single { MoodRadioBuilder(get(), get(), get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess"))) }
+    single { AudioMuseMoodCache(get<SubtracksDatabase>().audioMuseScoreDao()) }
+    single { AudioMuseScoreFetcher(get(), get(), get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess"))) }
+    single { QueueBuilderMoodBuilder(get(), get<AudioMuseScoreFetcher>()::fetch) }
     single { MoodRadioPlayer.of(get(), get<SourceRepository>()::activeSourceIdOnce, get()) }
     viewModel { params ->
         val sources = get<SourceRepository>()

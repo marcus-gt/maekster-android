@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.subtracks.data.audiomuse.QueueBuilderMood
 import com.subtracks.data.listenbrainz.ListenBrainzApi
 import com.subtracks.data.lyrics.LyricsSource
 import com.subtracks.data.mix.QueueBuilderPicks
@@ -336,6 +337,10 @@ class UserPreferences(
                         mains = prefs[queueBuilderMainsKey(sourceId)].orEmpty(),
                         tags = prefs[queueBuilderTagsKey(sourceId)].orEmpty(),
                         decades = prefs[queueBuilderDecadesKey(sourceId)].orEmpty().mapNotNull { it.toIntOrNull() }.toSet(),
+                        moods =
+                            prefs[queueBuilderMoodsKey(sourceId)]
+                                .orEmpty()
+                                .mapNotNullTo(mutableSetOf()) { name -> QueueBuilderMood.entries.firstOrNull { it.wireName == name } },
                     ),
                 length = QueueBuilderPicks.clampLength(prefs[queueBuilderLengthKey(sourceId)] ?: QueueBuilderPicks.DEFAULT_LENGTH),
             )
@@ -349,6 +354,7 @@ class UserPreferences(
             it[queueBuilderMainsKey(sourceId)] = picks.selection.mains
             it[queueBuilderTagsKey(sourceId)] = picks.selection.tags
             it[queueBuilderDecadesKey(sourceId)] = picks.selection.decades.mapTo(mutableSetOf()) { decade -> decade.toString() }
+            it[queueBuilderMoodsKey(sourceId)] = picks.selection.moods.mapTo(mutableSetOf()) { mood -> mood.wireName }
             it[queueBuilderLengthKey(sourceId)] = QueueBuilderPicks.clampLength(picks.length)
             // Flat genre picks from the first Queue Builder build; main genres and sub-genres replaced them.
             it.remove(stringSetPreferencesKey("queue_builder_genres_$sourceId"))
@@ -358,6 +364,8 @@ class UserPreferences(
     private fun queueBuilderMainsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_mains_$sourceId")
 
     private fun queueBuilderTagsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_tags_$sourceId")
+
+    private fun queueBuilderMoodsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_moods_$sourceId")
 
     private fun queueBuilderDecadesKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_decades_$sourceId")
 

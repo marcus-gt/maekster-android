@@ -30,6 +30,8 @@ fun QueueBuilderRoute(viewModel: QueueBuilderViewModel = koinViewModel()) {
                 toggleDecade = viewModel::toggleDecade,
                 clearGenres = viewModel::clearGenres,
                 clearDecades = viewModel::clearDecades,
+                toggleMood = viewModel::toggleMood,
+                clearMoods = viewModel::clearMoods,
                 reset = viewModel::reset,
                 setLength = viewModel::setLength,
                 build = { viewModel.build(onStarted = { editing = false }) },

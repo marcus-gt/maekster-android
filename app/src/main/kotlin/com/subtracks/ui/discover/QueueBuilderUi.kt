@@ -1,5 +1,6 @@
 package com.subtracks.ui.discover
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -64,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.subtracks.R
+import com.subtracks.data.audiomuse.QueueBuilderMood
 import com.subtracks.data.mix.QueueBuilderColumn
 import com.subtracks.data.mix.QueueBuilderPicks
 import kotlin.math.roundToInt
@@ -77,6 +79,8 @@ class QueueBuilderActions(
     val toggleDecade: (Int) -> Unit = {},
     val clearGenres: () -> Unit = {},
     val clearDecades: () -> Unit = {},
+    val toggleMood: (QueueBuilderMood) -> Unit = {},
+    val clearMoods: () -> Unit = {},
     val reset: () -> Unit = {},
     val setLength: (Int) -> Unit = {},
     val build: () -> Unit = {},
@@ -133,9 +137,24 @@ fun queueBuilderSummary(state: QueueBuilderState): String {
         state.selection.decades
             .sortedDescending()
             .map { stringResource(R.string.queue_builder_decade, it) }
-    val parts = listOf(joinNames(genres), joinNames(decades)).filter { it.isNotEmpty() }
+    val moods =
+        QueueBuilderMood.entries
+            .filter { it in state.selection.moods }
+            .map { stringResource(it.title()) }
+    val parts = listOf(joinNames(genres), joinNames(decades), joinNames(moods)).filter { it.isNotEmpty() }
     return parts.joinToString(" · ").ifEmpty { stringResource(R.string.queue_builder_anything) }
 }
+
+@StringRes
+internal fun QueueBuilderMood.title(): Int =
+    when (this) {
+        QueueBuilderMood.HAPPY -> R.string.queue_builder_mood_happy
+        QueueBuilderMood.SAD -> R.string.queue_builder_mood_sad
+        QueueBuilderMood.RELAXED -> R.string.queue_builder_mood_relaxed
+        QueueBuilderMood.AGGRESSIVE -> R.string.queue_builder_mood_aggressive
+        QueueBuilderMood.PARTY -> R.string.queue_builder_mood_party
+        QueueBuilderMood.DANCEABLE -> R.string.queue_builder_mood_danceable
+    }
 
 /** A Queue Builder chip: tinted by its main genre when it has one, the accent when picked otherwise. */
 @Composable
@@ -286,6 +305,22 @@ fun QueueBuilderSection(
                 }
             }
         }
+        if (state.moodsAvailable) {
+            LazyRow(
+                contentPadding = rowPadding,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.testTag("queueBuilderCardMoods"),
+            ) {
+                items(QueueBuilderMood.entries, key = { it.wireName }) { mood ->
+                    BuilderChip(
+                        title = stringResource(mood.title()),
+                        selected = mood in state.selection.moods,
+                        onClick = { actions.toggleMood(mood) },
+                        tint = null,
+                    )
+                }
+            }
+        }
         Text(
             queueBuilderSummary(state),
             style = MaterialTheme.typography.bodySmall,
@@ -399,6 +434,32 @@ fun QueueBuilderContent(
                     if (state.selection.decades.isEmpty()) R.string.queue_builder_decades_none else R.string.queue_builder_decades_some,
                 ),
             )
+            if (state.moodsAvailable) {
+                SectionHeader(R.string.queue_builder_moods, clearable = state.selection.moods.isNotEmpty(), onClear = actions.clearMoods)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(horizontal = 20.dp).testTag("queueBuilderMoods"),
+                ) {
+                    QueueBuilderMood.entries.forEach { mood ->
+                        BuilderChip(
+                            title = stringResource(mood.title()),
+                            selected = mood in state.selection.moods,
+                            onClick = { actions.toggleMood(mood) },
+                            tint = null,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+                }
+                Hint(
+                    stringResource(
+                        when {
+                            state.selection.moods.isEmpty() -> R.string.queue_builder_moods_none
+                            state.offline -> R.string.queue_builder_moods_offline
+                            else -> R.string.queue_builder_moods_some
+                        },
+                    ),
+                )
+            }
             Text(
                 stringResource(R.string.queue_builder_length),
                 style = MaterialTheme.typography.titleMedium,
