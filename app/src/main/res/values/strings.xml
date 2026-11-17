@@ -393,6 +393,8 @@
     <string name="queue_builder_title">Queue Builder</string>
     <string name="queue_builder_anything">Anything in your library</string>
     <string name="queue_builder_offline">Offline: built from your downloaded music.</string>
+    <string name="queue_builder_nothing_offline">Offline: download music to build queues from it here.</string>
+    <string name="queue_builder_nothing">Sync your library to build queues from its genres and decades.</string>
     <string name="queue_builder_play_queue">Play queue</string>
     <string name="queue_builder_open">Open Queue Builder</string>
     <string name="queue_builder_showing_subgenres">Showing its sub-genres below</string>

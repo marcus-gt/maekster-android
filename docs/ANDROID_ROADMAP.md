@@ -643,7 +643,13 @@ other servers (issue #11). See `docs/handoffs/M2-closeout.md`.
 listenbrainz.org (doubled alongside Navidrome's own relay, as the dialog warns). The offline-queue replay
 against the real service is still unchecked.
 
-**M3.2 status (16 Nov 2026):** in progress. Part A: Smart Shuffle (iOS three-source blend: favourites,
+**M3.2 status (17 Nov 2026):** complete. Close-out: Smart Shuffle, Instant Mix and stations reach Present;
+Auto-extend and Queue Builder reach Present but behaviour differs (documented); Discover is Partial until
+M3.3/M3.5/M3.6 add their sections. On the emulator, Discover offline hides Stations and keeps downloads-only
+Smart Shuffle and Queue Builder, and a 15-song Queue Builder build refilled to 65 with autoplay off. No
+third-party hosts: the only network call is the user's own server (`getSimilarSongs2`) on explicit
+actions or with autoplay on. Queue Builder moods move to M3.5 (AudioMuse). See
+`docs/handoffs/M3.2-closeout.md`. Part A: Smart Shuffle (iOS three-source blend: favourites,
 recent taste, rediscovery; at most 3 per artist; recent plays skipped), built from the mirror with bounded
 queries and limited to downloads when offline, and played as a labelled mix (`playMix`). No UI yet.
 Part B is complete: Instant Mix and artist-station engine/playback, explicit server similarity cached in
@@ -682,7 +688,7 @@ sub-genres, the iOS-style card (genre, sub-genre and decade rows; Reset and Play
 page. See `docs/handoffs/M3.2-queue-builder-genres.md`. Part E3 is complete: Queue Builder queues refill from
 their own picks whatever the autoplay setting, fall back to similar songs only with autoplay on, and keep their
 refill across autoplay toggles and restarts. See `docs/handoffs/M3.2-queue-builder-refill.md`.
-Next: Queue Builder moods wait for AudioMuse; review the remaining M3.2 parity rows before closing the milestone. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Next: M3.3 Recommendations and fresh releases. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

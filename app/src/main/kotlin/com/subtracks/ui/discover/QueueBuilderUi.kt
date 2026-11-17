@@ -229,17 +229,29 @@ fun QueueBuilderSection(
             Box(Modifier.fillMaxWidth().height(96.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             return@Column
         }
-        LazyRow(contentPadding = rowPadding, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(state.index.columns, key = { it.main }) { column ->
-                val showing = stringResource(R.string.queue_builder_showing_subgenres)
-                BuilderChip(
-                    title = column.main,
-                    selected = state.isPicked(column.main),
-                    onClick = { actions.tapMainInCard(column.main) },
-                    tint = GenreTint.of(column.main),
-                    expanded = focusedMain == column.main,
-                    modifier = if (focusedMain == column.main) Modifier.semantics { stateDescription = showing } else Modifier,
-                )
+        if (state.index.columns.isEmpty() && state.index.decades.isEmpty()) {
+            // Nothing to pick from: say why instead of offering "Anything in your library" that cannot play.
+            Text(
+                stringResource(if (state.offline) R.string.queue_builder_nothing_offline else R.string.queue_builder_nothing),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
+            return@Column
+        }
+        if (state.index.columns.isNotEmpty()) {
+            LazyRow(contentPadding = rowPadding, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(state.index.columns, key = { it.main }) { column ->
+                    val showing = stringResource(R.string.queue_builder_showing_subgenres)
+                    BuilderChip(
+                        title = column.main,
+                        selected = state.isPicked(column.main),
+                        onClick = { actions.tapMainInCard(column.main) },
+                        tint = GenreTint.of(column.main),
+                        expanded = focusedMain == column.main,
+                        modifier = if (focusedMain == column.main) Modifier.semantics { stateDescription = showing } else Modifier,
+                    )
+                }
             }
         }
         val focused = focusedMain?.let { state.index.column(it) }
@@ -258,18 +270,20 @@ fun QueueBuilderSection(
                 }
             }
         }
-        LazyRow(contentPadding = rowPadding, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(
-                state.index.decades.keys
-                    .sortedDescending(),
-                key = { it },
-            ) { decade ->
-                BuilderChip(
-                    title = stringResource(R.string.queue_builder_decade, decade),
-                    selected = decade in state.selection.decades,
-                    onClick = { actions.toggleDecade(decade) },
-                    tint = null,
-                )
+        if (state.index.decades.isNotEmpty()) {
+            LazyRow(contentPadding = rowPadding, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(
+                    state.index.decades.keys
+                        .sortedDescending(),
+                    key = { it },
+                ) { decade ->
+                    BuilderChip(
+                        title = stringResource(R.string.queue_builder_decade, decade),
+                        selected = decade in state.selection.decades,
+                        onClick = { actions.toggleDecade(decade) },
+                        tint = null,
+                    )
+                }
             }
         }
         Text(

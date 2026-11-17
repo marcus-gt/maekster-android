@@ -121,6 +121,24 @@ class DiscoverScreenTest {
         composeRule.onNodeWithContentDescription("Reset").assertDoesNotExist()
     }
 
+    @Test fun withNothingDownloadedOfflineTheCardSaysSoInsteadOfOfferingAnything() {
+        composeRule.setContent {
+            MaeksterTheme {
+                DiscoverScreen(
+                    DiscoverState(offline = true),
+                    false,
+                    {},
+                    {},
+                    {},
+                    queueBuilder = QueueBuilderState(loading = false, offline = true, matchCount = 0),
+                )
+            }
+        }
+        composeRule.onNodeWithText("Offline: download music to build queues from it here.").assertExists()
+        composeRule.onNodeWithText("Anything in your library").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Play queue").assertIsNotEnabled()
+    }
+
     @Test fun thePageShowsGenreColumnsWithTheirSubGenresAndBuildsOnlyWhenSomethingMatches() {
         val calls = mutableListOf<String>()
         var state by mutableStateOf(builderState(QueueBuilderSelection(mains = setOf("Jazz")), matchCount = 12))
