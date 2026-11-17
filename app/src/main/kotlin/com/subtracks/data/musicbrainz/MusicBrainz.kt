@@ -63,6 +63,12 @@ interface MusicBrainz {
      */
     suspend fun artistId(name: String): String?
 
+    /**
+     * The Wikidata item ("Q392") linked from the MusicBrainz artist [artistId], or null when the artist has none,
+     * is unknown to MusicBrainz, or [artistId] is not a MusicBrainz id.
+     */
+    suspend fun wikidataId(artistId: String): String?
+
     companion object {
         /** Artist ids per release-group search; keeps the query URL short. */
         const val ARTISTS_PER_SEARCH = 25
@@ -144,6 +150,21 @@ class OkHttpMusicBrainz internal constructor(
             .objects()
             .firstOrNull { it.optInt("score", 0) >= 90 && NewReleaseMatching.normalisedName(it.optString("name")) == wanted }
             ?.getString("id")
+    }
+
+    override suspend fun wikidataId(artistId: String): String? {
+        if (!NewReleaseMatching.isMusicBrainzId(artistId)) return null
+        val json =
+            try {
+                get("artist/${artistId.lowercase()}", "inc" to "url-rels")
+            } catch (failure: MusicBrainzHttpException) {
+                if (failure.status == 404) return null
+                throw failure
+            }
+        return json.optJSONArray("relations").objects().firstNotNullOfOrNull { relation ->
+            val resource = relation.optJSONObject("url")?.optString("resource").orEmpty()
+            if (relation.optString("type") == "wikidata") WIKIDATA_ITEM.matchEntire(resource)?.groupValues?.get(1) else null
+        }
     }
 
     private suspend fun get(
@@ -245,5 +266,7 @@ class OkHttpMusicBrainz internal constructor(
         /** Attempts per request when MusicBrainz answers 503, waiting 2, 4, 8 and 16 seconds between them. */
         const val MAX_ATTEMPTS = 5
         const val RETRY_DELAY_MS = 2_000L
+
+        private val WIKIDATA_ITEM = Regex("https?://(?:www\\.)?wikidata\\.org/wiki/(Q[1-9][0-9]*)")
     }
 }

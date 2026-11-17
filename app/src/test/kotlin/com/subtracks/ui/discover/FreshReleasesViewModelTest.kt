@@ -74,6 +74,11 @@ class FreshReleasesViewModelTest {
                 requests.incrementAndGet()
                 return null
             }
+
+            override suspend fun wikidataId(artistId: String): String? {
+                requests.incrementAndGet()
+                return null
+            }
         }
 
     @Before

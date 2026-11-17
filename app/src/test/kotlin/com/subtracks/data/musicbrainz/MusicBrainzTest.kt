@@ -171,6 +171,46 @@ class MusicBrainzTest {
         }
 
     @Test
+    fun theWikidataItemComesFromTheArtistsWikidataUrlRelation() =
+        runBlocking {
+            val id = "5B11F4CE-A62D-471E-81FC-A69A8278C7DA"
+            server.enqueue(
+                json(
+                    """{"relations":[
+                    {"type":"official homepage","url":{"resource":"https://www.wikidata.org/wiki/Q1"}},
+                    {"type":"wikidata","url":{"resource":"https://www.wikidata.org/wiki/Special:Search"}},
+                    {"type":"wikidata","url":{"resource":"https://www.wikidata.org/wiki/Q392"}}]}""",
+                ),
+            )
+
+            assertEquals("Q392", client.wikidataId(id))
+            val request = server.takeRequest().requestUrl!!
+            assertEquals("/ws/2/artist/${id.lowercase()}", request.encodedPath)
+            assertEquals("url-rels", request.queryParameter("inc"))
+            assertEquals("json", request.queryParameter("fmt"))
+
+            server.enqueue(json("""{"relations":[]}"""))
+            assertNull(client.wikidataId(id))
+            server.enqueue(MockResponse().setResponseCode(404))
+            assertNull(client.wikidataId(id))
+        }
+
+    @Test
+    fun aWikidataLookupNeedsAMusicBrainzIdAndOtherErrorsFail() {
+        runBlocking {
+            assertNull(client.wikidataId("../release/x"))
+            assertNull(client.wikidataId(""))
+        }
+        assertEquals(0, server.requestCount)
+        server.enqueue(MockResponse().setResponseCode(500))
+        val failure =
+            assertThrows(MusicBrainzHttpException::class.java) {
+                runBlocking { client.wikidataId("5b11f4ce-a62d-471e-81fc-a69a8278c7da") }
+            }
+        assertEquals(500, failure.status)
+    }
+
+    @Test
     fun quotesInANameAreEscapedInTheQuery() =
         runBlocking {
             server.enqueue(json("""{"artists":[]}"""))

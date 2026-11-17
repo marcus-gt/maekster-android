@@ -219,5 +219,7 @@ class FreshReleasesTest {
             if (failLookups) throw IOException("MusicBrainz down")
             return names[name]
         }
+
+        override suspend fun wikidataId(artistId: String): String? = null
     }
 }
