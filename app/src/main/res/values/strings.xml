@@ -392,6 +392,8 @@
     <string name="similar_artists_local">In your library</string>
     <string name="similar_artists_external">Open in MusicBrainz</string>
     <string name="fresh_releases_title">Fresh releases</string>
+    <string name="external_artist_images_title">Photos of recommended artists</string>
+    <string name="external_artist_images_disclosure">Shows photos of similar artists that are not in your library. Sends their names or MusicBrainz IDs to musicbrainz.org, looks up the photo on wikidata.org and loads it from Wikimedia Commons. Your server address, credentials and headers are never shared.</string>
     <string name="fresh_releases_disclosure">New releases by artists in your library, found on MusicBrainz about once a day. Sends their names and MusicBrainz IDs to musicbrainz.org and loads covers from coverartarchive.org. Your server address, credentials and headers are never shared.</string>
     <string name="autoplay_similar_description">Continue with similar songs as the queue ends. Uses your music server online and downloads offline. Paused with repeat or shuffle.</string>
     <string name="discover_shuffle_description">Favorites, recent taste and forgotten gems. A fresh mix from your library.</string>

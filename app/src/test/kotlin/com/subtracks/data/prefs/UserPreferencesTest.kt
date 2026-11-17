@@ -29,6 +29,16 @@ class UserPreferencesTest {
         }
 
     @Test
+    fun recommendedArtistPhotosStayOffUntilTurnedOn() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(false, prefs.externalArtistImagesEnabled().first())
+            prefs.setExternalArtistImagesEnabled(true)
+            assertEquals(true, prefs.externalArtistImagesEnabled().first())
+            assertEquals(false, prefs.freshReleasesEnabled().first())
+        }
+
+    @Test
     fun queueBuilderPicksAreKeptPerServerWithALengthOnTheSliderSteps() =
         runTest {
             val prefs = fakeUserPreferences()

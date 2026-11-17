@@ -14,6 +14,7 @@ Each of these is off until you turn it on, and makes no request while off. None 
 | ListenBrainz | `api.listenbrainz.org`, or the server you enter | When you connect a ListenBrainz token | Your token and the songs you listen to (title, artist, album, duration, time) |
 | Fresh releases | `musicbrainz.org` | On Discover, when "Fresh releases" is on, about once a day while online | Names and MusicBrainz IDs of album artists in your library, and a date range |
 | Fresh releases covers | `coverartarchive.org` (which may redirect to `archive.org`) | When "Fresh releases" is on and showing releases | The MusicBrainz release group ID of each cover shown |
+| Photos of recommended artists | `musicbrainz.org`, `www.wikidata.org`, `commons.wikimedia.org` (which redirects to `upload.wikimedia.org`) | When "Photos of recommended artists" is on, online, and a Similar artists shelf shows artists outside your library | The MusicBrainz ID of each such artist, or its name when there is no ID; then the Wikidata item and Commons file name found for it |
 
 Opening a fresh release takes you to its page on `musicbrainz.org` in your browser.
 

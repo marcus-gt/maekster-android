@@ -133,6 +133,8 @@ class SettingsViewModel(
         userPreferences.discoverLayout().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiscoverLayout())
     val autoplaySimilar = userPreferences.autoplaySimilar().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val freshReleasesEnabled = userPreferences.freshReleasesEnabled().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val externalArtistImagesEnabled =
+        userPreferences.externalArtistImagesEnabled().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun setDiscoverLayout(layout: DiscoverLayout) {
         viewModelScope.launch { userPreferences.setDiscoverLayout(layout) }
@@ -144,6 +146,10 @@ class SettingsViewModel(
 
     fun setFreshReleasesEnabled(enabled: Boolean) {
         viewModelScope.launch { userPreferences.setFreshReleasesEnabled(enabled) }
+    }
+
+    fun setExternalArtistImagesEnabled(enabled: Boolean) {
+        viewModelScope.launch { userPreferences.setExternalArtistImagesEnabled(enabled) }
     }
 
     val offline: StateFlow<Boolean> = sourceRepository.offline

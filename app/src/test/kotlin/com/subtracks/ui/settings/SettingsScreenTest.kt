@@ -80,6 +80,18 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun recommendedArtistPhotosAreAnApplicationOptInWithDisclosure() {
+        val enabled = mutableStateOf(false)
+        composeRule.setContent {
+            MaeksterTheme { Settings(SettingsPage.Application, photos = enabled.value, onPhotos = { enabled.value = it }) }
+        }
+        scrollTo(text(R.string.external_artist_images_title))
+        composeRule.onNodeWithText(text(R.string.external_artist_images_disclosure)).assertExists()
+        composeRule.onNodeWithText(text(R.string.external_artist_images_title)).performClick()
+        assertEquals(true, enabled.value)
+    }
+
+    @Test
     fun playbackLyricsRowOpensPrivacyControls() {
         composeRule.setContent { MaeksterTheme { Settings(page = SettingsPage.Playback) } }
         scrollTo(text(R.string.lyrics_title))
@@ -108,6 +120,7 @@ class SettingsScreenTest {
                         R.string.settings_home_sections,
                         R.string.settings_discover_sections,
                         R.string.fresh_releases_title,
+                        R.string.external_artist_images_title,
                         R.string.settings_material_you_title,
                         R.string.settings_sort_names_title,
                         R.string.settings_about_actions_share_logs,
@@ -325,6 +338,8 @@ class SettingsScreenTest {
         onAutoplay: (Boolean) -> Unit = {},
         fresh: Boolean = false,
         onFresh: (Boolean) -> Unit = {},
+        photos: Boolean = false,
+        onPhotos: (Boolean) -> Unit = {},
     ) {
         SettingsScreen(
             sources = emptyList(),
@@ -362,6 +377,8 @@ class SettingsScreenTest {
             onAutoplayChange = onAutoplay,
             freshReleasesEnabled = fresh,
             onFreshReleasesChange = onFresh,
+            externalArtistImagesEnabled = photos,
+            onExternalArtistImagesChange = onPhotos,
         )
     }
 

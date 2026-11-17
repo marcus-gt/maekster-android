@@ -12,8 +12,10 @@ import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.model.Artist
+import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.recommendations.ResolvedSimilarArtist
 import com.subtracks.data.recommendations.SimilarArtist
+import com.subtracks.ui.components.ArtistArt
 import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -57,6 +59,38 @@ class SimilarArtistsSectionTest {
             "https://musicbrainz.org/search?query=A%26B&type=artist&method=indexed",
             SimilarArtist(null, "A&B", musicBrainzId = "https://unsafe.example").musicBrainzUrl(),
         )
+    }
+
+    @Test fun anExternalPhotoBecomesTheCardImageAndLibraryArtistsUseServerArt() {
+        val photo = "https://commons.wikimedia.org/wiki/Special:FilePath/External.jpg?width=500"
+        val (artist, art) = artists[1].recommendation.externalArtist(1, photo)
+        assertEquals("External artist", artist.name)
+        assertEquals(CoverArtRef(photo, "external-artist:$photo"), art.image)
+        assertEquals(
+            null,
+            artists[1]
+                .recommendation
+                .externalArtist(1, null)
+                .second.image,
+        )
+
+        val asked = mutableListOf<String>()
+        composeRule.setContent {
+            MaeksterTheme {
+                SimilarArtistsSection(
+                    SimilarArtistsState(1, false, false, artists = artists, photos = mapOf(artists[1].recommendation to photo)),
+                    {},
+                    {},
+                    {},
+                    { artist ->
+                        asked += artist.id
+                        ArtistArt()
+                    },
+                )
+            }
+        }
+        composeRule.onNodeWithText("External artist").assertExists()
+        assertEquals(listOf("local-id"), asked.distinct())
     }
 
     @Test fun offlineEmptyIsHiddenAndOffersNoRefresh() {

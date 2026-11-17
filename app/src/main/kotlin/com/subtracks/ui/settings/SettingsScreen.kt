@@ -187,6 +187,7 @@ fun SettingsRoute(
     val discoverLayout by viewModel.discoverLayout.collectAsStateWithLifecycle()
     val autoplaySimilar by viewModel.autoplaySimilar.collectAsStateWithLifecycle()
     val freshReleasesEnabled by viewModel.freshReleasesEnabled.collectAsStateWithLifecycle()
+    val externalArtistImagesEnabled by viewModel.externalArtistImagesEnabled.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -215,6 +216,8 @@ fun SettingsRoute(
         onAutoplayChange = viewModel::setAutoplaySimilar,
         freshReleasesEnabled = freshReleasesEnabled,
         onFreshReleasesChange = viewModel::setFreshReleasesEnabled,
+        externalArtistImagesEnabled = externalArtistImagesEnabled,
+        onExternalArtistImagesChange = viewModel::setExternalArtistImagesEnabled,
         lyrics = lyrics,
         onLyricsSourceChange = viewModel::setLyricsSource,
         onLrclibAllowedChange = viewModel::setLrclibAllowed,
@@ -302,6 +305,8 @@ fun SettingsScreen(
     onAutoplayChange: (Boolean) -> Unit = {},
     freshReleasesEnabled: Boolean = false,
     onFreshReleasesChange: (Boolean) -> Unit = {},
+    externalArtistImagesEnabled: Boolean = false,
+    onExternalArtistImagesChange: (Boolean) -> Unit = {},
     materialYouAvailable: Boolean = materialYouSupported,
     onSelectSource: (Long) -> Unit,
     onEditServer: (Long) -> Unit,
@@ -429,6 +434,14 @@ fun SettingsScreen(
                             description = stringResource(R.string.fresh_releases_disclosure),
                             checked = freshReleasesEnabled,
                             onCheckedChange = onFreshReleasesChange,
+                        )
+                    }
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.external_artist_images_title),
+                            description = stringResource(R.string.external_artist_images_disclosure),
+                            checked = externalArtistImagesEnabled,
+                            onCheckedChange = onExternalArtistImagesChange,
                         )
                     }
                     if (activeSourceId != null) {

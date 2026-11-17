@@ -728,7 +728,10 @@ Part E is split into E1 resolver and E2 opt-in and UI. E1 is complete: `MusicBra
 `Wikidata` client and `ExternalArtistImages` (MBID or certain name match → Wikidata → Commons, bounded cache of
 definite answers, shared in-flight lookups, failures retried). Not wired; no requests yet.
 See `docs/handoffs/M3.3-artist-images-resolver.md`.
-Next: M3.3 E2, the opt-in (D10), disclosure and photos on external Similar Artists cards. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Part E2 adds the off-by-default Photos of recommended artists setting (D10), disclosure and Privacy host list,
+shared resolver wiring, server artwork for local Similar Artists and Commons photos for external candidates.
+Lookups stop on opt-out, offline and server changes. See `docs/handoffs/M3.3-artist-images-ui.md` for verification.
+Next: M3.4 Local folders; outstanding live-service/device checks for M3.3 remain in its handoffs. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

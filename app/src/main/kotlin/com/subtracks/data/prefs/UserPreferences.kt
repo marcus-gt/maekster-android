@@ -318,6 +318,15 @@ class UserPreferences(
 
     private val freshReleasesKey = booleanPreferencesKey("fresh_releases_enabled")
 
+    /** Photos of recommended artists from MusicBrainz, Wikidata and Wikimedia Commons; off until turned on (D10). */
+    fun externalArtistImagesEnabled(): Flow<Boolean> = store.data.map { it[externalArtistImagesKey] ?: false }
+
+    suspend fun setExternalArtistImagesEnabled(enabled: Boolean) {
+        store.edit { it[externalArtistImagesKey] = enabled }
+    }
+
+    private val externalArtistImagesKey = booleanPreferencesKey("external_artist_images_enabled")
+
     /** The Queue Builder picks and length for one server; sub-genre keys come from that server's library. */
     fun queueBuilderPicks(sourceId: Long): Flow<QueueBuilderPicks> =
         store.data.map { prefs ->

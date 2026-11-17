@@ -5,6 +5,9 @@ import android.os.Environment
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.UiMessages
+import com.subtracks.data.artistimages.ExternalArtistImages
+import com.subtracks.data.artistimages.OkHttpWikidata
+import com.subtracks.data.artistimages.Wikidata
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createAndroidDatabase
 import com.subtracks.data.download.ArtworkFetcher
@@ -267,6 +270,8 @@ fun appModule(
             combine(sources.offline, networkAvailable(context.applicationContext)) { off, connected -> off || !connected },
             recommendations::read,
             recommendations::refresh,
+            get<UserPreferences>().externalArtistImagesEnabled(),
+            get<ExternalArtistImages>()::imageUrl,
         )
     }
     single { SmartShuffle(get<SubtracksDatabase>().mixDao()) }
@@ -274,6 +279,8 @@ fun appModule(
     // One limiter for every MusicBrainz feature: together they stay at MusicBrainz' one request per second.
     single { MusicBrainzRateLimiter() }
     single<MusicBrainz> { OkHttpMusicBrainz(get()) }
+    single<Wikidata> { OkHttpWikidata() }
+    single { ExternalArtistImages(get(), get()) }
     single { FreshReleases(get<SubtracksDatabase>().freshReleaseDao(), get()) }
     single { FreshReleasesRefresher(get(), get<CoroutineScope>(), get<SourceRepository>()::activeSourceIdOnce) }
     viewModel {
