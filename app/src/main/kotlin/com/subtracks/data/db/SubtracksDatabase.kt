@@ -123,6 +123,8 @@ abstract class SubtracksDatabase : RoomDatabase() {
 
     abstract fun audioMuseScoreDao(): AudioMuseScoreDao
 
+    abstract fun audioMuseTrackDao(): AudioMuseTrackDao
+
     abstract fun queueDao(): QueueDao
 
     abstract fun queueOrderDao(): QueueOrderDao
