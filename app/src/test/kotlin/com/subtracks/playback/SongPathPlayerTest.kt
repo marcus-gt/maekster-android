@@ -37,6 +37,24 @@ class SongPathPlayerTest {
             assertEquals(1, started.size)
         }
 
+    @Test fun aNewPlaybackCommandSupersedesAnInFlightPath() =
+        runBlocking {
+            var intent = 0L
+            var builds = 0
+            val player =
+                SongPathPlayer({ _, _, _, _ ->
+                    builds++
+                    intent++
+                    SongPathResult.Ready(listOf("a"))
+                }, { 4L }, { intent }) { sourceId, ids -> started += sourceId to ids }
+
+            assertEquals(SongPathResult.Unavailable, player.play(from, to, 25, expectedSourceId = 5L))
+            assertEquals(0, builds)
+            assertTrue(runCatching { player.play(from, to, 25, expectedSourceId = 4L) }.exceptionOrNull() is CancellationException)
+            assertEquals(1, builds)
+            assertTrue(started.isEmpty())
+        }
+
     @Test fun songPathIsTheOnlyFiniteCollection() {
         assertEquals(listOf(QueueCollection.SongPath), QueueCollection.entries.filter { it.finite })
         assertTrue(!QueueCollection.SongPath.endless)

@@ -1,6 +1,6 @@
 package com.subtracks.data.prefs
 
-enum class DiscoverShelf { FreshReleases, Stations, SmartShuffle, QueueBuilder, Moods }
+enum class DiscoverShelf { FreshReleases, Stations, SmartShuffle, QueueBuilder, Moods, SongPath }
 
 data class DiscoverLayout(
     val order: List<DiscoverShelf> = DiscoverShelf.entries,

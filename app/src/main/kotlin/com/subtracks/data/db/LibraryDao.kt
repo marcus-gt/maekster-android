@@ -567,6 +567,32 @@ interface LibraryDao {
     ): Flow<List<AlbumSongItem>>
 
     @Query(
+        "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
+            "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
+            "WHERE songs.sourceId = :sourceId AND songs.played IS NOT NULL " +
+            "ORDER BY songs.played DESC, songs.id LIMIT 8",
+    )
+    fun songPathRecent(sourceId: Long): Flow<List<AlbumSongItem>>
+
+    @Query(
+        "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
+            "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
+            "WHERE songs.sourceId = :sourceId AND songs.playCount > 0 " +
+            "ORDER BY songs.playCount DESC, songs.id LIMIT 8",
+    )
+    fun songPathTop(sourceId: Long): Flow<List<AlbumSongItem>>
+
+    @Query(
+        "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
+            "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
+            "WHERE songs.sourceId = :sourceId AND (:exclude IS NULL OR songs.id != :exclude) ORDER BY RANDOM() LIMIT 1",
+    )
+    suspend fun songPathSurprise(
+        sourceId: Long,
+        exclude: String?,
+    ): AlbumSongItem?
+
+    @Query(
         "SELECT * FROM albums WHERE sourceId = :sourceId AND $ALBUM_SEARCH_FILTER " +
             "AND (:downloaded = 0 OR $SEARCH_ALBUM_DOWNLOADED) ORDER BY $ALBUM_SEARCH_RANK, $ALBUM_ORDER_BY_NAME_SORT_MODE LIMIT :limit",
     )

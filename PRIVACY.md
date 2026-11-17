@@ -27,7 +27,8 @@ English search text (for example "late night calm atmospheric"); the songs it re
 your local library on the device. Building a Queue Builder queue with moods picked (and refilling it) asks
 AudioMuse for the mood scores of up to 400 candidate songs by song ID; scores are kept on the device per
 server and reused, and offline only kept scores are used. "Test connection" in the AudioMuse settings sends one fixed English search
-to the address and token typed in the form, without saving them. Song Path does not make requests yet.
+to the address and token typed in the form, without saving them. Playing a Song Path sends the two selected
+endpoints (song IDs or a mood) and the requested length. The picker searches the local library.
 
 Opening a fresh release takes you to its page on `musicbrainz.org` in your browser.
 

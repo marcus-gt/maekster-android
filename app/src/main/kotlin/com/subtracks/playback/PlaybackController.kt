@@ -183,6 +183,7 @@ class PlaybackController(
     private var pendingPlay: PendingPlay? = null
     private var networkRetry: NetworkRetry? = null
     private var playbackIntentVersion = 0L
+    private var playbackCommandVersion = 0L
     private var autoplayEnabled = false
 
     /** The queue was built by the Queue Builder, so it refills from its own picks whatever the autoplay setting. */
@@ -501,6 +502,7 @@ class PlaybackController(
     }
 
     fun playAt(position: Long) {
+        playbackCommandVersion++
         scope.launch {
             startLock.withLock {
                 val player = player ?: return@withLock
@@ -845,6 +847,7 @@ class PlaybackController(
         }
 
     fun togglePlayPause() {
+        playbackCommandVersion++
         playbackIntentVersion++
         unplayableRun = 0
         val player = player ?: return
@@ -872,6 +875,7 @@ class PlaybackController(
     }
 
     fun next() {
+        playbackCommandVersion++
         unplayableRun = 0
         advance()
     }
@@ -1017,6 +1021,7 @@ class PlaybackController(
     }
 
     fun previous() {
+        playbackCommandVersion++
         unplayableRun = 0
         val player = player ?: return
         if (player.currentPositionMs > RESTART_THRESHOLD_MS) {
@@ -1054,6 +1059,7 @@ class PlaybackController(
     }
 
     fun previousTrack() {
+        playbackCommandVersion++
         val snapshot = snapshot ?: return
         if (snapshot.size == 0L) return
         val current = currentPosition() ?: return
@@ -1310,6 +1316,8 @@ class PlaybackController(
         return target?.takeIf { it != at }?.let { queueItemAt(snapshot, it) }
     }
 
+    internal fun currentPlaybackIntent(): Long = playbackCommandVersion
+
     private fun play(
         entries: List<QueueEntry>,
         startPosition: Long,
@@ -1317,6 +1325,7 @@ class PlaybackController(
         origin: QueueEntry? = null,
         collection: QueueCollection? = null,
     ) {
+        playbackCommandVersion++
         unplayableRun = 0
         if (player == null) {
             pendingPlay = PendingPlay(entries, startPosition, disableShuffle, origin, collection)

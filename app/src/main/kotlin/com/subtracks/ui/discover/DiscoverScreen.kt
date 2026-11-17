@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +64,13 @@ fun DiscoverRoute(
     val fresh by freshViewModel.state.collectAsStateWithLifecycle()
     val layout by viewModel.layout.collectAsStateWithLifecycle()
     val startingMood by viewModel.startingMood.collectAsStateWithLifecycle()
+    val startingPath by viewModel.startingPath.collectAsStateWithLifecycle()
+    val path = rememberSongPath(state.sourceId)
+    val playback by viewModel.playbackState.collectAsStateWithLifecycle()
+    val playing =
+        playback.item?.takeIf { playback.context?.sourceId == state.sourceId }?.let {
+            SongPathChoice.Song(it.id, it.title, it.artist, it.coverArtId)
+        }
     DiscoverScreen(
         state,
         busy,
@@ -76,7 +84,19 @@ fun DiscoverRoute(
         queueBuilderContent = { QueueBuilderRoute() },
         startingMood = startingMood,
         onMood = viewModel::moodRadio,
+        songPathContent = {
+            SongPathCard(path, busy, startingPath, viewModel::pathCover, playing) { from, to, length ->
+                state.sourceId?.let { viewModel.songPath(it, from, to, length) }
+            }
+        },
     )
+    val sourceId = state.sourceId
+    val pathAvailable = !state.offline && state.moods && DiscoverShelf.SongPath in layout.visible
+    if (sourceId != null && pathAvailable) {
+        SongPathPickerHost(path, sourceId, viewModel, playing)
+    } else {
+        LaunchedEffect(path) { path.editing = null }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -98,6 +118,7 @@ fun DiscoverScreen(
     queueBuilderContent: (@Composable () -> Unit)? = null,
     startingMood: RadioMood? = null,
     onMood: (RadioMood) -> Unit = {},
+    songPathContent: (@Composable () -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxSize()) {
         TopAppBar(title = { Text(stringResource(R.string.discover_title)) }, actions = { SettingsAction(false, onOpenSettings) })
@@ -131,6 +152,12 @@ fun DiscoverScreen(
                     DiscoverShelf.Stations -> {
                         if (!state.offline) {
                             item(key = section.name) { StationsSection(state.artists, busy, artistArt, onStation) }
+                        }
+                    }
+
+                    DiscoverShelf.SongPath -> {
+                        if (!state.offline && state.moods && songPathContent != null) {
+                            item(key = section.name) { songPathContent() }
                         }
                     }
 

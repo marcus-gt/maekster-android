@@ -381,6 +381,9 @@ fun appModule(
             get(),
             moodsAvailable = { id -> get<AudioMuseConfiguration>().observe(id).map { it.available } },
             playMood = get<MoodRadioPlayer>()::play,
+            library = get<SubtracksDatabase>().libraryDao(),
+            playback = get(),
+            pathPlayer = get(),
         )
     }
     viewModel {

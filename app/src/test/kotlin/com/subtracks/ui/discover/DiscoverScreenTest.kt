@@ -46,6 +46,84 @@ class DiscoverScreenTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
     private val artist = Artist(1, "ar", "Station artist", 1, null)
 
+    @Test fun songPathRespectsAvailabilityAndSwapsTheSubmittedEndpoints() {
+        val draft = SongPathDraft()
+        val song = SongPathChoice.Song("a", "Peace Piece", "Bill Evans", null)
+        val mood = SongPathChoice.Mood(com.subtracks.data.audiomuse.AudioMuseMood.RELAXED)
+        var available by mutableStateOf(false)
+        var offline by mutableStateOf(false)
+        var submitted: Triple<com.subtracks.data.audiomuse.AudioMusePathEnd, com.subtracks.data.audiomuse.AudioMusePathEnd, Int>? = null
+        val shelf = com.subtracks.data.prefs.DiscoverShelf.SongPath
+        composeRule.setContent {
+            MaeksterTheme {
+                DiscoverScreen(
+                    DiscoverState(offline = offline, moods = available),
+                    false,
+                    {},
+                    {},
+                    {},
+                    layout =
+                        com.subtracks.data.prefs.DiscoverLayout(
+                            order = listOf(shelf),
+                            hidden =
+                                com.subtracks.data.prefs.DiscoverShelf.entries
+                                    .toSet() - shelf,
+                        ),
+                    songPathContent = {
+                        SongPathCard(draft, false, false, { null }) { from, to, length ->
+                            submitted = Triple(from, to, length)
+                        }
+                    },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("songPathCard").assertDoesNotExist()
+        composeRule.runOnIdle { available = true }
+        composeRule.onNodeWithContentDescription("Play Song Path").assertIsNotEnabled()
+        composeRule.runOnIdle {
+            draft.choose(SongPathSide.From, song)
+            draft.choose(SongPathSide.To, mood)
+        }
+        composeRule.onNodeWithText("25 songs").assertExists()
+        composeRule.onNodeWithContentDescription("Swap endpoints").performClick()
+        composeRule.onNodeWithContentDescription("Play Song Path").performClick()
+        composeRule.runOnIdle { assertEquals(Triple(mood.endpoint, song.endpoint, 25), submitted) }
+        composeRule.runOnIdle { offline = true }
+        composeRule.onNodeWithTag("songPathCard").assertDoesNotExist()
+    }
+
+    @Test fun songPathPickerSelectsAMoodAtLargeTextSize() {
+        var choice: SongPathChoice? = null
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                MaeksterTheme {
+                    SongPathPicker(
+                        SongPathSide.To,
+                        current = null,
+                        other = SongPathChoice.Song("a", "Peace Piece", "Bill Evans", null),
+                        playing = null,
+                        cover = { null },
+                        suggestions = { kotlinx.coroutines.flow.flowOf(emptyList()) },
+                        search = { kotlinx.coroutines.flow.flowOf(emptyList()) },
+                        surprise = { null },
+                        onDismiss = {},
+                        onChoice = { choice = it },
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("Mood").performClick()
+        composeRule.onNodeWithText("Happy").assertExists()
+        composeRule.onNodeWithText("Party").assertDoesNotExist()
+        composeRule.onNodeWithText("Sad").performClick()
+        composeRule.runOnIdle {
+            assertEquals(SongPathChoice.Mood(com.subtracks.data.audiomuse.AudioMuseMood.SAD), choice)
+        }
+    }
+
     @Test fun actionsStartShuffleAndTheSelectedStation() {
         var shuffled = false
         var selected: Artist? = null

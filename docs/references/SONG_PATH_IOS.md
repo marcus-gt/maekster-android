@@ -31,8 +31,8 @@ gradient, icons and exact geometry are visual context, not assets or pixel-match
   and AudioMuse before implementing the UI; do not infer them from this screenshot.
 - Disable Play until both endpoints are valid. Show generation progress and a recoverable error;
   stale results must not replace a newer playback command.
-- Resolve generated tracks against the local mirror, preserve returned order and duplicate occurrences,
-  cache explicit-action results, and play a finite queue without auto-extension.
+- Resolve generated tracks against the local mirror, retain the first occurrence of each song in path order,
+  and play a finite queue without auto-extension. This action requires AudioMuse and is hidden offline.
 - Verify the selected/empty states, both endpoint directions, swap, loading/error states, offline
   fallback, TalkBack labels and 2× text. The footer actions must stay reachable at large text sizes.
 
