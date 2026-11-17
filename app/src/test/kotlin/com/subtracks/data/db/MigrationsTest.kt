@@ -93,6 +93,27 @@ class MigrationsTest {
         }
 
     @Test
+    fun theFreshReleasesMigrationAddsCascadingPerServerTables() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 58)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                MIGRATION_58_59.migrate(connection)
+                connection.execSQL(
+                    "INSERT INTO fresh_releases (sourceId, id, position, title, artistName, firstReleaseDate, typeLabel) " +
+                        "VALUES (1, 'g', 0, 'T', 'A', NULL, 'Album')",
+                )
+                connection.execSQL("INSERT INTO fresh_release_state (sourceId, refreshedAt, attemptedAt) VALUES (1, NULL, 5)")
+                connection.execSQL("INSERT INTO musicbrainz_names (sourceId, name, musicBrainzId, triedAt) VALUES (1, 'a', NULL, 5)")
+                connection.execSQL("DELETE FROM sources WHERE id = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM fresh_releases"))
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM fresh_release_state"))
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM musicbrainz_names"))
+            }
+        }
+
+    @Test
     fun thePlayEventsMigrationAddsAnEmptyCascadingTable() =
         runTest {
             driver.open(":memory:").use { connection ->

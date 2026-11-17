@@ -18,6 +18,9 @@ import com.subtracks.data.model.Disc
 import com.subtracks.data.model.DownloadCollection
 import com.subtracks.data.model.DownloadErrorConverter
 import com.subtracks.data.model.DownloadStatusConverter
+import com.subtracks.data.model.FreshRelease
+import com.subtracks.data.model.FreshReleaseState
+import com.subtracks.data.model.MusicBrainzName
 import com.subtracks.data.model.PendingAction
 import com.subtracks.data.model.PendingActionKindConverter
 import com.subtracks.data.model.PendingListen
@@ -89,8 +92,11 @@ import com.subtracks.data.model.UpNextEntry
         PlayEvent::class,
         PendingListen::class,
         SimilarSong::class,
+        FreshRelease::class,
+        FreshReleaseState::class,
+        MusicBrainzName::class,
     ],
-    version = 58,
+    version = 59,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -134,4 +140,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun pendingListenDao(): PendingListenDao
 
     abstract fun mixDao(): MixDao
+
+    abstract fun freshReleaseDao(): FreshReleaseDao
 }

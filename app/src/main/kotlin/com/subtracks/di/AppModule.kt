@@ -28,6 +28,10 @@ import com.subtracks.data.mix.SmartShuffle
 import com.subtracks.data.mix.available
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.Song
+import com.subtracks.data.musicbrainz.FreshReleases
+import com.subtracks.data.musicbrainz.MusicBrainz
+import com.subtracks.data.musicbrainz.MusicBrainzRateLimiter
+import com.subtracks.data.musicbrainz.OkHttpMusicBrainz
 import com.subtracks.data.net.ServerHeaders
 import com.subtracks.data.net.networkAvailable
 import com.subtracks.data.net.networkMode
@@ -241,6 +245,10 @@ fun appModule(
     single { NowPlayingLauncher() }
     single { SmartShuffle(get<SubtracksDatabase>().mixDao()) }
     single { QueueBuilder(get<SubtracksDatabase>().mixDao()) }
+    // One limiter for every MusicBrainz feature: together they stay at MusicBrainz' one request per second.
+    single { MusicBrainzRateLimiter() }
+    single<MusicBrainz> { OkHttpMusicBrainz(get()) }
+    single { FreshReleases(get<SubtracksDatabase>().freshReleaseDao(), get()) }
     // Offline mode or no network: mixes may only use downloaded songs.
     single(named("mixDownloadedOnly")) {
         val sources = get<SourceRepository>()

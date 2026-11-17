@@ -990,6 +990,30 @@ val MIGRATION_57_58 =
         }
     }
 
+/** The fresh-releases feed: its stored result, refresh times and MusicBrainz name lookups, per server. */
+val MIGRATION_58_59 =
+    object : Migration(58, 59) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            val cascade = "FOREIGN KEY(`sourceId`) REFERENCES `sources`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE"
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `fresh_releases` (`sourceId` INTEGER NOT NULL, `id` TEXT NOT NULL, " +
+                    "`position` INTEGER NOT NULL, `title` TEXT NOT NULL, `artistName` TEXT NOT NULL, `firstReleaseDate` TEXT, " +
+                    "`typeLabel` TEXT NOT NULL, PRIMARY KEY(`sourceId`, `id`), $cascade )",
+            )
+            connection.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_fresh_releases_sourceId_position` ON `fresh_releases` (`sourceId`, `position`)",
+            )
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `fresh_release_state` (`sourceId` INTEGER NOT NULL, `refreshedAt` INTEGER, " +
+                    "`attemptedAt` INTEGER NOT NULL, PRIMARY KEY(`sourceId`), $cascade )",
+            )
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `musicbrainz_names` (`sourceId` INTEGER NOT NULL, `name` TEXT NOT NULL, " +
+                    "`musicBrainzId` TEXT, `triedAt` INTEGER NOT NULL, PRIMARY KEY(`sourceId`, `name`), $cascade )",
+            )
+        }
+    }
+
 val MIGRATION_47_48 =
     object : Migration(47, 48) {
         override suspend fun migrate(connection: SQLiteConnection) {
@@ -1095,4 +1119,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_55_56,
         MIGRATION_56_57,
         MIGRATION_57_58,
+        MIGRATION_58_59,
     )

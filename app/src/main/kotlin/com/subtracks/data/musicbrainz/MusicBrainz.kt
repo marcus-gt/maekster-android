@@ -62,6 +62,11 @@ interface MusicBrainz {
      * case, diacritics and punctuation are ignored. A guess would follow the wrong artist.
      */
     suspend fun artistId(name: String): String?
+
+    companion object {
+        /** Artist ids per release-group search; keeps the query URL short. */
+        const val ARTISTS_PER_SEARCH = 25
+    }
 }
 
 /**
@@ -115,7 +120,7 @@ class OkHttpMusicBrainz internal constructor(
         from: String,
         to: String,
     ): List<MbReleaseGroup> =
-        artistIds.distinct().chunked(ARTISTS_PER_QUERY).flatMap { batch ->
+        artistIds.distinct().chunked(MusicBrainz.ARTISTS_PER_SEARCH).flatMap { batch ->
             val query = batch.joinToString(" OR ", "(", ")") { "arid:$it" } + " AND firstreleasedate:[$from TO $to]"
             val all = mutableListOf<MbReleaseGroup>()
             var offset = 0
@@ -232,8 +237,6 @@ class OkHttpMusicBrainz internal constructor(
     )
 
     companion object {
-        /** Artist ids per release-group search; keeps the query URL short. */
-        const val ARTISTS_PER_QUERY = 25
         const val PAGE_SIZE = 100
 
         /** A safety stop for a query that keeps paging (10,000 release groups). */

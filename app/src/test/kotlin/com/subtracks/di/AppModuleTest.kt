@@ -96,4 +96,18 @@ class AppModuleTest {
         assertSame(koin.get<QueueBuilderPlayer>(), koin.get<QueueBuilderPlayer>())
         assertNotNull(koin.get<QueueBuilderViewModel>())
     }
+
+    @Test
+    fun theModuleResolvesFreshReleasesWithOneSharedMusicBrainzLimiter() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val serverHeaders = ServerHeaders()
+        val http = OkHttpClient.Builder().addNetworkInterceptor(serverHeaders.interceptor()).build()
+        koin = startKoin { modules(appModule(context, http, serverHeaders)) }.koin
+
+        assertSame(koin.get<com.subtracks.data.musicbrainz.FreshReleases>(), koin.get<com.subtracks.data.musicbrainz.FreshReleases>())
+        assertSame(
+            koin.get<com.subtracks.data.musicbrainz.MusicBrainzRateLimiter>(),
+            koin.get<com.subtracks.data.musicbrainz.MusicBrainzRateLimiter>(),
+        )
+    }
 }
