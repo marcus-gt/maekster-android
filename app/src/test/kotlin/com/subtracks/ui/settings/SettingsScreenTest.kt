@@ -57,6 +57,29 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun autoplayIsChangedFromPlaybackSettings() {
+        val enabled = mutableStateOf(false)
+        composeRule.setContent {
+            MaeksterTheme { Settings(SettingsPage.Playback, autoplay = enabled.value, onAutoplay = { enabled.value = it }) }
+        }
+        scrollTo("Autoplay similar")
+        composeRule.onNodeWithText("Autoplay similar").performClick()
+        assertEquals(true, enabled.value)
+    }
+
+    @Test
+    fun freshReleasesConsentIsChangedFromApplicationSettingsWithDisclosure() {
+        val enabled = mutableStateOf(false)
+        composeRule.setContent {
+            MaeksterTheme { Settings(SettingsPage.Application, fresh = enabled.value, onFresh = { enabled.value = it }) }
+        }
+        scrollTo("Fresh releases")
+        composeRule.onNodeWithText(text(R.string.fresh_releases_disclosure)).assertExists()
+        composeRule.onNodeWithText("Fresh releases").performClick()
+        assertEquals(true, enabled.value)
+    }
+
+    @Test
     fun playbackLyricsRowOpensPrivacyControls() {
         composeRule.setContent { MaeksterTheme { Settings(page = SettingsPage.Playback) } }
         scrollTo(text(R.string.lyrics_title))
@@ -82,6 +105,9 @@ class SettingsScreenTest {
                     listOf(
                         R.string.settings_network_options_offline_mode,
                         R.string.settings_theme_title,
+                        R.string.settings_home_sections,
+                        R.string.settings_discover_sections,
+                        R.string.fresh_releases_title,
                         R.string.settings_material_you_title,
                         R.string.settings_sort_names_title,
                         R.string.settings_about_actions_share_logs,
@@ -90,6 +116,7 @@ class SettingsScreenTest {
                 SettingsPage.Playback to
                     listOf(
                         R.string.settings_music_options_scrobble_title,
+                        R.string.autoplay_similar,
                         R.string.listenbrainz_title,
                         R.string.settings_music_options_keep_screen_on_title,
                         R.string.lyrics_title,
@@ -294,6 +321,10 @@ class SettingsScreenTest {
         materialYouAvailable: Boolean = true,
         onMaterialYouChange: (Boolean) -> Unit = {},
         onOpenPage: (SettingsPage) -> Unit = {},
+        autoplay: Boolean = false,
+        onAutoplay: (Boolean) -> Unit = {},
+        fresh: Boolean = false,
+        onFresh: (Boolean) -> Unit = {},
     ) {
         SettingsScreen(
             sources = emptyList(),
@@ -327,6 +358,10 @@ class SettingsScreenTest {
             onBack = {},
             page = page,
             onOpenPage = onOpenPage,
+            autoplaySimilar = autoplay,
+            onAutoplayChange = onAutoplay,
+            freshReleasesEnabled = fresh,
+            onFreshReleasesChange = onFresh,
         )
     }
 

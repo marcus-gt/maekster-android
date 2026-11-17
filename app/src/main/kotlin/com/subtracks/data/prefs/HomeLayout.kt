@@ -13,23 +13,43 @@ enum class HomeShelf {
     MostPlayedArtists,
     Decades,
     Rediscover,
+    QueueBuilder,
+    ArtistPicks,
     ;
 
     val supportsGrid: Boolean get() =
         this in
-            setOf(Pinned, YourPlaylists, FavoriteAlbums, RecentlyAddedAlbums, MostPlayedAlbums, RecentlyPlayedAlbums, Rediscover)
+            setOf(Pinned, YourPlaylists, FavoriteAlbums, RecentlyAddedAlbums, MostPlayedAlbums, RecentlyPlayedAlbums, Rediscover, Genres)
 }
 
+val DEFAULT_HOME_ORDER =
+    listOf(
+        HomeShelf.Pinned,
+        HomeShelf.YourPlaylists,
+        HomeShelf.QueueBuilder,
+        HomeShelf.RecentlyStarredSongs,
+        HomeShelf.FavoriteAlbums,
+        HomeShelf.RecentlyPlayedAlbums,
+        HomeShelf.MostPlayedAlbums,
+        HomeShelf.ArtistPicks,
+        HomeShelf.RecentlyAddedAlbums,
+        HomeShelf.Rediscover,
+        HomeShelf.Genres,
+        HomeShelf.RecentlyPlayedArtists,
+        HomeShelf.MostPlayedArtists,
+        HomeShelf.Decades,
+    )
+
 data class HomeLayout(
-    val order: List<HomeShelf> = HomeShelf.entries,
-    val hidden: Set<HomeShelf> = emptySet(),
+    val order: List<HomeShelf> = DEFAULT_HOME_ORDER,
+    val hidden: Set<HomeShelf> = setOf(HomeShelf.RecentlyPlayedArtists, HomeShelf.MostPlayedArtists, HomeShelf.Decades),
     val grids: Set<HomeShelf> = emptySet(),
 ) {
     fun normalized(): HomeLayout {
         val result = order.distinct().toMutableList()
-        for (shelf in HomeShelf.entries) {
+        for (shelf in DEFAULT_HOME_ORDER) {
             if (shelf in result) continue
-            val previous = HomeShelf.entries.take(shelf.ordinal).lastOrNull { it in result }
+            val previous = DEFAULT_HOME_ORDER.takeWhile { it != shelf }.lastOrNull { it in result }
             result.add(if (previous == null) 0 else result.indexOf(previous) + 1, shelf)
         }
         return copy(order = result, grids = grids.filter { it.supportsGrid }.toSet())

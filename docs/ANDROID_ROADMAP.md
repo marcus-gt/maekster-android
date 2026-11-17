@@ -20,6 +20,15 @@ Paths: `st:` = `app/src/main/kotlin/com/subtracks/`.
 - **Crossfade is demoted** to a product decision (M3.8): Media3 has no built-in crossfade, iOS defaults it to off,
   and building it risks the single-player gapless window.
 
+## M3.C Home/Discover consolidation
+
+**DONE (17 November 2026, user-authorized).** Completed before M3.3 E/further integrations.
+M2.5 covered Home mechanics but did not finish product-level consolidation. Audit inherited sections,
+align Home hierarchy, independently edit both layouts with shared supported sections, and relocate feed
+settings. Preserve customization and separate section visibility from network consent.
+Detailed ordered tasks/acceptance criteria: `docs/HOME_DISCOVER_CONSOLIDATION.md`.
+Verification, known gaps and Git state: `docs/handoffs/M3.C-home-discover.md`. M3.3 E is next.
+
 ## Standard verification for every slice
 
 - `./gradlew :app:assembleDebug`, `:app:testDebugUnitTest`, `:app:ktlintCheck :app:lintDebug` (or the Nix `gradle`

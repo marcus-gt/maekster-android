@@ -293,6 +293,14 @@ class UserPreferences(
 
     private val replayGainPreampKey = floatPreferencesKey("replay_gain_preamp_db")
 
+    fun discoverLayout(): Flow<DiscoverLayout> = store.data.map { DiscoverLayout.decode(it[discoverLayoutKey]) }
+
+    suspend fun setDiscoverLayout(layout: DiscoverLayout) {
+        store.edit { it[discoverLayoutKey] = layout.encode() }
+    }
+
+    private val discoverLayoutKey = stringPreferencesKey("discover_layout")
+
     fun autoplaySimilar(): Flow<Boolean> = store.data.map { it[autoplaySimilarKey] ?: false }
 
     suspend fun setAutoplaySimilar(enabled: Boolean) {

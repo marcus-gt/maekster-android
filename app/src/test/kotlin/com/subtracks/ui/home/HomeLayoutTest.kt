@@ -47,7 +47,7 @@ class HomeLayoutTest {
 
     @Test
     fun homeHidesSectionsAndUsesSavedOrder() {
-        val layout = HomeLayout().move(HomeShelf.RecentlyAddedAlbums, -2).show(HomeShelf.Genres, false)
+        val layout = HomeLayout().move(HomeShelf.RecentlyAddedAlbums, -HomeShelf.entries.size).show(HomeShelf.Genres, false)
         rule.setContent {
             MaeksterTheme {
                 Surface {
@@ -74,7 +74,7 @@ class HomeLayoutTest {
                 .boundsInRoot.top
         val favorite =
             rule
-                .onNodeWithText("Favorite albums")
+                .onNodeWithText("Your favorite albums")
                 .fetchSemanticsNode()
                 .boundsInRoot.top
         assertTrue(added < favorite)
@@ -95,7 +95,7 @@ class HomeLayoutTest {
                 }
             }
         }
-        rule.onNodeWithText("Favorite albums").assertDoesNotExist()
+        rule.onNodeWithText("Your favorite albums").assertDoesNotExist()
         rule.onNodeWithText("Favorite").assertDoesNotExist()
         rule.onNodeWithText("Recently added").assertExists()
     }
@@ -120,7 +120,7 @@ class HomeLayoutTest {
         rule.onNodeWithText("Move up").assertDoesNotExist()
         rule.onNodeWithText("Move down").assertDoesNotExist()
         val handle = rule.onNodeWithContentDescription("Reorder Your playlists")
-        val target = rule.onNodeWithContentDescription("Reorder Favorite albums")
+        val target = rule.onNodeWithContentDescription("Reorder Your favorite albums")
         val distance =
             target
                 .fetchSemanticsNode()
@@ -131,7 +131,7 @@ class HomeLayoutTest {
         handle.performTouchInput { swipe(center, center + Offset(0f, distance), durationMillis = 800) }
         rule.waitForIdle()
         rule.onNodeWithText("Save").performClick()
-        assertEquals(HomeShelf.FavoriteAlbums, saved!!.order[1])
+        assertTrue(saved!!.order.indexOf(HomeShelf.YourPlaylists) > saved.order.indexOf(HomeShelf.QueueBuilder))
         assertTrue(HomeShelf.YourPlaylists in saved.hidden)
     }
 

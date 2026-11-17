@@ -82,6 +82,23 @@ class QueueBuilderViewModelTest {
         runBlocking { withTimeout(5_000) { state.first(predicate) } }
 
     @Test
+    fun twoPlacementsObserveEachOthersSavedPicks() {
+        activeSource.value = 1
+        val home = model()
+        val discover = model()
+        try {
+            home.awaitState { !it.loading }
+            discover.awaitState { !it.loading }
+            home.toggleMain("Jazz")
+            discover.awaitState { it.selection.mains == setOf("Jazz") }
+            discover.toggleDecade(1990)
+            home.awaitState { it.selection.decades == setOf(1990) && it.selection.mains == setOf("Jazz") }
+        } finally {
+            com.subtracks.cancelAndJoinBlocking(home.viewModelScope, discover.viewModelScope)
+        }
+    }
+
+    @Test
     fun picksAreSavedPerServerAndCountTheMatchingSongs() {
         activeSource.value = 1
         val model = model()

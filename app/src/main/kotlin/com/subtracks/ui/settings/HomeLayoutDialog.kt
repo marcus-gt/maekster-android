@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,11 +31,44 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.subtracks.R
+import com.subtracks.data.prefs.DiscoverLayout
+import com.subtracks.data.prefs.DiscoverShelf
 import com.subtracks.data.prefs.HomeLayout
 import com.subtracks.data.prefs.HomeShelf
 import com.subtracks.ui.home.HomeSection
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+
+internal fun HomeShelf.title(): Int =
+    when (this) {
+        HomeShelf.Pinned -> R.string.home_pinned
+        HomeShelf.YourPlaylists -> R.string.home_section_your_playlists
+        HomeShelf.QueueBuilder -> R.string.queue_builder_title
+        HomeShelf.ArtistPicks -> R.string.home_section_artist_picks
+        else -> HomeSection.valueOf(name).title
+    }
+
+internal fun DiscoverShelf.title(): Int =
+    when (this) {
+        DiscoverShelf.FreshReleases -> R.string.fresh_releases_title
+        DiscoverShelf.Stations -> R.string.discover_stations
+        DiscoverShelf.SmartShuffle -> R.string.smart_shuffle_title
+        DiscoverShelf.QueueBuilder -> R.string.queue_builder_title
+    }
+
+private data class EditorRow(
+    val key: String,
+    val title: Int,
+    val shown: Boolean,
+    val grid: Boolean?,
+)
+
+private fun HomeLayout.rows() =
+    normalized().order.map {
+        EditorRow(it.name, it.title(), it !in hidden, if (it.supportsGrid) it in grids else null)
+    }
+
+private fun DiscoverLayout.rows() = normalized().order.map { EditorRow(it.name, it.title(), it !in hidden, null) }
 
 @Composable
 internal fun HomeLayoutDialog(
@@ -42,85 +76,118 @@ internal fun HomeLayoutDialog(
     onSave: (HomeLayout) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var draft by remember { mutableStateOf(layout.normalized()) }
+    LayoutEditor(R.string.settings_home_sections, layout.rows(), HomeLayout().rows(), { rows ->
+        onSave(
+            HomeLayout(
+                rows.map { HomeShelf.valueOf(it.key) },
+                rows.filter { !it.shown }.map { HomeShelf.valueOf(it.key) }.toSet(),
+                rows.filter { it.grid == true }.map { HomeShelf.valueOf(it.key) }.toSet(),
+            ),
+        )
+    }, onDismiss)
+}
+
+@Composable
+internal fun DiscoverLayoutDialog(
+    layout: DiscoverLayout,
+    onSave: (DiscoverLayout) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    LayoutEditor(R.string.settings_discover_sections, layout.rows(), DiscoverLayout().rows(), { rows ->
+        onSave(
+            DiscoverLayout(
+                rows.map { DiscoverShelf.valueOf(it.key) },
+                rows.filter { !it.shown }.map { DiscoverShelf.valueOf(it.key) }.toSet(),
+            ),
+        )
+    }, onDismiss)
+}
+
+@Composable
+private fun LayoutEditor(
+    title: Int,
+    initial: List<EditorRow>,
+    defaults: List<EditorRow>,
+    onSave: (List<EditorRow>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Follows the stored layout until the first edit, so a dialog opened before preferences load never saves defaults.
+    var edited by remember { mutableStateOf<List<EditorRow>?>(null) }
+    val latestInitial by rememberUpdatedState(initial)
+    val draft = edited ?: initial
     val listState = rememberLazyListState()
+
+    fun move(
+        key: String,
+        target: Int,
+    ) {
+        val current = edited ?: latestInitial
+        val from = current.indexOfFirst { it.key == key }
+        if (from < 0 || target !in current.indices) return
+        edited = current.toMutableList().apply { add(target, removeAt(from)) }
+    }
     val reorderState =
         rememberReorderableLazyListState(listState) { from, to ->
-            val shelf = draft.order.firstOrNull { it.name == from.key }
-            val target = draft.order.indexOfFirst { it.name == to.key }
-            if (shelf != null && target >= 0) {
-                draft = draft.move(shelf, target - draft.order.indexOf(shelf))
-            }
+            move(from.key as String, (edited ?: latestInitial).indexOfFirst { it.key == to.key })
         }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_home_sections)) },
+        title = { Text(stringResource(title)) },
         text = {
             LazyColumn(state = listState) {
                 item(key = "reset") {
-                    TextButton(onClick = { draft = HomeLayout() }) { Text(stringResource(R.string.settings_home_reset)) }
+                    TextButton(onClick = { edited = defaults }) { Text(stringResource(R.string.settings_home_reset)) }
                 }
-                itemsIndexed(draft.order, key = { _, shelf -> shelf.name }) { index, shelf ->
-                    val title =
-                        stringResource(
-                            if (shelf ==
-                                HomeShelf.YourPlaylists
-                            ) {
-                                R.string.home_section_your_playlists
-                            } else {
-                                if (shelf == HomeShelf.Pinned) R.string.home_pinned else HomeSection.valueOf(shelf.name).title
-                            },
-                        )
-                    val upLabel = stringResource(R.string.settings_home_up)
-                    val downLabel = stringResource(R.string.settings_home_down)
-                    val reorderLabel = stringResource(R.string.settings_home_reorder, title)
-                    ReorderableItem(reorderState, key = shelf.name) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                itemsIndexed(draft, key = { _, row -> row.key }) { index, row ->
+                    val label = stringResource(row.title)
+                    val up = stringResource(R.string.settings_home_up)
+                    val down = stringResource(R.string.settings_home_down)
+                    val reorder = stringResource(R.string.settings_home_reorder, label)
+                    ReorderableItem(reorderState, key = row.key) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Rounded.DragHandle,
-                                contentDescription = reorderLabel,
-                                modifier =
-                                    Modifier.size(48.dp).draggableHandle().semantics {
-                                        customActions =
-                                            buildList {
-                                                if (index > 0) {
-                                                    add(
-                                                        CustomAccessibilityAction(upLabel) {
-                                                            draft = draft.move(shelf, -1)
-                                                            true
-                                                        },
-                                                    )
-                                                }
-                                                if (index < draft.order.lastIndex) {
-                                                    add(
-                                                        CustomAccessibilityAction(downLabel) {
-                                                            draft = draft.move(shelf, 1)
-                                                            true
-                                                        },
-                                                    )
-                                                }
+                                reorder,
+                                Modifier.size(48.dp).draggableHandle().semantics {
+                                    customActions =
+                                        buildList {
+                                            if (index > 0) {
+                                                add(
+                                                    CustomAccessibilityAction(up) {
+                                                        move(row.key, index - 1)
+                                                        true
+                                                    },
+                                                )
                                             }
-                                    },
+                                            if (index < draft.lastIndex) {
+                                                add(
+                                                    CustomAccessibilityAction(down) {
+                                                        move(row.key, index + 1)
+                                                        true
+                                                    },
+                                                )
+                                            }
+                                        }
+                                },
                             )
-                            Text(title, modifier = Modifier.weight(1f))
-                            if (shelf.supportsGrid) {
-                                val grid = shelf in draft.grids
-                                val label =
+                            Text(label, Modifier.weight(1f))
+                            if (row.grid != null) {
+                                val layoutLabel =
                                     stringResource(
                                         R.string.settings_home_layout,
-                                        stringResource(if (grid) R.string.settings_home_grid else R.string.settings_home_carousel),
+                                        stringResource(if (row.grid) R.string.settings_home_grid else R.string.settings_home_carousel),
                                     )
                                 IconButton(
-                                    onClick = { draft = draft.grid(shelf, !grid) },
-                                    modifier = Modifier.semantics { contentDescription = "$title: $label" },
+                                    onClick = { edited = draft.map { if (it.key == row.key) it.copy(grid = !row.grid) else it } },
+                                    modifier = Modifier.semantics { contentDescription = "$label: $layoutLabel" },
                                 ) {
-                                    Icon(if (grid) Icons.Rounded.GridView else Icons.Rounded.ViewCarousel, contentDescription = null)
+                                    Icon(if (row.grid) Icons.Rounded.GridView else Icons.Rounded.ViewCarousel, null)
                                 }
                             }
                             Switch(
-                                checked = shelf !in draft.hidden,
-                                onCheckedChange = { draft = draft.show(shelf, it) },
-                                modifier = Modifier.semantics { contentDescription = title },
+                                row.shown,
+                                { shown -> edited = draft.map { if (it.key == row.key) it.copy(shown = shown) else it } },
+                                Modifier.semantics { contentDescription = label },
                             )
                         }
                     }

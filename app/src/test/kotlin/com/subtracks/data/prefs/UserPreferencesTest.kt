@@ -99,9 +99,9 @@ class UserPreferencesTest {
         val legacy = HomeLayout.decode("FavoriteAlbums,YourPlaylists|Genres")
         assertEquals(emptySet<HomeShelf>(), legacy.grids)
         val decoded = HomeLayout.decode("FavoriteAlbums|Genres|FavoriteAlbums,YourPlaylists,Unknown,Genres,RecentlyStarredSongs")
-        assertEquals(setOf(HomeShelf.FavoriteAlbums, HomeShelf.YourPlaylists), decoded.grids)
+        assertEquals(setOf(HomeShelf.FavoriteAlbums, HomeShelf.YourPlaylists, HomeShelf.Genres), decoded.grids)
         assertEquals(decoded, HomeLayout.decode(decoded.encode()))
-        assertEquals(decoded.copy(grids = setOf(HomeShelf.YourPlaylists)), decoded.grid(HomeShelf.FavoriteAlbums, false))
+        assertEquals(decoded.copy(grids = setOf(HomeShelf.YourPlaylists, HomeShelf.Genres)), decoded.grid(HomeShelf.FavoriteAlbums, false))
     }
 
     @Test

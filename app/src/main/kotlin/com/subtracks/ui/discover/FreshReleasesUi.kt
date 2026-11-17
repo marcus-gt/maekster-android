@@ -101,34 +101,3 @@ private fun releaseDate(value: String?): String? {
     if (value.length < 10) return value
     return NewReleaseMatching.date(value)?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)) ?: value
 }
-
-/** The opt-in switch, saying exactly what is sent where. */
-@Composable
-fun FreshReleasesSwitch(
-    enabled: Boolean,
-    preparing: Boolean,
-    onChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier
-            .fillMaxWidth()
-            .toggleable(value = enabled, role = Role.Switch, onValueChange = onChange)
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(R.string.fresh_releases_title), style = MaterialTheme.typography.titleMedium)
-            Text(
-                stringResource(R.string.fresh_releases_disclosure),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (enabled && preparing) {
-                Text(stringResource(R.string.fresh_releases_preparing), style = MaterialTheme.typography.bodySmall)
-            }
-        }
-        Switch(checked = enabled, onCheckedChange = null)
-    }
-}

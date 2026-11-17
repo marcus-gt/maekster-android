@@ -98,6 +98,7 @@ import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.playlistUpdatedText
 import com.subtracks.ui.components.statusBarScrim
+import com.subtracks.ui.discover.QueueBuilderRoute
 import com.subtracks.ui.library.SongRow
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -215,6 +216,7 @@ private fun HomeFeedContent(
     onPlaylistsMore: () -> Unit,
 ) {
     val layout by viewModel.homeLayout.collectAsStateWithLifecycle()
+    val artistPicks by viewModel.artistPicks.collectAsStateWithLifecycle()
     val onPinnedClick: (PinnedItem) -> Unit = { item ->
         viewModel.withPinTarget(item) { target ->
             when (target) {
@@ -230,6 +232,7 @@ private fun HomeFeedContent(
         OfflineHomeScreen(
             layout = layout,
             pins = viewModel.downloadedPins.collectAsLazyPagingItems(),
+            queueBuilderContent = { QueueBuilderRoute() },
             onPinnedClick = onPinnedClick,
             onPinnedLongClick = onPinnedLongClick,
             albums = viewModel.downloadedAlbums.collectAsLazyPagingItems(),
@@ -268,6 +271,8 @@ private fun HomeFeedContent(
             onPlaylistClick = onPlaylistClick,
             onPlaylistsMore = onPlaylistsMore,
             onPlayStarred = viewModel::playStarred,
+            artistPicks = artistPicks,
+            queueBuilderContent = { QueueBuilderRoute() },
             onLongClick = onLongClick,
             onMore = onMore,
             onGenreClick = onGenreClick,
@@ -291,6 +296,7 @@ fun HomeScreen(
     onPlaylistClick: (Playlist) -> Unit = {},
     onPlaylistsMore: () -> Unit = {},
     onPlayStarred: (Song) -> Unit = {},
+    artistPicks: List<Artist> = emptyList(),
     onLongClick: (MenuTarget) -> Unit = {},
     onMore: (HomeSection) -> Unit = {},
     onGenreClick: (String) -> Unit = {},
@@ -300,6 +306,7 @@ fun HomeScreen(
     pins: LazyPagingItems<PinnedItem>? = null,
     onPinnedClick: (PinnedItem) -> Unit = {},
     onPinnedLongClick: (PinnedItem) -> Unit = {},
+    queueBuilderContent: (@Composable () -> Unit)? = null,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         if (feed.loading || (feed.isEmpty() && pins?.itemCount == 0 && pins.loadState.refresh is androidx.paging.LoadState.Loading)) {
@@ -318,7 +325,7 @@ fun HomeScreen(
         BoxWithConstraints(modifier.fillMaxSize()) {
             val pinColumns = pinGridColumns(maxWidth)
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().testTag("homeList"),
                 contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
             ) {
                 homeTitle()
@@ -329,6 +336,25 @@ fun HomeScreen(
                     }
                     if (shelf == HomeShelf.YourPlaylists) {
                         yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore, shelf in layout.grids)
+                        continue
+                    }
+                    if (shelf == HomeShelf.QueueBuilder) {
+                        queueBuilderContent?.let { queueBuilderItem(it) }
+                        continue
+                    }
+                    if (shelf == HomeShelf.ArtistPicks) {
+                        artistRow(
+                            HomeSection.MostPlayedArtists,
+                            artistPicks,
+                            coverArt,
+                            artistArt,
+                            onArtistClick,
+                            onLongClick,
+                            onMore,
+                            title = R.string.home_section_artist_picks,
+                            key = "artist-picks",
+                            showMore = false,
+                        )
                         continue
                     }
                     val section = HomeSection.valueOf(shelf.name)
@@ -360,7 +386,7 @@ fun HomeScreen(
                         }
 
                         HomeShelf.Genres -> {
-                            genreBlock(section, feed.genres, onGenreClick, onMore)
+                            genreBlock(section, feed.genres, onGenreClick, onMore, shelf in layout.grids)
                         }
 
                         HomeShelf.Decades -> {
@@ -427,6 +453,7 @@ fun OfflineHomeScreen(
     pins: LazyPagingItems<PinnedItem>? = null,
     onPinnedClick: (PinnedItem) -> Unit = {},
     onPinnedLongClick: (PinnedItem) -> Unit = {},
+    queueBuilderContent: (@Composable () -> Unit)? = null,
     offlineSongCount: Int? = null,
     onTurnOffOffline: (() -> Unit)? = null,
 ) {
@@ -448,8 +475,27 @@ fun OfflineHomeScreen(
                         )
                     }
                 }
-                if (HomeShelf.Pinned in layout.visible) {
-                    pinnedSection(pins, HomeShelf.Pinned in layout.grids, pinColumns, coverArt, onPinnedClick, onPinnedLongClick)
+                for (shelf in layout.visible) {
+                    when (shelf) {
+                        HomeShelf.Pinned -> {
+                            pinnedSection(
+                                pins,
+                                shelf in layout.grids,
+                                pinColumns,
+                                coverArt,
+                                onPinnedClick,
+                                onPinnedLongClick,
+                            )
+                        }
+
+                        HomeShelf.QueueBuilder -> {
+                            queueBuilderContent?.let { queueBuilderItem(it) }
+                        }
+
+                        else -> {
+                            Unit
+                        }
+                    }
                 }
                 downloadedAlbumRow(albums, coverArt, onAlbumClick, onLongClick) { onMore(OfflineListKind.Albums) }
                 downloadedArtistRow(artists, artistArt, onArtistClick, onLongClick) { onMore(OfflineListKind.Artists) }
@@ -712,6 +758,10 @@ private fun HomeFeed.isEmpty(): Boolean =
         recentlyAddedAlbums.isEmpty() &&
         rediscoverAlbums.isEmpty()
 
+private fun LazyListScope.queueBuilderItem(content: @Composable () -> Unit) {
+    item(key = "queue-builder") { Column(Modifier.padding(top = SECTION_TOP)) { content() } }
+}
+
 @Composable
 private fun HomeSectionHeader(
     @StringRes title: Int,
@@ -719,7 +769,7 @@ private fun HomeSectionHeader(
     onMore: (() -> Unit)?,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 24.dp, bottom = 0.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = SECTION_TOP, bottom = 0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -761,6 +811,7 @@ private val TILE_SIZE = 132.dp
 private val ARTIST_TILE_SIZE = 104.dp
 private val TILE_SPACING = 8.dp
 private val ARTIST_SPACING = 16.dp
+private val SECTION_TOP = 24.dp
 private val SECTION_CONTENT_TOP = 4.dp
 private val GENRE_ROW_SPACING = 2.dp
 private const val GENRE_ROWS = 3
@@ -889,12 +940,15 @@ private fun LazyListScope.artistRow(
     onArtistClick: (Artist) -> Unit,
     onLongClick: (MenuTarget) -> Unit,
     onMore: (HomeSection) -> Unit,
+    title: Int = section.title,
+    key: String = section.name,
+    showMore: Boolean = true,
 ) {
     if (artists.isEmpty()) return
-    item(key = "${section.name}-header") {
-        HomeSectionHeader(section.title, section.icon) { onMore(section) }
+    item(key = "$key-header") {
+        HomeSectionHeader(title, section.icon, if (showMore) ({ onMore(section) }) else null)
     }
-    item(key = "${section.name}-row") {
+    item(key = "$key-row") {
         val rowState = rememberLazyListState()
         RevealNewFrontItem(artists, rowState) { it.id }
         LazyRow(
@@ -921,6 +975,7 @@ private fun LazyListScope.genreBlock(
     genres: List<String>,
     onGenreClick: (String) -> Unit,
     onMore: (HomeSection) -> Unit,
+    grid: Boolean = false,
 ) {
     if (genres.isEmpty()) return
     item(key = "${section.name}-header") {
@@ -931,16 +986,23 @@ private fun LazyListScope.genreBlock(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
+                    .then(if (grid) Modifier else Modifier.horizontalScroll(rememberScrollState()))
                     .padding(start = 16.dp, end = 16.dp, top = SECTION_CONTENT_TOP),
         ) {
-            val rows = remember(genres) { brickRows(genres, GENRE_ROWS) }
+            val rows = remember(genres, grid) { if (grid) genres.chunked(2) else brickRows(genres, GENRE_ROWS) }
             Column(verticalArrangement = Arrangement.spacedBy(GENRE_ROW_SPACING)) {
                 rows.forEach { rowGenres ->
                     if (rowGenres.isEmpty()) return@forEach
-                    Row(horizontalArrangement = Arrangement.spacedBy(TILE_SPACING)) {
+                    Row(
+                        modifier = if (grid) Modifier.fillMaxWidth() else Modifier,
+                        horizontalArrangement = Arrangement.spacedBy(TILE_SPACING),
+                    ) {
                         rowGenres.forEach { genre ->
-                            AssistChip(onClick = { onGenreClick(genre) }, label = { Text(genre) })
+                            AssistChip(
+                                onClick = { onGenreClick(genre) },
+                                label = { Text(genre) },
+                                modifier = if (grid) Modifier.weight(1f) else Modifier,
+                            )
                         }
                     }
                 }

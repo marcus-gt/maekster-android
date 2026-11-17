@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">mækster</string>
-    <string name="home_section_favorite_albums">Favorite albums</string>
+    <string name="home_section_favorite_albums">Your favorite albums</string>
     <string name="home_pinned">Pinned</string>
     <string name="playback_waiting_preparing">Preparing</string>
     <string name="playback_waiting_buffering">Buffering</string>
@@ -382,6 +382,8 @@
     <string name="quality_custom">Custom</string>
     <string name="smart_shuffle_title">Smart Shuffle</string>
     <string name="discover_title">Discover</string>
+    <string name="settings_discover_sections">Discover sections</string>
+    <string name="home_section_artist_picks">Artist picks</string>
     <string name="autoplay_similar">Autoplay similar</string>
     <string name="similar_artists_title">Similar artists</string>
     <string name="similar_artists_refresh">Find similar artists</string>
@@ -391,11 +393,10 @@
     <string name="similar_artists_external">Open in MusicBrainz</string>
     <string name="fresh_releases_title">Fresh releases</string>
     <string name="fresh_releases_disclosure">New releases by artists in your library, found on MusicBrainz about once a day. Sends their names and MusicBrainz IDs to musicbrainz.org and loads covers from coverartarchive.org. Your server address, credentials and headers are never shared.</string>
-    <string name="fresh_releases_preparing">Looking for new releases…</string>
     <string name="autoplay_similar_description">Continue with similar songs as the queue ends. Uses your music server online and downloads offline. Paused with repeat or shuffle.</string>
     <string name="discover_shuffle_description">Favorites, recent taste and forgotten gems. A fresh mix from your library.</string>
     <string name="discover_shuffle_offline">Offline: a fresh mix from your downloaded music.</string>
-    <string name="discover_stations">Stations</string>
+    <string name="discover_stations">Stations for you</string>
     <string name="discover_stations_description">Start with an artist. See where the music takes you.</string>
     <string name="discover_stations_empty">Sync your library to find artist stations here.</string>
     <string name="instant_mix_title">Instant Mix</string>
@@ -544,11 +545,11 @@
     <string name="error_http">HTTP %1$d</string>
 
     <string name="home_section_recently_played_artists">Recently played artists</string>
-    <string name="home_section_most_played">Most played</string>
+    <string name="home_section_most_played">In heavy rotation</string>
     <string name="home_section_most_played_artists">Most played artists</string>
     <string name="home_section_genres">Genres</string>
     <string name="home_section_decades">Decades</string>
-    <string name="home_section_recently_starred">Recent favorites</string>
+    <string name="home_section_recently_starred">Your favorite songs</string>
     <string name="home_section_recently_added">Recently added</string>
     <string name="home_section_your_playlists">Your playlists</string>
     <string name="home_section_rediscover">Rediscover</string>

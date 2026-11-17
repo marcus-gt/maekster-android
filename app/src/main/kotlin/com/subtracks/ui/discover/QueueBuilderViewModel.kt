@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -124,7 +123,11 @@ class QueueBuilderViewModel(
     init {
         viewModelScope.launch {
             activeSourceId.distinctUntilChanged().collectLatest { id ->
-                picks.value = id?.let { it to preferences.queueBuilderPicks(it).first() }
+                if (id == null) {
+                    picks.value = null
+                } else {
+                    preferences.queueBuilderPicks(id).collect { picks.value = id to it }
+                }
             }
         }
     }

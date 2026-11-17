@@ -84,6 +84,7 @@ import com.subtracks.data.listenbrainz.ListenBrainzState
 import com.subtracks.data.lyrics.LyricsSource
 import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.DEFAULT_SYNC_INTERVAL_MINUTES
+import com.subtracks.data.prefs.DiscoverLayout
 import com.subtracks.data.prefs.HomeLayout
 import com.subtracks.data.prefs.LyricsPreferences
 import com.subtracks.data.prefs.MAX_REPLAY_GAIN_PREAMP_DB
@@ -140,6 +141,7 @@ private enum class SettingsDialog {
     SortNames,
     Theme,
     Home,
+    Discover,
     Lyrics,
     QuickPlaylists,
     ListenBrainz,
@@ -182,6 +184,9 @@ fun SettingsRoute(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val materialYou by viewModel.materialYou.collectAsStateWithLifecycle()
     val homeLayout by viewModel.homeLayout.collectAsStateWithLifecycle()
+    val discoverLayout by viewModel.discoverLayout.collectAsStateWithLifecycle()
+    val autoplaySimilar by viewModel.autoplaySimilar.collectAsStateWithLifecycle()
+    val freshReleasesEnabled by viewModel.freshReleasesEnabled.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -204,6 +209,12 @@ fun SettingsRoute(
         materialYou = materialYou,
         homeLayout = homeLayout,
         onHomeLayoutChange = viewModel::setHomeLayout,
+        discoverLayout = discoverLayout,
+        onDiscoverLayoutChange = viewModel::setDiscoverLayout,
+        autoplaySimilar = autoplaySimilar,
+        onAutoplayChange = viewModel::setAutoplaySimilar,
+        freshReleasesEnabled = freshReleasesEnabled,
+        onFreshReleasesChange = viewModel::setFreshReleasesEnabled,
         lyrics = lyrics,
         onLyricsSourceChange = viewModel::setLyricsSource,
         onLrclibAllowedChange = viewModel::setLrclibAllowed,
@@ -285,6 +296,12 @@ fun SettingsScreen(
     materialYou: Boolean = false,
     homeLayout: HomeLayout = HomeLayout(),
     onHomeLayoutChange: (HomeLayout) -> Unit = {},
+    discoverLayout: DiscoverLayout = DiscoverLayout(),
+    onDiscoverLayoutChange: (DiscoverLayout) -> Unit = {},
+    autoplaySimilar: Boolean = false,
+    onAutoplayChange: (Boolean) -> Unit = {},
+    freshReleasesEnabled: Boolean = false,
+    onFreshReleasesChange: (Boolean) -> Unit = {},
     materialYouAvailable: Boolean = materialYouSupported,
     onSelectSource: (Long) -> Unit,
     onEditServer: (Long) -> Unit,
@@ -399,6 +416,21 @@ fun SettingsScreen(
                                 SettingsDialog.Home
                         })
                     }
+                    item {
+                        ActionRow(
+                            title = stringResource(R.string.settings_discover_sections),
+                            icon = Icons.Rounded.Palette,
+                            onClick = { dialog = SettingsDialog.Discover },
+                        )
+                    }
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.fresh_releases_title),
+                            description = stringResource(R.string.fresh_releases_disclosure),
+                            checked = freshReleasesEnabled,
+                            onCheckedChange = onFreshReleasesChange,
+                        )
+                    }
                     if (activeSourceId != null) {
                         item {
                             ActionRow(
@@ -435,6 +467,14 @@ fun SettingsScreen(
                 }
 
                 SettingsPage.Playback -> {
+                    item {
+                        SwitchRow(
+                            title = stringResource(R.string.autoplay_similar),
+                            description = stringResource(R.string.autoplay_similar_description),
+                            checked = autoplaySimilar,
+                            onCheckedChange = onAutoplayChange,
+                        )
+                    }
                     item {
                         SwitchRow(
                             title = stringResource(R.string.settings_music_options_scrobble_title),
@@ -641,6 +681,10 @@ fun SettingsScreen(
                 onSelect = onSortNameModeChange,
                 onDismiss = { dialog = null },
             )
+        }
+
+        SettingsDialog.Discover -> {
+            DiscoverLayoutDialog(discoverLayout, onDiscoverLayoutChange, onDismiss = { dialog = null })
         }
 
         SettingsDialog.Home -> {

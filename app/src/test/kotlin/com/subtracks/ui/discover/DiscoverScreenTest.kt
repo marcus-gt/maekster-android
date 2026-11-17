@@ -54,33 +54,49 @@ class DiscoverScreenTest {
         composeRule.onNodeWithText("Smart Shuffle").performClick()
         assertEquals(true, shuffled)
         composeRule.onNodeWithText("Start station").assertDoesNotExist()
-        composeRule.onNodeWithTag("discoverList").performScrollToIndex(4)
+        composeRule.onNodeWithTag("discoverList").performScrollToIndex(0)
         composeRule.onNodeWithText(artist.name).performClick()
         assertEquals(artist, selected)
     }
 
-    @Test fun autoplaySwitchCanBeEnabledAndDisabled() {
-        var enabled by mutableStateOf(false)
+    @Test fun layoutControlsOrderAndVisibilityWithoutSettingsSwitches() {
         composeRule.setContent {
             MaeksterTheme {
                 DiscoverScreen(
-                    DiscoverState(),
+                    DiscoverState(artists = listOf(artist)),
                     false,
                     {},
                     {},
                     {},
-                    autoplaySimilar = enabled,
-                    onAutoplayChange = { enabled = it },
+                    layout =
+                        com.subtracks.data.prefs.DiscoverLayout(
+                            order =
+                                listOf(
+                                    com.subtracks.data.prefs.DiscoverShelf.QueueBuilder,
+                                    com.subtracks.data.prefs.DiscoverShelf.SmartShuffle,
+                                    com.subtracks.data.prefs.DiscoverShelf.Stations,
+                                    com.subtracks.data.prefs.DiscoverShelf.FreshReleases,
+                                ),
+                            hidden = setOf(com.subtracks.data.prefs.DiscoverShelf.Stations),
+                        ),
+                    queueBuilderContent = { androidx.compose.material3.Text("Builder marker") },
                 )
             }
         }
-        composeRule.onNodeWithTag("discoverList").performScrollToIndex(2)
-        composeRule
-            .onNodeWithText("Autoplay similar")
-            .assertIsOff()
-            .performClick()
-            .assertIsOn()
-        composeRule.onNodeWithText("Autoplay similar").performClick().assertIsOff()
+        composeRule.onNodeWithText("Autoplay similar").assertDoesNotExist()
+        composeRule.onNodeWithTag("freshReleasesSwitch").assertDoesNotExist()
+        composeRule.onNodeWithText("Stations for you").assertDoesNotExist()
+        val builderTop =
+            composeRule
+                .onNodeWithText("Builder marker")
+                .fetchSemanticsNode()
+                .boundsInRoot.top
+        val shuffleTop =
+            composeRule
+                .onNodeWithText("Smart Shuffle")
+                .fetchSemanticsNode()
+                .boundsInRoot.top
+        org.junit.Assert.assertTrue(builderTop < shuffleTop)
     }
 
     @Test fun theCardPicksGenresSubGenresAndDecadesInPlaceAndSummarisesThem() {
@@ -96,6 +112,16 @@ class DiscoverScreenTest {
                     {},
                     queueBuilder = builder,
                     queueBuilderFocus = "Jazz",
+                    layout =
+                        com.subtracks.data.prefs.DiscoverLayout(
+                            order =
+                                listOf(
+                                    com.subtracks.data.prefs.DiscoverShelf.QueueBuilder,
+                                    com.subtracks.data.prefs.DiscoverShelf.SmartShuffle,
+                                    com.subtracks.data.prefs.DiscoverShelf.Stations,
+                                    com.subtracks.data.prefs.DiscoverShelf.FreshReleases,
+                                ),
+                        ),
                     queueBuilderActions = recordingActions(calls),
                 )
             }
@@ -246,24 +272,9 @@ class DiscoverScreenTest {
         composeRule.setContent {
             MaeksterTheme { DiscoverScreen(DiscoverState(true, listOf(artist)), false, {}, {}, {}) }
         }
-        composeRule.onNodeWithText("Stations").assertDoesNotExist()
+        composeRule.onNodeWithText("Stations for you").assertDoesNotExist()
         composeRule.onNodeWithText("Smart Shuffle").assertExists()
         composeRule.onNodeWithText("Offline: a fresh mix from your downloaded music.").assertExists()
-    }
-
-    @Test fun freshReleasesOptInCanBeToggled() {
-        var enabled by mutableStateOf(false)
-        composeRule.setContent {
-            MaeksterTheme {
-                FreshReleasesSwitch(enabled, false, { enabled = it })
-            }
-        }
-        composeRule
-            .onNodeWithText("Fresh releases")
-            .assertIsOff()
-            .performClick()
-            .assertIsOn()
-        composeRule.onNodeWithText("Fresh releases").performClick().assertIsOff()
     }
 
     @Test fun freshReleasesNormal() = renderFresh(1f)
@@ -329,11 +340,9 @@ class DiscoverScreenTest {
             }
         }
         composeRule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
-        composeRule.onNodeWithTag("discoverList").performScrollToIndex(1)
-        composeRule.onRoot().captureRoboImage("src/test/screenshots/${name}_queue_builder.png")
         composeRule.onNodeWithTag("discoverList").performScrollToIndex(2)
-        composeRule.onRoot().captureRoboImage("src/test/screenshots/${name}_autoplay.png")
-        composeRule.onNodeWithTag("discoverList").performScrollToIndex(4)
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/${name}_queue_builder.png")
+        composeRule.onNodeWithTag("discoverList").performScrollToIndex(0)
         composeRule.waitForIdle()
         composeRule.onRoot().captureRoboImage("src/test/screenshots/${name}_stations.png")
     }

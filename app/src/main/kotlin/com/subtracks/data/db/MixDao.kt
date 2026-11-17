@@ -52,6 +52,30 @@ private const val BUILDER_MATCH =
 @Dao
 interface MixDao {
     @Query(
+        "SELECT * FROM artists WHERE sourceId = :sourceId AND credited = 1 AND starred IS NOT NULL ORDER BY ((rowid * 1103515245 + :day * 1013904223) % 2147483647), id LIMIT 4",
+    )
+    fun homeFavoriteArtists(
+        sourceId: Long,
+        day: Long,
+    ): kotlinx.coroutines.flow.Flow<List<com.subtracks.data.model.Artist>>
+
+    @Query(
+        "SELECT * FROM artists WHERE sourceId = :sourceId AND credited = 1 AND starred IS NULL AND played IS NOT NULL AND played < :cutoff ORDER BY played, id LIMIT 4",
+    )
+    fun homeDormantArtists(
+        sourceId: Long,
+        cutoff: Long,
+    ): kotlinx.coroutines.flow.Flow<List<com.subtracks.data.model.Artist>>
+
+    @Query(
+        "SELECT * FROM artists WHERE sourceId = :sourceId AND credited = 1 AND starred IS NULL AND played IS NULL ORDER BY ((rowid * 1103515245 + :day * 1013904223) % 2147483647), id LIMIT 4",
+    )
+    fun homeUnplayedArtists(
+        sourceId: Long,
+        day: Long,
+    ): kotlinx.coroutines.flow.Flow<List<com.subtracks.data.model.Artist>>
+
+    @Query(
         "SELECT * FROM artists WHERE sourceId = :sourceId AND credited = 1 " +
             "ORDER BY (starred IS NOT NULL) DESC, played DESC, name COLLATE NOCASE, id LIMIT 12",
     )
