@@ -700,7 +700,10 @@ Part C is implemented: off-by-default Discover Fresh releases, disclosure, cache
 app-scoped refresh and cancellation on connectivity/server/opt-in changes. Build, lint, focused tests and normal/2×
 font renders pass; the full suite has the same three Home screenshot timeouts as Part B, all passing on isolated retry.
 Live-service and device checks remain unverified. See `docs/handoffs/M3.3-fresh-releases-ui.md`.
-Next: M3.3 D, Similar Artists. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Part D1 adds the Similar Artists provider contract and Subsonic `getArtistInfo2` adapter, with bounded,
+ordered results including out-of-library artists. It is not wired yet; no new browsing requests.
+See `docs/handoffs/M3.3-similar-artists-provider.md`.
+Next: M3.3 D2, Similar Artists Room cache and orchestration, then artist/album shelves. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,
