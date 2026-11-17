@@ -45,6 +45,7 @@
     <string name="controls_pause">Pause</string>
     <string name="controls_next">Next</string>
     <string name="controls_previous">Previous</string>
+    <string name="controls_playback_position">Playback position</string>
     <string name="controls_queue">Queue</string>
     <string name="controls_more">More</string>
 

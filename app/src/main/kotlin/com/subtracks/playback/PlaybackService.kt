@@ -123,6 +123,7 @@ class PlaybackService : MediaSessionService() {
                         .build(),
                     true,
                 ).setHandleAudioBecomingNoisy(true)
+                .setWakeMode(C.WAKE_MODE_LOCAL)
                 .setMediaSourceFactory(
                     DefaultMediaSourceFactory(this)
                         .setEnableClippingInMediaPeriod(true)

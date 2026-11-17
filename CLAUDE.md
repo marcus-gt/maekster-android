@@ -101,6 +101,14 @@ Before making changes:
 
 Avoid repeating broad architecture investigations when the existing documentation provides sufficient context.
 
+### Current release-readiness handoff
+
+Milestone 4 is limited to M4.8 GrapheneOS, M4.10 background reliability, M4.9 core accessibility,
+and M4.11 GitHub APK distribution. The roadmap links the deferred Android work. Resume from
+[`docs/handoffs/M4-release-readiness.md`](docs/handoffs/M4-release-readiness.md) and record physical-device
+and release verification in [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md). Production signing
+credentials and release publication require owner approval.
+
 ### Handoffs and checkpoints
 
 - Keep one concise, agent-independent handoff per subtask, `docs/handoffs/<slice>-<topic>.md`

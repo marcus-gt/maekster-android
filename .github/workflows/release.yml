@@ -1,137 +1,75 @@
-name: Release
+name: Build signed GitHub release APK
 
-run-name: Release ${{ github.ref_name }}
+run-name: Build signed APK for ${{ inputs.tag }}
 
-# Disabled. This workflow still targets the Subtracks Play listing (package com.subtracks) and its
-# signing secrets. It stays off until maekster distribution is set up (roadmap M4.11: new signing key,
-# store listings and metadata). Tags no longer trigger it, and a manual run fails at the first step.
 on:
   workflow_dispatch:
-
-concurrency:
-  group: release
-  cancel-in-progress: false
+    inputs:
+      tag:
+        description: Existing stable vMAJOR.MINOR.PATCH tag at the selected main commit
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-apk
+  cancel-in-progress: false
+
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
+    environment: release
     runs-on: ubuntu-26.04
     timeout-minutes: 60
-    permissions:
-      contents: read
-    outputs:
-      version-code: ${{ steps.build.outputs.version-code }}
     steps:
-      - name: Refuse to run until maekster distribution exists
-        run: |
-          echo "Release publishing is disabled until maekster distribution is set up (roadmap M4.11)." >&2
-          exit 1
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - name: Check tag matches versionName
+      - name: Check the tag and signing configuration
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          SIGNING_SHA256: ${{ vars.MAEKSTER_RELEASE_CERT_SHA256 }}
+          KEYSTORE: ${{ secrets.MAEKSTER_RELEASE_KEYSTORE_BASE64 }}
+          KEY_PROPERTIES: ${{ secrets.MAEKSTER_RELEASE_KEYPROPERTIES_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.MAEKSTER_RELEASE_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.MAEKSTER_RELEASE_KEY_PASSWORD }}
         run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           version=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
-          case "$GITHUB_REF_NAME" in
-            "v$version" | "v$version"-*) ;;
-            *)
-              echo "tag $GITHUB_REF_NAME does not match versionName $version" >&2
-              exit 1
-              ;;
-          esac
+          test "$RELEASE_TAG" = "v$version"
+          test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$GITHUB_SHA"
+          [[ "$SIGNING_SHA256" =~ ^[[:xdigit:]]{64}$ ]]
+          test -n "$KEYSTORE" && test -n "$KEY_PROPERTIES" && test -n "$STORE_PASSWORD" && test -n "$KEY_PASSWORD"
       - id: build
         uses: ./.github/actions/build
         with:
-          gradle-args: ":app:assembleRelease :app:bundleRelease --no-daemon"
+          gradle-args: ":app:assembleRelease --no-daemon"
           sign: "true"
-          keystore-base64: ${{ secrets.SUBTRACKS_KEYSTORE_BASE64 }}
-          keyproperties-base64: ${{ secrets.SUBTRACKS_KEYPROPERTIES_BASE64 }}
-          keystore-password: ${{ secrets.SUBTRACKS_UPLOAD_STORE_PASSWORD }}
-          key-password: ${{ secrets.SUBTRACKS_UPLOAD_KEY_PASSWORD }}
-      - name: Export release certificate
+          keystore-base64: ${{ secrets.MAEKSTER_RELEASE_KEYSTORE_BASE64 }}
+          keyproperties-base64: ${{ secrets.MAEKSTER_RELEASE_KEYPROPERTIES_BASE64 }}
+          keystore-password: ${{ secrets.MAEKSTER_RELEASE_STORE_PASSWORD }}
+          key-password: ${{ secrets.MAEKSTER_RELEASE_KEY_PASSWORD }}
+      - name: Verify the APK and prepare release assets
         env:
-          KEYSTORE_BASE64: ${{ secrets.SUBTRACKS_KEYSTORE_BASE64 }}
-          KEYPROPERTIES_BASE64: ${{ secrets.SUBTRACKS_KEYPROPERTIES_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.SUBTRACKS_UPLOAD_STORE_PASSWORD }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          SIGNING_SHA256: ${{ vars.MAEKSTER_RELEASE_CERT_SHA256 }}
+          VERSION_CODE: ${{ steps.build.outputs.version-code }}
         run: |
-          umask 077
-          trap 'rm -f "$RUNNER_TEMP/keystore"' EXIT
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/keystore"
-          alias=$(printf '%s' "$KEYPROPERTIES_BASE64" | base64 -d | sed -n 's/^keyAlias=//p' | tr -d '\r')
-          nix develop --command keytool -exportcert -rfc -keystore "$RUNNER_TEMP/keystore" -alias "$alias" -storepass "$KEYSTORE_PASSWORD" -file app/build/outputs/release-certificate.pem
+          apk=app/build/outputs/apk/release/app-release.apk
+          signing=$(nix develop --command bash -c 'exec "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs "$1"' _ "$apk")
+          actual=$(printf '%s\n' "$signing" | awk -F ': ' '/certificate SHA-256 digest:/ {print $2}')
+          test "${actual,,}" = "${SIGNING_SHA256,,}"
+          package=$(nix develop --command bash -c 'exec "$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging "$1"' _ "$apk")
+          expected="package: name='io.github.marcus_gt.maekster' versionCode='$VERSION_CODE' versionName='${RELEASE_TAG#v}'"
+          grep -Fq "$expected" <<< "$package"
+          mkdir -p dist
+          cp "$apk" dist/maekster.apk
+          (cd dist && sha256sum maekster.apk > SHA256SUMS)
       - uses: actions/upload-artifact@v7
         with:
-          name: release
-          path: app/build/outputs
-
-  publish:
-    needs: build
-    runs-on: ubuntu-26.04
-    timeout-minutes: 60
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@v8
-        with:
-          name: release
-          path: dist
-      - uses: ./.github/actions/nix
-      - name: Detect stable tag
-        id: stable
-        run: |
-          if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "value=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Check release notes exist
-        run: |
-          test -f "metadata/en-US/changelogs/${{ needs.build.outputs.version-code }}.txt"
-          test -f "docs/releases/$GITHUB_REF_NAME.md"
-      - name: Write Play service account
-        if: steps.stable.outputs.value == 'true'
-        env:
-          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-        run: |
-          umask 077
-          printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/play.json"
-      - name: Upload to Google Play
-        if: steps.stable.outputs.value == 'true'
-        run: |
-          nix develop .#release --command fastlane supply \
-            --aab dist/bundle/release/app-release.aab \
-            --package_name com.subtracks \
-            --track "${{ vars.PLAY_TRACK || 'internal' }}" \
-            --json_key "$RUNNER_TEMP/play.json" \
-            --mapping dist/mapping/release/mapping.txt
-      - name: Remove Play service account
-        if: always()
-        run: rm -f "$RUNNER_TEMP/play.json"
-      - name: Checksums and signature
-        id: checksums
-        run: |
-          cp dist/apk/release/app-release.apk subtracks.apk
-          cp dist/bundle/release/app-release.aab subtracks.aab
-          gzip -n -9 -c dist/mapping/release/mapping.txt > mapping.txt.gz
-          sha256sum subtracks.apk subtracks.aab > SHA256SUMS
-          echo "Artifact SHA-256:"
-          sha256sum subtracks.apk subtracks.aab
-          echo "APK signature:"
-          certs=$(nix develop --command bash -c '"$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs subtracks.apk')
-          printf '%s\n' "$certs"
-          fingerprint=$(printf '%s\n' "$certs" | sed -n 's/.*certificate SHA-256 digest: //p' | head -1 | tr '[:lower:]' '[:upper:]' | sed 's/\(..\)/\1:/g; s/:$//')
-          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          args=(--verify-tag --title "$GITHUB_REF_NAME" --notes-file "docs/releases/$GITHUB_REF_NAME.md")
-          if [ "${{ steps.stable.outputs.value }}" != "true" ]; then
-            args+=(--prerelease)
-          fi
-          gh release create "$GITHUB_REF_NAME" subtracks.apk subtracks.aab SHA256SUMS dist/release-certificate.pem mapping.txt.gz "${args[@]}"
+          name: maekster-release-apk
+          path: dist/
+          if-no-files-found: error

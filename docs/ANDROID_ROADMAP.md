@@ -856,27 +856,34 @@ Lidarr is out of scope (D11).
 
 ---
 
-## Milestone 4: Android-specific excellence
+## Milestone 4 — Release readiness (active)
 
-Each item is assessed; items marked **decision** may never ship.
+Only P0 daily-use requirements are active. Keep the original slice numbers. Release sign-off requires
+physical-device and signed-upgrade evidence in the [release readiness checklist](RELEASE_READINESS.md).
+The dependency audit, emulator screen-off smoke test, 2× Now Playing test and unsigned release build
+are recorded in the [M4 handoff](handoffs/M4-release-readiness.md). The four release gates remain open.
 
-| Slice | Item | Assessment | Recommendation |
-|---|---|---|---|
-| M4.1 | Predictive back | Currently disabled in the manifest. Needs the shell from M1.3 and the Now Playing overlay to use `PredictiveBackHandler` | Do it; low risk once the shell is stable |
-| M4.2 | Adaptive layouts | The iOS app is phone-portrait only. Foldables and tablets benefit from list-detail (library ↔ album) and a side-by-side player and queue | Do a medium/expanded-width pass with window size classes; phone-first stays the target |
-| M4.3 | Widgets | Not on iOS. A Glance now-playing widget is useful | **Decision**; nice to have |
-| M4.4 | Shortcuts and automation | iOS has App Intents and Siri. Android: launcher shortcuts (Smart Shuffle, Resume, Downloads), pinned shortcuts to playlists, `MEDIA_PLAY_FROM_SEARCH` | Do it; it is the Android translation of the App Intents work |
-| M4.5 | Android Auto | Needs `MediaLibraryService` with a browse tree (the service is `MediaSessionService` today). Works without Play Services only on Android Automotive or AAOS; the phone projection app is a Google app | **Decision**; architecturally clean (browse from Room) but needs testing hardware |
-| M4.6 | Media output routing | `MediaRouter2.showSystemOutputSwitcher()` on API 34+ | Do it (small) |
-| M4.7 | Casting / UPnP / DLNA | Google Cast requires Play Services, so it could only be an optional, isolated flavour. UPnP/DLNA is a large standalone feature | Wanted, deferred (D16; issue #3). Pick Cast flavour vs UPnP/DLNA when the work starts; ordinary playback must never depend on Play Services |
-| M4.8 | GrapheneOS test plan | A checklist: no sandboxed Play, network permission toggle, Storage Scopes, hardened memory allocator with bundled SQLite and Media3 natives, background restrictions | Do it, and run it each milestone |
-| M4.9 | Accessibility pass | TalkBack across every flow, 2× font, switch access, contrast | Do it |
-| M4.10 | Battery and background | Foreground service type `mediaPlayback` declared; `AutoSync` is foreground-only; downloads through `DownloadManager`. Check behaviour under battery saver and "Restricted" app standby | Verify and document |
-| M4.11 | Distribution | F-Droid (reproducible builds already considered: `dependenciesInfo.includeInApk = false`), Obtainium from GitHub releases, optionally Play | **Decision**; F-Droid and Obtainium first. Requires a new signing key, fingerprints in `signing/README.md`, and new metadata under `metadata/` |
+| Slice | P0 area | Release gate |
+|---|---|---|
+| M4.8 | GrapheneOS compatibility | Stream, download and play offline on a physical Pixel without sandboxed Play. Verify Network and app-private storage, with stock exploit protections. |
+| M4.10 | Battery and background reliability | Play through screen lock, backgrounding and task removal while active. Verify audio focus, Bluetooth, network handoff, background downloads, recovery and power behavior. |
+| M4.9 | Core accessibility | Core navigation and playback usable with TalkBack and 200% font. Verify focus, control labels, target sizes and contrast. |
+| M4.11 | Basic distribution | Verify stable package, version and signing identity across APK updates from GitHub Releases via Obtainium. Production signing and publication need owner approval. |
 
-- **Data model:** none, except M4.5 (none: the browse tree reads Room).
-- **Known risks:** M4.5 and M4.7 can pull in proprietary components; keep any such flavour separate and optional.
-- **Completion criteria:** per item, as agreed when it is accepted.
+## Post-M4 — Android improvements (deferred)
+
+| Priority | Original slice | GitHub issue |
+|---|---|---|
+| P1 | M4.6 | [System media output switcher](https://github.com/marcus-gt/maekster-android/issues/18) |
+| P1 | M4.1 | [Predictive Back](https://github.com/marcus-gt/maekster-android/issues/19) |
+| P1 | M4.4 | [Resume and Smart Shuffle shortcuts](https://github.com/marcus-gt/maekster-android/issues/20) |
+| P2 | M4.2 | [Tablet and foldable layouts](https://github.com/marcus-gt/maekster-android/issues/21) |
+| P2 | M4.3 | [Home-screen widget](https://github.com/marcus-gt/maekster-android/issues/22) |
+| P2 | M4.5 | [Android Auto and Automotive](https://github.com/marcus-gt/maekster-android/issues/23) |
+| P2 | M4.7 | [Casting, external playback and BluOS/Navidrome investigation](https://github.com/marcus-gt/maekster-android/issues/3) |
+| P2 | M4.4 | [Advanced shortcuts and automation](https://github.com/marcus-gt/maekster-android/issues/24) |
+| P2 | M4.11 | [F-Droid](https://github.com/marcus-gt/maekster-android/issues/25) and [Google Play](https://github.com/marcus-gt/maekster-android/issues/26) |
+| P2 | M4.9 | [Advanced accessibility](https://github.com/marcus-gt/maekster-android/issues/27) |
 
 ---
 
@@ -901,7 +908,7 @@ All decided on 10 November 2026.
 | D13 | Multi-server UI | **Keep.** The existing Android server list and switching stay; the feature is wanted on iOS later too |
 | D14 | Translations | **English only.** No translation workflow; the 27 inherited partial locales are removed in M1.1 |
 | D15 | Crossfade | **Agreed.** Prototype in M3.8, drop if it compromises gapless. On hold since 16 Nov 2026 (issue #13) |
-| D16 | Casting | **Wanted, later.** Deferred to M4.7 (issue #3); ordinary playback must never depend on Play Services |
+| D16 | Casting | **Wanted, later.** Deferred to Post-M4 (former M4.7, issue #3); ordinary playback must never depend on Play Services |
 | D17 | Internet radio | **Dropped (16 Nov 2026).** Not needed; M3.9 is skipped |
 
 ## Smallest sensible first implementation slice

@@ -17,9 +17,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
@@ -65,6 +68,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.PlatformTextStyle
@@ -468,11 +472,18 @@ fun NowPlayingScreen(
                         )
                     },
                 ) { padding ->
+                    val largeTextLayout =
+                        if (LocalDensity.current.fontScale >= 2f) {
+                            Modifier.verticalScroll(rememberScrollState()).heightIn(min = 520.dp)
+                        } else {
+                            Modifier
+                        }
                     Column(
                         modifier =
                             Modifier
                                 .padding(padding)
                                 .fillMaxSize()
+                                .then(largeTextLayout)
                                 .padding(horizontal = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -646,6 +657,7 @@ fun NowPlayingScreen(
                         }
                         var sliderDragging by remember { mutableStateOf(false) }
                         var dragPosition by remember { mutableFloatStateOf(0f) }
+                        val seekLabel = stringResource(R.string.controls_playback_position)
                         Slider(
                             value = if (sliderDragging) dragPosition else positionMs.toFloat(),
                             onValueChange = {
@@ -658,7 +670,7 @@ fun NowPlayingScreen(
                             },
                             valueRange = 0f..state.durationMs.toFloat().coerceAtLeast(1f),
                             enabled = state.durationMs > 0,
-                            modifier = Modifier.padding(top = 20.dp),
+                            modifier = Modifier.padding(top = 20.dp).semantics { contentDescription = seekLabel },
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
@@ -699,14 +711,14 @@ fun NowPlayingScreen(
                                     modifier = Modifier.size(30.dp),
                                 )
                             }
-                            IconButton(onClick = onPrevious, modifier = Modifier.size(72.dp)) {
+                            IconButton(onClick = onPrevious, modifier = Modifier.weight(1f, fill = false).size(72.dp)) {
                                 Icon(
                                     imageVector = Icons.Rounded.SkipPrevious,
                                     contentDescription = stringResource(R.string.controls_previous),
                                     modifier = Modifier.size(60.dp),
                                 )
                             }
-                            IconButton(onClick = onPlayPause, modifier = Modifier.size(playButtonSize)) {
+                            IconButton(onClick = onPlayPause, modifier = Modifier.weight(1.25f, fill = false).size(playButtonSize)) {
                                 if (state.waiting != null || (state.isBuffering && state.isPlaying)) {
                                     Box(
                                         modifier =
@@ -742,7 +754,7 @@ fun NowPlayingScreen(
                                     )
                                 }
                             }
-                            IconButton(onClick = onNext, modifier = Modifier.size(72.dp)) {
+                            IconButton(onClick = onNext, modifier = Modifier.weight(1f, fill = false).size(72.dp)) {
                                 Icon(
                                     imageVector = Icons.Rounded.SkipNext,
                                     contentDescription = stringResource(R.string.controls_next),
@@ -770,7 +782,7 @@ fun NowPlayingScreen(
                         ) {
                             IconButton(
                                 onClick = { onShowLyrics(!showLyrics) },
-                                modifier = Modifier.size(40.dp).semantics { selected = showLyrics },
+                                modifier = Modifier.size(48.dp).semantics { selected = showLyrics },
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Lyrics,
@@ -779,14 +791,14 @@ fun NowPlayingScreen(
                                     modifier = Modifier.size(30.dp),
                                 )
                             }
-                            IconButton(onClick = onQueue, modifier = Modifier.size(40.dp)) {
+                            IconButton(onClick = onQueue, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
                                     contentDescription = stringResource(R.string.controls_queue),
                                     modifier = Modifier.size(30.dp),
                                 )
                             }
-                            IconButton(onClick = onMore, modifier = Modifier.size(40.dp)) {
+                            IconButton(onClick = onMore, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     imageVector = Icons.Rounded.MoreHoriz,
                                     contentDescription = stringResource(R.string.controls_more),
