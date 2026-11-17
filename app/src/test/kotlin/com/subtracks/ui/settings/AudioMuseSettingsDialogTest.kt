@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.audiomuse.AudioMuseConfigurationState
+import com.subtracks.data.audiomuse.AudioMuseTestResult
 import com.subtracks.ui.theme.MaeksterTheme
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -38,10 +39,77 @@ class AudioMuseSettingsDialogTest {
         scale: Float = 1f,
         onSave: (String, String, Boolean) -> Unit = { _, _, _ -> },
         onRemove: () -> Unit = {},
+        offline: Boolean = false,
+        onTest: (String, String, Boolean) -> Unit = { _, _, _ -> },
+        onInputsChanged: () -> Unit = {},
     ) {
         RuntimeEnvironment.setFontScale(scale)
         rule.setContent {
-            MaeksterTheme { AudioMuseSettingsDialog("My server", state, form, onSave, onRemove, {}) }
+            MaeksterTheme {
+                AudioMuseSettingsDialog("My server", state, form, onSave, onRemove, {}, offline, onTest, onInputsChanged)
+            }
+        }
+    }
+
+    @Test fun testingSendsTheFormInputsAndEveryEditInvalidatesTheResult() {
+        val tests = mutableListOf<Triple<String, String, Boolean>>()
+        var edits = 0
+        show(
+            AudioMuseConfigurationState("https://old/", true),
+            onTest = { url, token, keep -> tests += Triple(url, token, keep) },
+            onInputsChanged = { edits++ },
+        )
+        rule.onNodeWithTag("audiomuse-test").performScrollTo().performClick()
+        rule.onNodeWithTag("audiomuse-keep-token").performScrollTo().performClick()
+        rule.onNodeWithTag("audiomuse-token").performScrollTo().performTextInput("x")
+        rule.onNodeWithTag("audiomuse-test").performScrollTo().performClick()
+        rule.onNodeWithTag("audiomuse-url").performScrollTo().performTextInput("y")
+        assertEquals(listOf(Triple("https://old/", "", true), Triple("https://old/", "x", false)), tests)
+        assertEquals(3, edits)
+    }
+
+    @Test fun offlineOrBusyDisablesTestingAndOfflineSaysWhy() {
+        show(AudioMuseConfigurationState("https://old/"), offline = true)
+        rule.onNodeWithTag("audiomuse-test").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithText("Testing needs a network connection.").assertExists()
+    }
+
+    @Test fun aRunningTestShowsProgressAndBlocksOtherActions() {
+        show(AudioMuseConfigurationState("https://old/"), AudioMuseForm(busy = true, testing = true))
+        rule.onNodeWithText("Testing…").performScrollTo().assertExists()
+        rule.onNodeWithTag("audiomuse-test").assertIsNotEnabled()
+        rule.onNodeWithText("Save settings").assertIsNotEnabled()
+        rule.onNodeWithText("Remove AudioMuse").assertIsNotEnabled()
+    }
+
+    @Test fun resultsExplainThemselves() {
+        val form = mutableStateOf(AudioMuseForm(test = AudioMuseTestResult.Connected(5)))
+        rule.setContent {
+            MaeksterTheme {
+                AudioMuseSettingsDialog(
+                    "My server",
+                    AudioMuseConfigurationState("https://old/"),
+                    form.value,
+                    { _, _, _ -> },
+                    {},
+                    {},
+                )
+            }
+        }
+        val expected =
+            listOf(
+                AudioMuseTestResult.Connected(5) to "Connected. 5 tracks matched a test search.",
+                AudioMuseTestResult.Connected(1) to "Connected. 1 track matched a test search.",
+                AudioMuseTestResult.Connected(0) to
+                    "Connected, but no tracks matched a test search. AudioMuse may not have analysed your library yet.",
+                AudioMuseTestResult.Unauthorized to "AudioMuse rejected the token.",
+                AudioMuseTestResult.NotAudioMuse to "This address did not answer like AudioMuse. Check the URL.",
+                AudioMuseTestResult.Unreachable to "Could not reach AudioMuse. Check the address and your network.",
+                AudioMuseTestResult.Failed to "AudioMuse answered with an error. Try again later.",
+            )
+        for ((result, text) in expected) {
+            form.value = AudioMuseForm(test = result)
+            rule.onNodeWithText(text).performScrollTo().assertIsDisplayed()
         }
     }
 
@@ -110,6 +178,18 @@ class AudioMuseSettingsDialogTest {
     @Test fun normal() = render(1f)
 
     @Test fun largeFont() = render(2f)
+
+    @Test fun testedNormal() = renderTested(1f)
+
+    @Test fun testedLargeFont() = renderTested(2f)
+
+    private fun renderTested(scale: Float) {
+        show(AudioMuseConfigurationState("https://muse.example/", true), AudioMuseForm(test = AudioMuseTestResult.Connected(5)), scale)
+        rule.mainClock.advanceTimeBy(1_000)
+        rule.waitForIdle()
+        rule.onNodeWithTag("audiomuse-test-result").performScrollTo().assertIsDisplayed()
+        rule.onRoot().captureRoboImage("src/test/screenshots/audiomuse_settings_tested_$scale.png")
+    }
 
     private fun render(scale: Float) {
         show(AudioMuseConfigurationState("http://local:8000/", true, true), scale = scale)

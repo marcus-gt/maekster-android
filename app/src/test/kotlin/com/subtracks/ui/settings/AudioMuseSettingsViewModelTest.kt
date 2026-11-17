@@ -3,14 +3,17 @@ package com.subtracks.ui.settings
 import androidx.lifecycle.viewModelScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.audiomuse.AudioMuseConfiguration
+import com.subtracks.data.audiomuse.AudioMuseTestResult
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.model.Source
 import com.subtracks.data.security.FakeCredentialStore
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -52,8 +55,15 @@ class AudioMuseSettingsViewModelTest {
             Dispatchers.resetMain()
         }
 
+    private val offline = MutableStateFlow(false)
+    private val tested = mutableListOf<Pair<String, String?>>()
+    private var testResult: suspend () -> AudioMuseTestResult = { AudioMuseTestResult.Connected(5) }
+
     private suspend fun create() =
-        AudioMuseSettingsViewModel(2, configuration).also {
+        AudioMuseSettingsViewModel(2, configuration, offline) {
+            tested += it.url to it.token
+            testResult()
+        }.also {
             model = it
             it.state.filterNotNull().first()
         }
@@ -99,6 +109,55 @@ class AudioMuseSettingsViewModelTest {
             assertEquals("old", configuration.connection(2)!!.token)
             vm.save("not a url?", "x", false)
             assertEquals(AudioMuseSettingsError.Invalid, vm.form.first { !it.busy }.error)
+        }
+
+    @Test fun testingUsesTheFormInputsAndTheSavedTokenOnlyAtTheSameUrlWithoutSaving() =
+        runBlocking {
+            configuration.save(2, "https://two", "two-secret")
+            val vm = create()
+            vm.test("https://two/", "", true)
+            assertEquals(AudioMuseTestResult.Connected(5), vm.form.first { !it.busy }.test)
+            vm.test("https://other", "", true)
+            assertEquals(AudioMuseSettingsError.Invalid, vm.form.first { !it.busy }.error)
+            vm.test("other", " typed ", false)
+            vm.test("https://blank", "  ", false)
+            vm.form.first { !it.busy }
+            assertEquals(listOf("https://two/" to "two-secret", "https://other/" to "typed", "https://blank/" to null), tested)
+            val saved = configuration.connection(2)!!
+            assertEquals("https://two/" to "two-secret", saved.url to saved.token)
+        }
+
+    @Test fun offlineTestingMakesNoRequest() =
+        runBlocking {
+            configuration.save(2, "https://two", "two-secret")
+            offline.value = true
+            val vm = create()
+            vm.test("https://two/", "", true)
+            assertEquals(AudioMuseForm(), vm.form.value)
+            assertTrue(tested.isEmpty())
+        }
+
+    @Test fun editingCancelsARunningTestAndClearsAnOutdatedResult() =
+        runBlocking {
+            val vm = create()
+            val release = CompletableDeferred<AudioMuseTestResult>()
+            testResult = { release.await() }
+            vm.test("https://two", "", false)
+            assertTrue(vm.form.value.testing)
+            vm.inputsChanged()
+            release.complete(AudioMuseTestResult.Connected(1))
+            assertEquals(AudioMuseForm(), vm.form.value)
+            testResult = { AudioMuseTestResult.Unauthorized }
+            vm.test("https://two", "wrong", false)
+            assertEquals(AudioMuseTestResult.Unauthorized, vm.form.first { !it.busy }.test)
+            vm.inputsChanged()
+            assertNull(vm.form.value.test)
+            vm.test("https://two", "wrong", false)
+            vm.form.first { !it.busy }
+            vm.save("https://two", "right", false)
+            val afterSave = vm.form.first { !it.busy }
+            assertTrue(afterSave.saved)
+            assertNull(afterSave.test)
         }
 
     @Test fun removalIsScopedToTheBoundServer() =

@@ -9,6 +9,7 @@ import com.subtracks.data.artistimages.ExternalArtistImages
 import com.subtracks.data.artistimages.OkHttpWikidata
 import com.subtracks.data.artistimages.Wikidata
 import com.subtracks.data.audiomuse.AudioMuseConfiguration
+import com.subtracks.data.audiomuse.AudioMuseConnectionTester
 import com.subtracks.data.audiomuse.AudioMuseScoreAccess
 import com.subtracks.data.audiomuse.AudioMuseTrackResolver
 import com.subtracks.data.audiomuse.MoodRadioBuilder
@@ -397,7 +398,16 @@ fun appModule(
     }
     single { MoodRadioBuilder(get(), get(), get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess"))) }
     single { MoodRadioPlayer.of(get(), get<SourceRepository>()::activeSourceIdOnce, get()) }
-    viewModel { params -> AudioMuseSettingsViewModel(params.get<Long>(), get()) }
+    viewModel { params ->
+        val sources = get<SourceRepository>()
+        val tester = AudioMuseConnectionTester()
+        AudioMuseSettingsViewModel(
+            params.get<Long>(),
+            get(),
+            combine(sources.offline, networkAvailable(context.applicationContext)) { offline, connected -> offline || !connected },
+            tester::test,
+        )
+    }
     viewModel {
         val sync = get<SyncManager>()
         val database = context.getDatabasePath("subtracks.db")

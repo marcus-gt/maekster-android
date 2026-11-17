@@ -24,7 +24,8 @@ will go only to the configured AudioMuse host and contain its own token, song ID
 choices. Music server credentials and custom headers are never sent to AudioMuse. Requests are made only
 when you start something that needs AudioMuse: tapping a mood radio on Discover sends that mood's fixed
 English search text (for example "late night calm atmospheric"); the songs it returns are matched against
-your local library on the device. Song Path does not make requests yet.
+your local library on the device. "Test connection" in the AudioMuse settings sends one fixed English search
+to the address and token typed in the form, without saving them. Song Path does not make requests yet.
 
 Opening a fresh release takes you to its page on `musicbrainz.org` in your browser.
 

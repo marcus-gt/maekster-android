@@ -713,6 +713,18 @@
     <string name="audiomuse_invalid">Check the URL and token. The URL must not contain credentials, a query or a fragment.</string>
     <string name="audiomuse_save_failed">Could not save these settings. Try again.</string>
     <string name="audiomuse_save">Save settings</string>
+    <string name="audiomuse_test">Test connection</string>
+    <string name="audiomuse_testing">Testing…</string>
+    <string name="audiomuse_test_offline">Testing needs a network connection.</string>
+    <plurals name="audiomuse_test_connected">
+        <item quantity="one">Connected. %d track matched a test search.</item>
+        <item quantity="other">Connected. %d tracks matched a test search.</item>
+    </plurals>
+    <string name="audiomuse_test_no_matches">Connected, but no tracks matched a test search. AudioMuse may not have analysed your library yet.</string>
+    <string name="audiomuse_test_unauthorized">AudioMuse rejected the token.</string>
+    <string name="audiomuse_test_not_audiomuse">This address did not answer like AudioMuse. Check the URL.</string>
+    <string name="audiomuse_test_unreachable">Could not reach AudioMuse. Check the address and your network.</string>
+    <string name="audiomuse_test_failed">AudioMuse answered with an error. Try again later.</string>
     <string name="audiomuse_remove">Remove AudioMuse</string>
     <string name="audiomuse_remove_title">Remove AudioMuse settings?</string>
     <string name="audiomuse_remove_body">Removes the AudioMuse URL and token for this music server.</string>

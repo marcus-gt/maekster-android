@@ -2,12 +2,21 @@ package com.subtracks.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -22,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -35,11 +45,16 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import com.subtracks.R
 import com.subtracks.data.audiomuse.AudioMuseConfiguration
 import com.subtracks.data.audiomuse.AudioMuseConfigurationState
+import com.subtracks.data.audiomuse.AudioMuseConnection
+import com.subtracks.data.audiomuse.AudioMuseTestResult
 import com.subtracks.data.audiomuse.normalizeAudioMuseUrl
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
@@ -51,15 +66,67 @@ data class AudioMuseForm(
     val busy: Boolean = false,
     val saved: Boolean = false,
     val error: AudioMuseSettingsError? = null,
+    val testing: Boolean = false,
+    /** The last test of the inputs as they are now; cleared on any edit, save or removal. */
+    val test: AudioMuseTestResult? = null,
 )
 
 class AudioMuseSettingsViewModel(
     private val sourceId: Long,
     private val configuration: AudioMuseConfiguration,
+    offline: Flow<Boolean> = flowOf(false),
+    private val tester: suspend (AudioMuseConnection) -> AudioMuseTestResult = { AudioMuseTestResult.Unreachable },
 ) : ViewModel() {
     val state = configuration.observe(sourceId).stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val offline = offline.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     private val mutableForm = MutableStateFlow(AudioMuseForm())
     val form = mutableForm.asStateFlow()
+    private var testJob: Job? = null
+
+    /**
+     * Tests the form's URL and token (the saved token only at the same URL, as [save] would) without saving. Offline
+     * it makes no request.
+     */
+    fun test(
+        url: String,
+        token: String,
+        keepToken: Boolean,
+    ) {
+        if (mutableForm.value.busy || state.value == null || offline.value) return
+        mutableForm.value = AudioMuseForm(busy = true, testing = true)
+        testJob =
+            viewModelScope.launch {
+                try {
+                    val normalized = normalizeAudioMuseUrl(url)
+                    val secret =
+                        if (keepToken) {
+                            val previous = configuration.connection(sourceId)
+                            require(previous != null && previous.url == normalized)
+                            previous.token
+                        } else {
+                            token.trim().also { clean -> require(clean.none(Char::isISOControl)) }.ifEmpty { null }
+                        }
+                    mutableForm.value = AudioMuseForm(test = tester(AudioMuseConnection(normalized, secret)))
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: IllegalArgumentException) {
+                    mutableForm.value = AudioMuseForm(error = AudioMuseSettingsError.Invalid)
+                } catch (_: Exception) {
+                    mutableForm.value = AudioMuseForm(test = AudioMuseTestResult.Failed)
+                }
+            }
+    }
+
+    /** The inputs changed: a running test or its result no longer describes them. */
+    fun inputsChanged() {
+        val current = mutableForm.value
+        if (current.testing) {
+            testJob?.cancel()
+            mutableForm.value = AudioMuseForm()
+        } else if (current.test != null || current.error != null) {
+            mutableForm.value = current.copy(test = null, error = null)
+        }
+    }
 
     fun save(
         url: String,
@@ -124,8 +191,21 @@ fun AudioMuseSettingsRoute(
         val model: AudioMuseSettingsViewModel = koinViewModel { parametersOf(sourceId) }
         val state by model.state.collectAsStateWithLifecycle()
         val form by model.form.collectAsStateWithLifecycle()
+        val offline by model.offline.collectAsStateWithLifecycle()
         androidx.compose.runtime.key(sourceId) {
-            state?.let { AudioMuseSettingsDialog(serverName, it, form, model::save, model::disconnect, onDismiss) }
+            state?.let {
+                AudioMuseSettingsDialog(
+                    serverName,
+                    it,
+                    form,
+                    model::save,
+                    model::disconnect,
+                    onDismiss,
+                    offline = offline,
+                    onTest = model::test,
+                    onInputsChanged = model::inputsChanged,
+                )
+            }
         }
     }
 }
@@ -138,6 +218,9 @@ fun AudioMuseSettingsDialog(
     onSave: (String, String, Boolean) -> Unit,
     onDisconnect: () -> Unit,
     onDismiss: () -> Unit,
+    offline: Boolean = false,
+    onTest: (String, String, Boolean) -> Unit = { _, _, _ -> },
+    onInputsChanged: () -> Unit = {},
 ) {
     var url by remember(state.url) { mutableStateOf(state.url.orEmpty()) }
     var token by remember { mutableStateOf("") }
@@ -167,6 +250,7 @@ fun AudioMuseSettingsDialog(
                     onValueChange = {
                         url = it
                         keepToken = false
+                        onInputsChanged()
                     },
                     label = { Text(stringResource(R.string.audiomuse_url)) },
                     enabled = !form.busy,
@@ -179,7 +263,10 @@ fun AudioMuseSettingsDialog(
                     androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = keepToken,
-                            onCheckedChange = { keepToken = it },
+                            onCheckedChange = {
+                                keepToken = it
+                                onInputsChanged()
+                            },
                             enabled = !form.busy,
                             modifier = Modifier.testTag("audiomuse-keep-token"),
                         )
@@ -188,7 +275,10 @@ fun AudioMuseSettingsDialog(
                 }
                 OutlinedTextField(
                     value = token,
-                    onValueChange = { token = it },
+                    onValueChange = {
+                        token = it
+                        onInputsChanged()
+                    },
                     label = { Text(stringResource(R.string.audiomuse_token)) },
                     enabled = !form.busy && !(canKeep && keepToken),
                     singleLine = true,
@@ -197,6 +287,18 @@ fun AudioMuseSettingsDialog(
                     modifier = Modifier.fillMaxWidth().testTag("audiomuse-token"),
                 )
                 Text(stringResource(R.string.audiomuse_token_hint))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(
+                        onClick = { onTest(url, token, canKeep && keepToken) },
+                        enabled = url.isNotBlank() && !form.busy && !offline,
+                        modifier = Modifier.testTag("audiomuse-test"),
+                    ) {
+                        Text(stringResource(if (form.testing) R.string.audiomuse_testing else R.string.audiomuse_test))
+                    }
+                    if (form.testing) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                }
+                if (offline) Text(stringResource(R.string.audiomuse_test_offline), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                form.test?.let { AudioMuseTestResultRow(it) }
                 if (form.saved) Text(stringResource(R.string.audiomuse_saved))
                 form.error?.let {
                     Text(
@@ -237,6 +339,53 @@ fun AudioMuseSettingsDialog(
                 }) { Text(stringResource(R.string.audiomuse_remove)) }
             },
             dismissButton = { TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.actions_cancel)) } },
+        )
+    }
+}
+
+@Composable
+private fun AudioMuseTestResultRow(result: AudioMuseTestResult) {
+    val connected = result is AudioMuseTestResult.Connected
+    val color = if (connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.testTag("audiomuse-test-result"),
+    ) {
+        Icon(
+            if (connected) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            when (result) {
+                is AudioMuseTestResult.Connected -> {
+                    if (result.matches == 0) {
+                        stringResource(R.string.audiomuse_test_no_matches)
+                    } else {
+                        pluralStringResource(R.plurals.audiomuse_test_connected, result.matches, result.matches)
+                    }
+                }
+
+                AudioMuseTestResult.Unauthorized -> {
+                    stringResource(R.string.audiomuse_test_unauthorized)
+                }
+
+                AudioMuseTestResult.NotAudioMuse -> {
+                    stringResource(R.string.audiomuse_test_not_audiomuse)
+                }
+
+                AudioMuseTestResult.Unreachable -> {
+                    stringResource(R.string.audiomuse_test_unreachable)
+                }
+
+                AudioMuseTestResult.Failed -> {
+                    stringResource(R.string.audiomuse_test_failed)
+                }
+            },
+            color = color,
+            modifier = Modifier.weight(1f),
         )
     }
 }
