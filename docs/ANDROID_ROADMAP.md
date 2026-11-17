@@ -794,6 +794,27 @@ Lidarr is out of scope (D11).
   (pool 200), resolves locally, rank-weighted shuffles and plays an endless queue labelled "<Mood> radio";
   autoplay similar songs continue it. No match, no local match, unavailable and failure each get a message.
   See `docs/handoffs/M3.5-mood-radios.md`. **D2** adds the Queue Builder mood picks and refill below.
+- **B3 — AudioMuse connection test (added 17 Nov 2026, user request, iOS screenshot):** a "Test" action in
+  the AudioMuse settings dialog. iOS shows "Test and Update" and reports e.g. "Connected — 5 tracks matched
+  a test search". On Android: an explicit action (never on typing or opening) that checks the URL/token in the
+  form (including a retained saved token) with warmup + a small fixed test search, then reports connected
+  with the match count, unauthorized (401/403), not found/not AudioMuse, unreachable/timeout or invalid
+  response, without logging the token or exception details. Decide with the user whether a successful test
+  also saves (iOS combines them) or stays separate from Save. Offline: disabled with a reason. Tests: fake
+  client for each outcome, busy state, a result cleared when URL/token changes, normal/2× text.
+- **S1 — Settings > Integrations page (added 17 Nov 2026, user request, iOS screenshots):** M1.4 deferred
+  Integrations until there was a first integration; there are now several, scattered: ListenBrainz under
+  Playback; Fresh releases, external artist images and AudioMuse under Application. iOS groups them in one
+  Settings row ("Integrations", puzzle-piece icon) opening a list (ListenBrainz, AudioMuse, Lidarr, Open
+  Releases In). On Android: an Integrations category on the Settings root (between Storage and About)
+  opening a page with ListenBrainz, AudioMuse (per active server, hidden or explained without one), Fresh
+  releases (MusicBrainz) and external artist images (Wikidata/Commons), each keeping its disclosure. Lidarr
+  is out of scope (D11); check whether "Open Releases In" has an Android counterpart before adding it.
+  Move, don't duplicate: every setting stays reachable exactly once. Update `SettingsScreenTest`, the
+  Settings screenshots and PRIVACY.md references if they name a location.
+- **Open question from the iOS AudioMuse screenshot:** iOS mood radios fall back to library genre/BPM/mood
+  tags without AudioMuse; Android D1 shows Moods only with AudioMuse (per D above). Confirm with the user
+  before changing that.
 - **D — moods in Discover and Queue Builder:** include both playable mood radios and mood picks in
   the existing Queue Builder card/picker. Queue Builder combines moods with its genre/sub-genre and
   decade picks, saves them per server and uses the same picks when refilling. Mood controls appear
