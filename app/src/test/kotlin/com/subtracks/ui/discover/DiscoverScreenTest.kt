@@ -93,6 +93,36 @@ class DiscoverScreenTest {
         composeRule.onNodeWithTag("songPathCard").assertDoesNotExist()
     }
 
+    @Test fun songPathSearchKeepsThePickerInPlaceAsResultsChange() {
+        composeRule.setContent {
+            MaeksterTheme {
+                SongPathPicker(
+                    SongPathSide.To,
+                    current = null,
+                    other = null,
+                    playing = null,
+                    cover = { null },
+                    suggestions = { kotlinx.coroutines.flow.flowOf(emptyList()) },
+                    search = { kotlinx.coroutines.flow.flowOf(emptyList()) },
+                    surprise = { null },
+                    onDismiss = {},
+                    onChoice = {},
+                )
+            }
+        }
+
+        val heading = composeRule.onNodeWithText("To")
+        composeRule.onNodeWithText("Surprise Me").assertExists()
+        val initialTop = heading.fetchSemanticsNode().boundsInRoot.top
+        val search = composeRule.onNodeWithText("Search songs")
+        search.performTextInput("x")
+        composeRule.onNodeWithText("Enter at least two characters to search.").assertExists()
+        assertEquals(initialTop, heading.fetchSemanticsNode().boundsInRoot.top)
+        search.performTextInput("y")
+        composeRule.waitUntil(5_000) { composeRule.onAllNodesWithText("No results for “xy”.").fetchSemanticsNodes().isNotEmpty() }
+        assertEquals(initialTop, heading.fetchSemanticsNode().boundsInRoot.top)
+    }
+
     @Test fun songPathPickerSelectsAMoodAtLargeTextSize() {
         var choice: SongPathChoice? = null
         composeRule.setContent {

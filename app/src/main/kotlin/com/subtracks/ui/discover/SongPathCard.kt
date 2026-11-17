@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,6 +32,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -269,8 +270,11 @@ internal fun SongPathPicker(
     val scope = rememberCoroutineScope()
     var surprising by remember { mutableStateOf(false) }
     var surpriseError by remember { mutableStateOf<Int?>(null) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(Modifier.fillMaxWidth().height(460.dp).padding(horizontal = 16.dp)) {
             Text(
                 stringResource(side.label),
                 style = MaterialTheme.typography.titleLarge,
@@ -282,7 +286,7 @@ internal fun SongPathPicker(
                 }
             }
             if (moodTab && moodAllowed) {
-                LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                LazyColumn(Modifier.weight(1f)) {
                     items(AudioMuseMood.entries) { mood ->
                         ListItem(
                             headlineContent = { Text(stringResource(mood.title())) },
@@ -323,7 +327,7 @@ internal fun SongPathPicker(
                         }
                     }
                 }
-                LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                LazyColumn(Modifier.weight(1f)) {
                     if (trimmed.isEmpty()) {
                         if (playing != null && playing.id != exclude) {
                             item { SongPickerHeading(R.string.song_path_now_playing) }

@@ -101,6 +101,28 @@ class SongPathBuilderTest {
             assertEquals(relaxed, requests[1].first)
         }
 
+    @Test fun selectedSongsAnchorThePathEvenWhenAudioMuseOmitsOrMisdescribesThem() =
+        runBlocking {
+            val songB = AudioMusePathEnd.Song("b")
+            path = {
+                listOf(
+                    AudioMuseTrack("b", "Beta", "Different artist credit"),
+                    AudioMuseTrack("c"),
+                    AudioMuseTrack("a"),
+                    AudioMuseTrack("c"),
+                )
+            }
+            assertEquals(SongPathResult.Ready(listOf("a", "c", "b")), builder().build(1, songA, songB, 25))
+
+            path = { listOf(AudioMuseTrack("c")) }
+            assertEquals(SongPathResult.Ready(listOf("c", "b")), builder().build(1, relaxed, songB, 25))
+            assertEquals(SongPathResult.Ready(listOf("a", "c")), builder().build(1, songA, relaxed, 25))
+            assertEquals(
+                SongPathResult.NoPath,
+                builder().build(1, songA, AudioMusePathEnd.Song("other"), 25),
+            )
+        }
+
     @Test fun invalidEndsNeverContactAudioMuse() =
         runBlocking {
             val sad = AudioMusePathEnd.Mood(AudioMuseMood.SAD)

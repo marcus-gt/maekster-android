@@ -3,7 +3,7 @@ package com.subtracks.data.audiomuse
 import kotlinx.coroutines.flow.StateFlow
 
 sealed interface SongPathResult {
-    /** Local songs in AudioMuse's path order, each once. */
+    /** Selected song endpoints with local AudioMuse steps between them, each song once. */
     data class Ready(
         val songIds: List<String>,
     ) : SongPathResult
@@ -11,7 +11,7 @@ sealed interface SongPathResult {
     /** Both ends are moods, or the same song. */
     data object InvalidEnds : SongPathResult
 
-    /** AudioMuse found no path, or none of its songs are in this library. */
+    /** No usable AudioMuse steps, or a selected endpoint is no longer in the local library. */
     data object NoPath : SongPathResult
 
     /** Wrong or no active source, offline, AudioMuse not configured, or its token unreadable. */
@@ -35,21 +35,27 @@ class SongPathBuilder(
         length: Int,
     ): SongPathResult {
         if (!canBuild(start, end)) return SongPathResult.InvalidEnds
+        val targetLength = length.coerceIn(MIN_LENGTH, MAX_LENGTH)
+        val startId = (start as? AudioMusePathEnd.Song)?.id
+        val endId = (end as? AudioMusePathEnd.Song)?.id
+        val endpoints = listOfNotNull(startId, endId)
         return guardedAudioMuseRequest(configuration, access, client, sourceId) { api ->
             val steps =
                 try {
-                    api.findPath(start, end, length.coerceIn(MIN_LENGTH, MAX_LENGTH))
+                    api.findPath(start, end, targetLength)
                 } catch (failure: AudioMuseHttpException) {
                     if (failure.failure == AudioMuseFailure.NOT_FOUND) return@guardedAudioMuseRequest SongPathResult.NoPath
                     throw failure
                 }
-            val songIds =
-                if (steps.isEmpty()) {
-                    emptyList()
-                } else {
-                    resolver.resolve(sourceId, steps.take(AudioMuseTrackResolver.MAX_BATCH)).songIds.distinct()
-                }
-            if (songIds.isEmpty()) SongPathResult.NoPath else SongPathResult.Ready(songIds)
+            if (steps.isEmpty()) return@guardedAudioMuseRequest SongPathResult.NoPath
+            val songIds = resolver.resolve(sourceId, steps.take(AudioMuseTrackResolver.MAX_BATCH)).songIds
+            if (songIds.isEmpty() || !resolver.containsSongs(sourceId, endpoints)) {
+                return@guardedAudioMuseRequest SongPathResult.NoPath
+            }
+
+            // The picker already identified the exact local endpoint IDs. AudioMuse can omit them or return different tags.
+            val middle = songIds.distinct().filterNot { it in endpoints }.take(targetLength - endpoints.size)
+            SongPathResult.Ready(listOfNotNull(startId) + middle + listOfNotNull(endId))
         } ?: SongPathResult.Unavailable
     }
 

@@ -88,6 +88,17 @@ class AudioMuseTrackResolver(
             AudioMuseTrackResolution(resolved, unresolved)
         }
 
+    internal suspend fun containsSongs(
+        sourceId: Long,
+        songIds: List<String>,
+    ): Boolean {
+        val gate = access.value
+        checkAccess(sourceId, gate)
+        val found = dao.byIds(sourceId, songIds, gate.offline)
+        checkAccess(sourceId, gate)
+        return found.size == songIds.size
+    }
+
     private suspend fun checkAccess(
         sourceId: Long,
         expected: AudioMuseScoreAccess,
