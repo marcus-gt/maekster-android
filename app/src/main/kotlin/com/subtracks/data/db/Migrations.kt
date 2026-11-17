@@ -1083,6 +1083,18 @@ val MIGRATION_60_61 =
         }
     }
 
+val MIGRATION_61_62 =
+    object : Migration(61, 62) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `audiomuse_mood_scores` (`sourceId` INTEGER NOT NULL, " +
+                    "`songId` TEXT NOT NULL, `configurationKey` TEXT NOT NULL, `payload` TEXT NOT NULL, " +
+                    "PRIMARY KEY(`sourceId`, `songId`), " +
+                    "FOREIGN KEY(`sourceId`) REFERENCES `audiomuse_config`(`sourceId`) ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+        }
+    }
+
 val MIGRATIONS: Array<Migration> =
     arrayOf(
         MIGRATION_1_2,
@@ -1145,4 +1157,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_58_59,
         MIGRATION_59_60,
         MIGRATION_60_61,
+        MIGRATION_61_62,
     )

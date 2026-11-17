@@ -14,6 +14,7 @@ import com.subtracks.data.model.ArtistRefsConverter
 import com.subtracks.data.model.ArtistSearch
 import com.subtracks.data.model.ArtworkSeed
 import com.subtracks.data.model.AudioMuseConfig
+import com.subtracks.data.model.CachedAudioMuseScore
 import com.subtracks.data.model.CachedLyrics
 import com.subtracks.data.model.CachedSimilarArtists
 import com.subtracks.data.model.Disc
@@ -60,6 +61,7 @@ import com.subtracks.data.model.UpNextEntry
         SubsonicSource::class,
         SourceHeader::class,
         AudioMuseConfig::class,
+        CachedAudioMuseScore::class,
         Artist::class,
         ArtistBio::class,
         ArtistSearch::class,
@@ -100,7 +102,7 @@ import com.subtracks.data.model.UpNextEntry
         FreshReleaseState::class,
         MusicBrainzName::class,
     ],
-    version = 61,
+    version = 62,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -118,6 +120,8 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun sourcesDao(): SourcesDao
 
     abstract fun audioMuseConfigDao(): AudioMuseConfigDao
+
+    abstract fun audioMuseScoreDao(): AudioMuseScoreDao
 
     abstract fun queueDao(): QueueDao
 

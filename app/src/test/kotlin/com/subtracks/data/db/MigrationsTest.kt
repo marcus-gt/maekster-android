@@ -93,6 +93,24 @@ class MigrationsTest {
         }
 
     @Test
+    fun audioMuseScoreMigrationPreservesConfigurationAndCascadesOnDisconnect() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 61)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                connection.execSQL("INSERT INTO audiomuse_config VALUES (1, 'https://muse', 'sealed')")
+                MIGRATION_61_62.migrate(connection)
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM audiomuse_config"))
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM audiomuse_mood_scores"))
+                connection.execSQL("INSERT INTO audiomuse_mood_scores VALUES (1, 'song', 'key', '{}')")
+                connection.execSQL("DELETE FROM audiomuse_config WHERE sourceId = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM audiomuse_mood_scores"))
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM sources"))
+            }
+        }
+
+    @Test
     fun audioMuseConfigurationMigrationStartsDisconnectedAndCascadesOnSourceDeletion() =
         runTest {
             driver.open(":memory:").use { connection ->

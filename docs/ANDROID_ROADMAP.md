@@ -774,11 +774,33 @@ Lidarr is out of scope (D11).
 | **M3.2 Discover v1: Smart Shuffle, Instant Mix, stations, auto-extend** | The Discover tab appears; Smart Shuffle (local, offline-capable); artist stations; Instant Mix (`getSimilarSongs2` plus local fallback); "Autoplay similar" toggle; "Similar to …" labels; Queue Builder (local) | Up-next or context tail entries; `playback_cursor.extensionStart` | Trigger threshold, disable on repeat or shuffle, truncation; bounded batch sizes | D9: on-demand similarity calls allowed as explicit actions, cached in Room, with a local fallback offline |
 | **M3.3 Recommendations and fresh releases** | Fresh releases for library artists (MusicBrainz), Similar Artists shelves, optional external artist images | `recommendation_cache` with a TTL | Rate limiting (1 req/s), offline served from the cache, User-Agent from `MaeksterBrand` | D10: every third-party lookup opt-in per integration and disclosed in Privacy |
 | **M3.4 Local folders** | **On hold (17 Nov 2026), by user decision.** SAF folder picker, persisted permissions, foreground rescan, local landing, local-only onboarding, local items in the queue | A `sources` Local kind; `local_files` (uri, folderId, relativePath, mtime, tags) | Scanner tests on a fake document tree; revoke and missing-file handling | GrapheneOS Storage Scopes compatible by design |
-| **M3.5 AudioMuse-AI** | **In progress: A1 mood-score client and A2 search/path transport complete (unwired); B1 encrypted per-server configuration storage added (schema 61, unwired); B2 Settings form and Koin configuration wiring added; next C cache/local track resolution. See `docs/handoffs/M3.5-audiomuse-settings.md`. See `docs/handoffs/M3.5-audiomuse-config-store.md`. See `docs/handoffs/M3.5-audiomuse-scores-client.md` and `docs/handoffs/M3.5-audiomuse-search-path.md`.** Per-server AudioMuse URL and token; Moods on Discover (mood radios); Song Path | `mood_scores` cache | Fake server; Song Path does not auto-extend | |
+| **M3.5 AudioMuse-AI** | **In progress: A1 mood-score client and A2 search/path transport complete (unwired); B1 encrypted per-server configuration storage added (schema 61, unwired); B2 Settings form and Koin configuration wiring added; C1 mood-score cache and Queue Builder ranking added (schema 62, unwired); next C2 guarded score fetching, then C3 local track resolution. See `docs/handoffs/M3.5-audiomuse-settings.md`. See `docs/handoffs/M3.5-audiomuse-config-store.md`. See `docs/handoffs/M3.5-audiomuse-scores-client.md` and `docs/handoffs/M3.5-audiomuse-search-path.md`.** Per-server AudioMuse URL and token; Moods on Discover (mood radios) and in Queue Builder; Song Path | `mood_scores` cache | Fake server; Song Path does not auto-extend | |
 | **M3.6 Wrapped** | **On hold (17 Nov 2026), by user decision.** Year and all-time recap from `play_events` (optionally the ListenBrainz history); story pager; share card | Aggregation queries only | Aggregation, streak and insight tests ported from the iOS fixtures | |
 | ~~M3.7 Lidarr~~ | Dropped (D11): legacy from Mixtape, unused in the iOS product | n/a | n/a | Slice number kept so later IDs stay stable |
 | **M3.8 Crossfade (prototype, D15)** | **On hold (16 Nov 2026), tracked in issue #13.** 0–12 s, off by default, disabled on gapless albums | None | Gapless unaffected; transition timing | Prototype first; drop if it destabilises the window |
 | **M3.9 Internet radio** | **Dropped (16 Nov 2026): the user does not need internet radio.** Was: station list, live playback outside the queue | — | — | |
+
+### M3.5 remaining scope and UI entry points
+
+- **C — cache and local resolution:** C1 adds the local-only Room mood-score cache (schema 62) and
+  bounded Queue Builder mood ranking; see `docs/handoffs/M3.5-audiomuse-mood-cache.md`.
+  Next C2: explicit-fetch orchestration with configuration/offline/source guards; C3: resolve AudioMuse
+  track IDs/metadata against the mirror. Source-scoped cached mood scores and resolution of AudioMuse
+  results against the local mirror. Supply the score lookup/ranking needed by Queue Builder as well
+  as Discover mood radios; do not stop at resolving search/path track IDs.
+- **D — moods in Discover and Queue Builder:** include both playable mood radios and mood picks in
+  the existing Queue Builder card/picker. Queue Builder combines moods with its genre/sub-genre and
+  decade picks, saves them per server and uses the same picks when refilling. Mood controls appear
+  only when AudioMuse is configured and usable. Existing genre/decade-only queues keep working.
+  Offline mood filtering/ranking uses cached scores and downloaded candidates; selecting a mood
+  must not trigger browse-time metadata requests or silently ignore an unavailable mood constraint.
+  Acceptance includes combined genre + decade + mood picks, source isolation, refill consistency,
+  disabled/unreadable AudioMuse, offline cache misses and normal/2× text.
+- **E — Song Path:** add the Discover entry point with From/To song-or-mood rows, Swap endpoints,
+  song-count slider and Play. The user supplied an iOS screenshot on 17 November 2026; its visible
+  hierarchy and Android acceptance notes are recorded in
+  [Song Path iOS reference](references/SONG_PATH_IOS.md). Follow the workflow and information hierarchy
+  using Android-native controls, rather than copying iOS visuals. Path playback remains finite.
 
 - **Manual emulator checks:** Discover offline (only Smart Shuffle from downloads is visible); ListenBrainz listens appear
   on the website; AudioMuse Song Path end to end; local folder on emulated
