@@ -1,8 +1,8 @@
 # Milestone 4 — Release readiness
 
-**IN PROGRESS.** Code and docs are in the working tree on local branch
+**IN PROGRESS.** The baseline is committed locally as `22619ab5` on
 `milestone-4-release-readiness`, based on merged milestone 3 (`b6a3b3b1`). The four P0 gates
-remain active. No code was committed or pushed.
+remain active. Follow-up subtasks have their own handoffs. Nothing was pushed.
 
 ## Implemented and verified
 
@@ -36,6 +36,10 @@ remain active. No code was committed or pushed.
 - ktlintFormat, debug build, unsigned release build, ktlintCheck and lintDebug passed.
 - Focused run: 278 Now Playing, controller and download tests passed.
 - Full run: 1,915 of 1,918 passed. The three known Home screenshot timeouts passed in isolation.
+
+## Follow-ups
+
+- [M4.9 Server setup at 200% text](M4.9-server-setup-accessibility.md) verifies that both server form actions remain reachable and clickable.
 
 ## Resume
 
