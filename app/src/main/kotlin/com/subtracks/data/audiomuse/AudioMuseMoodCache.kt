@@ -4,6 +4,7 @@ import com.subtracks.data.db.AudioMuseScoreDao
 import com.subtracks.data.model.AudioMuseConfig
 import com.subtracks.data.model.CachedAudioMuseScore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -26,6 +27,9 @@ class AudioMuseMoodCache(
     private val dao: AudioMuseScoreDao,
 ) {
     suspend fun scope(sourceId: Long): AudioMuseScoreScope? = dao.configuration(sourceId)?.let(::AudioMuseScoreScope)
+
+    fun observeScope(sourceId: Long): kotlinx.coroutines.flow.Flow<AudioMuseScoreScope?> =
+        dao.observeConfiguration(sourceId).map { it?.let(::AudioMuseScoreScope) }
 
     suspend fun read(
         sourceId: Long,

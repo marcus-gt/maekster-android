@@ -12,6 +12,9 @@ interface AudioMuseScoreDao {
     @Query("SELECT * FROM audiomuse_config WHERE sourceId = :sourceId")
     suspend fun configuration(sourceId: Long): AudioMuseConfig?
 
+    @Query("SELECT * FROM audiomuse_config WHERE sourceId = :sourceId")
+    fun observeConfiguration(sourceId: Long): kotlinx.coroutines.flow.Flow<AudioMuseConfig?>
+
     @Query("SELECT * FROM audiomuse_mood_scores WHERE sourceId = :sourceId AND configurationKey = :key AND songId IN (:songIds)")
     suspend fun read(
         sourceId: Long,
