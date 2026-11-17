@@ -1060,6 +1060,18 @@ private suspend fun backfillArtistArt(connection: SQLiteConnection) {
     }
 }
 
+val MIGRATION_59_60 =
+    object : Migration(59, 60) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS `similar_artists_cache` (`sourceId` INTEGER NOT NULL, " +
+                    "`artistId` TEXT NOT NULL, `payload` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, " +
+                    "PRIMARY KEY(`sourceId`, `artistId`), " +
+                    "FOREIGN KEY(`sourceId`) REFERENCES `sources`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)",
+            )
+        }
+    }
+
 val MIGRATIONS: Array<Migration> =
     arrayOf(
         MIGRATION_1_2,
@@ -1120,4 +1132,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_56_57,
         MIGRATION_57_58,
         MIGRATION_58_59,
+        MIGRATION_59_60,
     )

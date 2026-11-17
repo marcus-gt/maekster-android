@@ -93,6 +93,21 @@ class MigrationsTest {
         }
 
     @Test
+    fun theSimilarArtistsCacheMigrationCascadesOnServerDeletion() =
+        runTest {
+            driver.open(":memory:").use { connection ->
+                applySchema(connection, 59)
+                connection.execSQL("PRAGMA foreign_keys = ON")
+                connection.execSQL("INSERT INTO sources (id, name, address, isActive, createdAt) VALUES (1, 's', 'http://x', 1, 0)")
+                MIGRATION_59_60.migrate(connection)
+                connection.execSQL("INSERT INTO similar_artists_cache VALUES (1, 'artist', '{}', 100)")
+                assertEquals(1L, long(connection, "SELECT COUNT(*) FROM similar_artists_cache"))
+                connection.execSQL("DELETE FROM sources WHERE id = 1")
+                assertEquals(0L, long(connection, "SELECT COUNT(*) FROM similar_artists_cache"))
+            }
+        }
+
+    @Test
     fun theFreshReleasesMigrationAddsCascadingPerServerTables() =
         runTest {
             driver.open(":memory:").use { connection ->

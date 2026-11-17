@@ -703,7 +703,10 @@ Live-service and device checks remain unverified. See `docs/handoffs/M3.3-fresh-
 Part D1 adds the Similar Artists provider contract and Subsonic `getArtistInfo2` adapter, with bounded,
 ordered results including out-of-library artists. It is not wired yet; no new browsing requests.
 See `docs/handoffs/M3.3-similar-artists-provider.md`.
-Next: M3.3 D2, Similar Artists Room cache and orchestration, then artist/album shelves. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Part D2 adds schema 60's source/artist-scoped Similar Artists cache, versioned payloads, 24-hour TTL,
+stale-result retention on failure, offline/source guards and serialized refreshes. It remains unwired to browsing.
+See `docs/handoffs/M3.3-similar-artists-cache.md`.
+Next: M3.3 D3, resolve cached recommendations against the local mirror and wire artist/album shelves. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

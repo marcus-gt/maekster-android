@@ -14,6 +14,7 @@ import com.subtracks.data.model.ArtistRefsConverter
 import com.subtracks.data.model.ArtistSearch
 import com.subtracks.data.model.ArtworkSeed
 import com.subtracks.data.model.CachedLyrics
+import com.subtracks.data.model.CachedSimilarArtists
 import com.subtracks.data.model.Disc
 import com.subtracks.data.model.DownloadCollection
 import com.subtracks.data.model.DownloadErrorConverter
@@ -84,6 +85,7 @@ import com.subtracks.data.model.UpNextEntry
         StoredQueueOrder::class,
         StoredQueueOrderEntry::class,
         CachedLyrics::class,
+        CachedSimilarArtists::class,
         PlaylistDestination::class,
         PlaylistSaveDraft::class,
         PlaylistSaveDraftSong::class,
@@ -96,7 +98,7 @@ import com.subtracks.data.model.UpNextEntry
         FreshReleaseState::class,
         MusicBrainzName::class,
     ],
-    version = 59,
+    version = 60,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -128,6 +130,8 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun searchHistoryDao(): SearchHistoryDao
 
     abstract fun lyricsCacheDao(): LyricsCacheDao
+
+    abstract fun similarArtistsCacheDao(): SimilarArtistsCacheDao
 
     abstract fun playlistDestinationDao(): PlaylistDestinationDao
 
