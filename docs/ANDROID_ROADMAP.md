@@ -679,8 +679,10 @@ and a picker sheet (genre filter, genre and decade chips with counts, length 15â
 per server, played as an endless "Queue Builder" source; verified on the emulator. See
 `docs/handoffs/M3.2-queue-builder-ui.md`. Part E2b (E4 pulled forward) is complete: Discogs main genres and
 sub-genres, the iOS-style card (genre, sub-genre and decade rows; Reset and Play) and genre columns on the
-page. See `docs/handoffs/M3.2-queue-builder-genres.md`.
-Next: E3, refill a Queue Builder queue with its own picks. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+page. See `docs/handoffs/M3.2-queue-builder-genres.md`. Part E3 is complete: Queue Builder queues refill from
+their own picks whatever the autoplay setting, fall back to similar songs only with autoplay on, and keep their
+refill across autoplay toggles and restarts. See `docs/handoffs/M3.2-queue-builder-refill.md`.
+Next: Queue Builder moods wait for AudioMuse; review the remaining M3.2 parity rows before closing the milestone. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

@@ -25,6 +25,7 @@ import com.subtracks.data.mix.InstantMix
 import com.subtracks.data.mix.QueueBuilder
 import com.subtracks.data.mix.SimilarSongs
 import com.subtracks.data.mix.SmartShuffle
+import com.subtracks.data.mix.available
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.Song
 import com.subtracks.data.net.ServerHeaders
@@ -185,6 +186,8 @@ fun appModule(
         val queues = get<QueueRepository>()
         val dao = get<SubtracksDatabase>().mixDao()
         val mix = InstantMix(dao, SimilarSongs(sources::similarSongs), get())
+        val preferences = get<UserPreferences>()
+        val builder = get<QueueBuilder>()
         PlaybackController(
             get(),
             get(),
@@ -193,10 +196,16 @@ fun appModule(
             showMessage = showMessage,
             scope = get(named("playback")),
             networkAvailable = networkAvailable(context.applicationContext),
-            autoplayPreference = get<UserPreferences>().autoplaySimilar(),
+            autoplayPreference = preferences.autoplaySimilar(),
             autoplayFactory = { enabled ->
                 com.subtracks.playback.AutoplayRefill
                     .of(queues, dao, mix, enabled, sources::activeSourceIdOnce)
+            },
+            // The server's current picks, limited to what the library still offers, as the picker shows them.
+            builtQueueRefill = { sourceId, excluded, count, downloadedOnly ->
+                val picks = preferences.queueBuilderPicks(sourceId).first()
+                val selection = builder.index(sourceId, downloadedOnly).available(picks.selection)
+                builder.build(sourceId, selection, count, downloadedOnly, excluding = excluded)
             },
         )
     }

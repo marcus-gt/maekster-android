@@ -167,6 +167,8 @@ class PlaybackController(
     networkAvailable: Flow<Boolean> = flowOf(true),
     private val autoplayFactory: ((() -> Boolean) -> AutoplayRefill)? = null,
     private val autoplayPreference: Flow<Boolean>? = null,
+    /** More songs from the server's Queue Builder picks: (sourceId, songs to skip, count, downloads only). */
+    private val builtQueueRefill: (suspend (Long, Set<String>, Int, Boolean) -> List<String>)? = null,
 ) {
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state
@@ -182,6 +184,12 @@ class PlaybackController(
     private var networkRetry: NetworkRetry? = null
     private var playbackIntentVersion = 0L
     private var autoplayEnabled = false
+
+    /** The queue was built by the Queue Builder, so it refills from its own picks whatever the autoplay setting. */
+    private var builtQueue = false
+
+    /** Autoplay or a Queue Builder refill may extend the queue. */
+    private val refillActive: Boolean get() = autoplayEnabled || (builtQueue && builtQueueRefill != null)
     private var networkConnected = true
     private var autoplayJob: Job? = null
     private var autoplayAttempt: Triple<Long, Long, Long>? = null
@@ -215,14 +223,14 @@ class PlaybackController(
         scope.launch { autoplayPreference?.distinctUntilChanged()?.collect { setAutoplaySimilar(it) } }
         scope.launch {
             networkAvailable.collect { available ->
-                if (networkConnected != available && autoplayEnabled) {
+                if (networkConnected != available && refillActive) {
                     playbackIntentVersion++
                     autoplayJob?.cancel()
                     autoplayAttempt = null
                 }
                 networkConnected = available
                 if (available) retryNetworkPlayback()
-                if (autoplayEnabled) refresh()
+                if (refillActive) refresh()
             }
         }
         scope.launch {
@@ -235,7 +243,7 @@ class PlaybackController(
         }
         scope.launch {
             sourceRepository.offline.collect {
-                if (autoplayEnabled) {
+                if (refillActive) {
                     playbackIntentVersion++
                     autoplayJob?.cancel()
                     autoplayAttempt = null
@@ -1107,7 +1115,7 @@ class PlaybackController(
         autoplayAttempt = null
         scope.launch {
             startLock.withLock {
-                if (!autoplayEnabled) truncateAutoplayLocked()
+                if (!refillActive) truncateAutoplayLocked()
                 refresh()
             }
         }
@@ -1128,7 +1136,7 @@ class PlaybackController(
 
     private fun scheduleAutoplay(position: Long?) {
         val snap = snapshot ?: return
-        if (!autoplayEnabled || shuffleEnabled || repeatMode != RepeatMode.Off ||
+        if (!refillActive || shuffleEnabled || repeatMode != RepeatMode.Off ||
             player?.playWhenReady != true || position == null ||
             snap.size - position - 1 > AutoplayRefill.REMAINING_THRESHOLD
         ) {
@@ -1136,6 +1144,10 @@ class PlaybackController(
             return
         }
         val coordinator = autoplay ?: return
+        val ownPicks: OwnPicks? =
+            builtQueueRefill?.takeIf { builtQueue }?.let { refill ->
+                { sourceId, excluded, downloadedOnly -> refill(sourceId, excluded, AutoplayRefill.BATCH_SIZE, downloadedOnly) }
+            }
         val key = Triple(snap.version, position, playbackIntentVersion)
         if (autoplayAttempt == key) return
         autoplayJob?.cancel()
@@ -1143,9 +1155,9 @@ class PlaybackController(
         autoplayJob =
             scope.launch {
                 try {
-                    coordinator.extend(snap, position, offline || !networkConnected) { expected, sourceId, picks ->
+                    coordinator.extend(snap, position, offline || !networkConnected, ownPicks) { expected, sourceId, picks ->
                         startLock.withLock {
-                            if (!autoplayEnabled || autoplayAttempt != key || playbackIntentVersion != key.third ||
+                            if (!refillActive || autoplayAttempt != key || playbackIntentVersion != key.third ||
                                 currentPosition() != position || sourceRepository.activeSourceIdOnce() != sourceId ||
                                 shuffleEnabled || repeatMode != RepeatMode.Off
                             ) {
@@ -1369,6 +1381,7 @@ class PlaybackController(
             } else if (!snapshot.shuffled) {
                 shuffleEnabled = false
             }
+            builtQueue = queueRepository.sourceLabel() == QueueCollection.QueueBuilder.storedLabel
             this.snapshot = snapshot
             val queueSourceId =
                 snapshot.entries
@@ -1408,7 +1421,7 @@ class PlaybackController(
             }
             lastSavedPositionMs = savedPositionMs
             loadWindow(start, autoplay = false, startPositionMs = savedPositionMs)
-            if (!autoplayEnabled) {
+            if (!refillActive) {
                 truncateAutoplayLocked()
                 refresh()
             }
@@ -1907,6 +1920,7 @@ class PlaybackController(
 
     private suspend fun readSnapshot(): QueueSnapshot {
         val snapshot = queueRepository.snapshot()
+        builtQueue = queueRepository.sourceLabel() == QueueCollection.QueueBuilder.storedLabel
         if (!snapshot.shuffled) {
             if (shuffleEnabled && snapshot.size > 0L) queueRepository.setShuffle(null)
             shuffleEnabled = false

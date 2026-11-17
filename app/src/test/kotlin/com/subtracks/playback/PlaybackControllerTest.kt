@@ -79,6 +79,8 @@ class PlaybackControllerTest {
     private lateinit var controller: PlaybackController
     private val messages = CopyOnWriteArrayList<String>()
     private var autoplayGenerate: suspend () -> List<String> = { emptyList() }
+    private var builtRefill: suspend () -> List<String> = { emptyList() }
+    private val builtRefillExclusions = CopyOnWriteArrayList<Set<String>>()
     private val networkAvailable = MutableStateFlow(false)
     private lateinit var resources: Resources
 
@@ -124,6 +126,10 @@ class PlaybackControllerTest {
                 autoplayPreference = prefs.autoplaySimilar(),
                 autoplayFactory = { enabled ->
                     AutoplayRefill(queues, db.mixDao(), { _, _, _ -> autoplayGenerate() }, enabled, sources::activeSourceIdOnce)
+                },
+                builtQueueRefill = { _, excluded, _, _ ->
+                    builtRefillExclusions += excluded
+                    builtRefill()
                 },
             )
     }
@@ -197,6 +203,77 @@ class PlaybackControllerTest {
             queues.replace(emptyList())
             assertNull(controller.sourceHeading(QueueContext(QueueKind.Song, 1, "s10"), resources, generated = true))
         }
+    }
+
+    @Test
+    fun aQueueBuilderQueueRefillsFromItsOwnPicksAndKeepsThemWithAutoplayOff() {
+        networkAvailable.value = true
+        seedAlbum(20, sourceId = 1)
+        var similarCalls = 0
+        autoplayGenerate = {
+            similarCalls++
+            listOf("s12")
+        }
+        builtRefill = { listOf("s10", "s11") }
+        controller.playMix(1, listOf("s1", "s2"), QueueCollection.QueueBuilder)
+        await { runBlocking { queues.snapshot().size } == 4L }
+        assertTrue(builtRefillExclusions.first().containsAll(listOf("s1", "s2")))
+        assertEquals(0, similarCalls)
+
+        // Switching autoplay off trims only autoplay's own songs, never a Queue Builder refill.
+        controller.setAutoplaySimilar(false)
+        controller.playAt(1)
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+        assertEquals(4L, runBlocking { queues.snapshot().size })
+        assertNotNull(runBlocking { queues.extensionStart() })
+    }
+
+    @Test
+    fun whenTheQueueBuilderPicksRunOutSimilarSongsTakeOverOnlyWithAutoplayOn() {
+        networkAvailable.value = true
+        seedAlbum(20, sourceId = 1)
+        var similarCalls = 0
+        autoplayGenerate = {
+            similarCalls++
+            listOf("s12")
+        }
+        controller.playMix(1, listOf("s1", "s2"), QueueCollection.QueueBuilder)
+        await { builtRefillExclusions.isNotEmpty() }
+        Thread.sleep(200)
+        assertEquals(0, similarCalls)
+        assertEquals(2L, runBlocking { queues.snapshot().size })
+
+        runBlocking { prefs.setAutoplaySimilar(true) }
+        await { runBlocking { queues.snapshot().size } == 3L }
+        assertTrue(similarCalls > 0)
+    }
+
+    @Test
+    fun aRestoredQueueBuilderQueueKeepsItsRefillWithAutoplayOff() {
+        seedAlbum(20, sourceId = 1)
+        runBlocking {
+            queues.replace(
+                listOf(queues.songEntry(1, "s1"), queues.songEntry(1, "s2")),
+                sourceLabel = QueueCollection.QueueBuilder.storedLabel,
+            )
+            queues.appendExtension(queues.snapshot(), 1, listOf("s10", "s11"))
+            queues.setCursor(0)
+        }
+        controller.connect()
+        await {
+            controller.ready.value && controller.state.value.item
+                ?.id == "s1"
+        }
+        controller.playAt(1)
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+        assertEquals(4L, runBlocking { queues.snapshot().size })
+        assertNotNull(runBlocking { queues.extensionStart() })
     }
 
     @Test
