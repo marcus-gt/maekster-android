@@ -696,7 +696,11 @@ network use. See `docs/handoffs/M3.3-musicbrainz-client.md`. Part B is complete:
 window, owned-title filtering, two-pass refresh with cached name lookups, 20 h refresh and 15 min back-off), stored
 per server in Room (schema 59: `fresh_releases`, `fresh_release_state`, `musicbrainz_names`) and read offline; the
 mirror is read in keyset pages of 25 artists. Not called yet. See `docs/handoffs/M3.3-fresh-releases-engine.md`.
-Next: M3.3 C, the opt-in Discover Fresh Releases section. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
+Part C is implemented: off-by-default Discover Fresh releases, disclosure, cached offline shelf, external release links,
+app-scoped refresh and cancellation on connectivity/server/opt-in changes. Build, lint, focused tests and normal/2×
+font renders pass; the full suite has the same three Home screenshot timeouts as Part B, all passing on isolated retry.
+Live-service and device checks remain unverified. See `docs/handoffs/M3.3-fresh-releases-ui.md`.
+Next: M3.3 D, Similar Artists. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 
 - **Manual emulator checks:** Navidrome behind a reverse proxy that requires a header (a local Caddy or nginx); streaming,

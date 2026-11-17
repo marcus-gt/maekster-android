@@ -51,6 +51,7 @@ fun DiscoverRoute(
     onOpenSettings: () -> Unit,
     viewModel: DiscoverViewModel = koinViewModel(),
     builderViewModel: QueueBuilderViewModel = koinViewModel(),
+    freshViewModel: FreshReleasesViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
@@ -58,6 +59,7 @@ fun DiscoverRoute(
     val builder by builderViewModel.state.collectAsStateWithLifecycle()
     val building by builderViewModel.building.collectAsStateWithLifecycle()
     val focusedMain by builderViewModel.focusedMain.collectAsStateWithLifecycle()
+    val fresh by freshViewModel.state.collectAsStateWithLifecycle()
     var editing by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) { builderViewModel.refresh() }
     val actions =
@@ -94,6 +96,9 @@ fun DiscoverRoute(
         queueBuilderFocus = focusedMain,
         queueBuilderBuilding = building,
         queueBuilderActions = actions,
+        freshReleases = fresh,
+        onFreshReleasesChange = freshViewModel::setEnabled,
+        showReleaseCovers = !state.offline,
     )
 }
 
@@ -112,6 +117,9 @@ fun DiscoverScreen(
     queueBuilderFocus: String? = null,
     queueBuilderBuilding: Boolean = false,
     queueBuilderActions: QueueBuilderActions = QueueBuilderActions(),
+    freshReleases: FreshReleasesState = FreshReleasesState(),
+    onFreshReleasesChange: (Boolean) -> Unit = {},
+    showReleaseCovers: Boolean = true,
 ) {
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -124,6 +132,10 @@ fun DiscoverScreen(
             contentPadding = PaddingValues(vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
+            // First, as on iOS, and only once there is something to show (hidden when empty).
+            if (freshReleases.enabled && freshReleases.releases.isNotEmpty()) {
+                item { FreshReleasesShelf(freshReleases.releases, showCovers = showReleaseCovers) }
+            }
             item {
                 Card(
                     onClick = onShuffle,
@@ -203,6 +215,14 @@ fun DiscoverScreen(
                         }
                     }
                 }
+            }
+            item {
+                FreshReleasesSwitch(
+                    freshReleases.enabled,
+                    freshReleases.preparing,
+                    onFreshReleasesChange,
+                    Modifier.testTag("freshReleasesSwitch"),
+                )
             }
         }
     }

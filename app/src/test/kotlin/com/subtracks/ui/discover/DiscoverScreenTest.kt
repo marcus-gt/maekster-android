@@ -251,6 +251,53 @@ class DiscoverScreenTest {
         composeRule.onNodeWithText("Offline: a fresh mix from your downloaded music.").assertExists()
     }
 
+    @Test fun freshReleasesOptInCanBeToggled() {
+        var enabled by mutableStateOf(false)
+        composeRule.setContent {
+            MaeksterTheme {
+                FreshReleasesSwitch(enabled, false, { enabled = it })
+            }
+        }
+        composeRule
+            .onNodeWithText("Fresh releases")
+            .assertIsOff()
+            .performClick()
+            .assertIsOn()
+        composeRule.onNodeWithText("Fresh releases").performClick().assertIsOff()
+    }
+
+    @Test fun freshReleasesNormal() = renderFresh(1f)
+
+    @Test fun freshReleasesLargeFont() = renderFresh(2f)
+
+    private fun renderFresh(scale: Float) {
+        composeRule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, scale)) {
+                MaeksterTheme {
+                    Surface {
+                        FreshReleasesShelf(
+                            listOf(
+                                com.subtracks.data.model.FreshRelease(
+                                    1,
+                                    "release",
+                                    0,
+                                    "A new release",
+                                    "Library artist",
+                                    "2026-11-01",
+                                    "Album",
+                                ),
+                            ),
+                            showCovers = false,
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.onNodeWithText("A new release").assertExists()
+        composeRule.onNodeWithText("Library artist").assertExists()
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/fresh_releases_$scale.png")
+    }
+
     @Test fun normal() = render(1f, "discover")
 
     @Test fun largeFont() = render(2f, "discover_2x")

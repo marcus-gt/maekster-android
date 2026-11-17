@@ -383,6 +383,9 @@
     <string name="smart_shuffle_title">Smart Shuffle</string>
     <string name="discover_title">Discover</string>
     <string name="autoplay_similar">Autoplay similar</string>
+    <string name="fresh_releases_title">Fresh releases</string>
+    <string name="fresh_releases_disclosure">New releases by artists in your library, found on MusicBrainz about once a day. Sends their names and MusicBrainz IDs to musicbrainz.org and loads covers from coverartarchive.org. Your server address, credentials and headers are never shared.</string>
+    <string name="fresh_releases_preparing">Looking for new releases…</string>
     <string name="autoplay_similar_description">Continue with similar songs as the queue ends. Uses your music server online and downloads offline. Paused with repeat or shuffle.</string>
     <string name="discover_shuffle_description">Favorites, recent taste and forgotten gems. A fresh mix from your library.</string>
     <string name="discover_shuffle_offline">Offline: a fresh mix from your downloaded music.</string>

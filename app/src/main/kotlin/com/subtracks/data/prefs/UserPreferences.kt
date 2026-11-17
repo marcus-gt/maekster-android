@@ -301,6 +301,15 @@ class UserPreferences(
 
     private val autoplaySimilarKey = booleanPreferencesKey("autoplay_similar")
 
+    /** Fresh releases from MusicBrainz and Cover Art Archive; a third-party integration, so off until turned on (D10). */
+    fun freshReleasesEnabled(): Flow<Boolean> = store.data.map { it[freshReleasesKey] ?: false }
+
+    suspend fun setFreshReleasesEnabled(enabled: Boolean) {
+        store.edit { it[freshReleasesKey] = enabled }
+    }
+
+    private val freshReleasesKey = booleanPreferencesKey("fresh_releases_enabled")
+
     /** The Queue Builder picks and length for one server; sub-genre keys come from that server's library. */
     fun queueBuilderPicks(sourceId: Long): Flow<QueueBuilderPicks> =
         store.data.map { prefs ->

@@ -29,6 +29,7 @@ import com.subtracks.data.mix.available
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.Song
 import com.subtracks.data.musicbrainz.FreshReleases
+import com.subtracks.data.musicbrainz.FreshReleasesRefresher
 import com.subtracks.data.musicbrainz.MusicBrainz
 import com.subtracks.data.musicbrainz.MusicBrainzRateLimiter
 import com.subtracks.data.musicbrainz.OkHttpMusicBrainz
@@ -249,6 +250,21 @@ fun appModule(
     single { MusicBrainzRateLimiter() }
     single<MusicBrainz> { OkHttpMusicBrainz(get()) }
     single { FreshReleases(get<SubtracksDatabase>().freshReleaseDao(), get()) }
+    single { FreshReleasesRefresher(get(), get<CoroutineScope>(), get<SourceRepository>()::activeSourceIdOnce) }
+    viewModel {
+        val sources = get<SourceRepository>()
+        com.subtracks.ui.discover.FreshReleasesViewModel(
+            activeSourceId = sources.activeSourceId(),
+            offline =
+                combine(
+                    sources.offline,
+                    networkAvailable(context.applicationContext),
+                ) { offline, connected -> offline || !connected },
+            preferences = get(),
+            feed = get(),
+            refresher = get(),
+        )
+    }
     // Offline mode or no network: mixes may only use downloaded songs.
     single(named("mixDownloadedOnly")) {
         val sources = get<SourceRepository>()

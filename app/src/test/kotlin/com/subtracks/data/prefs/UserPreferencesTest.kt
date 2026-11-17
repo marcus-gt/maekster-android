@@ -20,6 +20,15 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class UserPreferencesTest {
     @Test
+    fun freshReleasesStayOffUntilTurnedOn() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(false, prefs.freshReleasesEnabled().first())
+            prefs.setFreshReleasesEnabled(true)
+            assertEquals(true, prefs.freshReleasesEnabled().first())
+        }
+
+    @Test
     fun queueBuilderPicksAreKeptPerServerWithALengthOnTheSliderSteps() =
         runTest {
             val prefs = fakeUserPreferences()
