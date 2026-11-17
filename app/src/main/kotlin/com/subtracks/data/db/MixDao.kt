@@ -232,6 +232,17 @@ interface MixDao {
         downloadedOnly: Boolean,
     ): List<GenreSpelling>
 
+    /** Distinct songs carrying any of [genres] (stored spellings). */
+    @Query(
+        "SELECT COUNT(DISTINCT g.songId) FROM song_genres g " +
+            "WHERE g.sourceId = :sourceId AND g.genre IN (:genres) AND $GENRE_DOWNLOADED",
+    )
+    suspend fun songsWithGenres(
+        sourceId: Long,
+        genres: List<String>,
+        downloadedOnly: Boolean,
+    ): Long
+
     @Query(
         "SELECT (a.year / 10) * 10 AS decade, COUNT(*) AS songCount $BUILDER_FROM " +
             "WHERE s.sourceId = :sourceId AND a.year > 0 AND $DOWNLOADED GROUP BY decade ORDER BY decade",

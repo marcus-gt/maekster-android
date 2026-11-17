@@ -301,13 +301,14 @@ class UserPreferences(
 
     private val autoplaySimilarKey = booleanPreferencesKey("autoplay_similar")
 
-    /** The Queue Builder picks and length for one server; genre keys come from that server's library. */
+    /** The Queue Builder picks and length for one server; sub-genre keys come from that server's library. */
     fun queueBuilderPicks(sourceId: Long): Flow<QueueBuilderPicks> =
         store.data.map { prefs ->
             QueueBuilderPicks(
                 selection =
                     QueueBuilderSelection(
-                        genres = prefs[queueBuilderGenresKey(sourceId)].orEmpty(),
+                        mains = prefs[queueBuilderMainsKey(sourceId)].orEmpty(),
+                        tags = prefs[queueBuilderTagsKey(sourceId)].orEmpty(),
                         decades = prefs[queueBuilderDecadesKey(sourceId)].orEmpty().mapNotNull { it.toIntOrNull() }.toSet(),
                     ),
                 length = QueueBuilderPicks.clampLength(prefs[queueBuilderLengthKey(sourceId)] ?: QueueBuilderPicks.DEFAULT_LENGTH),
@@ -319,13 +320,18 @@ class UserPreferences(
         picks: QueueBuilderPicks,
     ) {
         store.edit {
-            it[queueBuilderGenresKey(sourceId)] = picks.selection.genres
+            it[queueBuilderMainsKey(sourceId)] = picks.selection.mains
+            it[queueBuilderTagsKey(sourceId)] = picks.selection.tags
             it[queueBuilderDecadesKey(sourceId)] = picks.selection.decades.mapTo(mutableSetOf()) { decade -> decade.toString() }
             it[queueBuilderLengthKey(sourceId)] = QueueBuilderPicks.clampLength(picks.length)
+            // Flat genre picks from the first Queue Builder build; main genres and sub-genres replaced them.
+            it.remove(stringSetPreferencesKey("queue_builder_genres_$sourceId"))
         }
     }
 
-    private fun queueBuilderGenresKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_genres_$sourceId")
+    private fun queueBuilderMainsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_mains_$sourceId")
+
+    private fun queueBuilderTagsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_tags_$sourceId")
 
     private fun queueBuilderDecadesKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_decades_$sourceId")
 

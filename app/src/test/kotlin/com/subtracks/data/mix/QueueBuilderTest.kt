@@ -34,34 +34,54 @@ class QueueBuilderTest {
         db.close()
     }
 
+    private val jazz = setOf("Jazz")
+
+    private fun tag(genre: String) = GenreTaxonomy.DISCOGS.resolve(genre).key
+
     @Test
-    fun spellingsThatDifferInCaseOrSpaceAreOneGenreNamedByTheMostUsed() =
+    fun variantsMergeIntoOnePillNamedByDiscogsAndMainGenreTagsGetNoPill() =
         runTest {
             seed(
-                "a" to listOf("Techno"),
-                "b" to listOf("techno "),
-                "c" to listOf("Techno"),
+                "a" to listOf("Modal Jazz"),
+                "b" to listOf("modal"),
+                "c" to listOf("Modal"),
                 "d" to listOf("Jazz"),
+                "e" to listOf("Techno"),
             )
 
             val index = builder.index(sourceId, downloadedOnly = false)
 
-            assertEquals(listOf(QueueBuilderGenre("techno", "Techno", 3), QueueBuilderGenre("jazz", "Jazz", 1)), index.genres)
-            assertEquals(3L, builder.matchCount(sourceId, QueueBuilderSelection(genres = setOf("techno")), false))
+            assertEquals(listOf("Jazz", "Electronic"), index.columns.map { it.main })
+            val jazzColumn = index.column("Jazz")!!
+            assertEquals(4L, jazzColumn.songCount)
+            assertEquals(listOf(QueueBuilderPill(tag("Modal"), "Modal", 3)), jazzColumn.pills)
+            assertEquals(3L, builder.matchCount(sourceId, QueueBuilderSelection(tags = setOf(tag("Modal"))), false))
+            assertEquals(4L, builder.matchCount(sourceId, QueueBuilderSelection(mains = jazz), false))
         }
 
     @Test
-    fun aSongWithTwoGenresMatchesEitherAndCountsOnceWhenBothArePicked() =
+    fun aSongTaggedUnderTwoMainGenresIsACandidateForBothAndCountsOnceInEach() =
         runTest {
-            seed("a" to listOf("Jazz", "Funk"), "b" to listOf("Funk"), "c" to listOf("House"))
+            seed("a" to listOf("Fusion", "Alternative Rock", "Modal"), "b" to listOf("Fusion"), "c" to listOf("House"))
 
-            assertEquals(1L, builder.matchCount(sourceId, QueueBuilderSelection(genres = setOf("jazz")), false))
-            assertEquals(2L, builder.matchCount(sourceId, QueueBuilderSelection(genres = setOf("funk")), false))
-            assertEquals(2L, builder.matchCount(sourceId, QueueBuilderSelection(genres = setOf("jazz", "funk")), false))
+            val index = builder.index(sourceId, false)
+            assertEquals(2L, index.column("Jazz")!!.songCount)
+            assertEquals(1L, index.column("Rock")!!.songCount)
+            assertEquals(setOf("a", "b"), builder.build(sourceId, QueueBuilderSelection(mains = jazz), 10, false).toSet())
+            assertEquals(listOf("a"), builder.build(sourceId, QueueBuilderSelection(mains = setOf("Rock")), 10, false))
+            // A main genre and a sub-genre elsewhere: any of them matches, each song once.
             assertEquals(
-                setOf("a", "b"),
-                builder.build(sourceId, QueueBuilderSelection(genres = setOf("jazz", "funk")), 10, false).toSet(),
+                setOf("a", "b", "c"),
+                builder.build(sourceId, QueueBuilderSelection(mains = jazz, tags = setOf(tag("House"))), 10, false).toSet(),
             )
+        }
+
+    @Test
+    fun columnsGoBiggestFirstWithOtherLast() =
+        runTest {
+            seed("a" to listOf("Techno"), "b" to listOf("House"), "c" to listOf("Modal"), "d" to listOf("Norway"), "e" to listOf("Norway"))
+
+            assertEquals(listOf("Electronic", "Jazz", GenreTaxonomy.OTHER), builder.index(sourceId, false).columns.map { it.main })
         }
 
     @Test
@@ -82,7 +102,7 @@ class QueueBuilderTest {
             )
             assertEquals(
                 listOf("b"),
-                builder.build(sourceId, QueueBuilderSelection(genres = setOf("jazz"), decades = setOf(1970)), 10, false),
+                builder.build(sourceId, QueueBuilderSelection(mains = jazz, decades = setOf(1970)), 10, false),
             )
         }
 
@@ -99,15 +119,15 @@ class QueueBuilderTest {
         runTest {
             seed("a" to listOf("Jazz"))
 
-            assertEquals(0L, builder.matchCount(sourceId, QueueBuilderSelection(genres = setOf("polka")), false))
-            assertTrue(builder.build(sourceId, QueueBuilderSelection(genres = setOf("polka")), 10, false).isEmpty())
+            assertEquals(0L, builder.matchCount(sourceId, QueueBuilderSelection(tags = setOf(tag("Polka"))), false))
+            assertTrue(builder.build(sourceId, QueueBuilderSelection(mains = setOf("Reggae")), 10, false).isEmpty())
         }
 
     @Test
     fun aBuildRespectsTheCountAndSkipsQueuedSongs() =
         runTest {
             seed(*Array(7) { "s$it" to listOf("Techno") })
-            val techno = QueueBuilderSelection(genres = setOf("techno"))
+            val techno = QueueBuilderSelection(tags = setOf(tag("Techno")))
 
             assertEquals(3, builder.build(sourceId, techno, 3, false).toSet().size)
             // Seven songs, two already queued: asking for more than are left gives exactly the other five.
@@ -129,7 +149,7 @@ class QueueBuilderTest {
 
             val index = builder.index(sourceId, downloadedOnly = true)
 
-            assertEquals(listOf(QueueBuilderGenre("jazz", "Jazz", 1)), index.genres)
+            assertEquals(listOf(QueueBuilderColumn("Jazz", 1, emptyList())), index.columns)
             assertEquals(mapOf(1960 to 1L), index.decades)
             assertEquals(listOf("a"), builder.build(sourceId, QueueBuilderSelection(), 10, downloadedOnly = true))
         }

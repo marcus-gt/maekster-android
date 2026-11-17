@@ -677,7 +677,9 @@ decade index, exact match count and bounded random build from the mirror, downlo
 See `docs/handoffs/M3.2-queue-builder-engine.md`. Part E2 is complete: Discover card (summary, Play, Edit picks)
 and a picker sheet (genre filter, genre and decade chips with counts, length 15–120, match count, Build), picks
 per server, played as an endless "Queue Builder" source; verified on the emulator. See
-`docs/handoffs/M3.2-queue-builder-ui.md`.
+`docs/handoffs/M3.2-queue-builder-ui.md`. Part E2b (E4 pulled forward) is complete: Discogs main genres and
+sub-genres, the iOS-style card (genre, sub-genre and decade rows; Reset and Play) and genre columns on the
+page. See `docs/handoffs/M3.2-queue-builder-genres.md`.
 Next: E3, refill a Queue Builder queue with its own picks. See `docs/handoffs/M3.2-instant-mix.md` and `docs/handoffs/M3.2-smart-shuffle.md`. See `docs/handoffs/M3.1-play-events.md`, `M3.1-listenbrainz-client.md`,
 `M3.1-listenbrainz-listens.md` and `M3.1-listenbrainz-settings.md`.
 

@@ -7,6 +7,7 @@ import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
+import com.subtracks.data.mix.GenreTaxonomy
 import com.subtracks.data.mix.QueueBuilder
 import com.subtracks.data.mix.QueueBuilderPicks
 import com.subtracks.data.mix.QueueBuilderSelection
@@ -28,6 +29,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -72,6 +74,10 @@ class QueueBuilderViewModelTest {
             showMessage = { messages += it },
         ).also { model = it }
 
+    private val modal = GenreTaxonomy.DISCOGS.resolve("Modal").key
+    private val fusion = GenreTaxonomy.DISCOGS.resolve("Fusion").key
+    private val techno = GenreTaxonomy.DISCOGS.resolve("Techno").key
+
     private fun QueueBuilderViewModel.awaitState(predicate: (QueueBuilderState) -> Boolean): QueueBuilderState =
         runBlocking { withTimeout(5_000) { state.first(predicate) } }
 
@@ -80,15 +86,15 @@ class QueueBuilderViewModelTest {
         activeSource.value = 1
         val model = model()
         val loaded = model.awaitState { !it.loading && it.matchCount != null }
-        assertEquals(listOf("Jazz", "Techno"), loaded.index.genres.map { it.name })
+        assertEquals(listOf("Jazz", "Electronic"), loaded.index.columns.map { it.main })
         assertEquals(3L, loaded.matchCount)
 
-        model.toggleGenre("jazz")
+        model.toggleMain("Jazz")
         model.toggleDecade(1990)
         model.setLength(42)
-        model.awaitState { it.selection.genres == setOf("jazz") && it.matchCount == 1L && it.length == 40 }
+        model.awaitState { it.selection.mains == setOf("Jazz") && it.matchCount == 1L && it.length == 40 }
         assertEquals(
-            QueueBuilderPicks(QueueBuilderSelection(setOf("jazz"), setOf(1990)), 40),
+            QueueBuilderPicks(QueueBuilderSelection(mains = setOf("Jazz"), decades = setOf(1990)), 40),
             runBlocking { prefs.queueBuilderPicks(1).first { it.length == 40 } },
         )
 
@@ -97,17 +103,46 @@ class QueueBuilderViewModelTest {
     }
 
     @Test
+    fun theCardPicksAWholeGenreThenNarrowsItToSubGenresAndUnpicksOnASecondTap() {
+        activeSource.value = 1
+        val model = model()
+        model.awaitState { it.matchCount == 3L }
+
+        model.tapMainInCard("Jazz")
+        assertEquals("Jazz", model.focusedMain.value)
+        model.awaitState { it.selection.mains == setOf("Jazz") && it.matchCount == 2L }
+
+        // On a wholly picked genre, a sub-genre narrows the pick to just that sub-genre.
+        model.togglePill(modal, "Jazz")
+        val narrowed = model.awaitState { it.selection.tags == setOf(modal) && it.matchCount == 1L }
+        assertEquals(emptySet<String>(), narrowed.selection.mains)
+        assertTrue(narrowed.isPicked("Jazz"))
+        assertTrue(narrowed.isSelected(modal, "Jazz"))
+        assertFalse(narrowed.isSelected(fusion, "Jazz"))
+
+        // A picked genre whose sub-genres are not showing is focused first, then a second tap unpicks it.
+        model.tapMainInCard("Electronic")
+        model.awaitState { it.selection.mains == setOf("Electronic") }
+        model.tapMainInCard("Jazz")
+        assertEquals("Jazz", model.focusedMain.value)
+        model.tapMainInCard("Jazz")
+        assertEquals(null, model.focusedMain.value)
+        model.awaitState { it.selection == QueueBuilderSelection(mains = setOf("Electronic")) && it.matchCount == 1L }
+    }
+
+    @Test
     fun aRememberedGenreNoLongerInTheLibraryNeitherShowsNorNarrowsTheBuild() {
-        runBlocking { prefs.setQueueBuilderPicks(1, QueueBuilderPicks(QueueBuilderSelection(genres = setOf("polka", "techno")), 30)) }
+        val picks = QueueBuilderSelection(mains = setOf("Reggae"), tags = setOf("polka", techno))
+        runBlocking { prefs.setQueueBuilderPicks(1, QueueBuilderPicks(picks, 30)) }
         activeSource.value = 1
         val model = model()
         val state = model.awaitState { it.matchCount != null }
-        assertEquals(setOf("techno"), state.selection.genres)
+        assertEquals(QueueBuilderSelection(tags = setOf(techno)), state.selection)
         assertEquals(1L, state.matchCount)
 
         model.build()
         runBlocking { withTimeout(5_000) { model.building.first { !it } } }
-        assertEquals(listOf(QueueBuilderSelection(genres = setOf("techno")) to 30), played)
+        assertEquals(listOf(QueueBuilderSelection(tags = setOf(techno)) to 30), played)
     }
 
     @Test
@@ -115,7 +150,7 @@ class QueueBuilderViewModelTest {
         runBlocking {
             prefs.setQueueBuilderPicks(
                 1,
-                QueueBuilderPicks(QueueBuilderSelection(genres = setOf("techno"), decades = setOf(1960))),
+                QueueBuilderPicks(QueueBuilderSelection(tags = setOf(techno), decades = setOf(1960))),
             )
         }
         activeSource.value = 1
@@ -141,13 +176,13 @@ class QueueBuilderViewModelTest {
         val model = model()
         val state = model.awaitState { it.matchCount != null }
         assertEquals(true, state.offline)
-        assertEquals(emptyList<String>(), state.index.genres.map { it.name })
+        assertEquals(emptyList<String>(), state.index.columns.map { it.main })
         assertEquals(0L, state.matchCount)
     }
 
     private suspend fun seed() {
         db.sourcesDao().upsertSource(Source(1, "home", "http://localhost", true, 1))
-        val songs = listOf(Triple("a", "Jazz", 1965L), Triple("b", "Jazz", 1992L), Triple("c", "Techno", 1994L))
+        val songs = listOf(Triple("a", "Modal", 1965L), Triple("b", "Fusion", 1992L), Triple("c", "Techno", 1994L))
         db.libraryDao().upsertAlbums(
             songs.map { (id, _, year) -> Album(1, "al-$id", null, "Album $id", null, 0, null, null, year, null, 1) },
         )

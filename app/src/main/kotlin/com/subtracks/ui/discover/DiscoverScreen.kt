@@ -57,12 +57,19 @@ fun DiscoverRoute(
     val autoplay by viewModel.autoplaySimilar.collectAsStateWithLifecycle()
     val builder by builderViewModel.state.collectAsStateWithLifecycle()
     val building by builderViewModel.building.collectAsStateWithLifecycle()
+    val focusedMain by builderViewModel.focusedMain.collectAsStateWithLifecycle()
     var editing by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) { builderViewModel.refresh() }
     val actions =
         remember(builderViewModel) {
             QueueBuilderActions(
-                toggleGenre = builderViewModel::toggleGenre,
+                open = {
+                    builderViewModel.refresh()
+                    editing = true
+                },
+                toggleMain = builderViewModel::toggleMain,
+                tapMainInCard = builderViewModel::tapMainInCard,
+                togglePill = builderViewModel::togglePill,
                 toggleDecade = builderViewModel::toggleDecade,
                 clearGenres = builderViewModel::clearGenres,
                 clearDecades = builderViewModel::clearDecades,
@@ -84,12 +91,9 @@ fun DiscoverRoute(
         autoplaySimilar = autoplay,
         onAutoplayChange = viewModel::setAutoplaySimilar,
         queueBuilder = builder,
+        queueBuilderFocus = focusedMain,
         queueBuilderBuilding = building,
-        onOpenQueueBuilder = {
-            builderViewModel.refresh()
-            editing = true
-        },
-        onPlayQueueBuilder = { builderViewModel.build() },
+        queueBuilderActions = actions,
     )
 }
 
@@ -105,9 +109,9 @@ fun DiscoverScreen(
     autoplaySimilar: Boolean = false,
     onAutoplayChange: (Boolean) -> Unit = {},
     queueBuilder: QueueBuilderState = QueueBuilderState(loading = false),
+    queueBuilderFocus: String? = null,
     queueBuilderBuilding: Boolean = false,
-    onOpenQueueBuilder: () -> Unit = {},
-    onPlayQueueBuilder: () -> Unit = {},
+    queueBuilderActions: QueueBuilderActions = QueueBuilderActions(),
 ) {
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
@@ -116,7 +120,8 @@ fun DiscoverScreen(
         )
         LazyColumn(
             modifier = Modifier.testTag("discoverList"),
-            contentPadding = PaddingValues(20.dp),
+            // Vertical only: chip and station rows scroll edge to edge, so every other item pads itself.
+            contentPadding = PaddingValues(vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item {
@@ -124,7 +129,10 @@ fun DiscoverScreen(
                     onClick = onShuffle,
                     enabled = !busy,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -144,14 +152,14 @@ fun DiscoverScreen(
                 }
             }
             item {
-                QueueBuilderCard(queueBuilder, queueBuilderBuilding, onOpenQueueBuilder, onPlayQueueBuilder)
+                QueueBuilderSection(queueBuilder, queueBuilderFocus, queueBuilderBuilding, queueBuilderActions)
             }
             item {
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .toggleable(value = autoplaySimilar, role = Role.Switch, onValueChange = onAutoplayChange)
-                        .padding(vertical = 8.dp),
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
@@ -168,16 +176,16 @@ fun DiscoverScreen(
             }
             if (!state.offline) {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.discover_stations), style = MaterialTheme.typography.titleLarge)
                         Text(stringResource(R.string.discover_stations_description), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 if (state.artists.isEmpty()) {
-                    item { Text(stringResource(R.string.discover_stations_empty)) }
+                    item { Text(stringResource(R.string.discover_stations_empty), Modifier.padding(horizontal = 20.dp)) }
                 } else {
                     item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(state.artists, key = { it.id }) { artist ->
                                 Card(onClick = { onStation(artist) }, enabled = !busy, modifier = Modifier.width(152.dp)) {
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

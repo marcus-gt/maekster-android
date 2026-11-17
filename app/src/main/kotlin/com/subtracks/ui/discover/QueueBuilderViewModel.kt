@@ -39,6 +39,15 @@ data class QueueBuilderState(
     val matchCount: Long? = null,
 ) {
     val canBuild: Boolean get() = !loading && matchCount != 0L
+
+    /** The main genre is picked whole or through some of its sub-genres (the card's genre row). */
+    fun isPicked(main: String): Boolean = main in selection.mains || index.column(main)?.pills?.any { it.key in selection.tags } == true
+
+    /** A sub-genre counts as picked when picked itself or when its whole main genre is. */
+    fun isSelected(
+        pill: String,
+        main: String,
+    ): Boolean = pill in selection.tags || main in selection.mains
 }
 
 private data class LoadedIndex(
@@ -107,6 +116,11 @@ class QueueBuilderViewModel(
     private val _building = MutableStateFlow(false)
     val building = _building.asStateFlow()
 
+    private val _focusedMain = MutableStateFlow<String?>(null)
+
+    /** The main genre whose sub-genres the Discover card shows in its second row. */
+    val focusedMain = _focusedMain.asStateFlow()
+
     init {
         viewModelScope.launch {
             activeSourceId.distinctUntilChanged().collectLatest { id ->
@@ -120,16 +134,68 @@ class QueueBuilderViewModel(
         reload.value++
     }
 
-    fun toggleGenre(key: String) = editSelection { it.copy(genres = it.genres.toggle(key)) }
+    /** A column title on the full page: picks the whole main genre (dropping its single sub-genres), or unpicks it. */
+    fun toggleMain(main: String) =
+        editSelection {
+            if (main in it.mains) it.copy(mains = it.mains - main) else it.withoutTagsOf(main).copy(mains = it.mains + main)
+        }
+
+    /**
+     * A main genre on the Discover card. Unpicked: picks it whole and shows its sub-genres. Picked while another
+     * genre's sub-genres show: shows this one's. Picked and showing: unpicks it with its sub-genres.
+     */
+    fun tapMainInCard(main: String) {
+        // The saved picks, not the shown state, so quick taps never act on a match count still being worked out.
+        val saved = picks.value?.second?.selection ?: return
+        when {
+            !state.value.copy(selection = saved).isPicked(main) -> {
+                editSelection { it.copy(mains = it.mains + main) }
+                _focusedMain.value = main
+            }
+
+            _focusedMain.value != main -> {
+                _focusedMain.value = main
+            }
+
+            else -> {
+                editSelection { it.withoutTagsOf(main).copy(mains = it.mains - main) }
+                _focusedMain.value = null
+            }
+        }
+    }
+
+    /** A sub-genre pill. On a wholly picked main genre it narrows the pick to this sub-genre; otherwise it toggles it. */
+    fun togglePill(
+        pill: String,
+        main: String,
+    ) = editSelection {
+        if (main in it.mains) it.copy(mains = it.mains - main, tags = it.tags + pill) else it.copy(tags = it.tags.toggle(pill))
+    }
 
     fun toggleDecade(decade: Int) = editSelection { it.copy(decades = it.decades.toggle(decade)) }
 
-    fun clearGenres() = editSelection { it.copy(genres = emptySet()) }
+    fun clearGenres() {
+        editSelection { it.copy(mains = emptySet(), tags = emptySet()) }
+        _focusedMain.value = null
+    }
 
     fun clearDecades() = editSelection { it.copy(decades = emptySet()) }
 
     /** Clears every pick; the length stays. */
-    fun reset() = editSelection { QueueBuilderSelection() }
+    fun reset() {
+        editSelection { QueueBuilderSelection() }
+        _focusedMain.value = null
+    }
+
+    private fun QueueBuilderSelection.withoutTagsOf(main: String): QueueBuilderSelection {
+        val pills =
+            state.value.index
+                .column(main)
+                ?.pills
+                ?.map { it.key }
+                .orEmpty()
+        return copy(tags = tags - pills.toSet())
+    }
 
     fun setLength(length: Int) = edit { it.copy(length = QueueBuilderPicks.clampLength(length)) }
 

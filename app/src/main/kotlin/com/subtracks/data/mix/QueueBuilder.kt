@@ -4,13 +4,19 @@ import com.subtracks.data.db.GenreSpelling
 import com.subtracks.data.db.MixDao
 
 /**
- * What the listener picked: any of [genres] (by [QueueBuilderGenre.key]) and any of [decades] (their first
- * year, 1990 for the 1990s). Nothing picked in a group matches everything in it.
+ * What the listener picked: whole main genres ([mains]), single sub-genres ([tags], by [QueueBuilderPill.key])
+ * and [decades] (their first year, 1990 for the 1990s). Any picked genre and any picked decade match; nothing
+ * picked in a group matches everything in it.
  */
 data class QueueBuilderSelection(
-    val genres: Set<String> = emptySet(),
+    val mains: Set<String> = emptySet(),
+    val tags: Set<String> = emptySet(),
     val decades: Set<Int> = emptySet(),
-)
+) {
+    val hasGenre: Boolean get() = mains.isNotEmpty() || tags.isNotEmpty()
+
+    val isEmpty: Boolean get() = !hasGenre && decades.isEmpty()
+}
 
 /** The remembered picks and queue length (15 to 120 songs in steps of 5). */
 data class QueueBuilderPicks(
@@ -30,58 +36,78 @@ data class QueueBuilderPicks(
     }
 }
 
-/**
- * [selection] without picks the index no longer offers (a genre retagged away, a decade without songs, or
- * genres without downloads offline), so a remembered pick never silently narrows a build to nothing.
- */
-fun QueueBuilderIndex.available(selection: QueueBuilderSelection): QueueBuilderSelection =
-    QueueBuilderSelection(
-        genres = selection.genres.filterTo(mutableSetOf()) { key -> genres.any { it.key == key } },
-        decades = selection.decades.filterTo(mutableSetOf()) { it in decades },
-    )
-
-/** One genre as the library tags it, however it is spelled or cased, and the songs carrying it. */
-data class QueueBuilderGenre(
+/** A sub-genre pill: every library spelling that resolves to one style or sub-genre, and their songs. */
+data class QueueBuilderPill(
     val key: String,
     val name: String,
     val songCount: Long,
 )
 
-/** The genres (biggest first) and decades (oldest first) to pick from, with song counts. */
-data class QueueBuilderIndex(
-    val genres: List<QueueBuilderGenre> = emptyList(),
-    val decades: Map<Int, Long> = emptyMap(),
+/** A main genre with the distinct songs carrying any of its tags, and its sub-genres (biggest first). */
+data class QueueBuilderColumn(
+    val main: String,
+    val songCount: Long,
+    val pills: List<QueueBuilderPill>,
 )
 
+/** The genre columns (biggest first, [GenreTaxonomy.OTHER] last) and decades with song counts. */
+data class QueueBuilderIndex(
+    val columns: List<QueueBuilderColumn> = emptyList(),
+    val decades: Map<Int, Long> = emptyMap(),
+) {
+    fun column(main: String): QueueBuilderColumn? = columns.firstOrNull { it.main == main }
+}
+
 /**
- * Builds Queue Builder queues from the local mirror alone, so it works offline (downloads only). Every read is
- * a bounded, aggregated or random query; no table is loaded whole.
+ * [selection] without picks the index no longer offers (a genre retagged away, a decade without songs, or
+ * genres without downloads offline), so a remembered pick never silently narrows a build to nothing.
+ */
+fun QueueBuilderIndex.available(selection: QueueBuilderSelection): QueueBuilderSelection {
+    val pills = columns.flatMapTo(mutableSetOf()) { column -> column.pills.map { it.key } }
+    return QueueBuilderSelection(
+        mains = selection.mains.filterTo(mutableSetOf()) { main -> columns.any { it.main == main } },
+        tags = selection.tags.filterTo(mutableSetOf()) { it in pills },
+        decades = selection.decades.filterTo(mutableSetOf()) { it in decades },
+    )
+}
+
+/**
+ * Builds Queue Builder queues from the local mirror alone, so it works offline (downloads only). Library genre
+ * tags are grouped by [taxonomy] into main genres and sub-genres. Every read is a bounded, aggregated or random
+ * query; no table is loaded whole.
  */
 class QueueBuilder(
     private val dao: MixDao,
+    private val taxonomy: GenreTaxonomy = GenreTaxonomy.DISCOGS,
 ) {
     suspend fun index(
         sourceId: Long,
         downloadedOnly: Boolean,
     ): QueueBuilderIndex {
-        val genres =
-            dao
-                .genreSpellings(sourceId, downloadedOnly)
-                .filter { it.genre.isNotBlank() }
-                .groupBy { genreKey(it.genre) }
-                .map { (key, spellings) ->
-                    // The most used spelling names the genre; ties go alphabetically for a stable name.
-                    val name =
-                        spellings
-                            .sortedWith(compareByDescending<GenreSpelling> { it.uses }.thenBy { it.genre.trim() })
-                            .first()
-                            .genre
-                            .trim()
-                    // Summed per spelling: a song tagged with two spellings of one genre counts twice here only.
-                    QueueBuilderGenre(key, name, spellings.sumOf { it.songCount })
-                }.sortedWith(compareByDescending<QueueBuilderGenre> { it.songCount }.thenBy { it.name.lowercase() })
+        val spellings = resolvedSpellings(sourceId, downloadedOnly)
+        val columns =
+            spellings
+                .flatMap { spelling -> spelling.resolved.mains.map { it to spelling } }
+                .groupBy({ it.first }, { it.second })
+                .map { (main, members) ->
+                    val pills =
+                        members
+                            .filterNot { it.resolved.isMainTag }
+                            .groupBy { it.resolved.key }
+                            .map { (key, variants) ->
+                                // Summed per spelling: a song tagged with two variants of one pill counts twice here only.
+                                QueueBuilderPill(key, pillName(variants), variants.sumOf { it.row.songCount })
+                            }.sortedWith(compareByDescending<QueueBuilderPill> { it.songCount }.thenBy { it.name.lowercase() })
+                    // Exact: a song with two tags of one main genre counts once for it.
+                    val songCount = dao.songsWithGenres(sourceId, members.map { it.row.genre }, downloadedOnly)
+                    QueueBuilderColumn(main, songCount, pills)
+                }.sortedWith(
+                    compareBy<QueueBuilderColumn> { it.main == GenreTaxonomy.OTHER }
+                        .thenByDescending { it.songCount }
+                        .thenBy { it.main },
+                )
         val decades = dao.decadeCounts(sourceId, downloadedOnly).associate { it.decade to it.songCount }
-        return QueueBuilderIndex(genres, decades)
+        return QueueBuilderIndex(columns, decades)
     }
 
     /** How many songs [selection] matches. */
@@ -89,17 +115,15 @@ class QueueBuilder(
         sourceId: Long,
         selection: QueueBuilderSelection,
         downloadedOnly: Boolean,
-    ): Long {
-        val genres = spellings(sourceId, selection, downloadedOnly)
-        return dao.builderMatchCount(
+    ): Long =
+        dao.builderMatchCount(
             sourceId = sourceId,
-            anyGenre = selection.genres.isEmpty(),
-            genres = genres,
+            anyGenre = !selection.hasGenre,
+            genres = matchingSpellings(sourceId, selection, downloadedOnly),
             anyDecade = selection.decades.isEmpty(),
             decades = selection.decades.toList(),
             downloadedOnly = downloadedOnly,
         )
-    }
 
     /** Up to [count] random matching song ids, each once, skipping [excluding] (songs already queued). */
     suspend fun build(
@@ -111,11 +135,10 @@ class QueueBuilder(
     ): List<String> {
         require(count in 1..MAX_COUNT) { "A Queue Builder batch holds 1 to $MAX_COUNT songs" }
         require(excluding.size <= MAX_EXCLUDED) { "At most $MAX_EXCLUDED songs can be excluded" }
-        val genres = spellings(sourceId, selection, downloadedOnly)
         return dao.builderSongs(
             sourceId = sourceId,
-            anyGenre = selection.genres.isEmpty(),
-            genres = genres,
+            anyGenre = !selection.hasGenre,
+            genres = matchingSpellings(sourceId, selection, downloadedOnly),
             anyDecade = selection.decades.isEmpty(),
             decades = selection.decades.toList(),
             excluded = excluding.distinct(),
@@ -124,24 +147,43 @@ class QueueBuilder(
         )
     }
 
-    /** The stored spellings behind the picked genre keys, so the match can use the genre index. */
-    private suspend fun spellings(
+    private data class Spelling(
+        val row: GenreSpelling,
+        val resolved: ResolvedGenre,
+    )
+
+    private suspend fun resolvedSpellings(
+        sourceId: Long,
+        downloadedOnly: Boolean,
+    ): List<Spelling> =
+        dao
+            .genreSpellings(sourceId, downloadedOnly)
+            .filter { it.genre.isNotBlank() && GenreTaxonomy.normalize(it.genre).isNotEmpty() }
+            .map { Spelling(it, taxonomy.resolve(it.genre)) }
+
+    /** The stored spellings behind the picks, so the match can use the genre index. */
+    private suspend fun matchingSpellings(
         sourceId: Long,
         selection: QueueBuilderSelection,
         downloadedOnly: Boolean,
     ): List<String> {
-        if (selection.genres.isEmpty()) return emptyList()
-        return dao
-            .genreSpellings(sourceId, downloadedOnly)
-            .map { it.genre }
-            .filter { genreKey(it) in selection.genres }
+        if (!selection.hasGenre) return emptyList()
+        return resolvedSpellings(sourceId, downloadedOnly)
+            .filter { it.resolved.key in selection.tags || it.resolved.mains.any { main -> main in selection.mains } }
+            .map { it.row.genre }
     }
+
+    // The Discogs style name when there is one; otherwise the most used library spelling, ties alphabetical.
+    private fun pillName(variants: List<Spelling>): String =
+        variants.firstNotNullOfOrNull { it.resolved.styleName }
+            ?: variants
+                .sortedWith(compareByDescending<Spelling> { it.row.uses }.thenBy { it.row.genre.trim() })
+                .first()
+                .row.genre
+                .trim()
 
     companion object {
         const val MAX_COUNT = 200
         const val MAX_EXCLUDED = 2_000
-
-        /** Spellings that differ only in case or surrounding space are one genre. */
-        fun genreKey(genre: String): String = genre.trim().lowercase()
     }
 }

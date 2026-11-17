@@ -13,6 +13,7 @@ import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -23,8 +24,10 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
-import com.subtracks.data.mix.QueueBuilderGenre
+import com.subtracks.data.mix.GenreTaxonomy
+import com.subtracks.data.mix.QueueBuilderColumn
 import com.subtracks.data.mix.QueueBuilderIndex
+import com.subtracks.data.mix.QueueBuilderPill
 import com.subtracks.data.mix.QueueBuilderSelection
 import com.subtracks.data.model.Artist
 import com.subtracks.ui.theme.MaeksterTheme
@@ -80,10 +83,9 @@ class DiscoverScreenTest {
         composeRule.onNodeWithText("Autoplay similar").performClick().assertIsOff()
     }
 
-    @Test fun theQueueBuilderCardSummarisesThePicksAndPlaysOrOpensThem() {
-        var opened = 0
-        var played = 0
-        var builder by mutableStateOf(builderState(QueueBuilderSelection(genres = setOf("techno", "jazz"), decades = setOf(1970, 1990))))
+    @Test fun theCardPicksGenresSubGenresAndDecadesInPlaceAndSummarisesThem() {
+        val calls = mutableListOf<String>()
+        var builder by mutableStateOf(builderState(QueueBuilderSelection(tags = setOf(contemporary, fusion), decades = setOf(1970, 1990))))
         composeRule.setContent {
             MaeksterTheme {
                 DiscoverScreen(
@@ -93,59 +95,56 @@ class DiscoverScreenTest {
                     {},
                     {},
                     queueBuilder = builder,
-                    onOpenQueueBuilder = { opened++ },
-                    onPlayQueueBuilder = { played++ },
+                    queueBuilderFocus = "Jazz",
+                    queueBuilderActions = recordingActions(calls),
                 )
             }
         }
-        // Genres follow the index order (biggest first), decades newest first.
-        composeRule.onNodeWithText("Jazz, Techno · 1990s, 1970s").assertExists()
-        composeRule.onNodeWithText("Play").performClick()
-        composeRule.onNodeWithText("Edit picks").performClick()
+        composeRule.onNodeWithText("Contemporary Jazz and Fusion · 1990s and 1970s").assertExists()
+        // Jazz is picked through its sub-genres, and its sub-genres show in the second row.
+        composeRule.onNodeWithText("Jazz").assertIsSelected()
+        composeRule.onNodeWithText("Electronic").assertIsNotSelected().performClick()
+        composeRule.onNodeWithText("Fusion").assertIsSelected()
+        composeRule.onNodeWithText("Post Bop").assertIsNotSelected().performClick()
+        composeRule.onNodeWithText("1990s").assertIsSelected().performClick()
+        composeRule.onNodeWithContentDescription("Play queue").performClick()
+        composeRule.onNodeWithContentDescription("Reset").performClick()
         composeRule.onNodeWithText("Queue Builder").performClick()
-        assertEquals(1, played)
-        assertEquals(2, opened)
+        assertEquals(listOf("tapMain Electronic", "pill $postBop Jazz", "decade 1990", "build", "reset", "open"), calls)
+
+        builder = builderState(QueueBuilderSelection(mains = setOf("Jazz"), decades = setOf(1970, 1990, 2000)))
+        composeRule.onNodeWithText("Jazz · 2000s, 1990s and 1970s").assertExists()
 
         builder = builderState(QueueBuilderSelection(), matchCount = 0)
         composeRule.onNodeWithText("Anything in your library").assertExists()
-        composeRule.onNodeWithText("Play").assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("Play queue").assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("Reset").assertDoesNotExist()
     }
 
-    @Test fun thePickerTogglesChipsFiltersGenresAndBuildsOnlyWhenSomethingMatches() {
-        val toggledGenres = mutableListOf<String>()
-        val toggledDecades = mutableListOf<Int>()
-        var builds = 0
-        var state by mutableStateOf(builderState(QueueBuilderSelection(genres = setOf("jazz")), matchCount = 12))
+    @Test fun thePageShowsGenreColumnsWithTheirSubGenresAndBuildsOnlyWhenSomethingMatches() {
+        val calls = mutableListOf<String>()
+        var state by mutableStateOf(builderState(QueueBuilderSelection(mains = setOf("Jazz")), matchCount = 12))
         composeRule.setContent {
-            MaeksterTheme {
-                Surface {
-                    QueueBuilderContent(
-                        state,
-                        building = false,
-                        actions =
-                            QueueBuilderActions(
-                                toggleGenre = { toggledGenres += it },
-                                toggleDecade = { toggledDecades += it },
-                                build = { builds++ },
-                            ),
-                    )
-                }
-            }
+            MaeksterTheme { Surface { QueueBuilderContent(state, building = false, actions = recordingActions(calls)) } }
         }
+        // A wholly picked genre shows every sub-genre under it as picked.
         composeRule.onNodeWithText("Jazz (40)").assertIsSelected()
-        composeRule.onNodeWithText("Techno (25)").assertIsNotSelected().performClick()
+        composeRule.onNodeWithText("Fusion (15)").assertIsSelected()
+        composeRule
+            .onNodeWithText("Electronic (30)")
+            .performScrollTo()
+            .assertIsNotSelected()
+            .performClick()
+        composeRule.onNodeWithText("Techno (25)").performScrollTo().performClick()
         composeRule.onNodeWithText("1990s (30)").performScrollTo().performClick()
-        assertEquals(listOf("techno"), toggledGenres)
-        assertEquals(listOf(1990), toggledDecades)
         composeRule.onNodeWithText("12 matching songs").assertExists()
         composeRule.onNodeWithText("Build queue").performClick()
-        assertEquals(1, builds)
+        assertEquals(listOf("main Electronic", "pill $techno Electronic", "decade 1990", "build"), calls)
 
-        composeRule.onNodeWithText("Filter genres").performTextInput("tech")
+        composeRule.onNodeWithText("Filter genres").performScrollTo().performTextInput("tech")
         composeRule.onNodeWithText("Techno (25)").assertExists()
-        // A picked genre stays visible while filtered out, so it can still be unpicked.
-        composeRule.onNodeWithText("Jazz (40)").assertExists()
         composeRule.onNodeWithText("House (5)").assertDoesNotExist()
+        composeRule.onNodeWithText("Fusion (15)").assertDoesNotExist()
 
         state = state.copy(matchCount = 0)
         composeRule.onNodeWithText("0 matching songs").assertExists()
@@ -165,7 +164,7 @@ class DiscoverScreenTest {
                 MaeksterTheme {
                     Surface {
                         QueueBuilderContent(
-                            builderState(QueueBuilderSelection(genres = setOf("jazz"), decades = setOf(1990)), matchCount = 18),
+                            builderState(QueueBuilderSelection(tags = setOf(contemporary), decades = setOf(1990)), matchCount = 18),
                             building = false,
                             actions = QueueBuilderActions(),
                         )
@@ -176,6 +175,24 @@ class DiscoverScreenTest {
         composeRule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
     }
 
+    private fun recordingActions(calls: MutableList<String>) =
+        QueueBuilderActions(
+            open = { calls += "open" },
+            toggleMain = { calls += "main $it" },
+            tapMainInCard = { calls += "tapMain $it" },
+            togglePill = { pill, main -> calls += "pill $pill $main" },
+            toggleDecade = { calls += "decade $it" },
+            reset = { calls += "reset" },
+            build = { calls += "build" },
+        )
+
+    private val contemporary = key("Contemporary Jazz")
+    private val fusion = key("Fusion")
+    private val postBop = key("Post Bop")
+    private val techno = key("Techno")
+
+    private fun key(genre: String) = GenreTaxonomy.DISCOGS.resolve(genre).key
+
     private fun builderState(
         selection: QueueBuilderSelection,
         matchCount: Long = 40,
@@ -183,11 +200,23 @@ class DiscoverScreenTest {
         loading = false,
         index =
             QueueBuilderIndex(
-                genres =
+                columns =
                     listOf(
-                        QueueBuilderGenre("jazz", "Jazz", 40),
-                        QueueBuilderGenre("techno", "Techno", 25),
-                        QueueBuilderGenre("house", "House", 5),
+                        QueueBuilderColumn(
+                            "Jazz",
+                            40,
+                            listOf(
+                                QueueBuilderPill(contemporary, "Contemporary Jazz", 20),
+                                QueueBuilderPill(fusion, "Fusion", 15),
+                                QueueBuilderPill(postBop, "Post Bop", 8),
+                            ),
+                        ),
+                        QueueBuilderColumn(
+                            "Electronic",
+                            30,
+                            listOf(QueueBuilderPill(techno, "Techno", 25), QueueBuilderPill(key("House"), "House", 5)),
+                        ),
+                        QueueBuilderColumn(GenreTaxonomy.OTHER, 3, listOf(QueueBuilderPill("norway", "Norway", 3))),
                     ),
                 decades = mapOf(1970 to 10L, 1990 to 30L, 2000 to 25L),
             ),
@@ -224,7 +253,11 @@ class DiscoverScreenTest {
                             {},
                             {},
                             {},
-                            queueBuilder = builderState(QueueBuilderSelection(genres = setOf("jazz"), decades = setOf(1990))),
+                            queueBuilder =
+                                builderState(
+                                    QueueBuilderSelection(tags = setOf(contemporary, fusion), decades = setOf(1970, 2000)),
+                                ),
+                            queueBuilderFocus = "Jazz",
                         )
                     }
                 }

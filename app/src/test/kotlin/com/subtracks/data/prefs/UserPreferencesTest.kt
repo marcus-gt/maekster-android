@@ -24,7 +24,8 @@ class UserPreferencesTest {
         runTest {
             val prefs = fakeUserPreferences()
             assertEquals(QueueBuilderPicks(), prefs.queueBuilderPicks(1).first())
-            val jazz90s = QueueBuilderPicks(QueueBuilderSelection(genres = setOf("jazz"), decades = setOf(1990)), length = 63)
+            val jazz90s =
+                QueueBuilderPicks(QueueBuilderSelection(mains = setOf("Jazz"), tags = setOf("techno"), decades = setOf(1990)), length = 63)
             prefs.setQueueBuilderPicks(1, jazz90s)
             assertEquals(jazz90s.copy(length = 65), prefs.queueBuilderPicks(1).first())
             assertEquals(QueueBuilderPicks(), prefs.queueBuilderPicks(2).first())
