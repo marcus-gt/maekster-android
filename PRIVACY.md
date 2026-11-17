@@ -16,6 +16,14 @@ Each of these is off until you turn it on, and makes no request while off. None 
 | Fresh releases covers | `coverartarchive.org` (which may redirect to `archive.org`) | When "Fresh releases" is on and showing releases | The MusicBrainz release group ID of each cover shown |
 | Photos of recommended artists | `musicbrainz.org`, `www.wikidata.org`, `commons.wikimedia.org` (which redirects to `upload.wikimedia.org`) | When "Photos of recommended artists" is on, online, and a Similar artists shelf shows artists outside your library | The MusicBrainz ID of each such artist, or its name when there is no ID; then the Wikidata item and Commons file name found for it |
 
+## Optional self-hosted AudioMuse
+
+AudioMuse settings are saved separately for each music server. Its token is encrypted on the device.
+Saving or removing these settings makes no network request. When AudioMuse features are used, requests
+will go only to the configured AudioMuse host and contain its own token, song IDs, search text and mood
+choices. Music server credentials and custom headers are never sent to AudioMuse. The current settings
+form does not yet enable mood or Song Path requests.
+
 Opening a fresh release takes you to its page on `musicbrainz.org` in your browser.
 
 ## Contact

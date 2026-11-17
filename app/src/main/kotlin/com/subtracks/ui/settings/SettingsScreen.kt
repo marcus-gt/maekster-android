@@ -145,6 +145,7 @@ private enum class SettingsDialog {
     Lyrics,
     QuickPlaylists,
     ListenBrainz,
+    AudioMuse,
 }
 
 @Composable
@@ -446,6 +447,13 @@ fun SettingsScreen(
                     }
                     if (activeSourceId != null) {
                         item {
+                            ValueRow(
+                                title = stringResource(R.string.audiomuse_title),
+                                value = sources.firstOrNull { it.id == activeSourceId }?.name.orEmpty(),
+                                onClick = { dialog = SettingsDialog.AudioMuse },
+                            )
+                        }
+                        item {
                             ActionRow(
                                 title = stringResource(R.string.quick_playlists_title),
                                 icon = Icons.Rounded.Bolt,
@@ -702,6 +710,12 @@ fun SettingsScreen(
 
         SettingsDialog.Home -> {
             HomeLayoutDialog(homeLayout, onHomeLayoutChange, onDismiss = { dialog = null })
+        }
+
+        SettingsDialog.AudioMuse -> {
+            activeSourceId?.let { sourceId ->
+                AudioMuseSettingsRoute(sourceId, sources.firstOrNull { it.id == sourceId }?.name.orEmpty()) { dialog = null }
+            }
         }
 
         SettingsDialog.ListenBrainz -> {

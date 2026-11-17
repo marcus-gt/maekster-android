@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.subtracks.R
+import com.subtracks.data.model.Source
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.ThemeMode
@@ -89,6 +90,23 @@ class SettingsScreenTest {
         composeRule.onNodeWithText(text(R.string.external_artist_images_disclosure)).assertExists()
         composeRule.onNodeWithText(text(R.string.external_artist_images_title)).performClick()
         assertEquals(true, enabled.value)
+    }
+
+    @Test
+    fun audioMuseSettingsAreListedForTheActiveServer() {
+        composeRule.setContent {
+            MaeksterTheme { Settings(SettingsPage.Application, server = Source(1, "My server", "https://music", true, 0)) }
+        }
+        scrollTo("AudioMuse-AI")
+        composeRule.onNodeWithText("AudioMuse-AI").assertExists()
+        composeRule.onNodeWithText("My server").assertExists()
+    }
+
+    @Test
+    fun audioMuseSettingsAreHiddenWithoutAnActiveServer() {
+        composeRule.setContent { MaeksterTheme { Settings(SettingsPage.Application) } }
+        scrollTo(text(R.string.settings_sort_names_title))
+        composeRule.onNodeWithText("AudioMuse-AI").assertDoesNotExist()
     }
 
     @Test
@@ -340,10 +358,11 @@ class SettingsScreenTest {
         onFresh: (Boolean) -> Unit = {},
         photos: Boolean = false,
         onPhotos: (Boolean) -> Unit = {},
+        server: Source? = null,
     ) {
         SettingsScreen(
-            sources = emptyList(),
-            activeSourceId = null,
+            sources = listOfNotNull(server),
+            activeSourceId = server?.id,
             wifiQuality = wifiQuality,
             mobileQuality = mobileQuality,
             syncConcurrency = 1,

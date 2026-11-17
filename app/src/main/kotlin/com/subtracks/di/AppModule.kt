@@ -8,6 +8,7 @@ import com.subtracks.UiMessages
 import com.subtracks.data.artistimages.ExternalArtistImages
 import com.subtracks.data.artistimages.OkHttpWikidata
 import com.subtracks.data.artistimages.Wikidata
+import com.subtracks.data.audiomuse.AudioMuseConfiguration
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createAndroidDatabase
 import com.subtracks.data.download.ArtworkFetcher
@@ -91,6 +92,7 @@ import com.subtracks.ui.playlist.RenamePlaylistViewModel
 import com.subtracks.ui.playlist.SaveQueueViewModel
 import com.subtracks.ui.search.SearchViewModel
 import com.subtracks.ui.settings.AddSourceViewModel
+import com.subtracks.ui.settings.AudioMuseSettingsViewModel
 import com.subtracks.ui.settings.CoilArtworkCache
 import com.subtracks.ui.settings.ListenBrainzSettingsViewModel
 import com.subtracks.ui.settings.QuickPlaylistsSettingsViewModel
@@ -374,6 +376,8 @@ fun appModule(
     viewModel { SearchViewModel(get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get()) }
     viewModel { ListenBrainzSettingsViewModel(get()) }
+    single { AudioMuseConfiguration(get<SubtracksDatabase>().audioMuseConfigDao(), get()) }
+    viewModel { params -> AudioMuseSettingsViewModel(params.get<Long>(), get()) }
     viewModel {
         val sync = get<SyncManager>()
         val database = context.getDatabasePath("subtracks.db")

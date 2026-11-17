@@ -684,4 +684,19 @@
     <string name="playlist_edit_not_reported">The playlist was created; sync the library to see it</string>
     <string name="playlist_edit_failed">Couldn\'t change the playlist</string>
 
+    <string name="audiomuse_title">AudioMuse-AI</string>
+    <string name="audiomuse_disclosure">Configure AudioMuse for this music server. When you use AudioMuse features, your AudioMuse instance receives song IDs, search text, mood choices and its own token. Your music server credentials and custom headers are never shared. Saving these settings makes no network request.</string>
+    <string name="audiomuse_url">AudioMuse URL</string>
+    <string name="audiomuse_token">AudioMuse token (optional)</string>
+    <string name="audiomuse_keep_token">Keep saved token</string>
+    <string name="audiomuse_token_hint">Leave the token blank for an instance without authentication. Changing the URL requires a new token or no token.</string>
+    <string name="audiomuse_http">HTTP sends your AudioMuse token and requests without encryption.</string>
+    <string name="audiomuse_unreadable">The saved token can no longer be read. Enter it again or save without a token.</string>
+    <string name="audiomuse_saved">Settings saved. The connection has not been tested.</string>
+    <string name="audiomuse_invalid">Check the URL and token. The URL must not contain credentials, a query or a fragment.</string>
+    <string name="audiomuse_save_failed">Could not save these settings. Try again.</string>
+    <string name="audiomuse_save">Save settings</string>
+    <string name="audiomuse_remove">Remove AudioMuse</string>
+    <string name="audiomuse_remove_title">Remove AudioMuse settings?</string>
+    <string name="audiomuse_remove_body">Removes the AudioMuse URL and token for this music server.</string>
 </resources>
