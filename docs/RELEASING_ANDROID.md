@@ -30,9 +30,17 @@ Keep keystores, property files, passwords and Base64 values out of commits, logs
    Dispatch **Build signed GitHub release APK** from that same `main` commit with the tag input. The
    workflow checks the tag, signer, package and versions, then saves `maekster.apk` and `SHA256SUMS`
    in the `maekster-release-apk` artifact. It has read-only repository permissions.
-3. Download the artifact, verify the checksums, and test clean install and signed in-place update.
-   With publication approval, create a GitHub release for the same existing tag and attach the APK
-   and checksum as individual assets. For review before publication, use:
+3. Download the artifact. Run `shasum -a 256 -c SHA256SUMS` in the extracted artifact directory,
+   then run the same APK check as CI from the repository root. Supply the approved fingerprint,
+   version code and version name from the release record.
+
+   ```sh
+   nix develop --command bash tools/verify-release-apk.sh /path/to/maekster.apk CERT_SHA256 VERSION_CODE VERSION_NAME
+   ```
+
+   Test a clean install and a signed in-place update. With publication approval, create a GitHub
+   release for the same existing tag and attach the APK and checksum as individual assets. For review
+   before publication, use:
    ```sh
    gh release create vMAJOR.MINOR.PATCH --verify-tag --draft --notes-file release-notes.md maekster.apk SHA256SUMS
    ```

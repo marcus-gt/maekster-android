@@ -59,12 +59,7 @@ jobs:
           VERSION_CODE: ${{ steps.build.outputs.version-code }}
         run: |
           apk=app/build/outputs/apk/release/app-release.apk
-          signing=$(nix develop --command bash -c 'exec "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --print-certs "$1"' _ "$apk")
-          actual=$(printf '%s\n' "$signing" | awk -F ': ' '/certificate SHA-256 digest:/ {print $2}')
-          test "${actual,,}" = "${SIGNING_SHA256,,}"
-          package=$(nix develop --command bash -c 'exec "$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging "$1"' _ "$apk")
-          expected="package: name='io.github.marcus_gt.maekster' versionCode='$VERSION_CODE' versionName='${RELEASE_TAG#v}'"
-          grep -Fq "$expected" <<< "$package"
+          nix develop --command bash tools/verify-release-apk.sh "$apk" "$SIGNING_SHA256" "$VERSION_CODE" "${RELEASE_TAG#v}"
           mkdir -p dist
           cp "$apk" dist/maekster.apk
           (cd dist && sha256sum maekster.apk > SHA256SUMS)

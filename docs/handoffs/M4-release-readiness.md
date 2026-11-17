@@ -41,6 +41,8 @@ remain active. Follow-up subtasks have their own handoffs. Nothing was pushed.
 
 - [M4.9 Server setup at 200% text](M4.9-server-setup-accessibility.md) verifies that both server form actions remain reachable and clickable.
 
+- [M4.11 APK verification](M4.11-apk-verification.md) shares the same signer and metadata checks between CI and local release review.
+
 ## Resume
 
 - Run [the physical GrapheneOS checklist](../RELEASE_READINESS.md) on a Pixel without
