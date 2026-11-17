@@ -121,6 +121,17 @@ class AppModuleTest {
     }
 
     @Test
+    fun theModuleResolvesTheAudioMuseActions() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val serverHeaders = ServerHeaders()
+        val http = OkHttpClient.Builder().addNetworkInterceptor(serverHeaders.interceptor()).build()
+        koin = startKoin { modules(appModule(context, http, serverHeaders)) }.koin
+
+        assertSame(koin.get<com.subtracks.playback.SongPathPlayer>(), koin.get<com.subtracks.playback.SongPathPlayer>())
+        assertSame(koin.get<com.subtracks.playback.MoodRadioPlayer>(), koin.get<com.subtracks.playback.MoodRadioPlayer>())
+    }
+
+    @Test
     fun theModuleResolvesFreshReleasesWithOneSharedMusicBrainzLimiter() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val serverHeaders = ServerHeaders()

@@ -9,12 +9,14 @@ import com.subtracks.data.model.QueueKind
  * Queues named by what they are rather than by one album or playlist. [kind] maps a single-entry queue to its
  * label; a mix made of plain song entries (Smart Shuffle) has no kind and is labelled explicitly.
  * An [endless] mix keeps its own name when autoplay extends it; anything else becomes "Similar to …".
+ * A [finite] queue is never extended, by autoplay or otherwise (a Song Path ends at its destination).
  */
 internal enum class QueueCollection(
     val kind: QueueKind?,
     val storedLabel: String,
     @param:StringRes val title: Int,
     val endless: Boolean = false,
+    val finite: Boolean = false,
 ) {
     Songs(QueueKind.Library, "\u0000maekster:collection:songs", R.string.search_songs),
     Favorites(QueueKind.Starred, "\u0000maekster:collection:favorites", R.string.resources_filter_starred),
@@ -27,6 +29,7 @@ internal enum class QueueCollection(
     MoodWorkout(null, "\u0000maekster:collection:mood-radio:workout", R.string.mood_radio_queue_workout, endless = true),
     MoodChill(null, "\u0000maekster:collection:mood-radio:chill", R.string.mood_radio_queue_chill, endless = true),
     MoodFocus(null, "\u0000maekster:collection:mood-radio:focus", R.string.mood_radio_queue_focus, endless = true),
+    SongPath(null, "\u0000maekster:collection:song-path", R.string.song_path_title, finite = true),
     ;
 
     companion object {

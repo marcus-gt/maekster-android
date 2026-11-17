@@ -1,11 +1,6 @@
 package com.subtracks.data.audiomuse
 
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.launch
 import kotlin.math.ln
 import kotlin.random.Random
 
@@ -53,35 +48,17 @@ class MoodRadioBuilder(
     suspend fun build(
         sourceId: Long,
         mood: RadioMood,
-    ): MoodRadioResult {
-        val gate = access.value
-        if (gate.sourceId != sourceId || gate.offline) return MoodRadioResult.Unavailable
-        val connection = configuration.connection(sourceId) ?: return MoodRadioResult.Unavailable
-        return coroutineScope {
-            val requestScope = this
-            val watcher =
-                launch(start = CoroutineStart.UNDISPATCHED) {
-                    combine(access, configuration.observe(sourceId)) { current, config ->
-                        current == gate && config.available && config.url == connection.url
-                    }.collect { valid ->
-                        if (!valid) requestScope.cancel("AudioMuse access changed")
-                    }
-                }
-            try {
-                val api = client(connection)
-                api.warmup()
-                val matches = api.search(mood.query, POOL_SIZE).take(AudioMuseTrackResolver.MAX_BATCH)
-                if (matches.isEmpty()) {
-                    MoodRadioResult.NoMatches
-                } else {
-                    val songIds = resolver.resolve(sourceId, matches).songIds.distinct()
-                    if (songIds.isEmpty()) MoodRadioResult.NotInLibrary else MoodRadioResult.Ready(rankWeightedShuffle(songIds, random))
-                }
-            } finally {
-                watcher.cancel()
+    ): MoodRadioResult =
+        guardedAudioMuseRequest(configuration, access, client, sourceId) { api ->
+            api.warmup()
+            val matches = api.search(mood.query, POOL_SIZE).take(AudioMuseTrackResolver.MAX_BATCH)
+            if (matches.isEmpty()) {
+                MoodRadioResult.NoMatches
+            } else {
+                val songIds = resolver.resolve(sourceId, matches).songIds.distinct()
+                if (songIds.isEmpty()) MoodRadioResult.NotInLibrary else MoodRadioResult.Ready(rankWeightedShuffle(songIds, random))
             }
-        }
-    }
+        } ?: MoodRadioResult.Unavailable
 
     companion object {
         const val POOL_SIZE = 200

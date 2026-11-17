@@ -188,8 +188,11 @@ class PlaybackController(
     /** The queue was built by the Queue Builder, so it refills from its own picks whatever the autoplay setting. */
     private var builtQueue = false
 
+    /** The queue is a [QueueCollection.finite] one (a Song Path), so nothing may extend it. */
+    private var finiteQueue = false
+
     /** Autoplay or a Queue Builder refill may extend the queue. */
-    private val refillActive: Boolean get() = autoplayEnabled || (builtQueue && builtQueueRefill != null)
+    private val refillActive: Boolean get() = !finiteQueue && (autoplayEnabled || (builtQueue && builtQueueRefill != null))
     private var networkConnected = true
     private var autoplayJob: Job? = null
     private var autoplayAttempt: Triple<Long, Long, Long>? = null
@@ -1381,7 +1384,7 @@ class PlaybackController(
             } else if (!snapshot.shuffled) {
                 shuffleEnabled = false
             }
-            builtQueue = queueRepository.sourceLabel() == QueueCollection.QueueBuilder.storedLabel
+            updateQueueKind()
             this.snapshot = snapshot
             val queueSourceId =
                 snapshot.entries
@@ -1916,11 +1919,17 @@ class PlaybackController(
         if (repeatMode == RepeatMode.All) jumpTo(0)
     }
 
+    private suspend fun updateQueueKind() {
+        val collection = queueRepository.sourceLabel()?.let(QueueCollection::fromStored)
+        builtQueue = collection == QueueCollection.QueueBuilder
+        finiteQueue = collection?.finite == true
+    }
+
     private fun Int.toRepeatMode(): RepeatMode = RepeatMode.entries.getOrElse(this) { RepeatMode.Off }
 
     private suspend fun readSnapshot(): QueueSnapshot {
         val snapshot = queueRepository.snapshot()
-        builtQueue = queueRepository.sourceLabel() == QueueCollection.QueueBuilder.storedLabel
+        updateQueueKind()
         if (!snapshot.shuffled) {
             if (shuffleEnabled && snapshot.size > 0L) queueRepository.setShuffle(null)
             shuffleEnabled = false

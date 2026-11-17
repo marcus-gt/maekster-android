@@ -277,6 +277,56 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun aSongPathEndsAtItsDestinationEvenWithAutoplayOn() {
+        networkAvailable.value = true
+        seedAlbum(20, sourceId = 1)
+        var similarCalls = 0
+        autoplayGenerate = {
+            similarCalls++
+            listOf("s10")
+        }
+        builtRefill = { listOf("s11") }
+        runBlocking { prefs.setAutoplaySimilar(true) }
+        controller.playMix(1, listOf("s1", "s2"), QueueCollection.SongPath)
+        await { controller.state.value.isPlaying }
+        controller.setAutoplaySimilar(true)
+        Thread.sleep(300)
+        assertEquals(2L, runBlocking { queues.snapshot().size })
+        assertEquals(0, similarCalls)
+        assertTrue(builtRefillExclusions.isEmpty())
+        assertEquals(SourceHeading("Song Path"), runBlocking { controller.sourceHeading(null, resources, generated = false) })
+    }
+
+    @Test
+    fun aRestoredSongPathStaysFinite() {
+        networkAvailable.value = true
+        seedAlbum(20, sourceId = 1)
+        var similarCalls = 0
+        autoplayGenerate = {
+            similarCalls++
+            listOf("s10")
+        }
+        runBlocking {
+            prefs.setAutoplaySimilar(true)
+            queues.replace(
+                listOf(queues.songEntry(1, "s1"), queues.songEntry(1, "s2")),
+                sourceLabel = QueueCollection.SongPath.storedLabel,
+            )
+            queues.setCursor(0)
+        }
+        controller.connect()
+        await {
+            controller.ready.value && controller.state.value.item
+                ?.id == "s1"
+        }
+        controller.playAt(1)
+        await { controller.state.value.isPlaying }
+        Thread.sleep(300)
+        assertEquals(2L, runBlocking { queues.snapshot().size })
+        assertEquals(0, similarCalls)
+    }
+
+    @Test
     fun persistedAutoplayPreferenceDrivesRefillAndTruncation() {
         networkAvailable.value = true
         seedAlbum(20, sourceId = 1)

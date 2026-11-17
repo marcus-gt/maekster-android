@@ -15,6 +15,7 @@ import com.subtracks.data.audiomuse.AudioMuseScoreAccess
 import com.subtracks.data.audiomuse.AudioMuseScoreFetcher
 import com.subtracks.data.audiomuse.AudioMuseTrackResolver
 import com.subtracks.data.audiomuse.MoodRadioBuilder
+import com.subtracks.data.audiomuse.SongPathBuilder
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createAndroidDatabase
 import com.subtracks.data.download.ArtworkFetcher
@@ -74,6 +75,7 @@ import com.subtracks.playback.PlayerConnection
 import com.subtracks.playback.QueueBuilderPlayer
 import com.subtracks.playback.Scrobbler
 import com.subtracks.playback.SmartShufflePlayer
+import com.subtracks.playback.SongPathPlayer
 import com.subtracks.ui.NowPlayingLauncher
 import com.subtracks.ui.RootViewModel
 import com.subtracks.ui.components.PinMenuViewModel
@@ -411,6 +413,8 @@ fun appModule(
     single { AudioMuseScoreFetcher(get(), get(), get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess"))) }
     single { QueueBuilderMoodBuilder(get(), get<AudioMuseScoreFetcher>()::fetch) }
     single { MoodRadioPlayer.of(get(), get<SourceRepository>()::activeSourceIdOnce, get()) }
+    single { SongPathBuilder(get(), get(), get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess"))) }
+    single { SongPathPlayer.of(get(), get<SourceRepository>()::activeSourceIdOnce, get()) }
     viewModel { params ->
         val sources = get<SourceRepository>()
         val tester = AudioMuseConnectionTester()

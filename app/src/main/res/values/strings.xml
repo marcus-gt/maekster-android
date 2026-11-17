@@ -417,6 +417,7 @@
     <string name="mood_radio_empty">No songs in your library fit this mood yet.</string>
     <string name="mood_radio_not_in_library">AudioMuse found songs for this mood, but none of them are in this library.</string>
     <string name="mood_radio_unavailable">AudioMuse is not available. Check its settings for this server.</string>
+    <string name="song_path_title">Song Path</string>
     <string name="mood_radio_failed">Could not start the mood radio. Try again.</string>
     <string name="instant_mix_title">Instant Mix</string>
     <string name="queue_builder_title">Queue Builder</string>
