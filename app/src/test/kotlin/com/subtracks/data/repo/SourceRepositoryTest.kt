@@ -91,6 +91,29 @@ class SourceRepositoryTest {
     }
 
     @Test
+    fun similarArtistsUsesTheRequestedServersCredentialsAndHeaders() =
+        runBlocking {
+            MockWebServer().use { first ->
+                MockWebServer().use { second ->
+                    first.start()
+                    second.start()
+                    for ((id, server) in listOf(1L to first, 2L to second)) {
+                        db.sourcesDao().upsertSource(Source(id, "server", server.url("/").toString(), false, id))
+                        db.sourcesDao().upsertSubsonicSource(SubsonicSource(id, "user$id", "", false, credentials.encrypt("password$id")))
+                        db.sourcesDao().replaceHeaders(id, listOf(SourceHeader(id, 0, "X-Server", credentials.encrypt("header$id"))))
+                    }
+                    second.enqueue(MockResponse().setBody("""<subsonic-response status="ok"><artistInfo2/></subsonic-response>"""))
+                    repository.similarArtists(2)!!.similar("artist", 20)
+                    val request = second.takeRequest()
+                    assertEquals("user2", request.requestUrl!!.queryParameter("u"))
+                    assertEquals("password2", request.requestUrl!!.queryParameter("p"))
+                    assertEquals("header2", request.getHeader("X-Server"))
+                    assertEquals(0, first.requestCount)
+                }
+            }
+        }
+
+    @Test
     fun aTranscodedDownloadQualityDownloadsTheStreamInstead() =
         runBlocking {
             repository.addSource("nav", "http://a.example/", "u", "p", false)

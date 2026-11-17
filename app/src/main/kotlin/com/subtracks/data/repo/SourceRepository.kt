@@ -426,6 +426,22 @@ class SourceRepository(
         return SubsonicSimilarSongs(config.toClient()).similar(seed, count)
     }
 
+    /** Source-specific provider, with its own headers, even if the active server changes during construction. */
+    suspend fun similarArtists(sourceId: Long): com.subtracks.data.recommendations.SimilarArtists? {
+        if (_offline.value) return null
+        val config = sourceConfigOnce(sourceId)?.takeIf { !it.needsSignIn } ?: return null
+        return com.subtracks.data.source.subsonic.SubsonicSimilarArtists(
+            client(
+                config.address,
+                config.username,
+                config.password,
+                config.useTokenAuth,
+                headersOverride = config.headers,
+                onTokenAuthUnsupported = { disableTokenAuth(config.id) },
+            ),
+        )
+    }
+
     private fun SubsonicConfig.toClient(): SubsonicClient =
         client(
             address = address,

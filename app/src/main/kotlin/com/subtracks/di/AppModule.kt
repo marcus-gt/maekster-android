@@ -244,6 +244,20 @@ fun appModule(
         }
     }
     single { NowPlayingLauncher() }
+    single {
+        com.subtracks.data.recommendations.SimilarArtistsCache(
+            get<SubtracksDatabase>().similarArtistsCacheDao(),
+            get<SourceRepository>()::similarArtists,
+        )
+    }
+    single {
+        com.subtracks.data.recommendations.SimilarArtistsRepository(
+            get(),
+            get<SubtracksDatabase>().libraryDao(),
+            get<SourceRepository>()::activeSourceIdOnce,
+            get(named("mixDownloadedOnly")),
+        )
+    }
     single { SmartShuffle(get<SubtracksDatabase>().mixDao()) }
     single { QueueBuilder(get<SubtracksDatabase>().mixDao()) }
     // One limiter for every MusicBrainz feature: together they stay at MusicBrainz' one request per second.

@@ -1027,6 +1027,18 @@ interface LibraryDao {
         artistId: String,
     ): Artist?
 
+    @Query("SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND musicBrainzId = :mbid COLLATE NOCASE LIMIT 2")
+    suspend fun artistsByMusicBrainzId(
+        sourceId: Long,
+        mbid: String,
+    ): List<Artist>
+
+    @Query("SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND name = :name COLLATE NOCASE LIMIT 2")
+    suspend fun artistsByExactName(
+        sourceId: Long,
+        name: String,
+    ): List<Artist>
+
     @Query("SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND id = :artistId")
     fun artist(
         sourceId: Long,

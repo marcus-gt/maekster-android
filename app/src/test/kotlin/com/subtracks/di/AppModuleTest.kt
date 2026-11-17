@@ -59,6 +59,21 @@ class AppModuleTest {
     }
 
     @Test
+    fun theModuleResolvesSimilarArtistsAsSingletons() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val headers = ServerHeaders()
+        koin = startKoin { modules(appModule(context, OkHttpClient(), headers)) }.koin
+        assertSame(
+            koin.get<com.subtracks.data.recommendations.SimilarArtistsCache>(),
+            koin.get<com.subtracks.data.recommendations.SimilarArtistsCache>(),
+        )
+        assertSame(
+            koin.get<com.subtracks.data.recommendations.SimilarArtistsRepository>(),
+            koin.get<com.subtracks.data.recommendations.SimilarArtistsRepository>(),
+        )
+    }
+
+    @Test
     fun theModuleResolvesThePlaybackGraph() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val serverHeaders = ServerHeaders()
