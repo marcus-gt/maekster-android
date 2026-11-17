@@ -2,6 +2,7 @@ package com.subtracks.playback
 
 import androidx.annotation.StringRes
 import com.subtracks.R
+import com.subtracks.data.audiomuse.RadioMood
 import com.subtracks.data.model.QueueKind
 
 /**
@@ -21,11 +22,25 @@ internal enum class QueueCollection(
     SmartShuffle(null, "\u0000maekster:collection:smart-shuffle", R.string.smart_shuffle_title, endless = true),
     InstantMix(null, "\u0000maekster:collection:instant-mix", R.string.instant_mix_title, endless = true),
     QueueBuilder(null, "\u0000maekster:collection:queue-builder", R.string.queue_builder_title, endless = true),
+    MoodNight(null, "\u0000maekster:collection:mood-radio:night", R.string.mood_radio_queue_night, endless = true),
+    MoodEnergetic(null, "\u0000maekster:collection:mood-radio:energetic", R.string.mood_radio_queue_energetic, endless = true),
+    MoodWorkout(null, "\u0000maekster:collection:mood-radio:workout", R.string.mood_radio_queue_workout, endless = true),
+    MoodChill(null, "\u0000maekster:collection:mood-radio:chill", R.string.mood_radio_queue_chill, endless = true),
+    MoodFocus(null, "\u0000maekster:collection:mood-radio:focus", R.string.mood_radio_queue_focus, endless = true),
     ;
 
     companion object {
         fun forKind(kind: QueueKind): QueueCollection? = entries.firstOrNull { it.kind == kind }
 
         fun fromStored(label: String): QueueCollection? = entries.firstOrNull { it.storedLabel == label }
+
+        fun forMood(mood: RadioMood): QueueCollection =
+            when (mood) {
+                RadioMood.NIGHT -> MoodNight
+                RadioMood.ENERGETIC -> MoodEnergetic
+                RadioMood.WORKOUT -> MoodWorkout
+                RadioMood.CHILL -> MoodChill
+                RadioMood.FOCUS -> MoodFocus
+            }
     }
 }

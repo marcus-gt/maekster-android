@@ -21,8 +21,10 @@ Each of these is off until you turn it on, and makes no request while off. None 
 AudioMuse settings are saved separately for each music server. Its token is encrypted on the device.
 Saving or removing these settings makes no network request. When AudioMuse features are used, requests
 will go only to the configured AudioMuse host and contain its own token, song IDs, search text and mood
-choices. Music server credentials and custom headers are never sent to AudioMuse. The current settings
-form does not yet enable mood or Song Path requests.
+choices. Music server credentials and custom headers are never sent to AudioMuse. Requests are made only
+when you start something that needs AudioMuse: tapping a mood radio on Discover sends that mood's fixed
+English search text (for example "late night calm atmospheric"); the songs it returns are matched against
+your local library on the device. Song Path does not make requests yet.
 
 Opening a fresh release takes you to its page on `musicbrainz.org` in your browser.
 

@@ -14,8 +14,12 @@ class ScreenLayoutsTest {
     @Test fun discoverCodecKeepsCustomOrderAndToleratesUnknownMissingAndDuplicateSections() {
         val layout = DiscoverLayout.decode("QueueBuilder,QueueBuilder,Unknown,SmartShuffle|Stations")
         assertTrue(layout.order.indexOf(DiscoverShelf.QueueBuilder) < layout.order.indexOf(DiscoverShelf.SmartShuffle))
-        assertEquals(4, layout.order.distinct().size)
+        assertEquals(DiscoverShelf.entries.size, layout.order.distinct().size)
         assertFalse(DiscoverShelf.Stations in layout.visible)
+        // A layout saved before Moods existed still shows it, after the last shelf saved before it.
+        val saved = DiscoverLayout.decode("QueueBuilder,SmartShuffle,Stations,FreshReleases|")
+        assertTrue(DiscoverShelf.Moods in saved.visible)
+        assertEquals(saved.order.indexOf(DiscoverShelf.QueueBuilder) + 1, saved.order.indexOf(DiscoverShelf.Moods))
         assertEquals(layout, DiscoverLayout.decode(layout.encode()))
         assertEquals(DiscoverLayout(), DiscoverLayout.decode("broken"))
     }

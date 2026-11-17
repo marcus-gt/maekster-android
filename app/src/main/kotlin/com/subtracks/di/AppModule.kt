@@ -9,6 +9,9 @@ import com.subtracks.data.artistimages.ExternalArtistImages
 import com.subtracks.data.artistimages.OkHttpWikidata
 import com.subtracks.data.artistimages.Wikidata
 import com.subtracks.data.audiomuse.AudioMuseConfiguration
+import com.subtracks.data.audiomuse.AudioMuseScoreAccess
+import com.subtracks.data.audiomuse.AudioMuseTrackResolver
+import com.subtracks.data.audiomuse.MoodRadioBuilder
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createAndroidDatabase
 import com.subtracks.data.download.ArtworkFetcher
@@ -62,6 +65,7 @@ import com.subtracks.data.sync.SyncNotifier
 import com.subtracks.log.Log
 import com.subtracks.playback.InstantMixPlayer
 import com.subtracks.playback.MediaSessionConnection
+import com.subtracks.playback.MoodRadioPlayer
 import com.subtracks.playback.PlaybackController
 import com.subtracks.playback.PlayerConnection
 import com.subtracks.playback.QueueBuilderPlayer
@@ -103,10 +107,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -360,6 +366,8 @@ fun appModule(
             get(),
             showMessage,
             get(),
+            moodsAvailable = { id -> get<AudioMuseConfiguration>().observe(id).map { it.available } },
+            playMood = get<MoodRadioPlayer>()::play,
         )
     }
     viewModel {
@@ -377,6 +385,18 @@ fun appModule(
     viewModel { SettingsViewModel(get(), get()) }
     viewModel { ListenBrainzSettingsViewModel(get()) }
     single { AudioMuseConfiguration(get<SubtracksDatabase>().audioMuseConfigDao(), get()) }
+    // Denied until the active source and effective connectivity are known.
+    single(named("audioMuseAccess")) {
+        val sources = get<SourceRepository>()
+        combine(sources.activeSourceId(), sources.offline, networkAvailable(context.applicationContext)) { id, offline, connected ->
+            AudioMuseScoreAccess(id, offline || !connected)
+        }.stateIn(get<CoroutineScope>(), SharingStarted.Eagerly, AudioMuseScoreAccess())
+    }
+    single {
+        AudioMuseTrackResolver(get<SubtracksDatabase>().audioMuseTrackDao(), get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess")))
+    }
+    single { MoodRadioBuilder(get(), get(), get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess"))) }
+    single { MoodRadioPlayer.of(get(), get<SourceRepository>()::activeSourceIdOnce, get()) }
     viewModel { params -> AudioMuseSettingsViewModel(params.get<Long>(), get()) }
     viewModel {
         val sync = get<SyncManager>()

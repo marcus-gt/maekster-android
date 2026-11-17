@@ -54,6 +54,7 @@ internal fun DiscoverShelf.title(): Int =
         DiscoverShelf.Stations -> R.string.discover_stations
         DiscoverShelf.SmartShuffle -> R.string.smart_shuffle_title
         DiscoverShelf.QueueBuilder -> R.string.queue_builder_title
+        DiscoverShelf.Moods -> R.string.discover_moods
     }
 
 private data class EditorRow(

@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -35,6 +36,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
@@ -312,6 +314,89 @@ class DiscoverScreenTest {
     @Test fun normal() = render(1f, "discover")
 
     @Test fun largeFont() = render(2f, "discover_2x")
+
+    private val moodsFirst =
+        com.subtracks.data.prefs.DiscoverLayout(
+            order =
+                listOf(
+                    com.subtracks.data.prefs.DiscoverShelf.Moods,
+                    com.subtracks.data.prefs.DiscoverShelf.SmartShuffle,
+                ),
+            hidden =
+                com.subtracks.data.prefs.DiscoverShelf.entries
+                    .filter { it != com.subtracks.data.prefs.DiscoverShelf.Moods }
+                    .toSet(),
+        )
+
+    @Test fun moodRadiosShowOnlyWhenAudioMuseIsUsableAndOnlineAndStartTheTappedMood() {
+        var state by mutableStateOf(DiscoverState(moods = false))
+        var started: com.subtracks.data.audiomuse.RadioMood? = null
+        composeRule.setContent {
+            MaeksterTheme {
+                DiscoverScreen(state, false, {}, {}, {}, layout = moodsFirst, onMood = { started = it })
+            }
+        }
+        composeRule.onNodeWithText("Moods").assertDoesNotExist()
+        state = DiscoverState(moods = true)
+        composeRule.onNodeWithText("Moods").assertExists()
+        composeRule.onNodeWithTag("moodRadios").performScrollToKey("workout")
+        composeRule.onNodeWithTag("moodRadio-workout").performClick()
+        assertEquals(com.subtracks.data.audiomuse.RadioMood.WORKOUT, started)
+        state = DiscoverState(offline = true, moods = true)
+        composeRule.onNodeWithText("Moods").assertDoesNotExist()
+        composeRule.onNodeWithTag("moodRadio-night").assertDoesNotExist()
+    }
+
+    @Test fun aStartingMoodShowsProgressAndDisablesEveryMood() {
+        var started = false
+        composeRule.setContent {
+            MaeksterTheme {
+                DiscoverScreen(
+                    DiscoverState(moods = true),
+                    true,
+                    {},
+                    {},
+                    {},
+                    layout = moodsFirst,
+                    startingMood = com.subtracks.data.audiomuse.RadioMood.NIGHT,
+                    onMood = { started = true },
+                )
+            }
+        }
+        composeRule.onNodeWithTag("moodRadioStarting", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithTag("moodRadio-night").assertIsNotEnabled()
+        composeRule.onNodeWithTag("moodRadio-energetic").assertIsNotEnabled().performClick()
+        assertEquals(false, started)
+    }
+
+    @Test fun moodsNormal() = renderMoods(1f)
+
+    @Config(qualifiers = "h1000dp")
+    @Test
+    fun moodsLargeFont() = renderMoods(2f)
+
+    private fun renderMoods(scale: Float) {
+        composeRule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, scale)) {
+                MaeksterTheme {
+                    Surface {
+                        DiscoverScreen(
+                            DiscoverState(moods = true),
+                            false,
+                            {},
+                            {},
+                            {},
+                            layout = moodsFirst,
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.onNodeWithText("Moods").assertExists()
+        composeRule.onNodeWithTag("moodRadio-energetic").assertExists()
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/discover_moods_$scale.png")
+        composeRule.onNodeWithTag("moodRadios").captureRoboImage("src/test/screenshots/discover_moods_row_$scale.png")
+    }
 
     private fun render(
         scale: Float,

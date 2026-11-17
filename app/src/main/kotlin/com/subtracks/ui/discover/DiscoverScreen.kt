@@ -1,6 +1,8 @@
 package com.subtracks.ui.discover
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,11 +11,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.FitnessCenter
+import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.NightsStay
+import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.Spa
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,12 +35,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
+import com.subtracks.data.audiomuse.RadioMood
 import com.subtracks.data.model.Artist
 import com.subtracks.data.prefs.DiscoverLayout
 import com.subtracks.data.prefs.DiscoverShelf
@@ -50,6 +62,7 @@ fun DiscoverRoute(
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val fresh by freshViewModel.state.collectAsStateWithLifecycle()
     val layout by viewModel.layout.collectAsStateWithLifecycle()
+    val startingMood by viewModel.startingMood.collectAsStateWithLifecycle()
     DiscoverScreen(
         state,
         busy,
@@ -61,6 +74,8 @@ fun DiscoverRoute(
         showReleaseCovers = !state.offline,
         layout = layout,
         queueBuilderContent = { QueueBuilderRoute() },
+        startingMood = startingMood,
+        onMood = viewModel::moodRadio,
     )
 }
 
@@ -81,6 +96,8 @@ fun DiscoverScreen(
     showReleaseCovers: Boolean = true,
     layout: DiscoverLayout = DiscoverLayout(),
     queueBuilderContent: (@Composable () -> Unit)? = null,
+    startingMood: RadioMood? = null,
+    onMood: (RadioMood) -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize()) {
         TopAppBar(title = { Text(stringResource(R.string.discover_title)) }, actions = { SettingsAction(false, onOpenSettings) })
@@ -114,6 +131,12 @@ fun DiscoverScreen(
                     DiscoverShelf.Stations -> {
                         if (!state.offline) {
                             item(key = section.name) { StationsSection(state.artists, busy, artistArt, onStation) }
+                        }
+                    }
+
+                    DiscoverShelf.Moods -> {
+                        if (!state.offline && state.moods) {
+                            item(key = section.name) { MoodsSection(busy, startingMood, onMood) }
                         }
                     }
                 }
@@ -179,6 +202,98 @@ private fun StationsSection(
                                 artist.name,
                                 style = MaterialTheme.typography.titleMedium,
                                 minLines = 2,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal fun RadioMood.title(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.string.mood_night
+        RadioMood.ENERGETIC -> R.string.mood_energetic
+        RadioMood.WORKOUT -> R.string.mood_workout
+        RadioMood.CHILL -> R.string.mood_chill
+        RadioMood.FOCUS -> R.string.mood_focus
+    }
+
+private fun RadioMood.icon(): ImageVector =
+    when (this) {
+        RadioMood.NIGHT -> Icons.Rounded.NightsStay
+        RadioMood.ENERGETIC -> Icons.Rounded.Bolt
+        RadioMood.WORKOUT -> Icons.Rounded.FitnessCenter
+        RadioMood.CHILL -> Icons.Rounded.Spa
+        RadioMood.FOCUS -> Icons.Rounded.Headphones
+    }
+
+@Composable
+private fun MoodsSection(
+    busy: Boolean,
+    startingMood: RadioMood?,
+    onMood: (RadioMood) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(horizontal = 20.dp)) {
+            Text(stringResource(R.string.discover_moods), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.discover_moods_description), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        LazyRow(
+            modifier = Modifier.testTag("moodRadios"),
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(RadioMood.entries, key = { it.key }) { mood ->
+                Card(
+                    onClick = { onMood(mood) },
+                    enabled = !busy,
+                    modifier = Modifier.widthIn(min = 152.dp, max = 240.dp).testTag("moodRadio-${mood.key}"),
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(
+                            Modifier
+                                .size(120.dp)
+                                .clip(MaterialTheme.shapes.medium)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                        ) {
+                            Icon(
+                                mood.icon(),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(48.dp).align(Alignment.Center),
+                            )
+                            Box(Modifier.align(Alignment.BottomEnd).padding(8.dp)) {
+                                if (startingMood == mood) {
+                                    CircularProgressIndicator(
+                                        Modifier.size(20.dp).testTag("moodRadioStarting"),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Rounded.Radio,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                            }
+                        }
+                        Column {
+                            Text(
+                                stringResource(mood.title()),
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                stringResource(R.string.mood_radio),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
