@@ -18,7 +18,8 @@ import com.subtracks.data.sync.SyncStatus
 import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -90,23 +91,26 @@ class StorageSectionsTest {
                         databaseFiles = { listOf(database, File(database.path + "-wal")) },
                         io = UnconfinedTestDispatcher(testScheduler),
                     )
-                backgroundScope.launch { model.ui.collect {} }
+                val collector = backgroundScope.launch { model.ui.collect {} }
+                try {
+                    val first = model.ui.first { it.counts != null }
+                    assertEquals(3L, first.counts?.songs)
+                    assertEquals(2048L, first.databaseBytes)
+                    assertEquals(4096L, first.artworkBytes)
 
-                val first = model.ui.first { it.counts != null }
-                assertEquals(3L, first.counts?.songs)
-                assertEquals(2048L, first.databaseBytes)
-                assertEquals(4096L, first.artworkBytes)
+                    model.clearArtwork()
+                    assertEquals(0L, model.ui.first { it.artworkBytes == 0L }.artworkBytes)
+                    assertEquals(1, cache.clears)
 
-                model.clearArtwork()
-                assertEquals(0L, model.ui.first { it.artworkBytes == 0L }.artworkBytes)
-                assertEquals(1, cache.clears)
-
-                status.value = SyncStatus.Running(silent = false)
-                assertEquals(true, model.ui.first { it.syncing }.syncing)
-                model.syncNow()
-                assertEquals(1, syncs)
-                model.viewModelScope.cancel()
-                database.delete()
+                    status.value = SyncStatus.Running(silent = false)
+                    assertEquals(true, model.ui.first { it.syncing }.syncing)
+                    model.syncNow()
+                    assertEquals(1, syncs)
+                } finally {
+                    collector.cancelAndJoin()
+                    model.viewModelScope.coroutineContext[Job]?.cancelAndJoin()
+                    database.delete()
+                }
             } finally {
                 Dispatchers.resetMain()
             }

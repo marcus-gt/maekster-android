@@ -1,21 +1,27 @@
 package com.subtracks.ui.playback
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.CoverArtRef
@@ -60,27 +66,31 @@ class NowPlayingTapsTest {
         onSkipPrevious: () -> Unit = onPrevious,
         previousArt: NowPlayingArt? = null,
         nextArt: NowPlayingArt? = null,
+        fontScale: Float = 1f,
     ) {
         composeRule.setContent {
-            MaeksterTheme {
-                NowPlayingScreen(
-                    state = state,
-                    positionMs = 62_000,
-                    title = "Kid A",
-                    coverArt = CoverArtRef("art-al-kid-a", "test:art-al-kid-a"),
-                    artwork = artworkColorsFromSeed(android.graphics.Color.rgb(120, 80, 200)),
-                    onBack = {},
-                    onQueue = {},
-                    onPlayPause = {},
-                    onNext = onNext,
-                    onPrevious = onPrevious,
-                    onSkipPrevious = onSkipPrevious,
-                    onAlbumClick = onAlbumClick,
-                    onArtistClick = onArtistClick,
-                    onSeek = {},
-                    previousArt = previousArt,
-                    nextArt = nextArt,
-                )
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
+                MaeksterTheme {
+                    NowPlayingScreen(
+                        state = state,
+                        positionMs = 62_000,
+                        title = "Kid A",
+                        coverArt = CoverArtRef("art-al-kid-a", "test:art-al-kid-a"),
+                        artwork = artworkColorsFromSeed(android.graphics.Color.rgb(120, 80, 200)),
+                        onBack = {},
+                        onQueue = {},
+                        onPlayPause = {},
+                        onNext = onNext,
+                        onPrevious = onPrevious,
+                        onSkipPrevious = onSkipPrevious,
+                        onAlbumClick = onAlbumClick,
+                        onArtistClick = onArtistClick,
+                        onSeek = {},
+                        previousArt = previousArt,
+                        nextArt = nextArt,
+                    )
+                }
             }
         }
     }
@@ -92,6 +102,19 @@ class NowPlayingTapsTest {
             thumbnailRef = null,
             name = id,
         )
+
+    @Test
+    fun corePlaybackControlsRemainAccessibleAtDoubleFontScale() {
+        render(fontScale = 2f)
+        composeRule.onNodeWithContentDescription("Playback position").performScrollTo().assertIsDisplayed()
+        for (label in listOf("Pause", "Next", "Previous", "Queue")) {
+            composeRule
+                .onNodeWithContentDescription(label)
+                .performScrollTo()
+                .assertIsDisplayed()
+                .assertHeightIsAtLeast(48.dp)
+        }
+    }
 
     @Test
     fun tappingTheCoverArtOpensTheAlbum() {

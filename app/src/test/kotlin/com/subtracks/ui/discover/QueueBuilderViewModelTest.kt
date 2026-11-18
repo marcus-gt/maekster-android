@@ -5,6 +5,7 @@ import androidx.room3.useWriterConnection
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.R
 import com.subtracks.UiMessage
+import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.audiomuse.QueueBuilderMood
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
@@ -21,7 +22,6 @@ import com.subtracks.data.prefs.fakeUserPreferences
 import com.subtracks.playback.QueueBuilderOutcome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -61,7 +61,7 @@ class QueueBuilderViewModelTest {
 
     @After
     fun tearDown() {
-        model?.viewModelScope?.cancel()
+        cancelAndJoinBlocking(model?.viewModelScope)
         db.close()
         Dispatchers.resetMain()
     }
@@ -100,7 +100,7 @@ class QueueBuilderViewModelTest {
             discover.toggleDecade(1990)
             home.awaitState { it.selection.decades == setOf(1990) && it.selection.mains == setOf("Jazz") }
         } finally {
-            com.subtracks.cancelAndJoinBlocking(home.viewModelScope, discover.viewModelScope)
+            cancelAndJoinBlocking(home.viewModelScope, discover.viewModelScope)
         }
     }
 

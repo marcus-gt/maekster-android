@@ -9,7 +9,8 @@ import com.subtracks.data.repo.PlaylistRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -84,7 +85,11 @@ class AddToPlaylistViewModelTest {
                         .map { it.id },
                 )
             } finally {
-                model?.viewModelScope?.cancel()
+                model
+                    ?.viewModelScope
+                    ?.coroutineContext
+                    ?.get(Job)
+                    ?.cancelAndJoin()
                 db.close()
             }
         }

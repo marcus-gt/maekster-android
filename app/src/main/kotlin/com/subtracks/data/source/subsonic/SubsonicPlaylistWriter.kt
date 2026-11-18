@@ -127,8 +127,13 @@ class SubsonicPlaylistWriter(
                         onEnd = { if (pending.isNotEmpty() || position == 0L) flush() },
                     )
                 }
-            } catch (failure: SubsonicException) {
-                if (!failure.isNotFound() || selected != null) throw failure
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                if (failure !is SubsonicException || !failure.isNotFound() || selected != null) {
+                    // Deliver the failure after the collector processes any batch already sent.
+                    close(failure)
+                }
             }
         }.flowOn(Dispatchers.IO).buffer(0)
 

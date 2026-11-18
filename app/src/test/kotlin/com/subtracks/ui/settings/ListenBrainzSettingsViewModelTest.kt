@@ -1,7 +1,9 @@
 package com.subtracks.ui.settings
 
+import androidx.lifecycle.viewModelScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.awaitUntil
+import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.listenbrainz.FakeListenBrainzApi
@@ -40,6 +42,7 @@ class ListenBrainzSettingsViewModelTest {
 
     @After
     fun tearDown() {
+        cancelAndJoinBlocking(model.viewModelScope)
         db.close()
         Dispatchers.resetMain()
     }

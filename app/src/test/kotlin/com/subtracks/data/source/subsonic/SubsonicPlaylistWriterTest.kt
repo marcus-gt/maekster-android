@@ -1,6 +1,7 @@
 package com.subtracks.data.source.subsonic
 
 import com.subtracks.data.model.PlaylistSong
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -231,7 +232,13 @@ class SubsonicPlaylistWriterTest {
                         "</playlist><error code=\"70\" message=\"late failure\"/>",
                 ),
             )
-            val failure = runCatching { writer.playlistBatches("p1").collect { emitted++ } }.exceptionOrNull()
+            val failure =
+                runCatching {
+                    writer.playlistBatches("p1").collect {
+                        delay(50)
+                        emitted++
+                    }
+                }.exceptionOrNull()
             assertEquals(true, failure is SubsonicException)
             assertEquals(1, emitted)
             server.enqueue(ok("<playlist id=\"p1\">" + "<entry id=\"a\"/>".repeat(150)))

@@ -10,8 +10,8 @@ import com.subtracks.data.model.Source
 import com.subtracks.data.repo.PlaylistRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
@@ -109,10 +109,13 @@ class PlaylistSearchIntegrationTest {
                     assertEquals(listOf("plain"), search("morning"))
                 } finally {
                     collector.cancelAndJoin()
-                    withContext(dispatcher) { vm.viewModelScope.cancel() }
                 }
             } finally {
-                model?.viewModelScope?.cancel()
+                model
+                    ?.viewModelScope
+                    ?.coroutineContext
+                    ?.get(Job)
+                    ?.cancelAndJoin()
                 db.close()
                 Dispatchers.resetMain()
                 dispatcher.close()

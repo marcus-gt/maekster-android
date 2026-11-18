@@ -126,8 +126,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            // Release signing when the keystore is supplied (CI); debug elsewhere so local build/install works.
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")
         }
         create("nightly") {
             initWith(getByName("release"))
