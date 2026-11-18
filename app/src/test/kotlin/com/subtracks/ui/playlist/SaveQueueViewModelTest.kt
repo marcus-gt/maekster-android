@@ -3,10 +3,12 @@ package com.subtracks.ui.playlist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.R
 import com.subtracks.UiMessage
+import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.model.Song
@@ -14,6 +16,7 @@ import com.subtracks.data.model.Source
 import com.subtracks.data.repo.PlaylistRepository
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.source.FakePlaylistWriter
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,6 +47,7 @@ class SaveQueueViewModelTest {
     private lateinit var queue: QueueRepository
     private lateinit var playlists: PlaylistRepository
     private val store = ViewModelStore()
+    private var modelScope: CoroutineScope? = null
     private val messages = Channel<UiMessage>(Channel.UNLIMITED)
     private var online = true
 
@@ -65,22 +69,25 @@ class SaveQueueViewModelTest {
 
     @After
     fun tearDown() {
+        cancelAndJoinBlocking(modelScope)
         store.clear()
         db.close()
         Dispatchers.resetMain()
     }
 
     private fun TestScope.model(): SaveQueueViewModel =
-        ViewModelProvider.create(
-            store,
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(
-                    modelClass: KClass<T>,
-                    extras: CreationExtras,
-                ): T = SaveQueueViewModel(queue, playlists, { messages.trySend(it) }, cleanup = backgroundScope) as T
-            },
-        )[SaveQueueViewModel::class]
+        ViewModelProvider
+            .create(
+                store,
+                object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(
+                        modelClass: KClass<T>,
+                        extras: CreationExtras,
+                    ): T = SaveQueueViewModel(queue, playlists, { messages.trySend(it) }, cleanup = backgroundScope) as T
+                },
+            )[SaveQueueViewModel::class]
+            .also { modelScope = it.viewModelScope }
 
     private suspend fun queueSongs(
         vararg ids: String,

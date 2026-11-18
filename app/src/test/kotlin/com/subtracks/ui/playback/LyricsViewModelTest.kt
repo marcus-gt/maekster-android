@@ -1,5 +1,7 @@
 package com.subtracks.ui.playback
 
+import androidx.lifecycle.viewModelScope
+import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.lyrics.Lyrics
 import com.subtracks.data.lyrics.LyricsLine
 import com.subtracks.data.lyrics.LyricsLoader
@@ -33,6 +35,7 @@ class LyricsViewModelTest {
     private val lyrics = ProvidedLyrics(LyricsProviderId.Server, Lyrics(listOf(LyricsLine("Hello", 1000)), synced = true))
     private val preferences = MutableStateFlow(LyricsPreferences(showCurrentLine = false))
     private val fetched = mutableListOf<String>()
+    private var model: LyricsViewModel? = null
 
     @Before
     fun setUp() {
@@ -41,6 +44,7 @@ class LyricsViewModelTest {
 
     @After
     fun tearDown() {
+        cancelAndJoinBlocking(model?.viewModelScope)
         Dispatchers.resetMain()
     }
 
@@ -54,7 +58,7 @@ class LyricsViewModelTest {
                     fetched += requested.id
                     listOf(lyrics)
                 },
-        )
+        ).also { model = it }
 
     @Test
     fun nothingIsLookedUpUntilThePaneOrThePreviewShowsLyrics() =

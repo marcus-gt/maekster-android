@@ -8,8 +8,8 @@ import org.junit.Assert.fail
 
 const val TEST_TIMEOUT_MS = 30_000L
 
-fun cancelAndJoinBlocking(vararg scopes: CoroutineScope) {
-    runBlocking { scopes.forEach { it.coroutineContext[Job]?.cancelAndJoin() } }
+fun cancelAndJoinBlocking(vararg scopes: CoroutineScope?) {
+    runBlocking { scopes.forEach { it?.coroutineContext?.get(Job)?.cancelAndJoin() } }
 }
 
 fun awaitUntil(

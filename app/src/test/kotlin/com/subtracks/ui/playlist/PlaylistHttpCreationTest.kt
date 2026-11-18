@@ -13,9 +13,10 @@ import com.subtracks.data.source.subsonic.SubsonicPlaylistWriter
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -114,11 +115,14 @@ class PlaylistHttpCreationTest {
                     assertEquals(listOf("s1"), requests[4].queryParameterValues("songIdToAdd"))
                     assertEquals(6, server.requestCount)
                 } finally {
-                    closed.cancel()
-                    withContext(dispatcher) { vm.viewModelScope.cancel() }
+                    closed.cancelAndJoin()
                 }
             } finally {
-                model?.viewModelScope?.cancel()
+                model
+                    ?.viewModelScope
+                    ?.coroutineContext
+                    ?.get(Job)
+                    ?.cancelAndJoin()
                 db.close()
                 server.shutdown()
                 Dispatchers.resetMain()

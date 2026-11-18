@@ -24,4 +24,13 @@ before the replay collector finished deleting the delivered action.
   teardown. That fixture now waits for the previous ViewModel to finish cancelling before replacing
   it or closing Room. Both targeted classes and all 1,919 unit tests passed after the two test-only
   fixes, along with formatting, assembleDebug, ktlintCheck and lintDebug.
+- GitHub tested `8975bdd3`. The earlier failures cleared, but `PlaylistSearchIntegrationTest`
+  failed during `Dispatchers.resetMain()` while a coroutine was still completing. The regular test
+  job stopped at 1 failure out of 1,919 tests and the real-server integration step was skipped.
+- Join the paging observer and ViewModel job before closing Room or resetting the main dispatcher.
+  Apply the same ordering to other fixtures that replace `Dispatchers.Main` and own a ViewModel
+  or a dedicated coroutine scope. The fix only changes test teardown.
+- Targeted playlist, ViewModel, storage and DI fixture tests passed. Formatting, assembleDebug,
+  ktlintCheck and lintDebug passed. The full local unit run passed all 1,919 tests with zero
+  failures or skips (`--no-parallel --max-workers=2`, Android Studio JBR and `./gradlew`).
 - Wait for a passing GitHub check on the amended PR before merging.

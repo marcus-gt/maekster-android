@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.R
 import com.subtracks.UiMessage
+import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.model.Playlist
@@ -15,7 +16,6 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -68,7 +68,7 @@ class DeletePlaylistViewModelTest {
 
     @After
     fun tearDown() {
-        model.viewModelScope.cancel()
+        cancelAndJoinBlocking(model.viewModelScope)
         db.close()
         Dispatchers.resetMain()
     }

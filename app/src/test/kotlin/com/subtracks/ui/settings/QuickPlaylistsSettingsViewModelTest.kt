@@ -3,6 +3,7 @@ package com.subtracks.ui.settings
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.lifecycle.viewModelScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.model.Playlist
@@ -12,7 +13,6 @@ import com.subtracks.data.repo.PlaylistRepository
 import com.subtracks.data.repo.QuickPlaylistRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -30,6 +30,7 @@ import java.io.File
 class QuickPlaylistsSettingsViewModelTest {
     private lateinit var db: SubtracksDatabase
     private lateinit var quick: QuickPlaylistRepository
+    private var viewModel: QuickPlaylistsSettingsViewModel? = null
     private val file = File.createTempFile("quick-settings", ".preferences_pb").apply { delete() }
 
     @Before
@@ -47,6 +48,7 @@ class QuickPlaylistsSettingsViewModelTest {
 
     @After
     fun tearDown() {
+        cancelAndJoinBlocking(viewModel?.viewModelScope)
         db.close()
         file.delete()
         Dispatchers.resetMain()
@@ -57,7 +59,7 @@ class QuickPlaylistsSettingsViewModelTest {
         runTest {
             val preferences = UserPreferences(PreferenceDataStoreFactory.create(scope = backgroundScope) { file })
             listOf("a", "b", "c").forEach { quick.toggle(1, it) }
-            val model = QuickPlaylistsSettingsViewModel(1, quick, preferences)
+            val model = QuickPlaylistsSettingsViewModel(1, quick, preferences).also { viewModel = it }
             assertEquals(listOf("a", "b", "c"), model.playlists.first { it.size == 3 }.map { it.id })
 
             model.setOrder(listOf("c", "a", "b"))
@@ -68,6 +70,5 @@ class QuickPlaylistsSettingsViewModelTest {
             assertEquals(true, model.alsoFavorite.value)
             model.setAlsoFavorite(false)
             assertEquals(false, preferences.quickPlaylistsAlsoFavorite().first { !it })
-            model.viewModelScope.cancel()
         }
 }

@@ -2,6 +2,7 @@ package com.subtracks.ui.discover
 
 import androidx.lifecycle.viewModelScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
 import com.subtracks.data.model.Album
@@ -20,7 +21,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -95,8 +95,7 @@ class FreshReleasesViewModelTest {
 
     @After
     fun tearDown() {
-        model?.viewModelScope?.cancel()
-        scope.cancel()
+        cancelAndJoinBlocking(model?.viewModelScope, scope)
         db.close()
         Dispatchers.resetMain()
     }

@@ -105,8 +105,10 @@ class AppModuleTest {
         val lyrics = koin.get<LyricsRepository>()
 
         assertSame(lyrics, koin.get<LyricsRepository>())
-        assertNotNull(koin.get<LyricsViewModel>())
         assertSame(koin.get<PlaylistRepository>(), koin.get<PlaylistRepository>())
+        val model = koin.get<LyricsViewModel>()
+        assertNotNull(model)
+        cancelAndJoinBlocking(model.viewModelScope)
     }
 
     @Test
@@ -117,7 +119,9 @@ class AppModuleTest {
         koin = startKoin { modules(appModule(context, http, serverHeaders)) }.koin
 
         assertSame(koin.get<QueueBuilderPlayer>(), koin.get<QueueBuilderPlayer>())
-        assertNotNull(koin.get<QueueBuilderViewModel>())
+        val model = koin.get<QueueBuilderViewModel>()
+        assertNotNull(model)
+        cancelAndJoinBlocking(model.viewModelScope)
     }
 
     @Test

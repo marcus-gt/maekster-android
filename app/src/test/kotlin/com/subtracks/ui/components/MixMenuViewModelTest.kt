@@ -9,7 +9,8 @@ import com.subtracks.data.model.Artist
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -41,7 +42,7 @@ class MixMenuViewModelTest {
                 result.complete(false)
                 assertEquals(listOf(R.string.mix_preparing, R.string.mix_empty), messages.map { it.resId })
             } finally {
-                model.viewModelScope.cancel()
+                model.viewModelScope.coroutineContext[Job]?.cancelAndJoin()
                 Dispatchers.resetMain()
             }
         }

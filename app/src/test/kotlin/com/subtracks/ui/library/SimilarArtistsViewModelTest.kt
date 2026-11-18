@@ -2,6 +2,7 @@ package com.subtracks.ui.library
 
 import androidx.lifecycle.viewModelScope
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.model.Artist
 import com.subtracks.data.recommendations.ResolvedSimilarArtist
 import com.subtracks.data.recommendations.SimilarArtist
@@ -9,7 +10,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -33,7 +33,7 @@ class SimilarArtistsViewModelTest {
     @Before fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
 
     @After fun tearDown() {
-        model?.viewModelScope?.cancel()
+        cancelAndJoinBlocking(model?.viewModelScope)
         Dispatchers.resetMain()
     }
 
