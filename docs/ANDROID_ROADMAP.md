@@ -908,7 +908,10 @@ prototype in UX-04 before rolling it out. The recommendation audit in UX-12 may 
 | UX-09 | [Favorites: sorting and Play/Shuffle](https://github.com/marcus-gt/maekster-android/issues/38) | [Complete](handoffs/UX-09-favorites-sorts.md) |
 | UX-10 | [Library Genres: styles and playback controls](https://github.com/marcus-gt/maekster-android/issues/9) | [Complete](handoffs/UX-10-genre-styles.md) |
 | UX-11 | [Home: rotating genre album grids](https://github.com/marcus-gt/maekster-android/issues/39) | [Complete](handoffs/UX-11-genre-grids.md) |
-| UX-12 | [Home and Discover: audit recommendation behavior against iOS](https://github.com/marcus-gt/maekster-android/issues/40) | — |
+| UX-12 | [Home and Discover: audit recommendation behavior against iOS](https://github.com/marcus-gt/maekster-android/issues/40) | [Complete](handoffs/UX-12-recommendation-audit.md) |
+| UX-13 | [Rediscover: fix the 60-day window (milliseconds compared with seconds)](https://github.com/marcus-gt/maekster-android/issues/41) | — |
+| UX-14 | [Home: align In heavy rotation and Rediscover selection with iOS](https://github.com/marcus-gt/maekster-android/issues/42) | — |
+| UX-15 | [Home: align Artist picks ranking and rotation with iOS](https://github.com/marcus-gt/maekster-android/issues/43) | — |
 
 ---
 
