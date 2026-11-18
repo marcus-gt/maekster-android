@@ -308,12 +308,40 @@ private fun artistOrder(
         }
     }
 
+private const val PLAYLIST_LAST_USED_DATE = """
+COALESCE(
+    (SELECT usedAt FROM playlist_usage WHERE sourceId = playlists.sourceId AND playlistId = playlists.id),
+    CASE
+        WHEN name COLLATE BINARY IN ('maekster · Night', 'maekster · Energetic', 'maekster · Workout', 'maekster · Chill', 'maekster · Focus')
+            OR (name GLOB 'maekster Wrapped [0-9]*' AND substr(name, length('maekster Wrapped ') + 1) NOT GLOB '*[^0-9]*')
+        THEN NULL
+        ELSE NULLIF(changed, 0)
+    END
+)
+"""
+
 private fun playlistOrder(
     sort: PlaylistSort,
     descending: Boolean,
 ): String =
     when (sort) {
-        PlaylistSort.Name -> if (descending) PLAYLIST_ORDER_BY_NAME_REVERSED else PLAYLIST_ORDER_BY_NAME
-        PlaylistSort.Added -> if (descending) PLAYLIST_ORDER_BY_ADDED_REVERSED else PLAYLIST_ORDER_BY_ADDED
-        PlaylistSort.Updated -> if (descending) PLAYLIST_ORDER_BY_UPDATED_REVERSED else PLAYLIST_ORDER_BY_UPDATED
+        PlaylistSort.Name -> {
+            if (descending) PLAYLIST_ORDER_BY_NAME_REVERSED else PLAYLIST_ORDER_BY_NAME
+        }
+
+        PlaylistSort.Added -> {
+            if (descending) PLAYLIST_ORDER_BY_ADDED_REVERSED else PLAYLIST_ORDER_BY_ADDED
+        }
+
+        PlaylistSort.Updated -> {
+            if (descending) PLAYLIST_ORDER_BY_UPDATED_REVERSED else PLAYLIST_ORDER_BY_UPDATED
+        }
+
+        PlaylistSort.LastUsed -> {
+            if (descending) {
+                "$PLAYLIST_LAST_USED_DATE DESC NULLS LAST, $PLAYLIST_ORDER_BY_NAME"
+            } else {
+                "$PLAYLIST_LAST_USED_DATE ASC NULLS LAST, $PLAYLIST_ORDER_BY_NAME_REVERSED"
+            }
+        }
     }

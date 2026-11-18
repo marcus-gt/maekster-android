@@ -474,7 +474,7 @@ class PlaybackController(
         queueRepository.setCursor(0)
         snap = queueRepository.snapshot()
         this@PlaybackController.snapshot = snap
-        loadWindow(0, autoplay = true)
+        loadWindow(0, autoplay = true, playlistStart = entries.singleOrNull())
     }
 
     private fun randomIndex(
@@ -1369,7 +1369,7 @@ class PlaybackController(
             }
         queueRepository.setCursor(position)
         this.snapshot = readSnapshot()
-        loadWindow(position, autoplay = true)
+        loadWindow(position, autoplay = true, playlistStart = entries.singleOrNull())
     }
 
     private suspend fun restore() =
@@ -1484,6 +1484,7 @@ class PlaybackController(
         position: Long,
         autoplay: Boolean,
         startPositionMs: Long = 0,
+        playlistStart: QueueEntry? = null,
         autoplayAllowed: () -> Boolean = { true },
     ) {
         networkRetry = null
@@ -1523,6 +1524,7 @@ class PlaybackController(
         if (autoplay && autoplayAllowed()) {
             player.prepare()
             player.play()
+            playlistStart?.let { queueRepository.recordPlaylistStart(it) }
         }
         refresh(actual)
     }

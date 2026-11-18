@@ -31,7 +31,7 @@ enum class AlbumSort { Name, Artist, Year, Added, Starred, Frequent, Recent }
 
 enum class ArtistSort { Name, AlbumCount, Starred, Frequent, Recent }
 
-enum class PlaylistSort { Name, Added, Updated }
+enum class PlaylistSort { Name, Added, Updated, LastUsed }
 
 enum class SongSort { Name, Artist, Album, Added }
 

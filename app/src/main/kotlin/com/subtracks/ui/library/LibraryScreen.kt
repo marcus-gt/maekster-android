@@ -202,6 +202,7 @@ fun sortOptionsFor(
                 SortOption(PlaylistSort.Name.name, R.string.resources_sort_by_name),
                 SortOption(PlaylistSort.Added.name, R.string.resources_sort_by_added, descendingByDefault = true),
                 SortOption(PlaylistSort.Updated.name, R.string.resources_sort_by_updated, descendingByDefault = true),
+                SortOption(PlaylistSort.LastUsed.name, R.string.resources_sort_by_last_used, descendingByDefault = true),
             )
         }
     }

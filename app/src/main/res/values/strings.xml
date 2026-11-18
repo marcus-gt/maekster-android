@@ -94,6 +94,7 @@
     <string name="resources_sort_by_recently_played">Recently played</string>
     <string name="resources_sort_by_title">Title</string>
     <string name="resources_sort_by_updated">Updated</string>
+    <string name="resources_sort_by_last_used">Last used</string>
     <string name="resources_sort_by_year">Year</string>
     <string name="resources_sort_by_album_count">Most albums</string>
     <string name="artist_sort_by_album_count">Album count</string>

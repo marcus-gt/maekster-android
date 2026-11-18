@@ -1095,6 +1095,17 @@ val MIGRATION_61_62 =
         }
     }
 
+val MIGRATION_62_63 =
+    object : Migration(62, 63) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL(
+                "CREATE TABLE IF NOT EXISTS playlist_usage (sourceId INTEGER NOT NULL, " +
+                    "playlistId TEXT NOT NULL, usedAt INTEGER NOT NULL, " +
+                    "PRIMARY KEY(sourceId, playlistId), FOREIGN KEY(sourceId, playlistId) REFERENCES playlists(sourceId, id) ON DELETE CASCADE)",
+            )
+        }
+    }
+
 val MIGRATIONS: Array<Migration> =
     arrayOf(
         MIGRATION_1_2,
@@ -1158,4 +1169,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_59_60,
         MIGRATION_60_61,
         MIGRATION_61_62,
+        MIGRATION_62_63,
     )

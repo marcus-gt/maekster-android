@@ -510,6 +510,12 @@ class QueueRepository(
     private val cursorMutex = Mutex()
     private val orderCache = ConcurrentHashMap<Long, RetainedQueueOrder>()
 
+    internal suspend fun recordPlaylistStart(entry: QueueEntry) {
+        if (entry.kind == QueueKind.Playlist) {
+            db.libraryDao().recordPlaylistUse(entry.sourceId, entry.refId, System.currentTimeMillis())
+        }
+    }
+
     fun playlistEntry(
         sourceId: Long,
         playlistId: String,
