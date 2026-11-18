@@ -257,6 +257,8 @@
     <string name="genres_empty">No genres.\nNone of your songs are tagged with a genre.</string>
     <string name="labels_empty">No labels.\nNone of your albums are tagged with a record label.</string>
     <string name="collection_albums_empty">No albums here.\nNothing in your library matches.</string>
+    <string name="genre_all">All %1$s</string>
+    <string name="genre_styles">Styles</string>
     <string name="sync">Sync</string>
     <string name="list_options">List options</string>
     <string name="albums_show_grid">Show albums as a grid</string>

@@ -4,6 +4,7 @@ import androidx.room3.RoomRawQuery
 import com.subtracks.data.prefs.SongSort
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StarredFilter
+import org.json.JSONArray
 
 /**
  * What the Library's Songs list shows: its sort, filters and search. Playing from the list stores this, encoded, as
@@ -16,26 +17,44 @@ data class SongListSpec(
     val downloaded: Boolean = false,
     val search: String = "",
     val sortNameMode: SortNameMode = SortNameMode.SortName,
+    val albumGenreTags: List<String>? = null,
 ) {
     // The search goes last so it may contain the separator.
-    fun encode(): String =
-        listOf(
-            VERSION,
-            sort.name,
-            if (descending) "1" else "0",
-            starred.name,
-            if (downloaded) "1" else "0",
-            sortNameMode.name,
-            search,
-        ).joinToString(SEPARATOR)
+    fun encode(): String {
+        val base =
+            listOf(
+                VERSION,
+                sort.name,
+                if (descending) "1" else "0",
+                starred.name,
+                if (downloaded) "1" else "0",
+                sortNameMode.name,
+                search,
+            ).joinToString(SEPARATOR)
+        return albumGenreTags?.let { JSONArray(listOf(GENRE_VERSION, base, JSONArray(it))).toString() } ?: base
+    }
 
     companion object {
         private const val VERSION = "v1"
+        private const val GENRE_VERSION = "genre-v1"
         private const val SEPARATOR = "|"
         private const val FIELDS = 7
 
         /** The spec an [encode]d reference names; null for anything else, so a bad reference plays nothing. */
         fun decode(value: String): SongListSpec? {
+            if (value.startsWith("[")) {
+                return runCatching {
+                    val fields = JSONArray(value)
+                    if (fields.getString(0) != GENRE_VERSION) return null
+                    val base = decodeBase(fields.getString(1)) ?: return null
+                    val tags = fields.getJSONArray(2)
+                    base.copy(albumGenreTags = List(tags.length(), tags::getString))
+                }.getOrNull()
+            }
+            return decodeBase(value)
+        }
+
+        private fun decodeBase(value: String): SongListSpec? {
             val parts = value.split(SEPARATOR, limit = FIELDS)
             if (parts.size != FIELDS || parts[0] != VERSION) return null
             return SongListSpec(
@@ -63,10 +82,13 @@ private const val SONG_DOWNLOADED =
     " AND EXISTS (SELECT 1 FROM song_downloads sd WHERE sd.sourceId = songs.sourceId " +
         "AND sd.songId = songs.id AND sd.status = 'Completed')"
 
-internal fun SongListSpec.where(): String = if (downloaded) SONGS_FROM + SONG_DOWNLOADED else SONGS_FROM
+internal fun SongListSpec.where(): String =
+    SONGS_FROM + (if (downloaded) SONG_DOWNLOADED else "") +
+        (if (albumGenreTags != null) " AND songs.albumId IN ($GENRE_ALBUM_MEMBERS)" else "")
 
 private fun SongListSpec.bindings(sourceId: Long): Map<String, Any?> =
-    mapOf("sourceId" to sourceId, "starredFilter" to starred.ordinal, "search" to search)
+    mapOf("sourceId" to sourceId, "starredFilter" to starred.ordinal, "search" to search) +
+        if (albumGenreTags == null) emptyMap() else mapOf("genreTags" to JSONArray(albumGenreTags).toString())
 
 /** One page of the Songs list, or of a queue playing it. */
 internal fun songsPageQuery(
@@ -119,6 +141,9 @@ private fun songArtistKey(mode: SortNameMode): String =
  * reversed order flips every term while keeping unknown play and release dates last. The song id breaks ties.
  */
 internal fun songOrder(spec: SongListSpec): String {
+    if (spec.albumGenreTags != null) {
+        return "$GENRE_ALBUM_ORDER, songs.disc, songs.track, songs.id"
+    }
     val name = songNameKey(spec.sortNameMode)
 
     fun dateOrder(date: String): String {

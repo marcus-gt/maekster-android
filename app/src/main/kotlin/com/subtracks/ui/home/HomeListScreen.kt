@@ -53,6 +53,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.subtracks.R
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumCollectionSummary
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
@@ -71,6 +72,7 @@ import com.subtracks.ui.components.ListDownloadIndicator
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.ShuffleFab
+import com.subtracks.ui.library.AlbumCollectionRow
 import com.subtracks.ui.library.PlaylistsContent
 import com.subtracks.ui.library.SongListPlaybackActions
 import com.subtracks.ui.library.SongRow
@@ -97,6 +99,7 @@ fun HomeListRoute(
     playbackController: PlaybackController = koinInject(),
     topBarExtra: (@Composable () -> Unit)? = null,
     topBarActions: @Composable RowScope.() -> Unit = {},
+    onGenreStyleClick: (String?) -> Unit = {},
 ) {
     val playback by playbackController.state.collectAsStateWithLifecycle()
     val favoriteQuery =
@@ -107,6 +110,7 @@ fun HomeListRoute(
         }
     val genresState = if (request.section == HomeSection.Genres) viewModel.genres.collectAsStateWithLifecycle() else null
     val genres = genresState?.value.orEmpty()
+    val genreStyles = if (request.showGenreStyles) viewModel.genreStyles.collectAsLazyPagingItems() else null
     val decadesState = if (request.section == HomeSection.Decades) viewModel.decades.collectAsStateWithLifecycle() else null
     val decades = decadesState?.value.orEmpty()
     val actions =
@@ -133,6 +137,9 @@ fun HomeListRoute(
         onArtistClick = onArtistClick,
         onPlaylistClick = onPlaylistClick,
         onSongClick = viewModel::play,
+        genreStyles = genreStyles,
+        onGenreStyleClick = onGenreStyleClick,
+        onPlayGenreAlbums = if (request.groupedGenre) viewModel::playGenreAlbums else null,
         onFavoriteSongClick = favoriteQuery?.let { query -> { index -> viewModel.playFavorites(query, index) } },
         onPlayFavorites = favoriteQuery?.let { query -> { viewModel.playFavorites(query, inOrder = true) } },
         onShuffleFavorites = favoriteQuery?.let { query -> { viewModel.playFavorites(query, shuffled = true) } },
@@ -174,6 +181,9 @@ fun HomeListScreen(
     // Shown under the top bar, such as the Favorites page's Songs, Albums and Artists switcher.
     topBarExtra: (@Composable () -> Unit)? = null,
     topBarActions: @Composable RowScope.() -> Unit = {},
+    genreStyles: LazyPagingItems<AlbumCollectionSummary>? = null,
+    onGenreStyleClick: (String?) -> Unit = {},
+    onPlayGenreAlbums: ((Boolean) -> Unit)? = null,
 ) {
     val now = remember { System.currentTimeMillis() }
     val resources = LocalResources.current
@@ -201,6 +211,9 @@ fun HomeListScreen(
                         },
                 )
                 topBarExtra?.invoke()
+                if (albums.itemCount > 0 && onPlayGenreAlbums != null) {
+                    SongListPlaybackActions({ onPlayGenreAlbums(false) }, { onPlayGenreAlbums(true) })
+                }
                 if (request.favorites == FavoriteKind.Songs && songs.itemCount > 0 && onPlayFavorites != null &&
                     onShuffleFavorites != null
                 ) {
@@ -214,6 +227,16 @@ fun HomeListScreen(
             }
         },
     ) { padding ->
+        if (genreStyles != null) {
+            GenreStylesContent(
+                genre = request.title,
+                styles = genreStyles,
+                coverArt = coverArt,
+                onClick = onGenreStyleClick,
+                modifier = Modifier.padding(padding),
+            )
+            return@Scaffold
+        }
         val favorites = request.favorites
         if (favorites != null) {
             FavoritesContent(
@@ -354,6 +377,38 @@ fun HomeListScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GenreStylesContent(
+    genre: String,
+    styles: LazyPagingItems<AlbumCollectionSummary>,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onClick: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(modifier.fillMaxSize()) {
+        item(key = "all") {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.genre_all, genre)) },
+                modifier = Modifier.clickable { onClick(null) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            )
+        }
+        if (styles.itemCount > 0) {
+            item(key = "heading") {
+                Text(
+                    stringResource(R.string.genre_styles),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+            }
+            items(styles.itemCount, key = styles.itemKey { "style:${it.name}" }) { index ->
+                val style = styles[index]
+                if (style != null) AlbumCollectionRow(style, coverArt) { onClick(style.name) }
             }
         }
     }

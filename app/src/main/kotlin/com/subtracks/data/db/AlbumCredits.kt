@@ -106,7 +106,7 @@ private const val SONG_ALBUM_JOIN = "JOIN albums ON albums.sourceId = songs.sour
 
 private const val TRACK_DOWNLOAD_JOIN = "JOIN song_downloads sd ON sd.sourceId = songs.sourceId AND sd.songId = songs.id "
 
-private const val ALBUM_DOWNLOADED =
+internal const val ALBUM_DOWNLOADED =
     "EXISTS (SELECT 1 FROM songs " +
         "JOIN song_downloads sd ON sd.sourceId = songs.sourceId AND sd.songId = songs.id " +
         "WHERE songs.sourceId = albums.sourceId AND songs.albumId = albums.id AND sd.status = 'Completed')"

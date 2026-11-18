@@ -852,6 +852,9 @@ interface LibraryDao {
     @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, AlbumLabel::class, SongDownload::class])
     fun albumCollectionsPaging(query: RoomRawQuery): PagingSource<Int, AlbumCollectionSummary>
 
+    @Query("SELECT DISTINCT genre FROM song_genres WHERE sourceId = :sourceId AND trim(genre) != '' ORDER BY genre")
+    fun genreTags(sourceId: Long): Flow<List<String>>
+
     @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, AlbumLabel::class, SongDownload::class])
     fun collectionAlbumsPaging(query: RoomRawQuery): PagingSource<Int, Album>
 

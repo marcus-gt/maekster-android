@@ -118,6 +118,56 @@ class AlbumCollectionDaoTest {
             assertEquals(listOf("Rock", "Indie"), dao.albumGenres(source, "new", true, 3).first())
         }
 
+    @Test
+    fun genreHierarchyAndQueueUseDistinctSourceScopedAlbums() =
+        runTest {
+            val source = seed()
+            val other = seed()
+            db.downloadDao().upsert(SongDownload(other, "extra", DownloadStatus.Completed))
+            val dao = db.libraryDao()
+            val mapping = genreMapping(dao.genreTags(source).first())
+            val main =
+                dao
+                    .albumCollectionsPaging(
+                        genreGroupsQuery(source, mapping, CollectionSort.Name, false, "Indie", false),
+                    ).page()
+                    .single()
+            assertEquals("Rock", main.name)
+            assertEquals(3L, main.albumCount)
+            val style =
+                dao
+                    .albumCollectionsPaging(
+                        genreGroupsQuery(source, mapping, CollectionSort.AlbumCount, false, "", false, main.name),
+                    ).page()
+                    .single()
+            assertEquals("Indie Rock", style.name)
+            assertEquals(1L, style.albumCount)
+            val tags = mapping.filter { it.main == main.name && it.style == style.name }.map { it.tag }
+            assertEquals(listOf("new"), dao.collectionAlbumsPaging(groupedGenreAlbumsQuery(source, tags, false)).page().map { it.id })
+            assertTrue(dao.collectionAlbumsPaging(groupedGenreAlbumsQuery(source, tags, true)).page().isEmpty())
+
+            val queue = db.queueDao()
+            val spec = SongListSpec(albumGenreTags = tags)
+            val online = spec.encode()
+            assertEquals(2L, queue.libraryLength(source, online))
+            assertEquals(listOf("extra", "new"), queue.librarySongs(source, online, 0, 2).map { it.song.id })
+            val offline = spec.copy(downloaded = true).encode()
+            assertEquals(0L, queue.libraryLength(source, offline))
+            db.downloadDao().upsert(SongDownload(source, "new", DownloadStatus.Completed))
+            assertEquals(listOf("new"), dao.collectionAlbumsPaging(groupedGenreAlbumsQuery(source, tags, true)).page().map { it.id })
+            assertEquals(listOf("new"), queue.librarySongs(source, offline, 0, 2).map { it.song.id })
+
+            val all = mapping.filter { it.main == main.name }.map { it.tag }
+            assertEquals(
+                listOf("new", "old", "unknown"),
+                dao.collectionAlbumsPaging(groupedGenreAlbumsQuery(source, all, false)).page().map { it.id },
+            )
+            assertEquals(
+                listOf("extra", "new", "old", "unknown"),
+                queue.librarySongs(source, SongListSpec(albumGenreTags = all).encode(), 0, 4).map { it.song.id },
+            )
+        }
+
     private suspend fun seed(): Long {
         val source = db.sourcesDao().insertSource(Source(name = "test", address = "http://localhost", isActive = false, createdAt = 0))
         db.libraryDao().upsertAlbums(

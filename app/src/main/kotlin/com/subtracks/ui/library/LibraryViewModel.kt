@@ -156,14 +156,24 @@ class LibraryViewModel(
                 combine(listQueries.getValue(tab), searches.getValue(tab), sourceRepository.offline) { query, search, offline ->
                     Triple(query, search, offline)
                 }.flatMapLatest { (query, search, offline) ->
-                    libraryRepository.albumCollections(
-                        sourceId = sourceId,
-                        kind = kind,
-                        sort = query.collectionSort(),
-                        descending = query.descending,
-                        search = search,
-                        downloaded = query.downloaded || offline,
-                    )
+                    if (kind == AlbumCollectionKind.Genre) {
+                        libraryRepository.genreGroups(
+                            sourceId,
+                            query.collectionSort(),
+                            query.descending,
+                            search,
+                            query.downloaded || offline,
+                        )
+                    } else {
+                        libraryRepository.albumCollections(
+                            sourceId = sourceId,
+                            kind = kind,
+                            sort = query.collectionSort(),
+                            descending = query.descending,
+                            search = search,
+                            downloaded = query.downloaded || offline,
+                        )
+                    }
                 }
             }.cachedIn(viewModelScope)
 

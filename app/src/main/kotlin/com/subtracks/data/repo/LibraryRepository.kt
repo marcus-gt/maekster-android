@@ -14,6 +14,9 @@ import com.subtracks.data.db.albumCollectionsPageQuery
 import com.subtracks.data.db.albumsPageQuery
 import com.subtracks.data.db.artistsPageQuery
 import com.subtracks.data.db.collectionAlbumsQuery
+import com.subtracks.data.db.genreGroupsQuery
+import com.subtracks.data.db.genreMapping
+import com.subtracks.data.db.groupedGenreAlbumsQuery
 import com.subtracks.data.db.hasDownloadedCollectionsQuery
 import com.subtracks.data.db.letterBucketsQuery
 import com.subtracks.data.db.playlistsPageQuery
@@ -407,6 +410,36 @@ class LibraryRepository(
                 albumCollectionsPageQuery(sourceId, kind, sort, descending, search, downloaded),
             )
         }
+
+    internal fun genreGroups(
+        sourceId: Long,
+        sort: CollectionSort,
+        descending: Boolean,
+        search: String,
+        downloaded: Boolean,
+        main: String? = null,
+    ): Flow<PagingData<AlbumCollectionSummary>> =
+        genreMapping(sourceId).flatMapLatest { mapping ->
+            pager(60) {
+                db.libraryDao().albumCollectionsPaging(genreGroupsQuery(sourceId, mapping, sort, descending, search, downloaded, main))
+            }
+        }
+
+    private fun genreMapping(sourceId: Long) = db.libraryDao().genreTags(sourceId).map(::genreMapping)
+
+    internal fun genreTags(
+        sourceId: Long,
+        main: String,
+        style: String?,
+    ) = genreMapping(sourceId).map { mapping ->
+        mapping.filter { it.main == main && (style == null || it.style == style) }.map { it.tag }
+    }
+
+    internal fun groupedGenreAlbums(
+        sourceId: Long,
+        tags: List<String>,
+        downloaded: Boolean,
+    ): Flow<PagingData<Album>> = pager(40) { db.libraryDao().collectionAlbumsPaging(groupedGenreAlbumsQuery(sourceId, tags, downloaded)) }
 
     /** The albums in one genre or from one label. */
     fun collectionAlbums(
