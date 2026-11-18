@@ -1106,6 +1106,13 @@ val MIGRATION_62_63 =
         }
     }
 
+val MIGRATION_63_64 =
+    object : Migration(63, 64) {
+        override suspend fun migrate(connection: SQLiteConnection) {
+            connection.execSQL("ALTER TABLE songs ADD COLUMN year INTEGER")
+        }
+    }
+
 val MIGRATIONS: Array<Migration> =
     arrayOf(
         MIGRATION_1_2,
@@ -1170,4 +1177,5 @@ val MIGRATIONS: Array<Migration> =
         MIGRATION_60_61,
         MIGRATION_61_62,
         MIGRATION_62_63,
+        MIGRATION_63_64,
     )

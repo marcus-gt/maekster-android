@@ -597,6 +597,7 @@ private fun Song.columns(): List<Pair<String, Any?>> =
         "bitDepth" to bitDepth,
         "samplingRate" to samplingRate,
         "channelCount" to channelCount,
+        "year" to year,
     )
 
 private fun List<ArtistRef>.positions(): List<Pair<Long, ArtistRef>> =

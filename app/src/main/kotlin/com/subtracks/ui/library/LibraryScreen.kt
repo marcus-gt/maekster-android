@@ -200,6 +200,8 @@ fun sortOptionsFor(
                 SortOption(SongSort.Artist.name, R.string.resources_sort_by_artist),
                 SortOption(SongSort.Album.name, R.string.resources_filter_album),
                 SortOption(SongSort.Added.name, R.string.resources_sort_by_added, descendingByDefault = true),
+                SortOption(SongSort.Recent.name, R.string.resources_sort_by_recently_played, descendingByDefault = true),
+                SortOption(SongSort.Released.name, R.string.resources_sort_by_released, descendingByDefault = true),
             )
         }
 

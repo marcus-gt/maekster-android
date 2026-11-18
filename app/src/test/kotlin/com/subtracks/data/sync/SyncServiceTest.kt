@@ -500,6 +500,7 @@ class SyncServiceTest {
                     bitDepth = 24,
                     samplingRate = 96000,
                     channelCount = 2,
+                    year = 1957,
                 )
             val source =
                 FakeMusicSource(
@@ -518,9 +519,9 @@ class SyncServiceTest {
             assertEquals(false, stored.compilation)
             val song = dao.songOnce(1, "s1")!!
             assertEquals(
-                listOf<Any?>("flac", 1000L, 24L, 96000L, 2L, "mbid-recording"),
+                listOf<Any?>("flac", 1000L, 24L, 96000L, 2L, "mbid-recording", 1957L),
                 with(song) {
-                    listOf(suffix, bitRate, bitDepth, samplingRate, channelCount, musicBrainzId)
+                    listOf(suffix, bitRate, bitDepth, samplingRate, channelCount, musicBrainzId, year)
                 },
             )
 

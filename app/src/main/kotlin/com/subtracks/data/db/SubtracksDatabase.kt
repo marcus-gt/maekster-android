@@ -104,7 +104,7 @@ import com.subtracks.data.model.UpNextEntry
         FreshReleaseState::class,
         MusicBrainzName::class,
     ],
-    version = 63,
+    version = 64,
     exportSchema = true,
 )
 @ColumnTypeConverters(

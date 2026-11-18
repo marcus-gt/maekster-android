@@ -116,10 +116,16 @@ private fun songArtistKey(mode: SortNameMode): String =
 
 /**
  * The ORDER BY for [spec]. Each sort lists its terms in their natural direction (newest first for Added); the
- * reversed order flips every term, and the song id breaks ties so paging and the queue never disagree.
+ * reversed order flips every term while keeping unknown play and release dates last. The song id breaks ties.
  */
 internal fun songOrder(spec: SongListSpec): String {
     val name = songNameKey(spec.sortNameMode)
+
+    fun dateOrder(date: String): String {
+        val direction = if (spec.descending) "ASC" else "DESC"
+        val tieDirection = if (spec.descending) " DESC" else ""
+        return "$date $direction NULLS LAST, $name$tieDirection, songs.id$tieDirection"
+    }
     val albumTracks = listOf("songs.album COLLATE NOCASE", "songs.albumId", "songs.disc", "songs.track")
     val terms: List<Pair<String, Boolean>> =
         when (spec.sort) {
@@ -127,6 +133,8 @@ internal fun songOrder(spec: SongListSpec): String {
             SongSort.Artist -> listOf(songArtistKey(spec.sortNameMode) to false) + albumTracks.map { it to false }
             SongSort.Album -> albumTracks.map { it to false }
             SongSort.Added -> listOf("songs.created" to true, name to false)
+            SongSort.Recent -> return dateOrder("songs.played")
+            SongSort.Released -> return dateOrder("COALESCE(NULLIF(songs.year, 0), NULLIF(albums.year, 0))")
         } + ("songs.id" to false)
     return terms.joinToString(", ") { (term, naturalDescending) ->
         if (naturalDescending != spec.descending) "$term DESC" else term

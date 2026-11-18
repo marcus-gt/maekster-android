@@ -33,7 +33,7 @@ enum class ArtistSort { Name, AlbumCount, Starred, Frequent, Recent }
 
 enum class PlaylistSort { Name, Added, Updated, LastUsed }
 
-enum class SongSort { Name, Artist, Album, Added }
+enum class SongSort { Name, Artist, Album, Added, Recent, Released }
 
 /** Genres and record labels sort by name or by how many albums they cover. */
 enum class CollectionSort { Name, AlbumCount }
