@@ -899,7 +899,7 @@ prototype in UX-04 before rolling it out. The recommendation audit in UX-12 may 
 |---|---|---|
 | UX-01 | [Library labels and album layout switch](https://github.com/marcus-gt/maekster-android/issues/10) | [Starter handoff](handoffs/UX-01-library-layout.md) |
 | UX-02 | [Home: compact grids and favorite songs carousel](https://github.com/marcus-gt/maekster-android/issues/32) | [Complete](handoffs/UX-02-home-grids-favorites.md) |
-| UX-03 | [Home and Discover: consistent section arrows](https://github.com/marcus-gt/maekster-android/issues/33) | — |
+| UX-03 | [Home and Discover: consistent section arrows](https://github.com/marcus-gt/maekster-android/issues/33) | [Complete](handoffs/UX-03-section-arrows.md) |
 | UX-04 | [Discover: review and refresh the card design](https://github.com/marcus-gt/maekster-android/issues/34) | — |
 | UX-05 | [Home: offer Song Path as an opt-in section](https://github.com/marcus-gt/maekster-android/issues/35) | — |
 | UX-06 | [Playlists: clarify Updated and add Last used if distinct](https://github.com/marcus-gt/maekster-android/issues/36) | — |

@@ -59,7 +59,7 @@ class HomeYourPlaylistsTest {
             .let { assertEquals(1, it) }
 
         composeRule.onNodeWithText("Road Trip").performClick()
-        composeRule.onNodeWithText("More").performClick()
+        composeRule.onNodeWithText("Your playlists").performClick()
         assertEquals(listOf("Road Trip"), opened)
         assertEquals(1, more)
     }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -50,7 +51,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -98,7 +98,9 @@ import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
+import com.subtracks.ui.components.SectionOpenArrow
 import com.subtracks.ui.components.playlistUpdatedText
+import com.subtracks.ui.components.sectionOpenAction
 import com.subtracks.ui.components.statusBarScrim
 import com.subtracks.ui.discover.QueueBuilderRoute
 import com.subtracks.ui.library.SongRow
@@ -797,8 +799,15 @@ private fun HomeSectionHeader(
     icon: ImageVector,
     onMore: (() -> Unit)?,
 ) {
+    val text = stringResource(title)
+    val openLabel = stringResource(R.string.section_open, text)
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = SECTION_TOP, bottom = 0.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = SECTION_TOP)
+                .then(if (onMore != null) Modifier.sectionOpenAction(openLabel, onMore) else Modifier.heightIn(min = 48.dp))
+                .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -809,14 +818,13 @@ private fun HomeSectionHeader(
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            text = stringResource(title),
+            text = text,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.weight(1f),
         )
         if (onMore != null) {
-            TextButton(onClick = onMore) {
-                Text(stringResource(R.string.controls_more))
-            }
+            Spacer(Modifier.width(8.dp))
+            SectionOpenArrow()
         }
     }
 }

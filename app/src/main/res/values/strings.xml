@@ -48,6 +48,7 @@
     <string name="controls_playback_position">Playback position</string>
     <string name="controls_queue">Queue</string>
     <string name="controls_more">More</string>
+    <string name="section_open">Open %1$s</string>
 
     <string name="navigation_back">Back</string>
     <string name="scroll_to_top">Scroll to top</string>

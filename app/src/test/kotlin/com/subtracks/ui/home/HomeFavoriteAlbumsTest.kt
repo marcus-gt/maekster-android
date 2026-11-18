@@ -81,7 +81,7 @@ class HomeFavoriteAlbumsTest {
         composeRule.onNodeWithText("Your favorite albums").assertExists()
         composeRule.onNodeWithText("Sync").assertDoesNotExist()
         composeRule.onNodeWithText("Favorite record").performClick()
-        composeRule.onNodeWithText("More").performClick()
+        composeRule.onNodeWithText("Your favorite albums").performClick()
         assertEquals(album, opened)
         assertEquals(HomeSection.FavoriteAlbums, more)
     }
