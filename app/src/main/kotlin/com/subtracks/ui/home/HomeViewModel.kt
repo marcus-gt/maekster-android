@@ -38,7 +38,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 const val HOME_ROW_LIMIT = 10
-const val HOME_STARRED_LIMIT = 5
+const val HOME_STARRED_LIMIT = 15
 const val HOME_DOWNLOADED_LIMIT = 5
 
 data class HomeFeed(

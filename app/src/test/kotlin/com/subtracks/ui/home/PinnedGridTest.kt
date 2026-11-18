@@ -68,8 +68,15 @@ class PinnedGridTest {
         val first = rule.onNodeWithText("Pin 1").fetchSemanticsNode().boundsInRoot
         val second = rule.onNodeWithText("Pin 2").fetchSemanticsNode().boundsInRoot
         val third = rule.onNodeWithText("Pin 3").fetchSemanticsNode().boundsInRoot
-        assertEquals(first.top, second.top, 1f)
+        if (scale > 1f) {
+            assertTrue(second.top > first.bottom)
+        } else {
+            assertEquals(first.top, second.top, 1f)
+        }
         assertTrue(third.top > second.bottom)
+        val cover = with(rule.density) { HOME_GRID_COVER.toPx() }
+        val title = rule.onNodeWithText("Pin 1", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertTrue("Compact tiles put the title beside the cover", title.left > first.left + cover && title.top < first.top + cover)
         rule.onNodeWithText("Pin 3").performClick()
         rule.onNodeWithText("Pin 3").performTouchInput { longClick() }
         assertEquals(pins[2], opened)
@@ -124,8 +131,11 @@ class PinnedGridTest {
 
     @Test
     fun columnsFitAvailableWidth() {
-        assertEquals(1, pinGridColumns(240.dp))
-        assertEquals(2, pinGridColumns(320.dp))
-        assertEquals(5, pinGridColumns(800.dp))
+        assertEquals(1, homeGridColumns(240.dp))
+        assertEquals(2, homeGridColumns(320.dp))
+        assertEquals(2, homeGridColumns(411.dp))
+        assertEquals(5, homeGridColumns(800.dp))
+        assertEquals(1, homeGridColumns(411.dp, fontScale = 2f))
+        assertEquals(3, homeGridColumns(800.dp, fontScale = 2f))
     }
 }

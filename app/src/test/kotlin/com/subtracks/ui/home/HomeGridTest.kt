@@ -93,8 +93,17 @@ class HomeGridTest {
                 }
             }
         }
-        rule.onNodeWithTag("${shelf.name}-grid").assertExists()
+        val grid = rule.onNodeWithTag("${shelf.name}-grid").fetchSemanticsNode().boundsInRoot
         val first = rule.onNodeWithText("Record 1").fetchSemanticsNode().boundsInRoot
+        val second = rule.onNodeWithText("Record 2").fetchSemanticsNode().boundsInRoot
+        val title = rule.onNodeWithText("Record 1", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val cover = with(rule.density) { HOME_GRID_COVER.toPx() }
+        assertTrue("The title sits beside the cover", title.left > grid.left + cover && title.top < grid.top + cover)
+        if (fontScale > 1f) {
+            assertTrue("Large text uses one column", second.top > first.bottom)
+        } else {
+            assertEquals("Two tiles per row", first.top, second.top, 1f)
+        }
         rule.onNodeWithText("Record 3").performScrollTo()
         val third = rule.onNodeWithText("Record 3").fetchSemanticsNode().boundsInRoot
         assertTrue(third.top > first.top)
