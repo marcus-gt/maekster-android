@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,6 +24,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,8 +40,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +68,8 @@ import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.ListDownloadStatus
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
+import com.subtracks.data.prefs.AlbumSort
+import com.subtracks.data.prefs.ListQuery
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.ArtistArt
@@ -73,9 +83,12 @@ import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.ShuffleFab
 import com.subtracks.ui.library.AlbumCollectionRow
+import com.subtracks.ui.library.LibraryTab
+import com.subtracks.ui.library.PlaySortAvailability
 import com.subtracks.ui.library.PlaylistsContent
 import com.subtracks.ui.library.SongListPlaybackActions
 import com.subtracks.ui.library.SongRow
+import com.subtracks.ui.library.sortOptionsFor
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -111,6 +124,8 @@ fun HomeListRoute(
     val genresState = if (request.section == HomeSection.Genres) viewModel.genres.collectAsStateWithLifecycle() else null
     val genres = genresState?.value.orEmpty()
     val genreStyles = if (request.showGenreStyles) viewModel.genreStyles.collectAsLazyPagingItems() else null
+    val allGenreAlbums =
+        if (request.showGenreStyles) viewModel.allGenreAlbums.collectAsStateWithLifecycle(initialValue = null).value else null
     val decadesState = if (request.section == HomeSection.Decades) viewModel.decades.collectAsStateWithLifecycle() else null
     val decades = decadesState?.value.orEmpty()
     val actions =
@@ -138,6 +153,7 @@ fun HomeListRoute(
         onPlaylistClick = onPlaylistClick,
         onSongClick = viewModel::play,
         genreStyles = genreStyles,
+        allGenreAlbums = allGenreAlbums,
         onGenreStyleClick = onGenreStyleClick,
         onPlayGenreAlbums = if (request.groupedGenre) viewModel::playGenreAlbums else null,
         onFavoriteSongClick = favoriteQuery?.let { query -> { index -> viewModel.playFavorites(query, index) } },
@@ -148,7 +164,14 @@ fun HomeListRoute(
         onGenreClick = onGenreClick,
         onDecadeClick = onDecadeClick,
         topBarExtra = topBarExtra,
-        topBarActions = topBarActions,
+        topBarActions = {
+            topBarActions()
+            if (request.groupedGenre) {
+                val sort by viewModel.genreAlbumSort.collectAsStateWithLifecycle(ListQuery(AlbumSort.Year.name))
+                val availability by viewModel.genrePlaySortAvailability.collectAsStateWithLifecycle(PlaySortAvailability(false, false))
+                GenreAlbumSortMenu(sort, availability, viewModel::changeGenreAlbumSort)
+            }
+        },
     )
 }
 
@@ -182,6 +205,7 @@ fun HomeListScreen(
     topBarExtra: (@Composable () -> Unit)? = null,
     topBarActions: @Composable RowScope.() -> Unit = {},
     genreStyles: LazyPagingItems<AlbumCollectionSummary>? = null,
+    allGenreAlbums: AlbumCollectionSummary? = null,
     onGenreStyleClick: (String?) -> Unit = {},
     onPlayGenreAlbums: ((Boolean) -> Unit)? = null,
 ) {
@@ -229,7 +253,7 @@ fun HomeListScreen(
     ) { padding ->
         if (genreStyles != null) {
             GenreStylesContent(
-                genre = request.title,
+                allAlbums = allGenreAlbums,
                 styles = genreStyles,
                 coverArt = coverArt,
                 onClick = onGenreStyleClick,
@@ -384,19 +408,21 @@ fun HomeListScreen(
 
 @Composable
 private fun GenreStylesContent(
-    genre: String,
+    allAlbums: AlbumCollectionSummary?,
     styles: LazyPagingItems<AlbumCollectionSummary>,
     coverArt: (String?, Boolean) -> CoverArtRef?,
     onClick: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(modifier.fillMaxSize()) {
-        item(key = "all") {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.genre_all, genre)) },
-                modifier = Modifier.clickable { onClick(null) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            )
+        if (allAlbums != null) {
+            item(key = "all") {
+                AlbumCollectionRow(
+                    collection = allAlbums.copy(name = stringResource(R.string.genre_all, allAlbums.name)),
+                    coverArt = coverArt,
+                    onClick = { onClick(null) },
+                )
+            }
         }
         if (styles.itemCount > 0) {
             item(key = "heading") {
@@ -409,6 +435,45 @@ private fun GenreStylesContent(
             items(styles.itemCount, key = styles.itemKey { "style:${it.name}" }) { index ->
                 val style = styles[index]
                 if (style != null) AlbumCollectionRow(style, coverArt) { onClick(style.name) }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun GenreAlbumSortMenu(
+    sort: ListQuery,
+    availability: PlaySortAvailability,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = stringResource(R.string.sort_by))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            sortOptionsFor(LibraryTab.Albums, availability).forEach { option ->
+                val selected = option.value == sort.sort
+                val descending = option.descendingByDefault != sort.descending
+                val directionLabel = if (descending) R.string.sort_descending else R.string.sort_ascending
+                DropdownMenuItem(
+                    text = { Text(stringResource(option.label)) },
+                    onClick = {
+                        expanded = false
+                        onSelect(option.value)
+                    },
+                    trailingIcon =
+                        if (selected) {
+                            {
+                                Icon(
+                                    if (descending) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward,
+                                    contentDescription = stringResource(directionLabel),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                )
             }
         }
     }

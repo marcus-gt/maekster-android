@@ -1,21 +1,21 @@
 # UX-10 — Genre and style browsing
 
-**Status: COMPLETE.** All three UX-10 items are checked in [issue #9](https://github.com/marcus-gt/maekster-android/issues/9) under [#31](https://github.com/marcus-gt/maekster-android/issues/31). Branch `ux/01-library-layout`, starting from `b6bc5b8a` with both worktrees clean.
+**Status: COMPLETE.** Branch `ux/01-library-layout`. The initial implementation is in `e5596c3e`. The follow-up commit is titled `maekster: refine genre rows and album sorting`. All three UX-10 criteria are checked in [issue #9](https://github.com/marcus-gt/maekster-android/issues/9) under [#31](https://github.com/marcus-gt/maekster-android/issues/31).
 
-## Implementation
+## Behavior
 
-- Library → Genres groups the active server's synced song tags through the existing Discogs taxonomy. Room pages the main genre, style, and final album lists. Groups count distinct albums, including albums whose tracks carry several matching tags. Genre search matches style names as well as the main genre.
-- A main genre opens **All** followed by the styles represented in the library. Genres without styles show only **All**. All and each style open the matching albums. Album detail genre chips continue to open their exact-tag collections.
-- iOS groups mirrored album genre tags. Android mirrors all song genre tags and derives an album's membership from its songs, consistent with Android's existing collection data. Offline, an album is available when any track has a completed download.
-- Play uses the displayed album order and disc/track order. Shuffle uses the same bounded reference queue and collection membership. In offline mode the queue only contains completed downloads. The reference stores the selected tag spellings and resolves against the current mirrored album and track rows.
+- Library → Genres groups the active server’s synced song tags through the existing Discogs taxonomy. Room pages the main genres, styles and albums. Groups count distinct albums, and genre search matches main and style names.
+- A main genre opens **All** and its available styles. The All row uses the same artwork and count layout as the styles, with the Styles heading separating the sections. Tapping All or a style opens its album collection. Album detail genre chips open their exact-tag collections.
+- The All row shows the cover of the most recently added matching album, as in the iOS reference. If the album has no separate cover ID, it uses the album ID. Its count and artwork use the final collection’s local membership and download filter.
+- Final genre and style collections use the Albums sort options and directions. Their shared preference is saved separately from Albums and defaults to newest release year first. Play follows the displayed album order and disc/track order. Shuffle uses the same membership and bounded reference queue.
+- Android derives an album’s genre membership from its mirrored song tags. Offline, an album appears when any of its tracks has a completed download. The playback queue includes only completed downloads.
 
 ## Verification
 
-- Verified the iOS drill-down and terminology against the local iOS reference source and the parent issue text. The GitHub screenshot attachments did not load.
-
-- Deliberately inverted album membership and misrouted the style tap. The Room and Compose regressions failed at those assertions, then passed after both changes were restored. Coverage includes distinct albums, source isolation, downloaded queue membership, album/track order, large-font interactions, and genres without styles.
-- Passed `:app:ktlintFormat`, `:app:assembleDebug`, `:app:testDebugUnitTest`, `:app:ktlintCheck`, and `:app:lintDebug` with the committed wrapper and Android Studio JBR. Nix was unavailable in Studio.
-- On API 37, opened Jazz → Modal, used system Back, and opened All Jazz. Play started a track from the first listed album. Shuffle started a different Jazz track. Left the emulator paused with the Jazz queue. Offline membership was tested against Room data, with no live offline playback or physical-device check.
+- The debug build, all 1,951 unit tests, ktlint and Android lint passed with the committed wrapper and Android Studio JBR. Nix was unavailable in Studio. The last full suite passed on rerun after the intermittent `PlaybackControllerTest.enteringShuffleOrRepeatTrimsTheGeneratedTail` failure.
+- Room and Compose regressions failed with deliberately incorrect membership, cover selection, album count, style routing or queue sort, and passed after restoring the implementation. The genre Compose fixture supplies its static page through a StateFlow to avoid a timing failure in the full suite.
+- On API 37, verified Jazz → Modal → Back, All Jazz navigation, Play and Shuffle, both Title sort directions and the sort selection carrying over to Modal. Restored Year. All Jazz showed the same artwork and 456-album count as the supplied iOS screenshot. The divider and chevron removals passed the automated checks.
+- Compose covered the 200% layout. Room covered offline membership, source isolation and queue order. Live offline playback and a physical-device check remain unverified.
 
 ## Next action
 

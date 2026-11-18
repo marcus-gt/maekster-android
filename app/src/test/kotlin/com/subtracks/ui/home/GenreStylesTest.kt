@@ -17,6 +17,7 @@ import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.Playlist
 import com.subtracks.ui.theme.MaeksterTheme
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -34,6 +35,7 @@ class GenreStylesTest {
     fun allAndStylesOpenDistinctCollectionsAtLargeFont() {
         val selection = mutableListOf<String?>()
         showStyles(listOf(AlbumCollectionSummary("Indie Rock", 2, null)), selection::add)
+        composeRule.onNodeWithText("12 albums").assertIsDisplayed()
         composeRule.onNodeWithText("All Rock").performClick()
         composeRule.onNodeWithText("Styles").assertIsDisplayed()
         composeRule.onNodeWithText("Indie Rock").performClick()
@@ -53,7 +55,7 @@ class GenreStylesTest {
         styles: List<AlbumCollectionSummary>,
         onClick: (String?) -> Unit,
     ) {
-        val stylePages = flowOf(PagingData.from(styles))
+        val stylePages = MutableStateFlow(PagingData.from(styles))
         val albums = flowOf(PagingData.empty<Album>())
         val artists = flowOf(PagingData.empty<Artist>())
         val songs = flowOf(PagingData.empty<AlbumSongItem>())
@@ -68,6 +70,7 @@ class GenreStylesTest {
                         songs = songs.collectAsLazyPagingItems(),
                         playlists = playlists.collectAsLazyPagingItems(),
                         genreStyles = stylePages.collectAsLazyPagingItems(),
+                        allGenreAlbums = AlbumCollectionSummary("Rock", 12, "rock-cover"),
                         onGenreStyleClick = onClick,
                     )
                 }

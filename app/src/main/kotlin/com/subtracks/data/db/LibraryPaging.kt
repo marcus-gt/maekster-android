@@ -213,25 +213,31 @@ private fun SQLiteStatement.bind(
     }
 }
 
-internal fun albumNameSortKey(mode: SortNameMode): String =
+internal fun albumNameSortKey(
+    mode: SortNameMode,
+    prefix: String = "",
+): String =
     when (mode) {
-        SortNameMode.SortName -> "sortName COLLATE NOCASE"
-        SortNameMode.Name -> "name COLLATE NOCASE"
-        SortNameMode.NonLatin -> "(CASE WHEN name GLOB '*[A-Za-z]*' THEN name ELSE sortName END) COLLATE NOCASE"
+        SortNameMode.SortName -> "${prefix}sortName COLLATE NOCASE"
+        SortNameMode.Name -> "${prefix}name COLLATE NOCASE"
+        SortNameMode.NonLatin -> "(CASE WHEN ${prefix}name GLOB '*[A-Za-z]*' THEN ${prefix}name ELSE ${prefix}sortName END) COLLATE NOCASE"
     }
 
-internal fun albumArtistSortKey(mode: SortNameMode): String =
+internal fun albumArtistSortKey(
+    mode: SortNameMode,
+    prefix: String = "",
+): String =
     when (mode) {
         SortNameMode.SortName -> {
-            "albumArtistSort COLLATE NOCASE"
+            "${prefix}albumArtistSort COLLATE NOCASE"
         }
 
         SortNameMode.Name -> {
-            "albumArtist COLLATE NOCASE"
+            "${prefix}albumArtist COLLATE NOCASE"
         }
 
         SortNameMode.NonLatin -> {
-            "(CASE WHEN albumArtist GLOB '*[A-Za-z]*' THEN albumArtist ELSE albumArtistSort END) COLLATE NOCASE"
+            "(CASE WHEN ${prefix}albumArtist GLOB '*[A-Za-z]*' THEN ${prefix}albumArtist ELSE ${prefix}albumArtistSort END) COLLATE NOCASE"
         }
     }
 
@@ -242,43 +248,26 @@ internal fun artistNameSortKey(mode: SortNameMode): String =
         SortNameMode.NonLatin -> "(CASE WHEN name GLOB '*[A-Za-z]*' THEN name ELSE sortName END) COLLATE NOCASE"
     }
 
-private fun albumOrder(
+internal fun albumOrder(
     sort: AlbumSort,
     descending: Boolean,
     mode: SortNameMode,
-): String =
-    when (sort) {
-        AlbumSort.Name -> {
-            val name = albumNameSortKey(mode)
-            if (descending) "$name DESC, id DESC" else "$name, id"
-        }
-
-        AlbumSort.Artist -> {
-            val artist = albumArtistSortKey(mode)
-            val name = albumNameSortKey(mode)
-            if (descending) "$artist DESC, year DESC, $name DESC, id DESC" else "$artist, year, $name, id"
-        }
-
-        AlbumSort.Year -> {
-            if (descending) ALBUM_ORDER_BY_YEAR_REVERSED else ALBUM_ORDER_BY_YEAR
-        }
-
-        AlbumSort.Added -> {
-            if (descending) ALBUM_ORDER_BY_ADDED_REVERSED else ALBUM_ORDER_BY_ADDED
-        }
-
-        AlbumSort.Starred -> {
-            if (descending) ALBUM_ORDER_BY_STARRED_REVERSED else ALBUM_ORDER_BY_STARRED
-        }
-
-        AlbumSort.Frequent -> {
-            if (descending) ALBUM_ORDER_BY_FREQUENT_REVERSED else ALBUM_ORDER_BY_FREQUENT
-        }
-
-        AlbumSort.Recent -> {
-            if (descending) ALBUM_ORDER_BY_RECENT_REVERSED else ALBUM_ORDER_BY_RECENT
-        }
+    prefix: String = "",
+): String {
+    val tieDirection = if (descending) " DESC" else ""
+    val primaryDirection = if (descending) "ASC" else "DESC"
+    val name = albumNameSortKey(mode, prefix)
+    val id = "${prefix}id$tieDirection"
+    return when (sort) {
+        AlbumSort.Name -> "$name$tieDirection, $id"
+        AlbumSort.Artist -> "${albumArtistSortKey(mode, prefix)}$tieDirection, ${prefix}year$tieDirection, $name$tieDirection, $id"
+        AlbumSort.Year -> "${prefix}year $primaryDirection, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
+        AlbumSort.Added -> "${prefix}created $primaryDirection, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
+        AlbumSort.Starred -> "${prefix}starred $primaryDirection NULLS LAST, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
+        AlbumSort.Frequent -> "${prefix}playCount $primaryDirection, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
+        AlbumSort.Recent -> "${prefix}played $primaryDirection NULLS LAST, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
     }
+}
 
 private fun artistOrder(
     sort: ArtistSort,

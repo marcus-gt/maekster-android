@@ -181,6 +181,18 @@ class UserPreferences(
 
     private val artistsAsGridKey = booleanPreferencesKey("library_artists_as_grid")
 
+    private val genreAlbumSortKey = stringPreferencesKey("genre_album_sort")
+
+    internal fun genreAlbumSort(): Flow<ListQuery> = store.data.map { decode(it[genreAlbumSortKey], AlbumSort.Year.name) }
+
+    internal suspend fun changeGenreAlbumSort(sort: String) {
+        store.edit { prefs ->
+            val current = decode(prefs[genreAlbumSortKey], AlbumSort.Year.name)
+            val next = if (sort == current.sort) current.copy(descending = !current.descending) else ListQuery(sort)
+            prefs[genreAlbumSortKey] = encode(next)
+        }
+    }
+
     fun listQuery(tab: LibraryListTab): Flow<ListQuery> = store.data.map { prefs -> decode(prefs[listQueryKey(tab)], tab.defaultSort) }
 
     suspend fun setListQuery(

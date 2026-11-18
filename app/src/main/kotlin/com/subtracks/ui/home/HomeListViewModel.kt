@@ -27,11 +27,13 @@ import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.ArtistArt
 import com.subtracks.ui.components.artistArt
 import com.subtracks.ui.library.LibrarySongsQuery
+import com.subtracks.ui.library.PlaySortAvailability
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -79,7 +81,7 @@ class HomeListViewModel(
     private val libraryRepository: LibraryRepository,
     private val sourceRepository: SourceRepository,
     private val playbackController: PlaybackController,
-    preferences: UserPreferences,
+    private val preferences: UserPreferences,
     val request: HomeListRequest,
 ) : ViewModel() {
     private val sourceId = libraryRepository.activeSourceId.filterNotNull()
@@ -107,13 +109,43 @@ class HomeListViewModel(
                 }
             }.cachedIn(viewModelScope)
 
-    private fun genreAlbumQuery() =
+    internal val allGenreAlbums: Flow<AlbumCollectionSummary> =
         sourceAndOffline.flatMapLatest { (id, offline) ->
-            val main = checkNotNull(request.collectionName)
-            libraryRepository.genreTags(id, main, request.genreStyle).map { tags ->
-                LibrarySongsQuery(id, SongListSpec(downloaded = offline, albumGenreTags = tags))
-            }
+            libraryRepository.genreAlbumSummary(id, checkNotNull(request.collectionName), offline)
         }
+
+    internal val genreAlbumSort = preferences.genreAlbumSort()
+
+    internal val genrePlaySortAvailability =
+        sourceId.flatMapLatest { id ->
+            combine(libraryRepository.hasAlbumPlayCount(id), libraryRepository.hasAlbumPlayed(id), ::PlaySortAvailability)
+        }
+
+    internal fun changeGenreAlbumSort(sort: String) {
+        viewModelScope.launch { preferences.changeGenreAlbumSort(sort) }
+    }
+
+    private fun genreAlbumQuery() =
+        sourceAndOffline
+            .flatMapLatest { (id, offline) ->
+                val main = checkNotNull(request.collectionName)
+                combine(
+                    libraryRepository.genreTags(id, main, request.genreStyle),
+                    genreAlbumSort,
+                    preferences.sortNameMode(),
+                ) { tags, sort, mode ->
+                    LibrarySongsQuery(
+                        id,
+                        SongListSpec(
+                            downloaded = offline,
+                            albumGenreTags = tags,
+                            albumSort = AlbumSort.entries.firstOrNull { it.name == sort.sort } ?: AlbumSort.Year,
+                            descending = sort.descending,
+                            sortNameMode = mode,
+                        ),
+                    )
+                }
+            }.distinctUntilChanged()
 
     fun playGenreAlbums(shuffled: Boolean) {
         viewModelScope.launch {
@@ -130,7 +162,7 @@ class HomeListViewModel(
         if (request.groupedGenre) {
             genreAlbumQuery()
                 .flatMapLatest { query ->
-                    libraryRepository.groupedGenreAlbums(query.sourceId, checkNotNull(query.spec.albumGenreTags), query.spec.downloaded)
+                    libraryRepository.groupedGenreAlbums(query.sourceId, query.spec)
                 }.cachedIn(viewModelScope)
         } else {
             sourceAndOffline

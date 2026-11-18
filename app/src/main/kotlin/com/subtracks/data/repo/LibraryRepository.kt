@@ -14,6 +14,7 @@ import com.subtracks.data.db.albumCollectionsPageQuery
 import com.subtracks.data.db.albumsPageQuery
 import com.subtracks.data.db.artistsPageQuery
 import com.subtracks.data.db.collectionAlbumsQuery
+import com.subtracks.data.db.genreAlbumSummaryQuery
 import com.subtracks.data.db.genreGroupsQuery
 import com.subtracks.data.db.genreMapping
 import com.subtracks.data.db.groupedGenreAlbumsQuery
@@ -57,6 +58,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -435,11 +437,31 @@ class LibraryRepository(
         mapping.filter { it.main == main && (style == null || it.style == style) }.map { it.tag }
     }
 
+    internal fun genreAlbumSummary(
+        sourceId: Long,
+        genre: String,
+        downloaded: Boolean,
+    ): Flow<AlbumCollectionSummary> =
+        genreTags(sourceId, genre, style = null).distinctUntilChanged().flatMapLatest { tags ->
+            db.libraryDao().genreAlbumSummary(genreAlbumSummaryQuery(sourceId, genre, tags, downloaded))
+        }
+
     internal fun groupedGenreAlbums(
         sourceId: Long,
-        tags: List<String>,
-        downloaded: Boolean,
-    ): Flow<PagingData<Album>> = pager(40) { db.libraryDao().collectionAlbumsPaging(groupedGenreAlbumsQuery(sourceId, tags, downloaded)) }
+        spec: SongListSpec,
+    ): Flow<PagingData<Album>> =
+        pager(40) {
+            db.libraryDao().collectionAlbumsPaging(
+                groupedGenreAlbumsQuery(
+                    sourceId,
+                    checkNotNull(spec.albumGenreTags),
+                    spec.downloaded,
+                    spec.albumSort,
+                    spec.descending,
+                    spec.sortNameMode,
+                ),
+            )
+        }
 
     /** The albums in one genre or from one label. */
     fun collectionAlbums(

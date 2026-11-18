@@ -1,6 +1,7 @@
 package com.subtracks.data.db
 
 import androidx.room3.RoomRawQuery
+import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.SongSort
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StarredFilter
@@ -18,6 +19,7 @@ data class SongListSpec(
     val search: String = "",
     val sortNameMode: SortNameMode = SortNameMode.SortName,
     val albumGenreTags: List<String>? = null,
+    val albumSort: AlbumSort? = null,
 ) {
     // The search goes last so it may contain the separator.
     fun encode(): String {
@@ -31,7 +33,9 @@ data class SongListSpec(
                 sortNameMode.name,
                 search,
             ).joinToString(SEPARATOR)
-        return albumGenreTags?.let { JSONArray(listOf(GENRE_VERSION, base, JSONArray(it))).toString() } ?: base
+        return albumGenreTags?.let {
+            JSONArray(listOf(GENRE_VERSION, base, JSONArray(it), albumSort?.name)).toString()
+        } ?: base
     }
 
     companion object {
@@ -48,7 +52,8 @@ data class SongListSpec(
                     if (fields.getString(0) != GENRE_VERSION) return null
                     val base = decodeBase(fields.getString(1)) ?: return null
                     val tags = fields.getJSONArray(2)
-                    base.copy(albumGenreTags = List(tags.length(), tags::getString))
+                    val sort = AlbumSort.entries.firstOrNull { it.name == fields.optString(3) }
+                    base.copy(albumGenreTags = List(tags.length(), tags::getString), albumSort = sort)
                 }.getOrNull()
             }
             return decodeBase(value)
@@ -142,7 +147,8 @@ private fun songArtistKey(mode: SortNameMode): String =
  */
 internal fun songOrder(spec: SongListSpec): String {
     if (spec.albumGenreTags != null) {
-        return "$GENRE_ALBUM_ORDER, songs.disc, songs.track, songs.id"
+        val order = collectionAlbumOrder(spec.albumSort, spec.descending, spec.sortNameMode)
+        return "$order, songs.disc, songs.track, songs.id"
     }
     val name = songNameKey(spec.sortNameMode)
 

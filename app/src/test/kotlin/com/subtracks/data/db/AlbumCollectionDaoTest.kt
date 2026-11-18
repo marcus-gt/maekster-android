@@ -5,10 +5,12 @@ import androidx.room3.useWriterConnection
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumCollectionKind
+import com.subtracks.data.model.AlbumCollectionSummary
 import com.subtracks.data.model.DownloadStatus
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.data.model.Source
+import com.subtracks.data.prefs.AlbumSort
 import com.subtracks.data.prefs.CollectionSort
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -166,6 +168,56 @@ class AlbumCollectionDaoTest {
                 listOf("extra", "new", "old", "unknown"),
                 queue.librarySongs(source, SongListSpec(albumGenreTags = all).encode(), 0, 4).map { it.song.id },
             )
+        }
+
+    @Test
+    fun genreCollectionAndQueueFollowAlbumSortDirection() =
+        runTest {
+            val source = seed()
+            val tags = listOf("Rock", "rock")
+            val dao = db.libraryDao()
+            val queue = db.queueDao()
+            for (descending in listOf(false, true)) {
+                val spec = SongListSpec(albumGenreTags = tags, albumSort = AlbumSort.Name, descending = descending)
+                val albums =
+                    dao
+                        .collectionAlbumsPaging(
+                            groupedGenreAlbumsQuery(source, tags, false, AlbumSort.Name, descending),
+                        ).page()
+                        .map { it.id }
+                val expected = if (descending) listOf("unknown", "old", "new") else listOf("new", "old", "unknown")
+                assertEquals(expected, albums)
+                val songs = queue.librarySongs(source, spec.encode(), 0, 4).map { it.song.albumId }.distinct()
+                assertEquals(albums, songs)
+            }
+        }
+
+    @Test
+    fun allGenreSummaryUsesNewestAddedAlbumAndOfflineMembership() =
+        runTest {
+            val source = seed()
+            val other = seed()
+            val dao = db.libraryDao()
+            val recentAddition = checkNotNull(dao.album(source, "old").first()).copy(created = 300, coverArt = "recent-cover")
+            dao.upsertAlbums(
+                listOf(
+                    recentAddition,
+                    checkNotNull(dao.album(source, "new").first()).copy(created = 200),
+                    checkNotNull(dao.album(other, "unknown").first()).copy(created = 400),
+                ),
+            )
+            val tags = listOf("Rock", "rock")
+            val online = genreAlbumSummaryQuery(source, "Rock", tags, downloaded = false)
+            val offline = genreAlbumSummaryQuery(source, "Rock", tags, downloaded = true)
+            assertEquals(AlbumCollectionSummary("Rock", 3, "recent-cover"), dao.genreAlbumSummary(online).first())
+
+            db.downloadDao().upsert(SongDownload(other, "unknown", DownloadStatus.Completed))
+            assertEquals(AlbumCollectionSummary("Rock", 0, null), dao.genreAlbumSummary(offline).first())
+            db.downloadDao().upsert(SongDownload(source, "extra", DownloadStatus.Completed))
+            assertEquals(AlbumCollectionSummary("Rock", 1, "new"), dao.genreAlbumSummary(offline).first())
+
+            dao.upsertAlbums(listOf(recentAddition.copy(coverArt = null)))
+            assertEquals(AlbumCollectionSummary("Rock", 3, "old"), dao.genreAlbumSummary(online).first())
         }
 
     private suspend fun seed(): Long {
