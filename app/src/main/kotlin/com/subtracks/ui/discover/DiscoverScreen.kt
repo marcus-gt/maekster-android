@@ -66,13 +66,7 @@ fun DiscoverRoute(
     val fresh by freshViewModel.state.collectAsStateWithLifecycle()
     val layout by viewModel.layout.collectAsStateWithLifecycle()
     val startingMood by viewModel.startingMood.collectAsStateWithLifecycle()
-    val startingPath by viewModel.startingPath.collectAsStateWithLifecycle()
-    val path = rememberSongPath(state.sourceId)
-    val playback by viewModel.playbackState.collectAsStateWithLifecycle()
-    val playing =
-        playback.item?.takeIf { playback.context?.sourceId == state.sourceId }?.let {
-            SongPathChoice.Song(it.id, it.title, it.artist, it.coverArtId)
-        }
+    val songPath = if (DiscoverShelf.SongPath in layout.visible) rememberSongPathCard(viewModel) else null
     DiscoverScreen(
         state,
         busy,
@@ -86,13 +80,8 @@ fun DiscoverRoute(
         queueBuilderContent = { QueueBuilderRoute() },
         startingMood = startingMood,
         onMood = viewModel::moodRadio,
-        songPathContent = {
-            SongPathCard(path, busy, startingPath, viewModel::pathCover, playing) { from, to, length ->
-                state.sourceId?.let { viewModel.songPath(it, from, to, length) }
-            }
-        },
+        songPathContent = songPath,
     )
-    state.sourceId?.let { SongPathPickerHost(path, it, viewModel, playing) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

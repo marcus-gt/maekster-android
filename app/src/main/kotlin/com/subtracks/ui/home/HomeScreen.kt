@@ -103,6 +103,7 @@ import com.subtracks.ui.components.playlistUpdatedText
 import com.subtracks.ui.components.sectionOpenAction
 import com.subtracks.ui.components.statusBarScrim
 import com.subtracks.ui.discover.QueueBuilderRoute
+import com.subtracks.ui.discover.rememberSongPathCard
 import com.subtracks.ui.library.SongRow
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -259,6 +260,7 @@ private fun HomeFeedContent(
         )
     } else {
         val feed by viewModel.feed.collectAsStateWithLifecycle()
+        val songPath = if (HomeShelf.SongPath in layout.visible) rememberSongPathCard(koinViewModel()) else null
         HomeScreen(
             feed = feed,
             layout = layout,
@@ -277,6 +279,7 @@ private fun HomeFeedContent(
             onPlayStarred = viewModel::playStarred,
             artistPicks = artistPicks,
             queueBuilderContent = { QueueBuilderRoute() },
+            songPathContent = songPath,
             onLongClick = onLongClick,
             onMore = onMore,
             onGenreClick = onGenreClick,
@@ -311,6 +314,7 @@ fun HomeScreen(
     onPinnedClick: (PinnedItem) -> Unit = {},
     onPinnedLongClick: (PinnedItem) -> Unit = {},
     queueBuilderContent: (@Composable () -> Unit)? = null,
+    songPathContent: (@Composable () -> Unit)? = null,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         if (feed.loading || (feed.isEmpty() && pins?.itemCount == 0 && pins.loadState.refresh is androidx.paging.LoadState.Loading)) {
@@ -351,6 +355,10 @@ fun HomeScreen(
                     }
                     if (shelf == HomeShelf.QueueBuilder) {
                         queueBuilderContent?.let { queueBuilderItem(it) }
+                        continue
+                    }
+                    if (shelf == HomeShelf.SongPath) {
+                        songPathContent?.let { songPathItem(it) }
                         continue
                     }
                     if (shelf == HomeShelf.ArtistPicks) {
@@ -791,6 +799,10 @@ private fun HomeFeed.isEmpty(): Boolean =
 
 private fun LazyListScope.queueBuilderItem(content: @Composable () -> Unit) {
     item(key = "queue-builder") { Column(Modifier.padding(top = SECTION_TOP)) { content() } }
+}
+
+private fun LazyListScope.songPathItem(content: @Composable () -> Unit) {
+    item(key = "song-path") { Column(Modifier.padding(top = SECTION_TOP)) { content() } }
 }
 
 @Composable

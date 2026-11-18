@@ -15,6 +15,7 @@ enum class HomeShelf {
     Rediscover,
     QueueBuilder,
     ArtistPicks,
+    SongPath,
     ;
 
     val supportsGrid: Boolean get() =
@@ -27,6 +28,7 @@ val DEFAULT_HOME_ORDER =
         HomeShelf.Pinned,
         HomeShelf.YourPlaylists,
         HomeShelf.QueueBuilder,
+        HomeShelf.SongPath,
         HomeShelf.RecentlyStarredSongs,
         HomeShelf.FavoriteAlbums,
         HomeShelf.RecentlyPlayedAlbums,
@@ -40,9 +42,15 @@ val DEFAULT_HOME_ORDER =
         HomeShelf.Decades,
     )
 
+/** Opt-in shelves: hidden on a new install and when a layout saved before they existed first meets them. */
+val HOME_OPT_IN = setOf(HomeShelf.SongPath)
+
+val DEFAULT_HOME_HIDDEN =
+    setOf(HomeShelf.RecentlyPlayedArtists, HomeShelf.MostPlayedArtists, HomeShelf.Decades) + HOME_OPT_IN
+
 data class HomeLayout(
     val order: List<HomeShelf> = DEFAULT_HOME_ORDER,
-    val hidden: Set<HomeShelf> = setOf(HomeShelf.RecentlyPlayedArtists, HomeShelf.MostPlayedArtists, HomeShelf.Decades),
+    val hidden: Set<HomeShelf> = DEFAULT_HOME_HIDDEN,
     val grids: Set<HomeShelf> = emptySet(),
 ) {
     fun normalized(): HomeLayout {
@@ -89,7 +97,10 @@ data class HomeLayout(
             if (parts.size !in 2..3) return HomeLayout()
 
             fun shelves(part: String) = part.split(",").mapNotNull { name -> HomeShelf.entries.firstOrNull { it.name == name } }
-            return HomeLayout(shelves(parts[0]), shelves(parts[1]).toSet(), shelves(parts.getOrElse(2) { "" }).toSet()).normalized()
+            val order = shelves(parts[0])
+            // An opt-in shelf added after this layout was saved arrives hidden; other new shelves arrive shown.
+            val arrived = HOME_OPT_IN.filter { it !in order }
+            return HomeLayout(order, shelves(parts[1]).toSet() + arrived, shelves(parts.getOrElse(2) { "" }).toSet()).normalized()
         }
     }
 }

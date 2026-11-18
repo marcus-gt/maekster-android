@@ -128,6 +128,7 @@ class UserPreferencesTest {
                         HomeShelf.FavoriteAlbums,
                         -1,
                     ).show(HomeShelf.Genres, false)
+                    .show(HomeShelf.SongPath, true)
                     .grid(HomeShelf.FavoriteAlbums, true)
                     .grid(HomeShelf.Pinned, true)
             prefs.setHomeLayout(custom)
@@ -135,7 +136,7 @@ class UserPreferencesTest {
             store.edit { it[stringPreferencesKey("home_layout")] = "FavoriteAlbums,FavoriteAlbums,Unknown|Genres,Unknown" }
             val recovered = prefs.homeLayout().first()
             assertEquals(HomeShelf.entries.size, recovered.order.distinct().size)
-            assertEquals(setOf(HomeShelf.Genres), recovered.hidden)
+            assertEquals(setOf(HomeShelf.Genres, HomeShelf.SongPath), recovered.hidden)
             assertEquals(HomeShelf.Pinned, recovered.order.first())
             prefs.setHomeLayout(HomeLayout())
             assertEquals(HomeLayout(), prefs.homeLayout().first())
