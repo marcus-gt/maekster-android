@@ -95,6 +95,7 @@
     <string name="resources_sort_by_updated">Updated</string>
     <string name="resources_sort_by_year">Year</string>
     <string name="resources_sort_by_album_count">Most albums</string>
+    <string name="artist_sort_by_album_count">Album count</string>
 
     <plurals name="resources_album_count">
         <item quantity="one">%1$d album</item>
@@ -254,6 +255,8 @@
     <string name="collection_albums_empty">No albums here.\nNothing in your library matches.</string>
     <string name="sync">Sync</string>
     <string name="list_options">List options</string>
+    <string name="albums_show_grid">Show albums as a grid</string>
+    <string name="albums_show_list">Show albums as a list</string>
     <string name="search">Search</string>
     <string name="search_this_list">Search this list</string>
     <string name="search_songs">Songs</string>

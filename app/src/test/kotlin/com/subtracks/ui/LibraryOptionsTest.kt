@@ -128,7 +128,7 @@ class LibraryOptionsTest {
     fun playSortsAreHiddenUntilTheServerReturnsPlayData() {
         assertEquals(
             listOf(
-                R.string.resources_sort_by_name,
+                R.string.resources_sort_by_title,
                 R.string.resources_sort_by_artist,
                 R.string.resources_sort_by_year,
                 R.string.resources_sort_by_added,
@@ -138,7 +138,7 @@ class LibraryOptionsTest {
         )
         assertEquals(
             listOf(
-                R.string.resources_sort_by_name,
+                R.string.resources_sort_by_title,
                 R.string.resources_sort_by_artist,
                 R.string.resources_sort_by_year,
                 R.string.resources_sort_by_added,
@@ -151,7 +151,7 @@ class LibraryOptionsTest {
         assertEquals(
             listOf(
                 R.string.resources_sort_by_name,
-                R.string.resources_album_name,
+                R.string.artist_sort_by_album_count,
                 R.string.resources_filter_starred,
             ),
             sortOptionsFor(LibraryTab.Artists).map { it.label },
@@ -159,7 +159,7 @@ class LibraryOptionsTest {
         assertEquals(
             listOf(
                 R.string.resources_sort_by_name,
-                R.string.resources_album_name,
+                R.string.artist_sort_by_album_count,
                 R.string.resources_filter_starred,
                 R.string.resources_sort_by_frequently_played,
                 R.string.resources_sort_by_recently_played,

@@ -146,6 +146,14 @@ class UserPreferences(
 
     private val homeLayoutKey = stringPreferencesKey("home_layout")
 
+    fun albumsAsList(): Flow<Boolean> = store.data.map { it[albumsAsListKey] ?: false }
+
+    suspend fun setAlbumsAsList(enabled: Boolean) {
+        store.edit { it[albumsAsListKey] = enabled }
+    }
+
+    private val albumsAsListKey = booleanPreferencesKey("library_albums_as_list")
+
     fun listQuery(tab: LibraryListTab): Flow<ListQuery> = store.data.map { prefs -> decode(prefs[listQueryKey(tab)], tab.defaultSort) }
 
     suspend fun setListQuery(

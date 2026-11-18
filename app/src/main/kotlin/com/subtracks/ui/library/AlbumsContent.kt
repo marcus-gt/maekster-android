@@ -42,6 +42,7 @@ import com.subtracks.ui.components.ResetScrollOnChange
 import com.subtracks.ui.components.ScrollToTopOnRequest
 import com.subtracks.ui.components.SkeletonBlock
 import com.subtracks.ui.components.rememberViewportFill
+import com.subtracks.ui.home.AlbumListRow
 import com.subtracks.ui.theme.PrefetchArtworkSeeds
 import kotlinx.coroutines.launch
 
@@ -65,6 +66,7 @@ fun AlbumsContent(
     onSync: () -> Unit = {},
     downloadStatuses: Map<String, ListDownloadStatus> = emptyMap(),
     scrollToTopKey: Any? = null,
+    asList: Boolean = false,
 ) {
     when {
         items.itemCount == 0 && items.loadState.refresh is LoadState.Loading -> {
@@ -93,46 +95,69 @@ fun AlbumsContent(
             LetterIndexedContent(letterBuckets, { position ->
                 if (position < items.itemCount) scope.launch { gridState.scrollToItem(position) }
             }, modifier) { listModifier ->
+                val horizontalInset = if (asList) 0.dp else 8.dp
                 LazyVerticalGrid(
                     state = gridState,
-                    columns = GridCells.Fixed(3),
-                    contentPadding = PaddingValues(start = 8.dp, top = topInset + 8.dp, end = 8.dp, bottom = bottomInset + 8.dp),
+                    columns = GridCells.Fixed(if (asList) 1 else 3),
+                    contentPadding =
+                        PaddingValues(
+                            start = horizontalInset,
+                            top = topInset + 8.dp,
+                            end = horizontalInset,
+                            bottom = bottomInset + 8.dp,
+                        ),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = listModifier.fillMaxSize(),
                 ) {
                     items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
                         val album = items[index]
-                        if (album != null) {
-                            val art = coverArt(album.coverArt, true)
-                            PrefetchArtworkSeeds(art)
-                            Box(
+                        if (album == null) {
+                            SkeletonBlock(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .aspectRatio(1f)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .combinedClickable(
-                                            onClick = { onAlbumClick(album) },
-                                            onLongClick = { onLongClick(MenuTarget.Album(album, art, downloadStatuses[album.id])) },
-                                        ).testTag(ALBUM_COVER_TAG),
-                            ) {
-                                CoverArt(
-                                    ref = art,
-                                    name = album.name,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                                ListDownloadIndicator(
-                                    status = downloadStatuses[album.id],
-                                    modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
-                                    scrim = true,
-                                )
-                            }
-                        } else {
-                            SkeletonBlock(
-                                modifier = Modifier.fillMaxWidth().aspectRatio(1f).testTag(ALBUM_PLACEHOLDER_TAG),
+                                        .then(if (asList) Modifier.height(64.dp) else Modifier.aspectRatio(1f))
+                                        .testTag(ALBUM_PLACEHOLDER_TAG),
                                 shape = RoundedCornerShape(2.dp),
                             )
+                        } else {
+                            val art = coverArt(album.coverArt, true)
+                            val downloadStatus = downloadStatuses[album.id]
+                            val openAlbum = { onAlbumClick(album) }
+                            val openMenu = { onLongClick(MenuTarget.Album(album, art, downloadStatus)) }
+                            PrefetchArtworkSeeds(art)
+                            if (asList) {
+                                AlbumListRow(
+                                    album = album,
+                                    coverArt = { _, _ -> art },
+                                    info = null,
+                                    onClick = openAlbum,
+                                    onLongClick = openMenu,
+                                    downloadStatus = downloadStatus,
+                                )
+                            } else {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(1f)
+                                            .clip(RoundedCornerShape(2.dp))
+                                            .combinedClickable(onClick = openAlbum, onLongClick = openMenu)
+                                            .testTag(ALBUM_COVER_TAG),
+                                ) {
+                                    CoverArt(
+                                        ref = art,
+                                        name = album.name,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                    ListDownloadIndicator(
+                                        status = downloadStatus,
+                                        modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                                        scrim = true,
+                                    )
+                                }
+                            }
                         }
                     }
                     item(span = { GridItemSpan(maxLineSpan) }) {

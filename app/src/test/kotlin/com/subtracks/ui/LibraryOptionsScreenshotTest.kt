@@ -1,10 +1,14 @@
 package com.subtracks.ui
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.paging.PagingData
@@ -19,9 +23,11 @@ import com.subtracks.ui.library.LibraryTab
 import com.subtracks.ui.library.sortOptionsFor
 import com.subtracks.ui.theme.MaeksterTheme
 import kotlinx.coroutines.flow.flowOf
+import org.junit.After
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -33,29 +39,67 @@ class LibraryOptionsScreenshotTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    @After
+    fun resetFontScale() = RuntimeEnvironment.setFontScale(1f)
+
     @Test
-    fun libraryOptions() {
+    fun libraryLayoutsAndOptions() = captureLayoutsAndOptions(1f, "")
+
+    @Test
+    fun libraryLayoutsAndOptionsAtLargeFontScale() = captureLayoutsAndOptions(2f, "_large_font")
+
+    private fun captureLayoutsAndOptions(
+        fontScale: Float,
+        suffix: String,
+    ) {
+        RuntimeEnvironment.setFontScale(fontScale)
+        val asList = mutableStateOf(false)
+        val tab = mutableStateOf(LibraryTab.Albums)
         composeRule.setContent {
             MaeksterTheme {
-                LibraryListScreen(
-                    list = LibraryTab.Albums,
-                    albums = remember { flowOf(PagingData.from(albums())) },
-                    coverArt = { _, _ -> null },
-                    onSync = {},
-                    onBack = {},
-                    listQuery = ListQuery("Name"),
-                    sortOptions = sortOptionsFor(LibraryTab.Albums),
-                    starredSupported = true,
-                )
+                key(tab.value) {
+                    LibraryListScreen(
+                        list = tab.value,
+                        albums = remember { flowOf(PagingData.from(albums())) },
+                        coverArt = { _, _ -> null },
+                        onSync = {},
+                        onBack = {},
+                        listQuery = ListQuery("Name"),
+                        sortOptions = sortOptionsFor(tab.value),
+                        starredSupported = true,
+                        albumsAsList = asList.value,
+                        onAlbumsLayoutChange = { asList.value = it },
+                    )
+                }
             }
         }
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithTag(ALBUM_COVER_TAG).fetchSemanticsNodes().isNotEmpty()
         }
+        capture("library_albums_grid$suffix")
+
+        composeRule.onNodeWithContentDescription("Show albums as a list").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Album 1").assertIsDisplayed()
+        capture("library_albums_list$suffix")
+
+        openOptions()
+        composeRule.onNodeWithText("Title").assertIsDisplayed()
+        capture("library_options$suffix")
+
+        composeRule.runOnIdle { tab.value = LibraryTab.Artists }
+        openOptions()
+        composeRule.onNodeWithText("Album count").assertIsDisplayed()
+        capture("library_artists_options$suffix")
+    }
+
+    private fun openOptions() {
         composeRule.onNodeWithContentDescription("List options").performClick()
         composeRule.mainClock.advanceTimeBy(1_000)
         composeRule.waitForIdle()
-        composeRule.onRoot().captureRoboImage("src/test/screenshots/library_options.png")
+    }
+
+    private fun capture(name: String) {
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
     }
 
     private fun albums() =

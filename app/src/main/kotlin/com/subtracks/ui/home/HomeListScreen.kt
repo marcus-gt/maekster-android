@@ -54,6 +54,7 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.ListDownloadStatus
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
 import com.subtracks.data.source.StarType
@@ -64,6 +65,7 @@ import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.components.CoverArt
 import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.ItemActions
+import com.subtracks.ui.components.ListDownloadIndicator
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.ShuffleFab
@@ -477,6 +479,7 @@ internal fun AlbumListRow(
     info: String?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    downloadStatus: ListDownloadStatus? = null,
 ) {
     Row(
         modifier =
@@ -519,6 +522,7 @@ internal fun AlbumListRow(
                 }
             }
         }
+        ListDownloadIndicator(downloadStatus, modifier = Modifier.padding(start = 8.dp))
     }
 }
 

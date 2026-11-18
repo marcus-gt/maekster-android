@@ -78,6 +78,26 @@ class UserPreferencesTest {
         }
 
     @Test
+    fun albumLibraryLayoutDefaultsToGridAndPersistsAcrossReaders() =
+        runTest {
+            val file = File.createTempFile("album-layout", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val prefs = UserPreferences(store)
+            val query = ListQuery(AlbumSort.Name.name, descending = true, downloaded = true)
+            prefs.setListQuery(LibraryListTab.Albums, query)
+            assertEquals(false, prefs.albumsAsList().first())
+
+            prefs.setAlbumsAsList(true)
+            val reopened = UserPreferences(store)
+            assertEquals(true, reopened.albumsAsList().first())
+            assertEquals(query, reopened.listQuery(LibraryListTab.Albums).first())
+
+            reopened.setAlbumsAsList(false)
+            assertEquals(false, UserPreferences(store).albumsAsList().first())
+            file.delete()
+        }
+
+    @Test
     fun homeLayoutPersistsVisibilityAndOrderAcrossReaders() =
         runTest {
             val file = File.createTempFile("home-layout", ".preferences_pb").apply { delete() }
