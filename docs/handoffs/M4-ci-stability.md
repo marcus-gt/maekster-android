@@ -1,6 +1,8 @@
 # Milestone 4 — PR #28 CI investigation
 
-**Verified locally.** PR #28 at `bb4ff6ad` failed in the regular test job. The follow-up contains the local fixes. GitHub verification of the follow-up is still pending.
+**CI follow-up verified locally.** PR #28 at `bb4ff6ad` failed in the regular test job. Commit
+`253f3357` cleared those failures on GitHub, then the reconnect test failed while reading Room
+before the replay collector finished deleting the delivered action.
 
 - The first GitHub run reported three Home screenshot timeouts and a playlist batch assertion
   (expected one completed batch, received zero). Both failure patterns predate Milestone 4.
@@ -17,5 +19,9 @@
 - The slow-collector regression reproduced the CI assertion before the fix and passed after it.
   Both affected test classes and QueueViewModelTest passed. Formatting, debug build, lint and
   all 1,919 tests passed in the final local run with `--no-parallel --max-workers=2`.
-- Wait for a passing GitHub check on the amended PR before merging. Its build, nightly artifact,
-  and real-server integration stages have not been verified on these local changes.
+- The reconnect assertions now wait for both delivery and the durable outbox drain before asserting
+  the delivered calls. The next local full run also caught SQLite closing during playlist fixture
+  teardown. That fixture now waits for the previous ViewModel to finish cancelling before replacing
+  it or closing Room. Both targeted classes and all 1,919 unit tests passed after the two test-only
+  fixes, along with formatting, assembleDebug, ktlintCheck and lintDebug.
+- Wait for a passing GitHub check on the amended PR before merging.

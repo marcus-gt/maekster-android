@@ -15,10 +15,12 @@ import com.subtracks.data.source.FakePlaylistWriter
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -56,14 +58,22 @@ class AddToPlaylistRetryTest {
         }
 
     @After
-    fun tearDown() {
-        model.viewModelScope.cancel()
-        db.close()
-        Dispatchers.resetMain()
+    fun tearDown() =
+        runBlocking {
+            try {
+                closeModel()
+                if (this@AddToPlaylistRetryTest::db.isInitialized) db.close()
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
+
+    private suspend fun closeModel() {
+        if (this::model.isInitialized) model.viewModelScope.coroutineContext[Job]?.cancelAndJoin()
     }
 
-    private fun open(songIds: List<String>): AddToPlaylistViewModel {
-        if (this::model.isInitialized) model.viewModelScope.cancel()
+    private suspend fun open(songIds: List<String>): AddToPlaylistViewModel {
+        closeModel()
         return AddToPlaylistViewModel(
             AddToPlaylistRequest(1, songIds),
             PlaylistRepository(db, writerFor = { server }),

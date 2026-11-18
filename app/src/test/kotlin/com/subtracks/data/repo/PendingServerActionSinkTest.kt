@@ -1,7 +1,7 @@
 package com.subtracks.data.repo
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.subtracks.awaitUntil
+import com.subtracks.TEST_TIMEOUT_MS
 import com.subtracks.cancelAndJoinBlocking
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
@@ -14,11 +14,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -95,6 +97,12 @@ class PendingServerActionSinkTest {
             )
     }
 
+    private suspend fun awaitReplay(expectedCalls: Int) {
+        withTimeout(TEST_TIMEOUT_MS) {
+            while (delegate.calls.size < expectedCalls || db.pendingActionDao().pending(sourceId).isNotEmpty()) delay(10)
+        }
+    }
+
     @After
     fun tearDown() {
         cancelAndJoinBlocking(scope)
@@ -124,7 +132,7 @@ class PendingServerActionSinkTest {
             offline.value = false
             offlinePreferences.value = false
 
-            awaitUntil("the queued star to replay") { delegate.calls.isNotEmpty() }
+            awaitReplay(1)
             assertEquals(listOf(Call.Star(StarType.Song, "s1", true)), delegate.calls)
             assertEquals(0, db.pendingActionDao().pending(sourceId).size)
         }
@@ -155,7 +163,7 @@ class PendingServerActionSinkTest {
                 delegate.scrobbleFailure = null
                 networkAvailable.value = true
 
-                awaitUntil("the queued scrobble to replay") { delegate.calls.isNotEmpty() }
+                awaitReplay(1)
                 assertEquals(listOf(Call.Scrobble("s1", 1_000)), delegate.calls)
                 assertEquals(0, db.pendingActionDao().pending(sourceId).size)
             } finally {
@@ -186,7 +194,7 @@ class PendingServerActionSinkTest {
                 reconnectable.scrobble("s1", 1_000)
                 delegate.scrobbleFailure = null
                 network.tryEmit(true)
-                awaitUntil("the first replay") { delegate.calls.size == 1 }
+                awaitReplay(1)
 
                 delegate.scrobbleFailure = IOException("down")
                 reconnectable.scrobble("s2", 2_000)
@@ -194,7 +202,7 @@ class PendingServerActionSinkTest {
                 // No false in between: an available-network switch must still re-notify.
                 network.tryEmit(true)
 
-                awaitUntil("the second replay") { delegate.calls.size == 2 }
+                awaitReplay(2)
                 assertEquals(listOf(Call.Scrobble("s1", 1_000), Call.Scrobble("s2", 2_000)), delegate.calls)
             } finally {
                 cancelAndJoinBlocking(reconnectScope)
