@@ -49,6 +49,8 @@ class ScreenLayoutsTest {
         assertEquals(HomeShelf.Pinned, HomeLayout().visible.first())
         assertFalse(HomeShelf.Decades in HomeLayout().visible)
         assertFalse(HomeShelf.MostPlayedArtists in HomeLayout().visible)
+        assertEquals(HomeShelf.Genres, HomeLayout().order.last())
+        assertEquals(HomeShelf.Genres, HomeLayout().visible.last())
     }
 
     @Test fun songPathStartsHiddenOnHomeForNewAndSavedLayoutsAndThenKeepsTheUsersChoice() {

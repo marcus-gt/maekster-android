@@ -36,10 +36,10 @@ val DEFAULT_HOME_ORDER =
         HomeShelf.ArtistPicks,
         HomeShelf.RecentlyAddedAlbums,
         HomeShelf.Rediscover,
-        HomeShelf.Genres,
         HomeShelf.RecentlyPlayedArtists,
         HomeShelf.MostPlayedArtists,
         HomeShelf.Decades,
+        HomeShelf.Genres,
     )
 
 /** Opt-in shelves: hidden on a new install and when a layout saved before they existed first meets them. */
