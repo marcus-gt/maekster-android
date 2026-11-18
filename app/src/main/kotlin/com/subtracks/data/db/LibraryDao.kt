@@ -547,15 +547,8 @@ interface LibraryDao {
         limit: Int,
     ): Flow<List<Playlist>>
 
-    @Query(
-        "SELECT * FROM albums WHERE sourceId = :sourceId AND played IS NOT NULL AND played < :cutoff " +
-            "ORDER BY played ASC, sortName COLLATE NOCASE, id LIMIT :limit",
-    )
-    fun rediscoverAlbums(
-        sourceId: Long,
-        cutoff: Long,
-        limit: Int,
-    ): Flow<List<Album>>
+    @Query(REDISCOVER_ALBUMS_SQL)
+    fun rediscoverAlbums(sourceId: Long): Flow<List<Album>>
 
     @Query(
         "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +

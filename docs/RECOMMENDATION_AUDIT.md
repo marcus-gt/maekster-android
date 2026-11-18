@@ -62,6 +62,10 @@ The M3.C handoff already recorded this as partial parity.
 - Explicit offline mode replaces Home with downloads-only shelves. iOS instead shows its last cached feed.
 - Artist picks still work offline, because the data is local.
 
+## Owner decision (18 Nov 2026)
+
+Rediscover and Artist picks follow iOS. Rediscover was implemented in UX-14, and the iOS rule replaced the broken time window. Artist picks are UX-15. In heavy rotation was not part of the decision.
+
 ## Follow-ups
 
 Sub-issues of #31, in this order:

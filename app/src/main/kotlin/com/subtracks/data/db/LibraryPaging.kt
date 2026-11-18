@@ -163,24 +163,33 @@ internal fun playlistsPageQuery(
             ),
     )
 
-internal fun rediscoverAlbumsQuery(
-    sourceId: Long,
-    starredFilter: Int,
-    search: String,
-    cutoff: Long,
-): RoomRawQuery =
-    rawQuery(
-        sql =
-            "SELECT * $ALBUMS_FILTER AND played IS NOT NULL AND played < :cutoff " +
-                "ORDER BY played ASC, sortName COLLATE NOCASE, id",
-        bindings =
-            mapOf(
-                "sourceId" to sourceId,
-                "starredFilter" to starredFilter,
-                "search" to search,
-                "cutoff" to cutoff,
-            ),
-    )
+const val REDISCOVER_LIMIT = 12
+private const val REDISCOVER_FREQUENT_POOL = 40
+private const val REDISCOVER_RECENT_EXCLUDED = 20
+private const val REDISCOVER_FAVORITES_EXCLUDED = 40
+
+/**
+ * Rediscover, as on iOS: the most played albums ([REDISCOVER_FREQUENT_POOL]) minus the recently played and favourite
+ * ones, skipping the first [REDISCOVER_LIMIT] (iOS shows those as In heavy rotation). No time window.
+ */
+internal const val REDISCOVER_ALBUMS_SQL =
+    "WITH frequent AS (" +
+        "SELECT id, ROW_NUMBER() OVER (ORDER BY playCount DESC, sortName COLLATE NOCASE, id) AS frequency " +
+        "FROM albums WHERE sourceId = :sourceId AND playCount > 0 " +
+        "ORDER BY playCount DESC, sortName COLLATE NOCASE, id LIMIT $REDISCOVER_FREQUENT_POOL" +
+        "), shown AS (" +
+        "SELECT id FROM (SELECT id FROM albums WHERE sourceId = :sourceId AND played IS NOT NULL " +
+        "ORDER BY played DESC, sortName COLLATE NOCASE, id LIMIT $REDISCOVER_RECENT_EXCLUDED) " +
+        "UNION SELECT id FROM (SELECT id FROM albums WHERE sourceId = :sourceId AND starred IS NOT NULL " +
+        "ORDER BY starred DESC, sortName COLLATE NOCASE, id LIMIT $REDISCOVER_FAVORITES_EXCLUDED)" +
+        "), eligible AS (" +
+        "SELECT id, ROW_NUMBER() OVER (ORDER BY frequency) AS position FROM frequent " +
+        "WHERE id NOT IN (SELECT id FROM shown)" +
+        ") SELECT albums.* FROM eligible JOIN albums ON albums.sourceId = :sourceId AND albums.id = eligible.id " +
+        "WHERE eligible.position > $REDISCOVER_LIMIT ORDER BY eligible.position LIMIT $REDISCOVER_LIMIT"
+
+internal fun rediscoverAlbumsQuery(sourceId: Long): RoomRawQuery =
+    rawQuery(sql = REDISCOVER_ALBUMS_SQL, bindings = mapOf("sourceId" to sourceId))
 
 // RoomRawQuery takes a positional bind function, but SQLite gives a repeated named parameter one
 // index, so the SQL can keep its names and only the first-appearance order needs binding.

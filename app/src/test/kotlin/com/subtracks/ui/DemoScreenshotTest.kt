@@ -473,7 +473,7 @@ class DemoScreenshotTest {
                             decades = dao.decades(1).first(),
                             recentlyStarredSongs = dao.recentlyStarredSongs(1, 10).first().filter { it.coverArt != null },
                             recentlyAddedAlbums = albums.take(10),
-                            rediscoverAlbums = coveredAlbums(dao.rediscoverAlbums(1, System.currentTimeMillis() / 1000, 10).first()),
+                            rediscoverAlbums = coveredAlbums(dao.rediscoverAlbums(1).first()),
                         )
 
                     val search =

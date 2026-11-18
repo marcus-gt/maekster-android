@@ -194,11 +194,7 @@ class LibraryRepository(
         limit: Int,
     ): Flow<List<Playlist>> = db.libraryDao().recentlyChangedPlaylists(sourceId, limit)
 
-    fun rediscoverAlbums(
-        sourceId: Long,
-        cutoff: Long,
-        limit: Int,
-    ): Flow<List<Album>> = db.libraryDao().rediscoverAlbums(sourceId, cutoff, limit)
+    fun rediscoverAlbums(sourceId: Long): Flow<List<Album>> = db.libraryDao().rediscoverAlbums(sourceId)
 
     fun recentlyStarredSongs(
         sourceId: Long,
@@ -210,9 +206,7 @@ class LibraryRepository(
     fun decades(sourceId: Long): Flow<List<Long>> = db.libraryDao().decades(sourceId)
 
     fun rediscoverAlbumsPage(sourceId: Long): Flow<PagingData<Album>> =
-        pager(
-            40,
-        ) { db.libraryDao().albumsPaging(rediscoverAlbumsQuery(sourceId, starredFilter = 0, search = "", cutoff = rediscoverCutoff())) }
+        pager(40) { db.libraryDao().albumsPaging(rediscoverAlbumsQuery(sourceId)) }
 
     fun starredSongs(sourceId: Long): Flow<PagingData<AlbumSongItem>> = pager(60) { db.libraryDao().starredSongs(sourceId) }
 
@@ -730,8 +724,6 @@ class LibraryRepository(
         ).flow
 }
 
-const val REDISCOVER_WINDOW_MS = 60L * 24 * 60 * 60 * 1000
-
 const val SEARCH_RESULT_LIMIT = 50
 
 private val LETTER_INDEXED_LISTS = setOf(LibraryListTab.Albums, LibraryListTab.Artists, LibraryListTab.Songs)
@@ -743,5 +735,3 @@ internal fun normalizeBiography(value: String?): String? =
         ?.replace(Regex(" {3,}"), "\n\n")
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
-
-fun rediscoverCutoff(): Long = System.currentTimeMillis() - REDISCOVER_WINDOW_MS

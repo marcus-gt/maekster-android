@@ -18,7 +18,6 @@ import com.subtracks.data.prefs.PlaylistSort
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
-import com.subtracks.data.repo.rediscoverCutoff
 import com.subtracks.data.sync.SyncManager
 import com.subtracks.data.sync.SyncStatus
 import com.subtracks.playback.PlaybackController
@@ -166,7 +165,7 @@ class HomeViewModel(
                         libraryRepository.decades(sourceId),
                         libraryRepository.recentlyStarredSongs(sourceId, HOME_STARRED_LIMIT),
                         libraryRepository.recentlyAddedAlbums(sourceId, HOME_ROW_LIMIT),
-                        libraryRepository.rediscoverAlbums(sourceId, rediscoverCutoff(), HOME_ROW_LIMIT),
+                        libraryRepository.rediscoverAlbums(sourceId),
                     ) { decades, starred, added, rediscover ->
                         Discovery(decades, starred, added, rediscover)
                     }

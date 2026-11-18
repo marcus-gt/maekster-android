@@ -333,23 +333,30 @@ class LibraryHomeDaoTest {
         }
 
     @Test
-    fun rediscoverOnlyIncludesStalePlaysOldestFirst() =
+    fun rediscoverFollowsIosFrequentAlbumsAfterHeavyRotation() =
         runTest {
             val sourceId = source()
+            val other = source()
             val dao = db.libraryDao()
+            val frequent =
+                (1..45).map { index ->
+                    val id = "f%02d".format(index)
+                    album(sourceId, id, id, playCount = 100L - index, played = if (index == 30) 1 else null)
+                }
+            val recentlyPlayed = (1..18).map { album(sourceId, "r$it", "r$it", played = 500L + it) }
             dao.upsertAlbums(
-                listOf(
-                    album(sourceId, "a", "Recent", played = 900),
-                    album(sourceId, "b", "Old", played = 100),
-                    album(sourceId, "c", "Older", played = 50),
-                    album(sourceId, "d", "Never", played = null),
-                ),
+                frequent.map {
+                    when (it.id) {
+                        "f02", "f04" -> it.copy(played = 1000)
+                        "f06" -> it.copy(starred = 1)
+                        else -> it
+                    }
+                } + recentlyPlayed + album(other, "x", "x", playCount = 1000),
             )
 
-            assertEquals(
-                listOf("Older", "Old"),
-                dao.rediscoverAlbums(sourceId, cutoff = 500, limit = 10).first().map { it.name },
-            )
+            val expected = (16..27).map { "f%02d".format(it) }
+            assertEquals(expected, dao.rediscoverAlbums(sourceId).first().map { it.id })
+            assertEquals(expected, dao.albumsPaging(rediscoverAlbumsQuery(sourceId)).page().map { it.id })
         }
 
     @Test
@@ -391,25 +398,6 @@ class LibraryHomeDaoTest {
             assertEquals(
                 listOf("Beta", "Alpha"),
                 dao.homeMostPlayedArtists(sourceId).page().map { it.name },
-            )
-        }
-
-    @Test
-    fun rediscoverPagingSourceOrdersOldestFirst() =
-        runTest {
-            val sourceId = source()
-            val dao = db.libraryDao()
-            dao.upsertAlbums(
-                listOf(
-                    album(sourceId, "a", "Old", played = 100),
-                    album(sourceId, "b", "Older", played = 50),
-                    album(sourceId, "c", "Recent", played = 900),
-                ),
-            )
-
-            assertEquals(
-                listOf("Older", "Old"),
-                dao.albumsPaging(rediscoverAlbumsQuery(sourceId, starredFilter = 0, search = "", cutoff = 500)).page().map { it.name },
             )
         }
 
