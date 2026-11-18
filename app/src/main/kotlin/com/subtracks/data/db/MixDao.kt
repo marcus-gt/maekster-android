@@ -48,32 +48,52 @@ private const val BUILDER_MATCH =
         "WHERE g.sourceId = s.sourceId AND g.songId = s.id AND g.genre IN (:genres))) " +
         "AND (:anyDecade = 1 OR (a.year > 0 AND (a.year / 10) * 10 IN (:decades))) AND $DOWNLOADED"
 
+const val ARTIST_PICK_SIZE = 12
+const val ARTIST_PICK_BARELY_PLAYED = 2
+const val ARTIST_PICK_FAVORITE_POOL = 18
+const val ARTIST_PICK_DORMANT_CHOICES = 20
+const val ARTIST_PICK_FAVORITES = 6
+private const val ARTIST_PICK_PLAYED_POOL = 40
+private const val ARTIST_PICK_DORMANT_POOL = ARTIST_PICK_DORMANT_CHOICES + ARTIST_PICK_FAVORITES
+
+// As on iOS: compilations' "Various Artists" and unknown artists aren't anyone to discover.
+private const val PICKABLE_ARTIST =
+    "sourceId = :sourceId AND credited = 1 AND albumCount > 0 AND TRIM(name) != '' " +
+        "AND LOWER(TRIM(name)) NOT IN ('various artists', '[unknown artist]')"
+
 /** Bounded, random reads from the mirror for Smart Shuffle and other local mixes. Never loads a whole table. */
 @Dao
 interface MixDao {
+    /** Artist picks: artists with more than [ARTIST_PICK_BARELY_PLAYED] plays, most played first. */
     @Query(
-        "SELECT * FROM artists WHERE sourceId = :sourceId AND credited = 1 AND starred IS NOT NULL ORDER BY ((rowid * 1103515245 + :day * 1013904223) % 2147483647), id LIMIT 4",
+        "SELECT * FROM artists WHERE $PICKABLE_ARTIST AND playCount > $ARTIST_PICK_BARELY_PLAYED " +
+            "ORDER BY playCount DESC, id LIMIT $ARTIST_PICK_PLAYED_POOL",
     )
-    fun homeFavoriteArtists(
-        sourceId: Long,
-        day: Long,
-    ): kotlinx.coroutines.flow.Flow<List<com.subtracks.data.model.Artist>>
+    fun artistPickPlayed(sourceId: Long): kotlinx.coroutines.flow.Flow<List<com.subtracks.data.model.Artist>>
 
+    /** Artist picks: the most played artists with no play since [cutoff] (epoch seconds). */
     @Query(
-        "SELECT * FROM artists WHERE sourceId = :sourceId AND credited = 1 AND starred IS NULL AND played IS NOT NULL AND played < :cutoff ORDER BY played, id LIMIT 4",
+        "SELECT * FROM artists WHERE $PICKABLE_ARTIST AND playCount > $ARTIST_PICK_BARELY_PLAYED " +
+            "AND (played IS NULL OR played < :cutoff) ORDER BY playCount DESC, id LIMIT $ARTIST_PICK_DORMANT_POOL",
     )
-    fun homeDormantArtists(
+    fun artistPickDormant(
         sourceId: Long,
         cutoff: Long,
     ): kotlinx.coroutines.flow.Flow<List<com.subtracks.data.model.Artist>>
 
+    /** Artist picks: a daily sample of artists with at most [ARTIST_PICK_BARELY_PLAYED] plays. */
     @Query(
-        "SELECT * FROM artists WHERE sourceId = :sourceId AND credited = 1 AND starred IS NULL AND played IS NULL ORDER BY ((rowid * 1103515245 + :day * 1013904223) % 2147483647), id LIMIT 4",
+        "SELECT * FROM artists WHERE $PICKABLE_ARTIST AND playCount <= $ARTIST_PICK_BARELY_PLAYED " +
+            "ORDER BY ((rowid * 1103515245 + :day * 1013904223) % 2147483647), id LIMIT $ARTIST_PICK_SIZE",
     )
-    fun homeUnplayedArtists(
+    fun artistPickFresh(
         sourceId: Long,
         day: Long,
     ): kotlinx.coroutines.flow.Flow<List<com.subtracks.data.model.Artist>>
+
+    /** The oldest last play among pickable artists, which sets how long counts as dormant. */
+    @Query("SELECT MIN(played) FROM artists WHERE $PICKABLE_ARTIST AND played IS NOT NULL")
+    fun artistPickEarliestPlay(sourceId: Long): kotlinx.coroutines.flow.Flow<Long?>
 
     @Query(
         "SELECT * FROM artists WHERE sourceId = :sourceId AND credited = 1 " +

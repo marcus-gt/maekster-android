@@ -24,6 +24,7 @@ import com.subtracks.data.db.letterBucketsQuery
 import com.subtracks.data.db.playlistsPageQuery
 import com.subtracks.data.db.rediscoverAlbumsQuery
 import com.subtracks.data.db.songsPageQuery
+import com.subtracks.data.mix.ArtistPicker
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumCollectionKind
 import com.subtracks.data.model.AlbumCollectionSummary
@@ -81,21 +82,24 @@ class LibraryRepository(
 ) {
     val activeSourceId: Flow<Long?> = sourceRepository.activeSourceId()
 
+    /** Home's Artist picks for the local epoch [day], as on iOS. [now] is in epoch seconds. */
     fun artistPicks(
         sourceId: Long,
-        now: Long = System.currentTimeMillis(),
+        day: Long,
+        now: Long,
     ): Flow<List<Artist>> {
         val dao = db.mixDao()
-        val day = now / 86_400_000L
-        return combine(
-            dao.homeFavoriteArtists(sourceId, day),
-            dao.homeDormantArtists(sourceId, now / 1000 - 90 * 86_400L),
-            dao.homeUnplayedArtists(sourceId, day),
-        ) { favorites, dormant, unplayed ->
-            (0 until 4)
-                .flatMap { index -> listOfNotNull(favorites.getOrNull(index), dormant.getOrNull(index), unplayed.getOrNull(index)) }
-                .distinctBy { it.id }
-        }
+        return dao
+            .artistPickEarliestPlay(sourceId)
+            .map { earliest -> now - ArtistPicker.dormancy(earliest, now) }
+            .distinctUntilChanged()
+            .flatMapLatest { cutoff ->
+                combine(
+                    dao.artistPickPlayed(sourceId),
+                    dao.artistPickDormant(sourceId, cutoff),
+                    dao.artistPickFresh(sourceId, day),
+                ) { played, dormant, fresh -> ArtistPicker.pick(played, dormant, fresh, ArtistPicker.seed(sourceId, day)) }
+            }
     }
 
     fun pinnedItems(sourceId: Long): Flow<PagingData<PinnedItem>> =

@@ -64,7 +64,7 @@ The M3.C handoff already recorded this as partial parity.
 
 ## Owner decision (18 Nov 2026)
 
-Rediscover and Artist picks follow iOS. Rediscover was implemented in UX-14, and the iOS rule replaced the broken time window. Artist picks are UX-15. In heavy rotation was not part of the decision.
+Rediscover and Artist picks follow iOS. Rediscover was implemented in UX-14, and the iOS rule replaced the broken time window. Artist picks were implemented in UX-15 (`ArtistPicker` and the `MixDao.artistPick*` pools), keyed on the local day. They stay available offline, which is an intentional Android difference. In heavy rotation was not part of the decision.
 
 ## Follow-ups
 

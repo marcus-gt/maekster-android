@@ -86,8 +86,11 @@ class HomeViewModel(
     private val activeSource = libraryRepository.activeSourceId.filterNotNull()
     val artistPicks =
         activeSource
-            .flatMapLatest { libraryRepository.artistPicks(it) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+            .flatMapLatest { sourceId ->
+                localHomeDays().flatMapLatest { day ->
+                    libraryRepository.artistPicks(sourceId, day, System.currentTimeMillis() / 1000)
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Songs playable offline for the offline Home card; null until counted. */
     val offlineSongCount: StateFlow<Int?> =

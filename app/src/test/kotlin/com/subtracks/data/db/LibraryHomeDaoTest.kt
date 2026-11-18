@@ -32,29 +32,53 @@ class LibraryHomeDaoTest {
     }
 
     @Test
-    fun artistPickBucketsAreBoundedDisjointAndSourceScoped() =
+    fun artistPickPoolsRankByPlaysExcludeNonArtistsAndStayInTheirSource() =
         runTest {
             val id = source()
             val other = source()
-            val rows =
-                (1..8).flatMap { index ->
-                    listOf(
-                        Artist(id, "favorite$index", "Favorite $index", 1, 1, credited = true),
-                        Artist(id, "dormant$index", "Dormant $index", 1, null, played = 1, credited = true),
-                        Artist(id, "unplayed$index", "Unplayed $index", 1, null, credited = true),
-                        Artist(other, "foreign$index", "Foreign $index", 1, 1, credited = true),
+            val heavy =
+                (1..45).map { index ->
+                    Artist(
+                        id,
+                        "heavy$index",
+                        "Heavy $index",
+                        1,
+                        null,
+                        playCount = 100L - index,
+                        played =
+                            if (index % 2 ==
+                                0
+                            ) {
+                                10L
+                            } else {
+                                1000L
+                            },
                     )
                 }
-            db.libraryDao().upsertArtists(rows)
-            val favorites = db.mixDao().homeFavoriteArtists(id, 100).first()
-            val dormant = db.mixDao().homeDormantArtists(id, 1000).first()
-            val unplayed = db.mixDao().homeUnplayedArtists(id, 100).first()
-            assertEquals(listOf(4, 4, 4), listOf(favorites.size, dormant.size, unplayed.size))
-            org.junit.Assert.assertTrue(favorites.all { it.sourceId == id && it.starred != null })
-            org.junit.Assert.assertTrue(dormant.all { it.sourceId == id && it.starred == null && it.played == 1L })
-            org.junit.Assert.assertTrue(unplayed.all { it.sourceId == id && it.starred == null && it.played == null })
-            assertEquals(12, (favorites + dormant + unplayed).map { it.id }.distinct().size)
-            assertEquals(favorites, db.mixDao().homeFavoriteArtists(id, 100).first())
+            val light = (1..15).map { Artist(id, "light$it", "Light $it", 1, null, playCount = it % 3L, played = null) }
+            val excluded =
+                listOf(
+                    Artist(id, "va", "Various Artists", 5, null, playCount = 500),
+                    Artist(id, "unknown", " [Unknown Artist] ", 5, null, playCount = 500),
+                    Artist(id, "empty", "No albums", 0, null, playCount = 500),
+                    Artist(id, "uncredited", "Uncredited", 5, null, playCount = 500, credited = false),
+                    Artist(other, "foreign", "Foreign", 5, null, playCount = 500, played = 1),
+                    Artist(id, "starred", "Starred but unplayed", 1, 1),
+                )
+            db.libraryDao().upsertArtists(heavy + light + excluded)
+            val dao = db.mixDao()
+
+            val played = dao.artistPickPlayed(id).first()
+            assertEquals(heavy.take(40).map { it.id }, played.map { it.id })
+            val dormant = dao.artistPickDormant(id, cutoff = 500).first()
+            assertEquals(heavy.filter { it.played == 10L }.take(26).map { it.id }, dormant.map { it.id })
+            val fresh = dao.artistPickFresh(id, day = 20_000).first()
+            assertEquals(12, fresh.size)
+            org.junit.Assert.assertTrue(fresh.all { it.playCount <= 2 && it.sourceId == id })
+            org.junit.Assert.assertTrue(fresh.none { it.id in setOf("va", "unknown", "empty", "uncredited", "foreign") })
+            assertEquals(fresh, dao.artistPickFresh(id, day = 20_000).first())
+            org.junit.Assert.assertTrue(fresh != dao.artistPickFresh(id, day = 20_001).first())
+            assertEquals(10L, dao.artistPickEarliestPlay(id).first())
         }
 
     @Test
