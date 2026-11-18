@@ -263,6 +263,39 @@ class AlbumCollectionDaoTest {
             assertEquals(listOf("new"), offline.getValue("Rock").map { it.album.id })
         }
 
+    @Test
+    fun homeGenreShelvesShuffleDailyAmongGenresWithMoreThanSixAlbums() =
+        runTest {
+            val source = seed()
+            val dao = db.libraryDao()
+            val album = checkNotNull(dao.album(source, "new").first())
+            val song = checkNotNull(db.queueDao().librarySongs(source, SongListSpec().encode(), 0, 1).singleOrNull()).song
+            val large = listOf("Blues", "Classical", "Electronic", "Jazz", "Latin", "Pop", "Reggae")
+            val extraGenres = large.flatMapIndexed { index, genre -> List(7 + index) { genre } }
+            val extraIds = extraGenres.indices.map { "genre-album-$it" }
+            dao.upsertAlbums(extraIds.map { album.copy(id = it) })
+            dao.upsertSongs(extraIds.map { song.copy(id = it, albumId = it) })
+            db.useWriterConnection { dbConnection ->
+                extraIds.zip(extraGenres).forEach { (id, genre) ->
+                    dbConnection.usePrepared("INSERT INTO song_genres VALUES ($source, '$id', 0, '$genre')") { it.step() }
+                }
+            }
+            val mapping = genreMapping(dao.genreTags(source).first())
+
+            suspend fun genres(day: Long) =
+                dao
+                    .homeGenreAlbums(homeGenreAlbumsQuery(source, mapping, day, downloaded = false))
+                    .first()
+                    .map { it.shelfGenre }
+                    .distinct()
+
+            val days = (20_000L until 20_010L).map { genres(it) }
+            assertEquals(days, (20_000L until 20_010L).map { genres(it) })
+            assertTrue(days.all { it.size == 5 && it.all(large::contains) })
+            assertTrue(days.map { it.toSet() }.distinct().size > 1)
+            assertTrue(days.map { it.first() }.distinct().size > 1)
+        }
+
     private suspend fun seed(): Long {
         val source = db.sourcesDao().insertSource(Source(name = "test", address = "http://localhost", isActive = false, createdAt = 0))
         db.libraryDao().upsertAlbums(

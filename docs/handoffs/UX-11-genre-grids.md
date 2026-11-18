@@ -9,7 +9,7 @@
 ## Adopted Android behaviour
 
 - Each album gets one Discogs main genre, chosen by its distinct matching track count. A matching album-level genre breaks ties, then the genre name. This uses the UX-10 mapping, so each heading opens the matching Library genre collection.
-- The five largest nonempty groups surface in descending size, with ties broken by name. Each grid shows up to six albums, per the UX-11 brief.
+- Genre selection (owner decision, 18 Nov 2026; deliberately differs from iOS, which always shows the five largest): genres with more than six albums form the pool, and five are picked in a daily shuffled order. The order uses `dailyGenreShuffle(day, genre)` (FNV-1a over `day|genre` plus a 64-bit mix), computed in Kotlin and passed to the query alongside the tag mapping. If fewer than five genres qualify, the largest smaller genres fill the remaining shelves after the shuffled ones, sorted by size and then name. Each grid shows up to six albums, per the UX-11 brief.
 - Rotation: albums are ordered by ID, and the window advances by `min(6, count - 1)` per local epoch day, modulo the group size. Groups larger than six show a new window each day and cycle through every album. Groups of six or fewer show all albums, in a rotated order. This is a deliberate SQL-friendly replacement for the iOS seeded shuffle, and it is stable within a day. Foreground Home re-emits at local midnight (`localHomeDays`, which polls at most every 60 s).
 - Offline (`downloaded = true`), only albums with completed downloads take part, and empty groups are omitted. Queries are scoped to the active `sourceId`.
 - Tiles reuse the adaptive Home artwork grid. A tile opens album detail and keeps its long-press menu. The heading opens `Routes.genreAlbums(genre, style = null)`. The saved Genres visibility and position are preserved. The old pill and grid layout switch is gone (`HomeShelf.Genres` no longer `supportsGrid`), and `brickRows` was removed.
@@ -20,9 +20,11 @@
 
 ## Verification
 
-- Regression: with the day term cancelled (`:day - :day`), `AlbumCollectionDaoTest.homeGenreGridsRotateDistinctAlbumsWithinTheActiveLibrary` failed at the day-change assertion. It passes with rotation restored. The test also covers top-five ordering, same-day stability, six distinct albums, a small group, source isolation and the offline filter.
+- Regression: with the day term cancelled (`:day - :day`), `AlbumCollectionDaoTest.homeGenreGridsRotateDistinctAlbumsWithinTheActiveLibrary` failed at the day-change assertion. It passes with rotation restored. The test also covers small-library fill ordering, same-day stability, six distinct albums, a small group, source isolation and the offline filter.
+- Genre shuffle regression: with a constant shuffle key, `homeGenreShelvesShuffleDailyAmongGenresWithMoreThanSixAlbums` failed because the genre set never changed across ten days. With the key restored it passes. It checks same-day stability, five shelves drawn only from genres with more than six albums, and that the selected set and the first shelf vary across days.
 - `GenreRowsTest` covers the grid at normal and 2× font scale: two columns at normal scale, one column at 2×. Heading and tile clicks are also tested. Roborazzi renders were reviewed locally.
-- Passed: `ktlintFormat`, `assembleDebug`, `testDebugUnitTest` (1952 tests, 0 failures), `ktlintCheck`, `lintDebug`.
+- Passed after the genre shuffle: `ktlintFormat`, `assembleDebug`, `testDebugUnitTest` (1953 tests, 0 failures), `ktlintCheck`, `lintDebug`.
+- Emulator after the genre shuffle: Home showed Electronic followed by Folk, World, & Country, which is not one of the five largest genres. This confirms the daily pick is active.
 - Emulator (Pixel 9, API 37, debug `io.github.marcus_gt.maekster.nightly`): the Electronic, Hip Hop and Pop grids each showed six artwork tiles. Hip Hop opened the full collection with Play and Shuffle. The Scars tile opened album detail. Back returned to Home.
 
 ## Known issues / unverified

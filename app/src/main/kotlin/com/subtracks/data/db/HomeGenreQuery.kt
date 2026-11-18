@@ -6,6 +6,10 @@ import org.json.JSONArray
 private const val HOME_GENRE_LIMIT = 5
 private const val HOME_GENRE_ALBUM_LIMIT = 6
 
+/**
+ * Home's genre shelves: genres with more than [HOME_GENRE_ALBUM_LIMIT] albums appear in a daily shuffled order,
+ * and smaller genres fill any remaining shelves, largest first. Each shelf shows a daily window of its albums.
+ */
 internal fun homeGenreAlbumsQuery(
     sourceId: Long,
     mapping: List<GenreTag>,
@@ -17,9 +21,9 @@ internal fun homeGenreAlbumsQuery(
         sql =
             """
             WITH tags AS (
-                SELECT value ->> 0 AS tag, value ->> 1 AS genre FROM json_each(:mapping)
+                SELECT value ->> 0 AS tag, value ->> 1 AS genre, value ->> 2 AS shuffle FROM json_each(:mapping)
             ), votes AS (
-                SELECT albums.id AS albumId, tags.genre, COUNT(DISTINCT songs.id) AS tracks,
+                SELECT albums.id AS albumId, tags.genre, MAX(tags.shuffle) AS shuffle, COUNT(DISTINCT songs.id) AS tracks,
                     MAX(CASE WHEN albums.genre = tags.tag COLLATE NOCASE THEN 1 ELSE 0 END) AS albumTag
                 FROM tags
                 JOIN song_genres ON song_genres.genre = tags.tag AND song_genres.sourceId = :sourceId
@@ -28,24 +32,29 @@ internal fun homeGenreAlbumsQuery(
                 WHERE albums.sourceId = :sourceId $downloadFilter
                 GROUP BY albums.id, tags.genre
             ), rankedGenres AS (
-                SELECT albumId, genre, ROW_NUMBER() OVER (
+                SELECT albumId, genre, shuffle, ROW_NUMBER() OVER (
                     PARTITION BY albumId ORDER BY tracks DESC, albumTag DESC, genre COLLATE NOCASE
                 ) AS preference
                 FROM votes
-            ), largest AS (
-                SELECT genre, COUNT(*) AS albumCount
+            ), counts AS (
+                SELECT genre, COUNT(*) AS albumCount, MAX(shuffle) AS shuffle
                 FROM rankedGenres
                 WHERE preference = 1
                 GROUP BY genre
-                ORDER BY albumCount DESC, genre COLLATE NOCASE
-                LIMIT $HOME_GENRE_LIMIT
+            ), picked AS (
+                SELECT genre, albumCount, ROW_NUMBER() OVER (
+                    ORDER BY albumCount <= $HOME_GENRE_ALBUM_LIMIT,
+                        CASE WHEN albumCount > $HOME_GENRE_ALBUM_LIMIT THEN shuffle END,
+                        albumCount DESC, genre COLLATE NOCASE
+                ) AS shelf
+                FROM counts
             ), ordered AS (
-                SELECT rankedGenres.albumId, largest.genre, largest.albumCount,
-                    ROW_NUMBER() OVER (PARTITION BY largest.genre ORDER BY rankedGenres.albumId) - 1 AS ordinal
-                FROM rankedGenres JOIN largest ON largest.genre = rankedGenres.genre
-                WHERE rankedGenres.preference = 1
+                SELECT rankedGenres.albumId, picked.genre, picked.albumCount, picked.shelf,
+                    ROW_NUMBER() OVER (PARTITION BY picked.genre ORDER BY rankedGenres.albumId) - 1 AS ordinal
+                FROM rankedGenres JOIN picked ON picked.genre = rankedGenres.genre
+                WHERE rankedGenres.preference = 1 AND picked.shelf <= $HOME_GENRE_LIMIT
             ), rotated AS (
-                SELECT albumId, genre, albumCount,
+                SELECT albumId, genre, shelf,
                     ((ordinal - :day * min($HOME_GENRE_ALBUM_LIMIT, max(1, albumCount - 1))) % albumCount + albumCount)
                         % albumCount AS position
                 FROM ordered
@@ -53,13 +62,35 @@ internal fun homeGenreAlbumsQuery(
             SELECT albums.*, rotated.genre AS shelfGenre
             FROM rotated JOIN albums ON albums.sourceId = :sourceId AND albums.id = rotated.albumId
             WHERE rotated.position < $HOME_GENRE_ALBUM_LIMIT
-            ORDER BY rotated.albumCount DESC, rotated.genre COLLATE NOCASE, rotated.position
+            ORDER BY rotated.shelf, rotated.position
             """.trimIndent(),
         bindings =
             mapOf(
                 "sourceId" to sourceId,
                 "day" to day,
-                "mapping" to JSONArray(mapping.map { JSONArray(listOf(it.tag, it.main)) }).toString(),
+                "mapping" to
+                    JSONArray(
+                        mapping.map { JSONArray(listOf(it.tag, it.main, dailyGenreShuffle(day, it.main))) },
+                    ).toString(),
             ),
     )
 }
+
+/** A per-day sort key for [genre]: stable for one local day, independent of tag order, and different the next day. */
+internal fun dailyGenreShuffle(
+    day: Long,
+    genre: String,
+): Long {
+    var hash =
+        "$day|${genre.lowercase()}".encodeToByteArray().fold(FNV_OFFSET) { h, byte ->
+            (h xor (byte.toLong() and 0xff)) * FNV_PRIME
+        }
+    hash = (hash xor (hash ushr 33)) * MIX_1
+    hash = (hash xor (hash ushr 33)) * MIX_2
+    return (hash xor (hash ushr 33)) ushr 1
+}
+
+private const val FNV_OFFSET = -0x340d631b7bdddcdbL
+private const val FNV_PRIME = 0x100000001b3L
+private const val MIX_1 = -0xae502812aa7333L
+private const val MIX_2 = -0x3b314601e57a13adL
