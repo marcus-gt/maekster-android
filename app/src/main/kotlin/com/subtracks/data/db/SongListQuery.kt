@@ -87,6 +87,11 @@ internal fun songsCountQuery(
     spec: SongListSpec,
 ): RoomRawQuery = rawQuery(sql = "SELECT COUNT(*) ${spec.where()}", bindings = spec.bindings(sourceId))
 
+internal fun songsExistQuery(
+    sourceId: Long,
+    spec: SongListSpec,
+): RoomRawQuery = rawQuery(sql = "SELECT EXISTS(SELECT 1 ${spec.where()})", bindings = spec.bindings(sourceId))
+
 internal fun songNameKey(mode: SortNameMode): String =
     when (mode) {
         SortNameMode.SortName -> "songs.sortName COLLATE NOCASE"

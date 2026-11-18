@@ -420,7 +420,8 @@ class PlaybackController(
         sourceId: Long,
         spec: SongListSpec,
         startOrdinal: Long,
-    ) = playContext(queueRepository.libraryEntry(sourceId, spec), startOrdinal)
+        disableShuffle: Boolean = false,
+    ) = playContext(queueRepository.libraryEntry(sourceId, spec), startOrdinal, disableShuffle)
 
     fun shuffleLibrarySongs(
         sourceId: Long,
@@ -451,6 +452,7 @@ class PlaybackController(
         entries: List<QueueEntry>,
         origin: QueueEntry? = null,
     ) = startLock.withLock {
+        if (!canStartLibraryEntry(entries.singleOrNull())) return@withLock
         val entry = entries.first()
         windowJob?.cancel()
         windowStart = 0
@@ -1342,6 +1344,7 @@ class PlaybackController(
         origin: QueueEntry? = null,
         collection: QueueCollection? = null,
     ) = startLock.withLock {
+        if (!canStartLibraryEntry(entries.singleOrNull())) return@withLock
         windowJob?.cancel()
         windowStart = 0
         windowEnd = -1
@@ -1370,6 +1373,11 @@ class PlaybackController(
         queueRepository.setCursor(position)
         this.snapshot = readSnapshot()
         loadWindow(position, autoplay = true, playlistStart = entries.singleOrNull())
+    }
+
+    private suspend fun canStartLibraryEntry(entry: QueueEntry?): Boolean {
+        if (entry == null || entry.kind != QueueKind.Library) return true
+        return sourceRepository.activeSourceIdOnce() == entry.sourceId && queueRepository.hasLibrarySongs(entry)
     }
 
     private suspend fun restore() =

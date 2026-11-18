@@ -7,11 +7,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -29,11 +31,15 @@ import androidx.compose.material.icons.rounded.FilterAltOff
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Piano
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.ViewModule
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -41,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -96,7 +103,6 @@ import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
 import com.subtracks.ui.components.SearchField
-import com.subtracks.ui.components.ShuffleFab
 import com.subtracks.ui.components.rememberPendingDownloadDelete
 import com.subtracks.ui.theme.MaeksterSpacing
 import kotlinx.coroutines.flow.Flow
@@ -234,7 +240,8 @@ fun LibraryListRoute(
     val displayQuery = if (offline) listQuery.copy(downloaded = true) else listQuery
     val search by viewModel.search(listTab).collectAsStateWithLifecycle()
     val downloads by viewModel.downloads(listTab).collectAsStateWithLifecycle()
-    val songsSpec by viewModel.songListSpec.collectAsStateWithLifecycle()
+    val songsQuery = if (list == LibraryTab.Songs) viewModel.songsQuery.collectAsStateWithLifecycle().value else null
+    val songs = remember(viewModel, songsQuery) { songsQuery?.let(viewModel::songs) ?: flowOf(PagingData.empty()) }
     val songDownloads =
         if (list == LibraryTab.Songs) viewModel.songDownloads.collectAsStateWithLifecycle().value else emptyMap()
     val playback by playbackController.state.collectAsStateWithLifecycle()
@@ -257,7 +264,7 @@ fun LibraryListRoute(
         albums = if (list == LibraryTab.Albums) viewModel.albums else emptyFlow(),
         artists = if (list == LibraryTab.Artists) viewModel.artists else emptyFlow(),
         playlists = if (list == LibraryTab.Playlists) viewModel.playlists else emptyFlow(),
-        songs = if (list == LibraryTab.Songs) viewModel.songs else emptyFlow(),
+        songs = songs,
         collections =
             when (list) {
                 LibraryTab.Genres -> viewModel.genres
@@ -265,8 +272,9 @@ fun LibraryListRoute(
                 else -> emptyFlow()
             },
         onCollectionClick = onCollectionClick,
-        onSongClick = { _, index -> viewModel.playSongs(index) },
-        onShuffleSongs = viewModel::shuffleSongs,
+        onSongClick = { _, index -> songsQuery?.let { viewModel.playSongs(it, index) } },
+        onPlaySongs = { songsQuery?.let { viewModel.playSongs(it, index = 0, inOrder = true) } },
+        onShuffleSongs = { songsQuery?.let(viewModel::shuffleSongs) },
         onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
         playingSongId = playback.item?.id,
         songDownloads = songDownloads,
@@ -284,7 +292,11 @@ fun LibraryListRoute(
         listQuery = displayQuery,
         resetKey =
             "${listQuery.sort}|${listQuery.descending}|${listQuery.starred}|${listQuery.downloaded || offline}|$search|" +
-                if (list == LibraryTab.Songs) songsSpec.sortNameMode.name else "",
+                songsQuery
+                    ?.spec
+                    ?.sortNameMode
+                    ?.name
+                    .orEmpty(),
         offline = offline,
         onExitOffline = { viewModel.setOffline(false) },
         sortOptions = sortOptionsFor(list, playSort),
@@ -341,6 +353,7 @@ fun LibraryListScreen(
     collections: Flow<PagingData<AlbumCollectionSummary>> = remember { flowOf(PagingData.empty()) },
     onCollectionClick: (AlbumCollectionKind, String) -> Unit = { _, _ -> },
     onSongClick: (Song, Int) -> Unit = { _, _ -> },
+    onPlaySongs: () -> Unit = {},
     onShuffleSongs: () -> Unit = {},
     onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
     playingSongId: String? = null,
@@ -388,7 +401,6 @@ fun LibraryListScreen(
     LaunchedEffect(Unit) { if (search.isNotEmpty()) searchActive = true }
 
     val filtersActive = listQuery.starred != StarredFilter.Any || listQuery.downloaded || search.isNotEmpty()
-    // Collected here rather than in the list so the shuffle button knows whether there is anything to shuffle.
     val songItems = if (list == LibraryTab.Songs) songs.collectAsLazyPagingItems() else null
     val listBottomInset = bottomInset + MaeksterSpacing.l
     val layoutAction: (@Composable () -> Unit)? =
@@ -426,56 +438,61 @@ fun LibraryListScreen(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            if (searchActive) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier =
-                        Modifier.fillMaxWidth().statusBarsPadding().padding(
-                            start = MaeksterSpacing.m,
-                            end = if (layoutAction != null) MaeksterSpacing.s else MaeksterSpacing.m,
-                            top = MaeksterSpacing.s,
-                            bottom = MaeksterSpacing.s,
-                        ),
-                ) {
-                    SearchField(
-                        value = search,
-                        onValueChange = onSearchChange,
-                        onClose = closeSearch,
-                        focusRequester = searchFocus,
-                        modifier = Modifier.weight(1f),
-                    )
-                    layoutAction?.invoke()
-                }
-            } else {
-                TopAppBar(
-                    title = { Text(stringResource(list.label)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
-                        }
-                    },
-                    actions = {
-                        if (offline) {
-                            IconButton(onClick = onExitOffline) {
-                                Icon(Icons.Rounded.CloudOff, contentDescription = stringResource(R.string.offline_mode_status))
-                            }
-                        }
+            Column {
+                if (searchActive) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                            Modifier.fillMaxWidth().statusBarsPadding().padding(
+                                start = MaeksterSpacing.m,
+                                end = if (layoutAction != null) MaeksterSpacing.s else MaeksterSpacing.m,
+                                top = MaeksterSpacing.s,
+                                bottom = MaeksterSpacing.s,
+                            ),
+                    ) {
+                        SearchField(
+                            value = search,
+                            onValueChange = onSearchChange,
+                            onClose = closeSearch,
+                            focusRequester = searchFocus,
+                            modifier = Modifier.weight(1f),
+                        )
                         layoutAction?.invoke()
-                        IconButton(onClick = { searchActive = true }) {
-                            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search_this_list))
-                        }
-                        IconButton(onClick = { showOptions = true }) {
-                            BadgedBox(badge = { if (filtersActive) Badge() }) {
-                                Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = stringResource(R.string.list_options))
+                    }
+                } else {
+                    TopAppBar(
+                        title = { Text(stringResource(list.label)) },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
                             }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                )
+                        },
+                        actions = {
+                            if (offline) {
+                                IconButton(onClick = onExitOffline) {
+                                    Icon(Icons.Rounded.CloudOff, contentDescription = stringResource(R.string.offline_mode_status))
+                                }
+                            }
+                            layoutAction?.invoke()
+                            IconButton(onClick = { searchActive = true }) {
+                                Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search_this_list))
+                            }
+                            IconButton(onClick = { showOptions = true }) {
+                                BadgedBox(badge = { if (filtersActive) Badge() }) {
+                                    Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = stringResource(R.string.list_options))
+                                }
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                    )
+                }
+                if (songItems != null && songItems.itemCount > 0) {
+                    SongListPlaybackActions(
+                        onPlay = { open(onPlaySongs) },
+                        onShuffle = { open(onShuffleSongs) },
+                    )
+                }
             }
-        },
-        floatingActionButton = {
-            if (songItems != null && songItems.itemCount > 0) ShuffleFab(onClick = onShuffleSongs)
         },
     ) { padding ->
         PullToRefreshBox(
@@ -590,6 +607,28 @@ fun LibraryListScreen(
                     searchActive = true
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun SongListPlaybackActions(
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = MaeksterSpacing.m),
+        horizontalArrangement = Arrangement.spacedBy(MaeksterSpacing.s),
+    ) {
+        Button(onClick = onPlay) {
+            Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.controls_play))
+        }
+        OutlinedButton(onClick = onShuffle) {
+            Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.controls_shuffle))
         }
     }
 }

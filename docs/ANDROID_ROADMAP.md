@@ -903,7 +903,7 @@ prototype in UX-04 before rolling it out. The recommendation audit in UX-12 may 
 | UX-04 | [Discover: review and refresh the card design](https://github.com/marcus-gt/maekster-android/issues/34) | [Complete](handoffs/UX-04-discover-cards.md) |
 | UX-05 | [Home: offer Song Path as an opt-in section](https://github.com/marcus-gt/maekster-android/issues/35) | [Complete](handoffs/UX-05-home-song-path.md) |
 | UX-06 | [Playlists: clarify Updated and add Last used if distinct](https://github.com/marcus-gt/maekster-android/issues/36) | [Complete](handoffs/UX-06-playlist-last-used.md) |
-| UX-07 | [Songs: play or shuffle the current Library result](https://github.com/marcus-gt/maekster-android/issues/37) | — |
+| UX-07 | [Songs: play or shuffle the current Library result](https://github.com/marcus-gt/maekster-android/issues/37) | [Complete](handoffs/UX-07-songs-result-playback.md) |
 | UX-08 | [Songs: Recently played and Released sorting](https://github.com/marcus-gt/maekster-android/issues/7) | — |
 | UX-09 | [Favorites: sorting and Play/Shuffle](https://github.com/marcus-gt/maekster-android/issues/38) | — |
 | UX-10 | [Library Genres: styles and playback controls](https://github.com/marcus-gt/maekster-android/issues/9) | — |
