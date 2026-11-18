@@ -257,6 +257,8 @@
     <string name="list_options">List options</string>
     <string name="albums_show_grid">Show albums as a grid</string>
     <string name="albums_show_list">Show albums as a list</string>
+    <string name="artists_show_grid">Show artists as a grid</string>
+    <string name="artists_show_list">Show artists as a list</string>
     <string name="search">Search</string>
     <string name="search_this_list">Search this list</string>
     <string name="search_songs">Songs</string>

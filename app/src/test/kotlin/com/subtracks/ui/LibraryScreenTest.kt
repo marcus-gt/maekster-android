@@ -157,6 +157,46 @@ class LibraryScreenTest {
     }
 
     @Test
+    fun artistLayoutCanBeChangedWhileSearching() {
+        val asGrid = mutableStateOf(false)
+        val search = mutableStateOf("Artist")
+        var opened: Artist? = null
+        composeRule.setContent {
+            MaeksterTheme {
+                LibraryListScreen(
+                    list = LibraryTab.Artists,
+                    artists = remember { flowOf(PagingData.from(artists().take(3))) },
+                    coverArt = { _, _ -> null },
+                    onSync = {},
+                    onBack = {},
+                    search = search.value,
+                    onSearchChange = { search.value = it },
+                    artistsAsGrid = asGrid.value,
+                    onArtistsLayoutChange = { asGrid.value = it },
+                    onArtistClick = { opened = it },
+                )
+            }
+        }
+
+        try {
+            val first = composeRule.onNodeWithText("Artist 1")
+            val second = composeRule.onNodeWithText("Artist 2")
+            assertTrue(first.getUnclippedBoundsInRoot().top < second.getUnclippedBoundsInRoot().top)
+
+            composeRule.onNodeWithContentDescription("Show artists as a grid").assertIsDisplayed().performClick()
+            assertTrue(first.getUnclippedBoundsInRoot().right < second.getUnclippedBoundsInRoot().left)
+            second.performClick()
+            assertEquals("Artist 2", opened?.name)
+
+            composeRule.onNodeWithContentDescription("Show artists as a list").assertIsDisplayed().performClick()
+            assertTrue(first.getUnclippedBoundsInRoot().top < second.getUnclippedBoundsInRoot().top)
+            assertEquals("Artist", search.value)
+        } finally {
+            composeRule.onNodeWithContentDescription("Close search").performClick()
+        }
+    }
+
+    @Test
     fun albumLayoutCanBeChangedWhileSearching() {
         val asList = mutableStateOf(false)
         val search = mutableStateOf("Album")

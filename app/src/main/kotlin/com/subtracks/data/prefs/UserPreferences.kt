@@ -154,6 +154,14 @@ class UserPreferences(
 
     private val albumsAsListKey = booleanPreferencesKey("library_albums_as_list")
 
+    fun artistsAsGrid(): Flow<Boolean> = store.data.map { it[artistsAsGridKey] ?: false }
+
+    suspend fun setArtistsAsGrid(enabled: Boolean) {
+        store.edit { it[artistsAsGridKey] = enabled }
+    }
+
+    private val artistsAsGridKey = booleanPreferencesKey("library_artists_as_grid")
+
     fun listQuery(tab: LibraryListTab): Flow<ListQuery> = store.data.map { prefs -> decode(prefs[listQueryKey(tab)], tab.defaultSort) }
 
     suspend fun setListQuery(

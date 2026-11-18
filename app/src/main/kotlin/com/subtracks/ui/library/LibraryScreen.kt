@@ -225,6 +225,7 @@ fun LibraryListRoute(
     val listTab = list.listTab() ?: return
     val letters by viewModel.letterBuckets.getValue(listTab).collectAsStateWithLifecycle()
     val albumsAsList = list == LibraryTab.Albums && viewModel.albumsAsList.collectAsStateWithLifecycle().value
+    val artistsAsGrid = list == LibraryTab.Artists && viewModel.artistsAsGrid.collectAsStateWithLifecycle().value
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val listQuery by viewModel.listQuery(listTab).collectAsStateWithLifecycle()
     val offline by viewModel.offline.collectAsStateWithLifecycle()
@@ -309,6 +310,8 @@ fun LibraryListRoute(
         dismissals = contextMenuHost?.dismissals ?: emptyFlow(),
         albumsAsList = albumsAsList,
         onAlbumsLayoutChange = viewModel::setAlbumsAsList,
+        artistsAsGrid = artistsAsGrid,
+        onArtistsLayoutChange = viewModel::setArtistsAsGrid,
     )
 
     PendingDownloadDeleteConfirmation(pendingDelete) { pending ->
@@ -366,6 +369,8 @@ fun LibraryListScreen(
     dismissals: Flow<Unit> = emptyFlow(),
     albumsAsList: Boolean = false,
     onAlbumsLayoutChange: (Boolean) -> Unit = {},
+    artistsAsGrid: Boolean = false,
+    onArtistsLayoutChange: (Boolean) -> Unit = {},
 ) {
     var showOptions by rememberSaveable { mutableStateOf(false) }
     var searchActive by rememberSaveable { mutableStateOf(false) }
@@ -385,6 +390,32 @@ fun LibraryListScreen(
     // Collected here rather than in the list so the shuffle button knows whether there is anything to shuffle.
     val songItems = if (list == LibraryTab.Songs) songs.collectAsLazyPagingItems() else null
     val listBottomInset = bottomInset + MaeksterSpacing.l
+    val layoutAction: (@Composable () -> Unit)? =
+        when (list) {
+            LibraryTab.Albums -> {
+                {
+                    LibraryLayoutButton(
+                        showGrid = albumsAsList,
+                        label = if (albumsAsList) R.string.albums_show_grid else R.string.albums_show_list,
+                        onClick = { onAlbumsLayoutChange(!albumsAsList) },
+                    )
+                }
+            }
+
+            LibraryTab.Artists -> {
+                {
+                    LibraryLayoutButton(
+                        showGrid = !artistsAsGrid,
+                        label = if (artistsAsGrid) R.string.artists_show_list else R.string.artists_show_grid,
+                        onClick = { onArtistsLayoutChange(!artistsAsGrid) },
+                    )
+                }
+            }
+
+            else -> {
+                null
+            }
+        }
     val open = { action: () -> Unit ->
         focusManager.clearFocus()
         action()
@@ -400,7 +431,7 @@ fun LibraryListScreen(
                     modifier =
                         Modifier.fillMaxWidth().statusBarsPadding().padding(
                             start = MaeksterSpacing.m,
-                            end = if (list == LibraryTab.Albums) MaeksterSpacing.s else MaeksterSpacing.m,
+                            end = if (layoutAction != null) MaeksterSpacing.s else MaeksterSpacing.m,
                             top = MaeksterSpacing.s,
                             bottom = MaeksterSpacing.s,
                         ),
@@ -412,7 +443,7 @@ fun LibraryListScreen(
                         focusRequester = searchFocus,
                         modifier = Modifier.weight(1f),
                     )
-                    if (list == LibraryTab.Albums) AlbumsLayoutButton(albumsAsList, onAlbumsLayoutChange)
+                    layoutAction?.invoke()
                 }
             } else {
                 TopAppBar(
@@ -428,7 +459,7 @@ fun LibraryListScreen(
                                 Icon(Icons.Rounded.CloudOff, contentDescription = stringResource(R.string.offline_mode_status))
                             }
                         }
-                        if (list == LibraryTab.Albums) AlbumsLayoutButton(albumsAsList, onAlbumsLayoutChange)
+                        layoutAction?.invoke()
                         IconButton(onClick = { searchActive = true }) {
                             Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search_this_list))
                         }
@@ -483,6 +514,7 @@ fun LibraryListScreen(
                         onSync = onSync,
                         downloadStatuses = downloads,
                         artistArt = artistArt,
+                        asGrid = artistsAsGrid,
                     )
                 }
 
@@ -562,14 +594,15 @@ fun LibraryListScreen(
 }
 
 @Composable
-private fun AlbumsLayoutButton(
-    asList: Boolean,
-    onChange: (Boolean) -> Unit,
+private fun LibraryLayoutButton(
+    showGrid: Boolean,
+    @StringRes label: Int,
+    onClick: () -> Unit,
 ) {
-    IconButton(onClick = { onChange(!asList) }) {
+    IconButton(onClick = onClick) {
         Icon(
-            imageVector = if (asList) Icons.Rounded.ViewModule else Icons.AutoMirrored.Rounded.ViewList,
-            contentDescription = stringResource(if (asList) R.string.albums_show_grid else R.string.albums_show_list),
+            imageVector = if (showGrid) Icons.Rounded.ViewModule else Icons.AutoMirrored.Rounded.ViewList,
+            contentDescription = stringResource(label),
         )
     }
 }

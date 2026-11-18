@@ -272,6 +272,13 @@ class LibraryViewModel(
         viewModelScope.launch { userPreferences.setAlbumsAsList(enabled) }
     }
 
+    val artistsAsGrid: StateFlow<Boolean> =
+        userPreferences.artistsAsGrid().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setArtistsAsGrid(enabled: Boolean) {
+        viewModelScope.launch { userPreferences.setArtistsAsGrid(enabled) }
+    }
+
     fun listQuery(tab: LibraryListTab): StateFlow<ListQuery> = listQueries.getValue(tab)
 
     fun setListQuery(

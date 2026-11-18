@@ -35,6 +35,22 @@ UX-01 implementation commit.
 - API 35 was covered by Robolectric. A separate API 35 emulator and spoken TalkBack output
   were outside the live smoke test.
 
+## Artists grid follow-up
+
+**Status: COMPLETE** on `ux/01-library-layout`, following the Albums commit `10523888`. Artists now has a
+three-column grid with artwork, name, album count and download status. The switch is available in
+the toolbar and during search. The choice persists separately from Albums, with list as the default.
+Both presentations use the same paged results, letter rail and artist actions.
+
+- The Compose regression failed before the switch was added and passed afterward. It checks list →
+  grid → list during search, side-by-side tiles and opening the selected artist. The DataStore test
+  confirms independent settings across readers.
+- Passed format, debug build, full unit tests, ktlint, Android lint, and Roborazzi recording with
+  the wrapper and Studio JBR. Reviewed grid and list captures at 100% and 200%.
+- On API 37 with real artwork, switched to grid, opened an artist, and reopened Artists in grid
+  mode. The emulator is showing the grid. Live verification covered reopening the screen, with
+  persistence across readers covered by the DataStore test.
+
 ## Next action
 
 When starting the next slice, read the UX-02 checklist in [issue #32](https://github.com/marcus-gt/maekster-android/issues/32)

@@ -16,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.Artist
 import com.subtracks.data.prefs.ListQuery
 import com.subtracks.ui.library.ALBUM_COVER_TAG
 import com.subtracks.ui.library.LibraryListScreen
@@ -54,6 +55,7 @@ class LibraryOptionsScreenshotTest {
     ) {
         RuntimeEnvironment.setFontScale(fontScale)
         val asList = mutableStateOf(false)
+        val artistsAsGrid = mutableStateOf(false)
         val tab = mutableStateOf(LibraryTab.Albums)
         composeRule.setContent {
             MaeksterTheme {
@@ -61,6 +63,7 @@ class LibraryOptionsScreenshotTest {
                     LibraryListScreen(
                         list = tab.value,
                         albums = remember { flowOf(PagingData.from(albums())) },
+                        artists = remember { flowOf(PagingData.from(artists())) },
                         coverArt = { _, _ -> null },
                         onSync = {},
                         onBack = {},
@@ -69,6 +72,8 @@ class LibraryOptionsScreenshotTest {
                         starredSupported = true,
                         albumsAsList = asList.value,
                         onAlbumsLayoutChange = { asList.value = it },
+                        artistsAsGrid = artistsAsGrid.value,
+                        onArtistsLayoutChange = { artistsAsGrid.value = it },
                     )
                 }
             }
@@ -87,6 +92,13 @@ class LibraryOptionsScreenshotTest {
         capture("library_options$suffix")
 
         composeRule.runOnIdle { tab.value = LibraryTab.Artists }
+        composeRule.onNodeWithText("Artist 1").assertIsDisplayed()
+        capture("library_artists_list$suffix")
+
+        composeRule.onNodeWithContentDescription("Show artists as a grid").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Artist 1").assertIsDisplayed()
+        capture("library_artists_grid$suffix")
+
         openOptions()
         composeRule.onNodeWithText("Album count").assertIsDisplayed()
         capture("library_artists_options$suffix")
@@ -101,6 +113,18 @@ class LibraryOptionsScreenshotTest {
     private fun capture(name: String) {
         composeRule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
     }
+
+    private fun artists() =
+        (1..7).map { index ->
+            Artist(
+                sourceId = 1,
+                id = "ar-$index",
+                name = "Artist $index",
+                albumCount = index.toLong(),
+                starred = null,
+                coverArt = null,
+            )
+        }
 
     private fun albums() =
         (1..7).map { index ->
