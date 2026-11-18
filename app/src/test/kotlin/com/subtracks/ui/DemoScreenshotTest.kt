@@ -470,7 +470,6 @@ class DemoScreenshotTest {
                             recentlyPlayedArtists = namedArtists(dao.recentlyPlayedArtists(1, 10).first()),
                             mostPlayedAlbums = coveredAlbums(dao.mostPlayedAlbums(1, 10).first()),
                             mostPlayedArtists = namedArtists(dao.mostPlayedArtists(1, 10).first()),
-                            genres = dao.genresByMostPlayed(1).first(),
                             decades = dao.decades(1).first(),
                             recentlyStarredSongs = dao.recentlyStarredSongs(1, 10).first().filter { it.coverArt != null },
                             recentlyAddedAlbums = albums.take(10),

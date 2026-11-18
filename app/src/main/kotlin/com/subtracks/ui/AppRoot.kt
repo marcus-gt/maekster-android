@@ -522,7 +522,7 @@ private fun MainNavigation() {
                                     },
                                     onMore = { section -> navController.navigate(Routes.homeSection(section)) },
                                     onDownloadedMore = { kind -> navController.navigate(Routes.homeDownloaded(kind)) },
-                                    onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
+                                    onGenreClick = { genre -> navController.navigate(Routes.genreAlbums(genre, style = null)) },
                                     onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
                                     onPlaylistsMore = { navController.navigate(Routes.libraryList(LibraryTab.Playlists)) },
                                     contextMenuHost = contextMenuHost,

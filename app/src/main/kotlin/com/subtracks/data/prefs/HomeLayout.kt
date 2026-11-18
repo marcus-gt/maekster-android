@@ -20,7 +20,7 @@ enum class HomeShelf {
 
     val supportsGrid: Boolean get() =
         this in
-            setOf(Pinned, YourPlaylists, FavoriteAlbums, RecentlyAddedAlbums, MostPlayedAlbums, RecentlyPlayedAlbums, Rediscover, Genres)
+            setOf(Pinned, YourPlaylists, FavoriteAlbums, RecentlyAddedAlbums, MostPlayedAlbums, RecentlyPlayedAlbums, Rediscover)
 }
 
 val DEFAULT_HOME_ORDER =

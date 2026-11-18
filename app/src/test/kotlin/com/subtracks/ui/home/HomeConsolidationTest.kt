@@ -89,7 +89,6 @@ class HomeConsolidationTest {
                                 favoriteAlbums = listOf(album),
                                 recentlyPlayedAlbums = listOf(album.copy(id = "recent")),
                                 recentlyAddedAlbums = listOf(album.copy(id = "added")),
-                                genres = listOf("Jazz", "Electronic", "Rock"),
                             ),
                             { _, _ -> null },
                             null,

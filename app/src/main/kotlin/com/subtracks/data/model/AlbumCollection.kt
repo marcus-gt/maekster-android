@@ -1,5 +1,7 @@
 package com.subtracks.data.model
 
+import androidx.room3.Embedded
+
 /** A way of grouping albums that the Library lists: by a song's genre tag or by the album's record label. */
 enum class AlbumCollectionKind { Genre, Label }
 
@@ -8,6 +10,16 @@ data class AlbumCollectionSummary(
     val name: String,
     val albumCount: Long,
     val coverArt: String?,
+)
+
+data class HomeGenreShelf(
+    val genre: String,
+    val albums: List<Album>,
+)
+
+data class HomeGenreAlbum(
+    val shelfGenre: String,
+    @Embedded val album: Album,
 )
 
 /**

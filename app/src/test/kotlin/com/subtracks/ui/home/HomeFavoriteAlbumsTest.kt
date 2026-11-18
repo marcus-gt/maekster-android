@@ -58,7 +58,6 @@ class HomeFavoriteAlbumsTest {
                 emptyList(),
                 emptyList(),
                 emptyList(),
-                emptyList(),
                 false,
                 favoriteAlbums = listOf(album),
             )

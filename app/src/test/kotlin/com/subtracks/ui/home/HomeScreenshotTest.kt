@@ -18,6 +18,7 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
+import com.subtracks.data.model.HomeGenreShelf
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
 import com.subtracks.ui.theme.MaeksterTheme
@@ -62,6 +63,7 @@ class HomeScreenshotTest {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     HomeScreen(
                         feed = feed(),
+                        genreShelves = listOf(HomeGenreShelf("Jazz", albums("Jazz").take(6))),
                         coverArt = { _, _ -> null },
                         playingSongId = null,
                     )
@@ -201,7 +203,6 @@ class HomeScreenshotTest {
             recentlyPlayedArtists = artists("Recent"),
             mostPlayedAlbums = albums("Frequent"),
             mostPlayedArtists = artists("Frequent"),
-            genres = listOf("Rock", "Jazz", "Classical", "Electronic", "Pop", "Folk", "Blues"),
             decades = listOf(1960L, 1970L, 1980L, 1990L, 2000L, 2010L),
             recentlyStarredSongs = songs(),
             recentlyAddedAlbums = albums("Added"),

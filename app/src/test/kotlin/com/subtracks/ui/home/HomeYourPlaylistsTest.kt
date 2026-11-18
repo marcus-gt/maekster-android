@@ -72,7 +72,6 @@ class HomeYourPlaylistsTest {
                 recentArtists = emptyList(),
                 frequentAlbums = emptyList(),
                 frequentArtists = emptyList(),
-                genres = emptyList(),
                 decades = emptyList(),
                 starredSongs = emptyList(),
                 addedAlbums = emptyList(),

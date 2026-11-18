@@ -220,6 +220,49 @@ class AlbumCollectionDaoTest {
             assertEquals(AlbumCollectionSummary("Rock", 3, "old"), dao.genreAlbumSummary(online).first())
         }
 
+    @Test
+    fun homeGenreGridsRotateDistinctAlbumsWithinTheActiveLibrary() =
+        runTest {
+            val source = seed()
+            val other = seed()
+            val dao = db.libraryDao()
+            val album = checkNotNull(dao.album(source, "new").first())
+            val song = checkNotNull(db.queueDao().librarySongs(source, SongListSpec().encode(), 0, 1).singleOrNull()).song
+            val extraGenres = List(8) { "Rock" } + listOf("Jazz", "Electronic", "Reggae", "Pop", "Latin", "Classical")
+            val extraIds = extraGenres.indices.map { "genre-album-$it" }
+            dao.upsertAlbums(extraIds.map { album.copy(id = it) })
+            dao.upsertSongs(extraIds.map { song.copy(id = it, albumId = it) })
+            db.useWriterConnection { dbConnection ->
+                extraIds.zip(extraGenres).forEach { (id, genre) ->
+                    dbConnection.usePrepared("INSERT INTO song_genres VALUES ($source, '$id', 0, '$genre')") { it.step() }
+                }
+                dbConnection.usePrepared("INSERT INTO song_genres VALUES ($source, 'extra', 3, 'Jazz')") { it.step() }
+            }
+            val mapping = genreMapping(dao.genreTags(source).first())
+
+            suspend fun shelves(
+                day: Long,
+                downloaded: Boolean = false,
+            ) = dao.homeGenreAlbums(homeGenreAlbumsQuery(source, mapping, day, downloaded)).first().groupBy { it.shelfGenre }
+
+            val firstDay = shelves(20_000)
+            assertEquals(listOf("Rock", "Classical", "Electronic", "Jazz", "Latin"), firstDay.keys.toList())
+            assertEquals(firstDay, shelves(20_000))
+            val rockIds = firstDay.getValue("Rock").map { it.album.id }.toSet()
+            assertEquals(6, rockIds.size)
+            assertTrue(rockIds != shelves(20_001).getValue("Rock").map { it.album.id }.toSet())
+            assertEquals(listOf("genre-album-8"), firstDay.getValue("Jazz").map { it.album.id })
+            assertTrue(firstDay.values.flatten().all { it.album.sourceId == source })
+
+            db.downloadDao().upsert(SongDownload(other, "new", DownloadStatus.Completed))
+            db.downloadDao().upsert(SongDownload(source, "old", DownloadStatus.Queued))
+            assertTrue(shelves(20_000, downloaded = true).isEmpty())
+            db.downloadDao().upsert(SongDownload(source, "extra", DownloadStatus.Completed))
+            val offline = shelves(20_000, downloaded = true)
+            assertEquals(setOf("Rock"), offline.keys)
+            assertEquals(listOf("new"), offline.getValue("Rock").map { it.album.id })
+        }
+
     private suspend fun seed(): Long {
         val source = db.sourcesDao().insertSource(Source(name = "test", address = "http://localhost", isActive = false, createdAt = 0))
         db.libraryDao().upsertAlbums(

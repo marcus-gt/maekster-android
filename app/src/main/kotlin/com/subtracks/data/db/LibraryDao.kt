@@ -21,6 +21,7 @@ import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.ArtistSearch
 import com.subtracks.data.model.Disc
 import com.subtracks.data.model.DiscKey
+import com.subtracks.data.model.HomeGenreAlbum
 import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSearch
@@ -857,6 +858,9 @@ interface LibraryDao {
 
     @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, SongDownload::class])
     fun genreAlbumSummary(query: RoomRawQuery): Flow<AlbumCollectionSummary>
+
+    @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, SongDownload::class])
+    fun homeGenreAlbums(query: RoomRawQuery): Flow<List<HomeGenreAlbum>>
 
     @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, AlbumLabel::class, SongDownload::class])
     fun collectionAlbumsPaging(query: RoomRawQuery): PagingSource<Int, Album>

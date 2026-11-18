@@ -19,6 +19,7 @@ import com.subtracks.data.db.genreGroupsQuery
 import com.subtracks.data.db.genreMapping
 import com.subtracks.data.db.groupedGenreAlbumsQuery
 import com.subtracks.data.db.hasDownloadedCollectionsQuery
+import com.subtracks.data.db.homeGenreAlbumsQuery
 import com.subtracks.data.db.letterBucketsQuery
 import com.subtracks.data.db.playlistsPageQuery
 import com.subtracks.data.db.rediscoverAlbumsQuery
@@ -32,6 +33,7 @@ import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistAlbums
 import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.Disc
+import com.subtracks.data.model.HomeGenreShelf
 import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.PinRef
 import com.subtracks.data.model.PinnedItem
@@ -444,6 +446,17 @@ class LibraryRepository(
     ): Flow<AlbumCollectionSummary> =
         genreTags(sourceId, genre, style = null).distinctUntilChanged().flatMapLatest { tags ->
             db.libraryDao().genreAlbumSummary(genreAlbumSummaryQuery(sourceId, genre, tags, downloaded))
+        }
+
+    internal fun homeGenreShelves(
+        sourceId: Long,
+        day: Long,
+        downloaded: Boolean,
+    ): Flow<List<HomeGenreShelf>> =
+        genreMapping(sourceId).distinctUntilChanged().flatMapLatest { mapping ->
+            db.libraryDao().homeGenreAlbums(homeGenreAlbumsQuery(sourceId, mapping, day, downloaded)).map { rows ->
+                rows.groupBy({ it.shelfGenre }, { it.album }).map { (genre, albums) -> HomeGenreShelf(genre, albums) }
+            }
         }
 
     internal fun groupedGenreAlbums(
