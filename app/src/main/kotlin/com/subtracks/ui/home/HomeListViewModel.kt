@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.subtracks.R
+import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumCollectionKind
 import com.subtracks.data.model.AlbumSongItem
@@ -14,14 +15,16 @@ import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
 import com.subtracks.data.prefs.AlbumSort
-import com.subtracks.data.prefs.ArtistSort
+import com.subtracks.data.prefs.FavoriteSort
 import com.subtracks.data.prefs.PlaylistSort
 import com.subtracks.data.prefs.StarredFilter
+import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.ArtistArt
 import com.subtracks.ui.components.artistArt
+import com.subtracks.ui.library.LibrarySongsQuery
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -41,6 +44,7 @@ data class HomeListRequest(
     val decade: Long? = null,
     val downloaded: OfflineListKind? = null,
     val favorites: FavoriteKind? = null,
+    val favoriteSort: FavoriteSort = FavoriteSort.Starred,
     // A genre's or a label's albums, opened from the Library's Genres or Labels list.
     val collection: AlbumCollectionKind? = null,
     val collectionName: String? = null,
@@ -69,13 +73,14 @@ class HomeListViewModel(
     private val libraryRepository: LibraryRepository,
     private val sourceRepository: SourceRepository,
     private val playbackController: PlaybackController,
+    preferences: UserPreferences,
     val request: HomeListRequest,
 ) : ViewModel() {
     private val sourceId = libraryRepository.activeSourceId.filterNotNull()
 
     // Favorite songs are the same list as Home's recent favorites: newest first, played as the favorites queue.
     private val favoriteSongs =
-        request.section == HomeSection.RecentlyStarredSongs || request.favorites == FavoriteKind.Songs
+        request.section == HomeSection.RecentlyStarredSongs
 
     // Offline, favorites show only what is downloaded, like every other list.
     private val sourceAndOffline = combine(sourceId, sourceRepository.offline) { id, offline -> id to offline }
@@ -90,7 +95,8 @@ class HomeListViewModel(
             .flatMapLatest { (id, offline) ->
                 when {
                     request.favorites == FavoriteKind.Albums || request.section == HomeSection.FavoriteAlbums -> {
-                        libraryRepository.albums(id, AlbumSort.Starred, false, StarredFilter.Starred, "", offline)
+                        val sort = if (request.favorites == null) AlbumSort.Starred else request.favoriteSort.albums
+                        libraryRepository.albums(id, sort, false, StarredFilter.Starred, "", offline)
                     }
 
                     request.downloaded == OfflineListKind.Albums -> {
@@ -131,7 +137,8 @@ class HomeListViewModel(
         sourceAndOffline
             .flatMapLatest { (id, offline) ->
                 if (request.favorites == FavoriteKind.Artists) {
-                    return@flatMapLatest libraryRepository.artists(id, ArtistSort.Starred, false, StarredFilter.Starred, "", offline)
+                    val sort = request.favoriteSort.artists
+                    return@flatMapLatest libraryRepository.artists(id, sort, false, StarredFilter.Starred, "", offline)
                 }
                 when (request.section) {
                     HomeSection.RecentlyPlayedArtists -> {
@@ -178,6 +185,34 @@ class HomeListViewModel(
                     else -> flowOf(PagingData.empty<AlbumSongItem>())
                 }
             }.cachedIn(viewModelScope)
+
+    internal val favoriteSongsQuery: StateFlow<LibrarySongsQuery?> =
+        combine(libraryRepository.activeSourceId, sourceRepository.offline, preferences.sortNameMode()) { id, offline, mode ->
+            id?.let {
+                LibrarySongsQuery(
+                    it,
+                    SongListSpec(
+                        sort = request.favoriteSort.songs,
+                        starred = StarredFilter.Starred,
+                        downloaded = offline,
+                        sortNameMode = mode,
+                    ),
+                )
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    internal fun favoriteSongs(query: LibrarySongsQuery) = libraryRepository.songs(query.sourceId, query.spec)
+
+    internal fun playFavorites(
+        query: LibrarySongsQuery,
+        index: Int = 0,
+        shuffled: Boolean = false,
+        inOrder: Boolean = false,
+    ) {
+        if (query == favoriteSongsQuery.value) {
+            playbackController.playFavoriteSongs(query.sourceId, query.spec, index.toLong(), shuffled, inOrder)
+        }
+    }
 
     val genres: StateFlow<List<String>> =
         sourceId

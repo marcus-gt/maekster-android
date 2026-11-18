@@ -428,6 +428,18 @@ class PlaybackController(
         spec: SongListSpec,
     ) = shuffleContext(queueRepository.libraryEntry(sourceId, spec))
 
+    internal fun playFavoriteSongs(
+        sourceId: Long,
+        spec: SongListSpec,
+        startOrdinal: Long,
+        shuffled: Boolean,
+        inOrder: Boolean,
+    ) {
+        val entries = listOf(queueRepository.libraryEntry(sourceId, spec))
+        val origin = queueRepository.starredEntry(sourceId)
+        if (shuffled) shufflePlay(entries, origin) else play(entries, startOrdinal, disableShuffle = inOrder, origin = origin)
+    }
+
     private fun playContext(
         entry: QueueEntry,
         start: Long,

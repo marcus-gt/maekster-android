@@ -92,6 +92,7 @@
     <string name="resources_sort_by_frequently_played">Frequently played</string>
     <string name="resources_sort_by_name">Name</string>
     <string name="resources_sort_by_recently_played">Recently played</string>
+    <string name="resources_sort_by_recently_favorited">Recently favorited</string>
     <string name="resources_sort_by_title">Title</string>
     <string name="resources_sort_by_updated">Updated</string>
     <string name="resources_sort_by_released">Released</string>

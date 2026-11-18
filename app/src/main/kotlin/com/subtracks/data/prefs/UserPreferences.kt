@@ -33,7 +33,17 @@ enum class ArtistSort { Name, AlbumCount, Starred, Frequent, Recent }
 
 enum class PlaylistSort { Name, Added, Updated, LastUsed }
 
-enum class SongSort { Name, Artist, Album, Added, Recent, Released }
+enum class SongSort { Name, Artist, Album, Added, Recent, Released, Starred }
+
+enum class FavoriteSort(
+    val songs: SongSort,
+    val albums: AlbumSort,
+    val artists: ArtistSort,
+) {
+    Name(SongSort.Name, AlbumSort.Name, ArtistSort.Name),
+    Starred(SongSort.Starred, AlbumSort.Starred, ArtistSort.Starred),
+    Recent(SongSort.Recent, AlbumSort.Recent, ArtistSort.Recent),
+}
 
 /** Genres and record labels sort by name or by how many albums they cover. */
 enum class CollectionSort { Name, AlbumCount }
@@ -145,6 +155,15 @@ class UserPreferences(
     }
 
     private val homeLayoutKey = stringPreferencesKey("home_layout")
+
+    private val favoriteSortKey = stringPreferencesKey("favorite_sort")
+
+    fun favoriteSort(): Flow<FavoriteSort> =
+        store.data.map { prefs -> FavoriteSort.entries.firstOrNull { it.name == prefs[favoriteSortKey] } ?: FavoriteSort.Starred }
+
+    suspend fun setFavoriteSort(sort: FavoriteSort) {
+        store.edit { it[favoriteSortKey] = sort.name }
+    }
 
     fun albumsAsList(): Flow<Boolean> = store.data.map { it[albumsAsListKey] ?: false }
 

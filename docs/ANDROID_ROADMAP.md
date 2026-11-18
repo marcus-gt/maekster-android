@@ -905,7 +905,7 @@ prototype in UX-04 before rolling it out. The recommendation audit in UX-12 may 
 | UX-06 | [Playlists: clarify Updated and add Last used if distinct](https://github.com/marcus-gt/maekster-android/issues/36) | [Complete](handoffs/UX-06-playlist-last-used.md) |
 | UX-07 | [Songs: play or shuffle the current Library result](https://github.com/marcus-gt/maekster-android/issues/37) | [Complete](handoffs/UX-07-songs-result-playback.md) |
 | UX-08 | [Songs: Recently played and Released sorting](https://github.com/marcus-gt/maekster-android/issues/7) | [Complete](handoffs/UX-08-song-date-sorts.md) |
-| UX-09 | [Favorites: sorting and Play/Shuffle](https://github.com/marcus-gt/maekster-android/issues/38) | — |
+| UX-09 | [Favorites: sorting and Play/Shuffle](https://github.com/marcus-gt/maekster-android/issues/38) | [Complete](handoffs/UX-09-favorites-sorts.md) |
 | UX-10 | [Library Genres: styles and playback controls](https://github.com/marcus-gt/maekster-android/issues/9) | — |
 | UX-11 | [Home: rotating genre album grids](https://github.com/marcus-gt/maekster-android/issues/39) | — |
 | UX-12 | [Home and Discover: audit recommendation behavior against iOS](https://github.com/marcus-gt/maekster-android/issues/40) | — |

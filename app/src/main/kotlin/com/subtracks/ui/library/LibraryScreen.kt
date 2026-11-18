@@ -614,7 +614,7 @@ fun LibraryListScreen(
 }
 
 @Composable
-private fun SongListPlaybackActions(
+internal fun SongListPlaybackActions(
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
 ) {

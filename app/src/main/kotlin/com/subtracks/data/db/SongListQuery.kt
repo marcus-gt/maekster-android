@@ -134,6 +134,7 @@ internal fun songOrder(spec: SongListSpec): String {
             SongSort.Album -> albumTracks.map { it to false }
             SongSort.Added -> listOf("songs.created" to true, name to false)
             SongSort.Recent -> return dateOrder("songs.played")
+            SongSort.Starred -> return dateOrder("songs.starred")
             SongSort.Released -> return dateOrder("COALESCE(NULLIF(songs.year, 0), NULLIF(albums.year, 0))")
         } + ("songs.id" to false)
     return terms.joinToString(", ") { (term, naturalDescending) ->

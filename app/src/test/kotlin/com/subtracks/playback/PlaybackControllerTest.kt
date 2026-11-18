@@ -540,6 +540,29 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun favoriteSongPlaybackFollowsTheSortAndKeepsOnlyDownloadedFavoritesOffline() {
+        seedAlbum(5, sourceId = 1)
+        runBlocking {
+            db.libraryDao().setSongStar(1, "s2", 100)
+            db.libraryDao().setSongStar(1, "s4", 300)
+            db.libraryDao().setSongStar(1, "s5", 500)
+        }
+        for (id in listOf("s1", "s2", "s4")) markDownloaded(1, id)
+        setOffline()
+        val spec = SongListSpec(sort = SongSort.Starred, starred = StarredFilter.Starred, downloaded = true)
+
+        controller.playFavoriteSongs(1, spec, 0, shuffled = false, inOrder = true)
+        awaitUntil("sorted favorites play offline") { controller.state.value.item != null }
+        assertEquals(listOf("s4", "s2"), handle.items.map { it.id })
+        assertEquals("Favorites", runBlocking { controller.sourceTitle(controller.state.value.context, resources) })
+
+        controller.playFavoriteSongs(1, spec, 0, shuffled = true, inOrder = false)
+        awaitUntil("favorites shuffle") { controller.state.value.shuffle }
+        assertEquals(setOf("s2", "s4"), handle.items.map { it.id }.toSet())
+        assertEquals(2L, runBlocking { queues.snapshot().contextSize })
+    }
+
+    @Test
     fun libraryPlaybackPersistsItsCollectionLabelThroughUndo() {
         seedAlbum(3, sourceId = 1)
         controller.playLibrarySongs(1, SongListSpec(), 0)

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
+import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
@@ -70,7 +72,9 @@ import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.ShuffleFab
 import com.subtracks.ui.library.PlaylistsContent
+import com.subtracks.ui.library.SongListPlaybackActions
 import com.subtracks.ui.library.SongRow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -92,8 +96,15 @@ fun HomeListRoute(
     viewModel: HomeListViewModel = koinViewModel { parametersOf(request) },
     playbackController: PlaybackController = koinInject(),
     topBarExtra: (@Composable () -> Unit)? = null,
+    topBarActions: @Composable RowScope.() -> Unit = {},
 ) {
     val playback by playbackController.state.collectAsStateWithLifecycle()
+    val favoriteQuery =
+        if (request.favorites == FavoriteKind.Songs) viewModel.favoriteSongsQuery.collectAsStateWithLifecycle().value else null
+    val favoriteSongs =
+        remember(viewModel, favoriteQuery) {
+            favoriteQuery?.let(viewModel::favoriteSongs) ?: flowOf(PagingData.empty())
+        }
     val genresState = if (request.section == HomeSection.Genres) viewModel.genres.collectAsStateWithLifecycle() else null
     val genres = genresState?.value.orEmpty()
     val decadesState = if (request.section == HomeSection.Decades) viewModel.decades.collectAsStateWithLifecycle() else null
@@ -110,7 +121,7 @@ fun HomeListRoute(
         request = request,
         albums = viewModel.albums.collectAsLazyPagingItems(),
         artists = viewModel.artists.collectAsLazyPagingItems(),
-        songs = viewModel.songs.collectAsLazyPagingItems(),
+        songs = (if (request.favorites == FavoriteKind.Songs) favoriteSongs else viewModel.songs).collectAsLazyPagingItems(),
         playlists = viewModel.playlists.collectAsLazyPagingItems(),
         genres = genres,
         decades = decades,
@@ -122,11 +133,15 @@ fun HomeListRoute(
         onArtistClick = onArtistClick,
         onPlaylistClick = onPlaylistClick,
         onSongClick = viewModel::play,
+        onFavoriteSongClick = favoriteQuery?.let { query -> { index -> viewModel.playFavorites(query, index) } },
+        onPlayFavorites = favoriteQuery?.let { query -> { viewModel.playFavorites(query, inOrder = true) } },
+        onShuffleFavorites = favoriteQuery?.let { query -> { viewModel.playFavorites(query, shuffled = true) } },
         onLongClick = { contextMenuHost?.show(it, actions) },
         onShuffle = if (viewModel.canShuffle) viewModel::shuffle else null,
         onGenreClick = onGenreClick,
         onDecadeClick = onDecadeClick,
         topBarExtra = topBarExtra,
+        topBarActions = topBarActions,
     )
 }
 
@@ -151,10 +166,14 @@ fun HomeListScreen(
     onSongClick: (Song) -> Unit = {},
     onLongClick: (MenuTarget) -> Unit = {},
     onShuffle: (() -> Unit)? = null,
+    onFavoriteSongClick: ((Int) -> Unit)? = null,
+    onPlayFavorites: (() -> Unit)? = null,
+    onShuffleFavorites: (() -> Unit)? = null,
     onGenreClick: (String) -> Unit = {},
     onDecadeClick: (Long) -> Unit = {},
     // Shown under the top bar, such as the Favorites page's Songs, Albums and Artists switcher.
     topBarExtra: (@Composable () -> Unit)? = null,
+    topBarActions: @Composable RowScope.() -> Unit = {},
 ) {
     val now = remember { System.currentTimeMillis() }
     val resources = LocalResources.current
@@ -166,6 +185,7 @@ fun HomeListScreen(
             Column {
                 TopAppBar(
                     title = { Text(request.title) },
+                    actions = topBarActions,
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
@@ -181,6 +201,11 @@ fun HomeListScreen(
                         },
                 )
                 topBarExtra?.invoke()
+                if (request.favorites == FavoriteKind.Songs && songs.itemCount > 0 && onPlayFavorites != null &&
+                    onShuffleFavorites != null
+                ) {
+                    SongListPlaybackActions(onPlayFavorites, onShuffleFavorites)
+                }
             }
         },
         floatingActionButton = {
@@ -204,6 +229,7 @@ fun HomeListScreen(
                 onSongClick = onSongClick,
                 onLongClick = onLongClick,
                 songListState = songListState,
+                onSongIndexClick = onFavoriteSongClick,
                 modifier = Modifier.padding(padding),
             )
             return@Scaffold
@@ -351,7 +377,7 @@ private fun <T> PlainList(
     }
 }
 
-/** One list of the Favorites page, newest favorite first, with a hint when it is empty. */
+/** One list of the Favorites page, with a hint when it is empty. */
 @Composable
 private fun FavoritesContent(
     kind: FavoriteKind,
@@ -367,6 +393,7 @@ private fun FavoritesContent(
     onLongClick: (MenuTarget) -> Unit,
     songListState: LazyListState,
     modifier: Modifier = Modifier,
+    onSongIndexClick: ((Int) -> Unit)? = null,
 ) {
     val shown: LazyPagingItems<*> =
         when (kind) {
@@ -380,7 +407,7 @@ private fun FavoritesContent(
     }
     when (kind) {
         FavoriteKind.Songs -> {
-            SongsList(songs, coverArt, playingSongId, onSongClick, onLongClick, songListState, modifier)
+            SongsList(songs, coverArt, playingSongId, onSongClick, onLongClick, songListState, modifier, onSongIndexClick)
         }
 
         FavoriteKind.Albums -> {
@@ -402,6 +429,7 @@ private fun SongsList(
     onLongClick: (MenuTarget) -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier,
+    onSongIndexClick: ((Int) -> Unit)? = null,
 ) {
     if (songs.itemCount == 0 && songs.loadState.refresh is LoadState.Loading) {
         LoadingState(modifier)
@@ -423,7 +451,7 @@ private fun SongsList(
                     durationSeconds = item.song.duration,
                     modifier =
                         Modifier.combinedClickable(
-                            onClick = { onSongClick(item.song) },
+                            onClick = { if (onSongIndexClick != null) onSongIndexClick(index) else onSongClick(item.song) },
                             onLongClick = { onLongClick(MenuTarget.Song(item.song, coverArt(item.coverArt, true))) },
                         ),
                 )
