@@ -1,5 +1,6 @@
 package com.subtracks.ui.discover
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,11 +27,14 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -44,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -134,21 +139,32 @@ internal fun SongPathCard(
 ) {
     val from = path.from(playing)
     val to = path.to
+    val colors = remember { songPathColors() }
+    val brush = remember(colors) { colors.discoverCardBrush() }
+    val playContent = colors.darkPrimary
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).testTag("songPathCard"),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        colors = vividCardColors(),
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(Modifier.fillMaxWidth().background(brush).padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.AutoMirrored.Rounded.AltRoute, contentDescription = null)
                 Text(stringResource(R.string.song_path_title), Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                IconButton(onClick = { path.swap(playing) }, enabled = !building && (from != null || to != null)) {
+                IconButton(
+                    onClick = { path.swap(playing) },
+                    enabled = !building && (from != null || to != null),
+                    colors =
+                        IconButtonDefaults.iconButtonColors(
+                            contentColor = VividCardText,
+                            disabledContentColor = VividCardText.copy(alpha = 0.4f),
+                        ),
+                ) {
                     Icon(Icons.Rounded.SwapVert, stringResource(R.string.song_path_swap))
                 }
             }
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+            Card(colors = CardDefaults.cardColors(containerColor = VividPanel, contentColor = VividCardText)) {
                 SongPathEndpointRow(SongPathSide.From, from, cover, !building) { path.editing = SongPathSide.From }
-                HorizontalDivider()
+                HorizontalDivider(color = VividCardText.copy(alpha = 0.18f))
                 SongPathEndpointRow(SongPathSide.To, to, cover, !building) { path.editing = SongPathSide.To }
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -164,17 +180,36 @@ internal fun SongPathCard(
                         valueRange = SongPathBuilder.MIN_LENGTH.toFloat()..SongPathBuilder.MAX_LENGTH.toFloat(),
                         steps = SongPathBuilder.MAX_LENGTH - SongPathBuilder.MIN_LENGTH - 1,
                         enabled = !building,
+                        colors =
+                            SliderDefaults.colors(
+                                thumbColor = VividCardText,
+                                activeTrackColor = VividCardText,
+                                activeTickColor = VividCardText.copy(alpha = 0.5f),
+                                inactiveTrackColor = VividCardText.copy(alpha = 0.28f),
+                                inactiveTickColor = VividCardText.copy(alpha = 0.5f),
+                            ),
                         modifier = Modifier.semantics { contentDescription = lengthLabel },
                     )
                 }
                 FilledIconButton(
                     onClick = { if (from != null && to != null) onPlay(from.endpoint, to.endpoint, path.length) },
                     enabled = !busy && !building && SongPathBuilder.canBuild(from?.endpoint, to?.endpoint),
+                    colors =
+                        IconButtonDefaults.filledIconButtonColors(
+                            containerColor = VividCardText,
+                            contentColor = playContent,
+                            disabledContainerColor = VividCardText.copy(alpha = 0.18f),
+                            disabledContentColor = VividCardText.copy(alpha = 0.5f),
+                        ),
                     modifier = Modifier.size(48.dp),
                 ) {
                     if (building) {
                         val label = stringResource(R.string.song_path_building)
-                        CircularProgressIndicator(Modifier.size(22.dp).semantics { contentDescription = label }, strokeWidth = 2.dp)
+                        CircularProgressIndicator(
+                            Modifier.size(22.dp).semantics { contentDescription = label },
+                            strokeWidth = 2.dp,
+                            color = VividCardText,
+                        )
                     } else {
                         Icon(Icons.Rounded.PlayArrow, stringResource(R.string.song_path_play))
                     }
@@ -222,6 +257,14 @@ private fun SongPathEndpointRow(
             }
         },
         trailingContent = { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null) },
+        colors =
+            ListItemDefaults.colors(
+                containerColor = Color.Transparent,
+                headlineColor = VividCardText,
+                supportingColor = VividCardText.copy(alpha = 0.82f),
+                leadingIconColor = VividCardText,
+                trailingIconColor = VividCardText.copy(alpha = 0.82f),
+            ),
         modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
     )
 }
