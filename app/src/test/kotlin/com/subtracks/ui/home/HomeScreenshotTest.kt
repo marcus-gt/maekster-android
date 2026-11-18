@@ -21,7 +21,7 @@ import com.subtracks.data.model.Artist
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
 import com.subtracks.ui.theme.MaeksterTheme
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -93,10 +93,10 @@ class HomeScreenshotTest {
             MaeksterTheme {
                 HomeListScreen(
                     request = HomeListRequest(title = "Recently added", section = HomeSection.RecentlyAddedAlbums),
-                    albums = remember { flowOf(PagingData.from(albums)) }.collectAsLazyPagingItems(),
-                    artists = remember { flowOf(PagingData.empty<Artist>()) }.collectAsLazyPagingItems(),
-                    songs = remember { flowOf(PagingData.empty<AlbumSongItem>()) }.collectAsLazyPagingItems(),
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) }.collectAsLazyPagingItems(),
+                    albums = remember { MutableStateFlow(PagingData.from(albums)) }.collectAsLazyPagingItems(),
+                    artists = remember { MutableStateFlow(PagingData.empty<Artist>()) }.collectAsLazyPagingItems(),
+                    songs = remember { MutableStateFlow(PagingData.empty<AlbumSongItem>()) }.collectAsLazyPagingItems(),
+                    playlists = remember { MutableStateFlow(PagingData.empty<Playlist>()) }.collectAsLazyPagingItems(),
                     coverArt = { _, _ -> null },
                 )
             }
@@ -119,10 +119,10 @@ class HomeScreenshotTest {
             MaeksterTheme {
                 HomeListScreen(
                     request = HomeListRequest(title = "Recently played artists", section = HomeSection.RecentlyPlayedArtists),
-                    albums = remember { flowOf(PagingData.empty<Album>()) }.collectAsLazyPagingItems(),
-                    artists = remember { flowOf(PagingData.from(artists)) }.collectAsLazyPagingItems(),
-                    songs = remember { flowOf(PagingData.empty<AlbumSongItem>()) }.collectAsLazyPagingItems(),
-                    playlists = remember { flowOf(PagingData.empty<Playlist>()) }.collectAsLazyPagingItems(),
+                    albums = remember { MutableStateFlow(PagingData.empty<Album>()) }.collectAsLazyPagingItems(),
+                    artists = remember { MutableStateFlow(PagingData.from(artists)) }.collectAsLazyPagingItems(),
+                    songs = remember { MutableStateFlow(PagingData.empty<AlbumSongItem>()) }.collectAsLazyPagingItems(),
+                    playlists = remember { MutableStateFlow(PagingData.empty<Playlist>()) }.collectAsLazyPagingItems(),
                     coverArt = { _, _ -> null },
                 )
             }
@@ -152,9 +152,19 @@ class HomeScreenshotTest {
             MaeksterTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     OfflineHomeScreen(
-                        albums = remember { flowOf(PagingData.from(listOf(listAlbum("Offline Album", 0)))) }.collectAsLazyPagingItems(),
-                        artists = remember { flowOf(PagingData.from(listOf(listArtist("Offline Artist", 0)))) }.collectAsLazyPagingItems(),
-                        playlists = remember { flowOf(PagingData.empty<Playlist>()) }.collectAsLazyPagingItems(),
+                        albums =
+                            remember {
+                                MutableStateFlow(
+                                    PagingData.from(listOf(listAlbum("Offline Album", 0))),
+                                )
+                            }.collectAsLazyPagingItems(),
+                        artists =
+                            remember {
+                                MutableStateFlow(
+                                    PagingData.from(listOf(listArtist("Offline Artist", 0))),
+                                )
+                            }.collectAsLazyPagingItems(),
+                        playlists = remember { MutableStateFlow(PagingData.empty<Playlist>()) }.collectAsLazyPagingItems(),
                         songs = songs(),
                         coverArt = { _, _ -> null },
                         playingSongId = null,

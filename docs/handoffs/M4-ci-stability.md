@@ -1,0 +1,21 @@
+# Milestone 4 — PR #28 CI investigation
+
+**Verified locally.** PR #28 at `bb4ff6ad` failed in the regular test job. The follow-up contains the local fixes. GitHub verification of the follow-up is still pending.
+
+- The first GitHub run reported three Home screenshot timeouts and a playlist batch assertion
+  (expected one completed batch, received zero). Both failure patterns predate Milestone 4.
+- Home screenshot fixtures now use replaying StateFlows so Paging Compose can seed the static list
+  synchronously. The three render scenarios and assertions are unchanged.
+- The initial playlist publisher could cancel a consuming coroutine by throwing after a successful
+  send. Close the producer channel with the parse/read failure so the consumer processes the
+  preceding batch before it sees the error. Preserve caller cancellation and missing-playlist rules.
+- Both GitHub attempts failed on the Home and playlist tests. Attempt 2 also timed out in
+  `QueueViewModelTest.removingWhileShuffledReconcilesTheRows`. The queue timeout reproduced locally
+  after a passing full run. The revised test reads the repository and rows on the shared dispatcher,
+  requires that one item was removed, and checks every remaining row against the saved queue.
+  The QueueViewModel suite passed with this change. No production queue code changed.
+- The slow-collector regression reproduced the CI assertion before the fix and passed after it.
+  Both affected test classes and QueueViewModelTest passed. Formatting, debug build, lint and
+  all 1,919 tests passed in the final local run with `--no-parallel --max-workers=2`.
+- Wait for a passing GitHub check on the amended PR before merging. Its build, nightly artifact,
+  and real-server integration stages have not been verified on these local changes.

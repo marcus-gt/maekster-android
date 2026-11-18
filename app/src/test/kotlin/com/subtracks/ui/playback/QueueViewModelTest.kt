@@ -179,11 +179,16 @@ class QueueViewModelTest {
 
         viewModel.remove(removePosition)
 
-        await {
-            val snapshot = runBlocking { queues.snapshot() }
-            val rows = rowsSnapshot()
-            rows.isNotEmpty() &&
-                runBlocking { rows.all { queues.itemAt(snapshot, it.position)?.song?.id == it.song.song.id } }
+        awaitUntil("removing a shuffled row and reconciling the remaining rows") {
+            runBlocking {
+                withContext(dispatcher) {
+                    val snapshot = queues.snapshot()
+                    val rows = viewModel.rows.toList()
+                    snapshot.size == before.size - 1 &&
+                        rows.size.toLong() == snapshot.size &&
+                        rows.all { queues.itemAt(snapshot, it.position)?.song?.id == it.song.song.id }
+                }
+            }
         }
     }
 
