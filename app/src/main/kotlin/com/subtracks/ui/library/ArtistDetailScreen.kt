@@ -36,7 +36,6 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Audiotrack
 import androidx.compose.material.icons.rounded.Category
@@ -129,6 +128,7 @@ import com.subtracks.ui.components.CloseWhenDownloadsGone
 import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.components.CoverArt
 import com.subtracks.ui.components.DismissOnRequest
+import com.subtracks.ui.components.HeroBackButton
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.ListDownloadIndicator
 import com.subtracks.ui.components.MenuTarget
@@ -589,9 +589,7 @@ fun ArtistDetailScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack, modifier = Modifier.graphicsLayer { alpha = barFraction }) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
-                        }
+                        HeroBackButton(onBack = onBack, barFraction = { barFraction })
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     modifier =

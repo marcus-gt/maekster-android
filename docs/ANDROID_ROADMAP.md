@@ -913,6 +913,38 @@ prototype in UX-04 before rolling it out. The recommendation audit in UX-12 may 
 | UX-14 | [Home: align In heavy rotation and Rediscover selection with iOS](https://github.com/marcus-gt/maekster-android/issues/42) | [Complete](handoffs/UX-14-rediscover-ios.md) |
 | UX-15 | [Home: align Artist picks ranking and rotation with iOS](https://github.com/marcus-gt/maekster-android/issues/43) | [Complete](handoffs/UX-15-artist-picks-ios.md) |
 
+## Post-M4 — UX polish 2: artist, album and Now Playing
+
+[Issue #45](https://github.com/marcus-gt/maekster-android/issues/45) holds the owner's requests and the iOS
+reference screenshots. Its sub-issues hold the acceptance criteria. Work on branch `ux/45-artist-now-playing`,
+one slice per session, in table order unless a slice is blocked. Handoffs are `docs/handoffs/UX-<number>-<topic>.md`.
+The [starter handoff](handoffs/UX-45-starter.md) sets out the shared context, the key files and the workflow.
+
+Dependencies and gates:
+
+- UX-20 reuses the carousel extracted in UX-19.
+- UX-24 uses the station name decided in UX-23.
+- UX-27 follows UX-26, but its tests can use fakes.
+- UX-17 needs owner feedback on a before/after screenshot before rollout.
+- UX-23 and possibly UX-26 need an owner decision.
+- Record a pending decision in the handoff, then stop the slice or take the next unblocked one.
+- UX-19 and UX-21 fetch on page open. Record that in D9 below; it is the owner's request (#45), matching iOS.
+
+| Slice | GitHub issue | Handoff |
+|---|---|---|
+| UX-16 | [Album, playlist and artist pages: always show the back button](https://github.com/marcus-gt/maekster-android/issues/46) | Complete ([handoff](handoffs/UX-16-hero-back-button.md)) |
+| UX-17 | [Artist page: photo fades into the page as on iOS](https://github.com/marcus-gt/maekster-android/issues/47) | Not started |
+| UX-18 | [Artist page: Latest release card](https://github.com/marcus-gt/maekster-android/issues/48) | Not started |
+| UX-19 | [Artist page: Top songs carousel with Play and Shuffle](https://github.com/marcus-gt/maekster-android/issues/49) | Not started |
+| UX-20 | [Artist page: Liked songs carousel](https://github.com/marcus-gt/maekster-android/issues/50) | Not started |
+| UX-21 | [Artist page: load similar artists automatically](https://github.com/marcus-gt/maekster-android/issues/51) | Not started |
+| UX-22 | [Artist page: optional album list layout](https://github.com/marcus-gt/maekster-android/issues/52) | Not started |
+| UX-23 | [Artist page: align Start station with Discover stations and Instant Mix](https://github.com/marcus-gt/maekster-android/issues/53) | Not started |
+| UX-24 | [Now Playing: static header and playback source type](https://github.com/marcus-gt/maekster-android/issues/54) | Not started |
+| UX-25 | [Now Playing: album line and iOS text hierarchy](https://github.com/marcus-gt/maekster-android/issues/55) | Not started |
+| UX-26 | [Lyrics: find out why lyrics are not synced](https://github.com/marcus-gt/maekster-android/issues/56) | Not started |
+| UX-27 | [Lyrics: blur, reading mode and inline line as on iOS](https://github.com/marcus-gt/maekster-android/issues/57) | Not started |
+
 ---
 
 ## Product decisions

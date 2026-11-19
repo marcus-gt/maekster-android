@@ -103,8 +103,10 @@ Avoid repeating broad architecture investigations when the existing documentatio
 
 ### Current UX polish work
 
-Use [Post-M4 UX polish](docs/ANDROID_ROADMAP.md#post-m4--ux-polish) for slice order and GitHub
-links. Take the explicitly assigned slice, read its issue and relevant handoff, and update one
+The current round is [UX polish 2](docs/ANDROID_ROADMAP.md#post-m4--ux-polish-2-artist-album-and-now-playing)
+(parent #45, slices UX-16 to UX-27); start from its [starter handoff](docs/handoffs/UX-45-starter.md).
+The first round, [Post-M4 UX polish](docs/ANDROID_ROADMAP.md#post-m4--ux-polish), is complete. Use the
+roadmap for slice order and GitHub links. Take the explicitly assigned slice, read its issue and relevant handoff, and update one
 `docs/handoffs/UX-<number>-<topic>.md` when handing it back. Use the umbrella issue for screenshots
 and shared design context. The roadmap links the starter handoff for the first slice.
 
