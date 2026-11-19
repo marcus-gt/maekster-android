@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PushPin
@@ -161,6 +163,13 @@ data class ItemActions(
     val removeFromPlaylist: ((MenuTarget.Song) -> Unit)? = null,
     val renamePlaylist: ((PlaylistModel) -> Unit)? = null,
     val deletePlaylist: ((PlaylistModel) -> Unit)? = null,
+    val albumLayout: AlbumLayoutChoice? = null,
+)
+
+/** The artist page's discography layout, offered in its … menu: [asList] is the current choice. */
+data class AlbumLayoutChoice(
+    val asList: Boolean,
+    val onSet: (Boolean) -> Unit,
 )
 
 class ContextMenuHost {
@@ -333,6 +342,14 @@ fun ItemContextMenu(
                 }
 
                 is MenuTarget.Artist -> {
+                    actions.albumLayout?.let { layout ->
+                        MenuItem(
+                            if (layout.asList) Icons.Rounded.GridView else Icons.AutoMirrored.Rounded.ViewList,
+                            stringResource(if (layout.asList) R.string.artist_albums_as_grid else R.string.artist_albums_as_list),
+                        ) {
+                            dismiss { layout.onSet(!layout.asList) }
+                        }
+                    }
                     BulkDownloadItem(target, actions, ::dismiss)
                     StarItem(
                         current = target.artist.starred,

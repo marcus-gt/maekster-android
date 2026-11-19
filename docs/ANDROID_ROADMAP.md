@@ -938,7 +938,7 @@ Dependencies and gates:
 | UX-19 | [Artist page: Top songs carousel with Play and Shuffle](https://github.com/marcus-gt/maekster-android/issues/49) | Complete ([handoff](handoffs/UX-19-top-songs.md)) |
 | UX-20 | [Artist page: Liked songs carousel](https://github.com/marcus-gt/maekster-android/issues/50) | Complete ([handoff](handoffs/UX-20-liked-songs.md)) |
 | UX-21 | [Artist page: load similar artists automatically](https://github.com/marcus-gt/maekster-android/issues/51) | Complete ([handoff](handoffs/UX-21-similar-artists.md)) |
-| UX-22 | [Artist page: optional album list layout](https://github.com/marcus-gt/maekster-android/issues/52) | Not started |
+| UX-22 | [Artist page: optional album list layout](https://github.com/marcus-gt/maekster-android/issues/52) | Complete ([handoff](handoffs/UX-22-artist-album-list.md)) |
 | UX-23 | [Artist page: align Start station with Discover stations and Instant Mix](https://github.com/marcus-gt/maekster-android/issues/53) | Not started |
 | UX-24 | [Now Playing: static header and playback source type](https://github.com/marcus-gt/maekster-android/issues/54) | Not started |
 | UX-25 | [Now Playing: album line and iOS text hierarchy](https://github.com/marcus-gt/maekster-android/issues/55) | Not started |

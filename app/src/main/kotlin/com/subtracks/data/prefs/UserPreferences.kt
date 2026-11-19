@@ -181,6 +181,15 @@ class UserPreferences(
 
     private val artistsAsGridKey = booleanPreferencesKey("library_artists_as_grid")
 
+    /** The artist page's discography layout; the grid is the default, independent of the Library's album layout. */
+    fun artistAlbumsAsList(): Flow<Boolean> = store.data.map { it[artistAlbumsAsListKey] ?: false }
+
+    suspend fun setArtistAlbumsAsList(enabled: Boolean) {
+        store.edit { it[artistAlbumsAsListKey] = enabled }
+    }
+
+    private val artistAlbumsAsListKey = booleanPreferencesKey("artist_albums_as_list")
+
     private val genreAlbumSortKey = stringPreferencesKey("genre_album_sort")
 
     internal fun genreAlbumSort(): Flow<ListQuery> = store.data.map { decode(it[genreAlbumSortKey], AlbumSort.Year.name) }

@@ -12,6 +12,7 @@ import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.ListDownloadStatus
 import com.subtracks.data.model.Song
+import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
@@ -40,6 +41,7 @@ class ArtistDetailViewModel(
     private val playbackController: PlaybackController,
     private val downloadRepository: DownloadRepository,
     private val artistId: String,
+    private val userPreferences: UserPreferences,
 ) : ViewModel() {
     private val sourceId = libraryRepository.activeSourceId.filterNotNull()
 
@@ -86,6 +88,13 @@ class ArtistDetailViewModel(
     }
 
     val offline: StateFlow<Boolean> = sourceRepository.offline
+
+    val albumsAsList: StateFlow<Boolean> =
+        userPreferences.artistAlbumsAsList().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setAlbumsAsList(asList: Boolean) {
+        viewModelScope.launch { userPreferences.setArtistAlbumsAsList(asList) }
+    }
 
     val albums: StateFlow<ArtistAlbums?> =
         combine(sourceId, sourceRepository.offline) { id, offline -> id to offline }

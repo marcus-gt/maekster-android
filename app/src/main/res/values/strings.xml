@@ -69,6 +69,8 @@
     <string name="artist_section_albums">Albums</string>
     <string name="artist_section_appearances">Appears on</string>
     <string name="artist_latest_release">Latest release</string>
+    <string name="artist_albums_as_list">Show albums as a list</string>
+    <string name="artist_albums_as_grid">Show albums as a grid</string>
     <string name="artist_top_songs">Top songs</string>
     <string name="artist_liked_songs">Liked songs</string>
     <string name="artist_section_eps">EPs</string>

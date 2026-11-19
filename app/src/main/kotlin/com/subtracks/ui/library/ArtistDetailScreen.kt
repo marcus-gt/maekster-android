@@ -30,12 +30,14 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Audiotrack
 import androidx.compose.material.icons.rounded.Category
@@ -126,6 +128,7 @@ import com.subtracks.data.model.latestRelease
 import com.subtracks.data.model.releaseShelves
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
+import com.subtracks.ui.components.AlbumLayoutChoice
 import com.subtracks.ui.components.ArtistArt
 import com.subtracks.ui.components.ArtistHeroArt
 import com.subtracks.ui.components.CloseWhenDownloadsGone
@@ -182,11 +185,12 @@ internal fun estimateScrollPx(
     imageHeightPx: Float,
     albumHeightPx: Float,
     albumRowGapPx: Float,
+    columns: Int = 2,
 ): Float =
     if (index <= 0) {
         offset
     } else {
-        imageHeightPx + albumRowGapPx + (albumHeightPx + albumRowGapPx) * ((index - 1) / 2) + offset
+        imageHeightPx + albumRowGapPx + (albumHeightPx + albumRowGapPx) * ((index - 1) / columns) + offset
     }
 
 private val FADE_LEAD = 24.dp
@@ -200,6 +204,9 @@ private const val LATEST_RELEASE_KEY = "latestRelease"
 private const val TOP_SONGS_KEY = "topSongs"
 internal const val LIKED_SONGS_TAG = "likedSongs"
 private val LATEST_RELEASE_ART = 88.dp
+private val ALBUM_ROW_ART = 64.dp
+
+internal fun artistAlbumRowTag(albumId: String) = "artistAlbumRow-$albumId"
 
 /** Where the photo starts to fade out, and how opaque it still is halfway through the fade. */
 private const val HERO_FADE_START = 0.45f
@@ -268,6 +275,7 @@ fun ArtistDetailRoute(
     val offline by viewModel.offline.collectAsStateWithLifecycle()
     CloseWhenDownloadsGone(downloadStatus.downloaded, offline, onBack)
     val albumDownloads by viewModel.albumDownloads.collectAsStateWithLifecycle()
+    val albumsAsList by viewModel.albumsAsList.collectAsStateWithLifecycle()
     val topSongs: TopSongsViewModel = koinViewModel(key = "topSongs:$artistId") { parametersOf(artistId) }
     val topSongsState by topSongs.state.collectAsStateWithLifecycle()
     val likedSongs = viewModel.likedSongs.collectAsStateWithLifecycle().value
@@ -305,7 +313,15 @@ fun ArtistDetailRoute(
         onAlbumClick = onAlbumClick,
         albumDownloads = albumDownloads,
         onAlbumLongClick = { contextMenuHost?.show(it, actions) },
-        onMore = { artist?.let { contextMenuHost?.show(MenuTarget.Artist(it, artThumbnail ?: art, downloadStatus), actions) } },
+        albumsAsList = albumsAsList,
+        onMore = {
+            artist?.let {
+                contextMenuHost?.show(
+                    MenuTarget.Artist(it, artThumbnail ?: art, downloadStatus),
+                    actions.copy(albumLayout = AlbumLayoutChoice(albumsAsList, viewModel::setAlbumsAsList)),
+                )
+            }
+        },
         starred = artist?.starred != null,
         onToggleStar = artist?.let { a -> { setStar(StarType.Artist, a.id, a.starred == null) } },
         onExpandBio = viewModel::expandBio,
@@ -383,6 +399,7 @@ fun ArtistDetailScreen(
     onBack: () -> Unit,
     onAlbumClick: (Album) -> Unit,
     albumDownloads: Map<String, ListDownloadStatus> = emptyMap(),
+    albumsAsList: Boolean = false,
     onAlbumLongClick: (MenuTarget) -> Unit = {},
     onMore: () -> Unit = {},
     starred: Boolean = false,
@@ -458,6 +475,7 @@ fun ArtistDetailScreen(
                 imageHeightPx = imageHeightPx,
                 albumHeightPx = albumHeightPx,
                 albumRowGapPx = albumRowGapPx,
+                columns = if (albumsAsList) 1 else 2,
             )
         }
     }
@@ -474,6 +492,8 @@ fun ArtistDetailScreen(
     val nameBusy = rememberOverlaidNameBusy(artThumbnail ?: art)
     val nameScrimAlpha by animateFloatAsState(if (nameBusy) 1f else 0f, tween(SCRIM_FADE_MS), label = "artistNameScrim")
     val effectiveArtwork = artwork ?: baseArtworkColors()
+    val albumSpan: (LazyGridItemSpanScope.(Int, Album) -> GridItemSpan)? =
+        if (albumsAsList) { _, _ -> GridItemSpan(maxLineSpan) } else null
 
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         ArtworkTheme(effectiveArtwork) {
@@ -632,10 +652,12 @@ fun ArtistDetailScreen(
                             )
                         }
                         if (key in collapsed) return@forEachIndexed
-                        itemsIndexed(shelf.albums, key = { _, album -> album.id }) { index, album ->
-                            ArtistAlbumCard(
+                        itemsIndexed(shelf.albums, key = { _, album -> album.id }, span = albumSpan) { index, album ->
+                            DiscographyEntry(
+                                asList = albumsAsList,
                                 album = album,
                                 index = index,
+                                appearance = false,
                                 coverArt = coverArt,
                                 downloadStatus = albumDownloads[album.id],
                                 onClick = { onAlbumClick(album) },
@@ -661,10 +683,12 @@ fun ArtistDetailScreen(
                         }
                     }
                     if (albums.appearances.isNotEmpty() && APPEARS_ON !in collapsed) {
-                        itemsIndexed(albums.appearances, key = { _, album -> album.id }) { index, album ->
-                            ArtistAlbumCard(
+                        itemsIndexed(albums.appearances, key = { _, album -> album.id }, span = albumSpan) { index, album ->
+                            DiscographyEntry(
+                                asList = albumsAsList,
                                 album = album,
                                 index = index,
+                                appearance = true,
                                 coverArt = coverArt,
                                 downloadStatus = albumDownloads[album.id],
                                 onClick = { onAlbumClick(album) },
@@ -1160,6 +1184,95 @@ private fun ArtistActions(
     }
     IconButton(onClick = onMore) {
         Icon(Icons.Rounded.MoreHoriz, contentDescription = stringResource(R.string.more_options))
+    }
+}
+
+@Composable
+private fun DiscographyEntry(
+    asList: Boolean,
+    album: Album,
+    index: Int,
+    appearance: Boolean,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    downloadStatus: ListDownloadStatus?,
+    onClick: () -> Unit,
+    onLongClick: (CoverArtRef?) -> Unit,
+    onSizeChanged: (Float) -> Unit,
+) {
+    if (asList) {
+        ArtistAlbumRow(album, appearance, coverArt, downloadStatus, onClick, onLongClick, onSizeChanged)
+    } else {
+        ArtistAlbumCard(album, index, coverArt, downloadStatus, onClick, onLongClick, onSizeChanged)
+    }
+}
+
+/** The secondary line of a list row: year and song count, after the album artist on Appears on, as on iOS. */
+@Composable
+internal fun artistAlbumRowMeta(
+    album: Album,
+    appearance: Boolean,
+): String =
+    listOfNotNull(
+        album.albumArtist?.takeIf { appearance && it.isNotBlank() },
+        album.year?.takeIf { it > 0 }?.toString(),
+        pluralStringResource(R.plurals.resources_song_count, album.songCount.toInt(), album.songCount),
+    ).joinToString(" · ")
+
+/** The discography's list layout: artwork, title, details, download status and a chevron. */
+@Composable
+private fun ArtistAlbumRow(
+    album: Album,
+    appearance: Boolean,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    downloadStatus: ListDownloadStatus?,
+    onClick: () -> Unit,
+    onLongClick: (CoverArtRef?) -> Unit,
+    onSizeChanged: (Float) -> Unit,
+) {
+    val thumbnail = coverArt(album.coverArt, true)
+    PrefetchArtworkSeeds(thumbnail)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = onClick, onLongClick = { onLongClick(thumbnail) })
+                .onSizeChanged { onSizeChanged(it.height.toFloat()) }
+                .heightIn(min = 48.dp)
+                .padding(horizontal = 16.dp)
+                .testTag(artistAlbumRowTag(album.id)),
+    ) {
+        CoverArt(
+            ref = thumbnail,
+            name = album.name,
+            thumbnailRef = thumbnail,
+            showPlaceholder = thumbnail == null,
+            modifier = Modifier.size(ALBUM_ROW_ART).clip(RoundedCornerShape(4.dp)),
+        )
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = album.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = artistAlbumRowMeta(album, appearance),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        ListDownloadIndicator(status = downloadStatus, modifier = Modifier.padding(start = 8.dp))
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp).size(20.dp),
+        )
     }
 }
 

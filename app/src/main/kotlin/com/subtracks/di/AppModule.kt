@@ -479,7 +479,7 @@ fun appModule(
     }
     viewModel { params -> AddSourceViewModel(get(), get(), get(), params.getOrNull(), context.resources) }
     viewModel { params -> AlbumDetailViewModel(get(), get(), get(), get(), params.get()) }
-    viewModel { params -> ArtistDetailViewModel(get(), get(), get(), get(), params.get()) }
+    viewModel { params -> ArtistDetailViewModel(get(), get(), get(), get(), params.get(), get()) }
     viewModel { params ->
         val sources = get<SourceRepository>()
         PlaylistDetailViewModel(get(), sources, get(), get(), params.get(), get(), owner = sources::username, showMessage = showMessage)
