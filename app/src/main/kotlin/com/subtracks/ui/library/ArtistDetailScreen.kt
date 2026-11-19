@@ -122,6 +122,7 @@ import com.subtracks.data.model.ArtistAlbums
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.ListDownloadStatus
+import com.subtracks.data.model.latestRelease
 import com.subtracks.data.model.releaseShelves
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
@@ -194,6 +195,9 @@ private const val THEME_TRANSITION_MS = 100
 private const val SCRIM_FADE_MS = 180
 internal const val ARTIST_NAME_SCRIM_TAG = "artistNameScrim"
 internal const val ARTIST_HERO_ART_TAG = "artistHeroArt"
+internal const val LATEST_RELEASE_TAG = "latestRelease"
+private const val LATEST_RELEASE_KEY = "latestRelease"
+private val LATEST_RELEASE_ART = 88.dp
 
 /** Where the photo starts to fade out, and how opaque it still is halfway through the fade. */
 private const val HERO_FADE_START = 0.45f
@@ -341,6 +345,7 @@ fun ArtistDetailScreen(
 ) {
     val listState = rememberRestorableLazyGridState(albumsLoaded)
     val shelves = remember(albums.albumCredits) { albums.albumCredits.releaseShelves() }
+    val latest = remember(albums.albumCredits) { latestRelease(albums.albumCredits) }
     // Shelves the listener folded away; everything starts expanded, as on iOS.
     var collapsed by rememberSaveable(stateSaver = CollapsedSaver) { mutableStateOf(emptySet<String>()) }
     val fill = rememberViewportFill(listState)
@@ -539,6 +544,18 @@ fun ArtistDetailScreen(
                                         ),
                                 )
                             }
+                        }
+                    }
+                    latest?.let { album ->
+                        item(key = LATEST_RELEASE_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                            LatestReleaseCard(
+                                album = album,
+                                coverArt = coverArt,
+                                onClick = { onAlbumClick(album) },
+                                onLongClick = { thumbnail ->
+                                    onAlbumLongClick(MenuTarget.Album(album, thumbnail, albumDownloads[album.id]))
+                                },
+                            )
                         }
                     }
                     shelves.forEachIndexed { shelfIndex, shelf ->
@@ -1140,6 +1157,68 @@ private fun ArtistAlbumCard(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/** The artist's newest release, above the discography: artwork, year, title and song count, as on iOS. */
+@Composable
+private fun LatestReleaseCard(
+    album: Album,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onClick: () -> Unit,
+    onLongClick: (CoverArtRef?) -> Unit,
+) {
+    val art = coverArt(album.coverArt, false)
+    val thumbnail = coverArt(album.coverArt, true)
+    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        Text(
+            text = stringResource(R.string.artist_latest_release),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(horizontal = 16.dp).semantics { heading() },
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier =
+                Modifier
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White.copy(alpha = 0.10f))
+                    .combinedClickable(onClick = onClick, onLongClick = { onLongClick(thumbnail) })
+                    .testTag(LATEST_RELEASE_TAG)
+                    .padding(12.dp),
+        ) {
+            CoverArt(
+                ref = art,
+                name = album.name,
+                thumbnailRef = thumbnail,
+                showPlaceholder = art == null,
+                modifier = Modifier.size(LATEST_RELEASE_ART).clip(RoundedCornerShape(8.dp)),
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                album.year?.takeIf { it > 0 }?.let { year ->
+                    Text(
+                        text = year.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = album.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = pluralStringResource(R.plurals.resources_song_count, album.songCount.toInt(), album.songCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
