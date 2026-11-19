@@ -41,6 +41,8 @@ renamed **Artist radio**. Song and album mixes stay "Instant Mix". UX-24 uses th
   `MixSeed.Artist` mix as that artist's radio. New `playArtistRadio(sourceId, artistId)` is what
   `DiscoverViewModel.station` calls; the menu goes through `MenuTarget.mixRequest()` and `play`.
 - Discover tiles: `VividTileCard.caption` is nullable; the Artist radio tiles pass none.
+- Owner follow-up: the shelf description wrapped to two lines, so `discover_stations_description` is now
+  "Pick an artist and see where it takes you." (one line on the Pixel 9 emulator at 100% font).
 
 ## Verification
 

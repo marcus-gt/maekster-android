@@ -418,7 +418,7 @@
     <string name="discover_shuffle_description">Favorites, recent taste and forgotten gems. A fresh mix from your library.</string>
     <string name="discover_shuffle_offline">Offline: a fresh mix from your downloaded music.</string>
     <string name="discover_stations">Artist radio</string>
-    <string name="discover_stations_description">Start with an artist. See where the music takes you.</string>
+    <string name="discover_stations_description">Pick an artist and see where it takes you.</string>
     <string name="discover_stations_empty">Sync your library to find artist radio here.</string>
     <string name="discover_moods">Moods</string>
     <string name="discover_moods_description">Radios picked by how your music sounds, using AudioMuse.</string>
