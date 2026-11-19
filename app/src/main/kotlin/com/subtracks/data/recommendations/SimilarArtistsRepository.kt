@@ -20,7 +20,7 @@ class SimilarArtistsRepository(
         artistId: String,
     ): List<ResolvedSimilarArtist> = resolve(sourceId, artistId, cache.read(sourceId, artistId))
 
-    /** User-requested refresh only. Navigation reads the cache through [read]. */
+    /** Reuses fresh cached results and refreshes stale results when the source is online. */
     suspend fun refresh(
         sourceId: Long,
         artistId: String,

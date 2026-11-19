@@ -271,6 +271,8 @@ fun ArtistDetailRoute(
     val topSongs: TopSongsViewModel = koinViewModel(key = "topSongs:$artistId") { parametersOf(artistId) }
     val topSongsState by topSongs.state.collectAsStateWithLifecycle()
     val likedSongs = viewModel.likedSongs.collectAsStateWithLifecycle().value
+    val similar: SimilarArtistsViewModel = koinViewModel(key = "similar:$artistId") { parametersOf(artistId, true) }
+    val similarState = similar.state.collectAsStateWithLifecycle().value
     val pendingDelete = rememberPendingDownloadDelete(contextMenuHost?.dismissals ?: emptyFlow(), viewModel::downloadedBytes)
     val shortcutArt = remember(coverArtId) { coverArtId?.let { viewModel.coverArt(it, true) } }
     val actions =
@@ -311,7 +313,12 @@ fun ArtistDetailRoute(
         onShuffle = viewModel::shuffle,
         onPlayShelf = viewModel::playShelf,
         onPlayAppearances = viewModel::playAppearances,
-        similarArtists = { SimilarArtistsSectionRoute(artistId, onViewArtist) },
+        similarArtists =
+            if (similarState.showAutomaticSection) {
+                { SimilarArtistsSectionRoute(similarState, onViewArtist) }
+            } else {
+                null
+            },
         topSongs =
             if (topSongsState.songs.isEmpty()) {
                 null

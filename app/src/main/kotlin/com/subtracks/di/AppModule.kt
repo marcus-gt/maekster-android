@@ -319,7 +319,8 @@ fun appModule(
             recommendations::read,
             recommendations::refresh,
             get<UserPreferences>().externalArtistImagesEnabled(),
-            get<ExternalArtistImages>()::imageUrl,
+            autoLoad = params.getOrNull<Boolean>() ?: false,
+            photo = get<ExternalArtistImages>()::imageUrl,
         )
     }
     single { SmartShuffle(get<SubtracksDatabase>().mixDao()) }

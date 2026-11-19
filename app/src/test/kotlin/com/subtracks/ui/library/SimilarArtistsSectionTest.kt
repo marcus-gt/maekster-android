@@ -101,6 +101,19 @@ class SimilarArtistsSectionTest {
         composeRule.onNodeWithText("Find similar artists").assertDoesNotExist()
     }
 
+    @Test fun theAutomaticShelfShowsLoadingThenHidesWhenTheAnswerIsEmpty() {
+        val state = androidx.compose.runtime.mutableStateOf(SimilarArtistsState(sourceId = 1, offline = false, busy = true))
+        composeRule.setContent {
+            MaeksterTheme { SimilarArtistsSection(state.value, null, {}, {}) }
+        }
+        composeRule.onNodeWithText("Similar artists").assertExists()
+        composeRule.onNodeWithText("Find similar artists").assertDoesNotExist()
+        composeRule.runOnIdle {
+            state.value = state.value.copy(loading = false, busy = false, checked = true)
+        }
+        composeRule.onNodeWithText("Similar artists").assertDoesNotExist()
+    }
+
     @Test fun normal() = render(1f)
 
     @Test fun largeFont() = render(2f)

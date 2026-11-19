@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,9 +44,18 @@ fun SimilarArtistsSectionRoute(
 ) {
     val model: SimilarArtistsViewModel = koinViewModel(key = "similar:$artistId") { parametersOf(artistId) }
     val state by model.state.collectAsStateWithLifecycle()
+    SimilarArtistsSectionRoute(state, onViewArtist, model::refresh)
+}
+
+@Composable
+fun SimilarArtistsSectionRoute(
+    state: SimilarArtistsState,
+    onViewArtist: (String) -> Unit,
+    onRefresh: (() -> Unit)? = null,
+) {
     val uriHandler = LocalUriHandler.current
     val sources: SourceRepository = koinInject()
-    SimilarArtistsSection(state, model::refresh, onViewArtist, { uriHandler.openUri(it) }, { sources.artistArt(it) })
+    SimilarArtistsSection(state, onRefresh, onViewArtist, { uriHandler.openUri(it) }, { sources.artistArt(it) })
 }
 
 /** An artist outside the library: its photo, when one was found, is the only image it can have. */
@@ -62,14 +72,18 @@ internal fun SimilarArtist.musicBrainzUrl(): String =
 
 private val ART_SIZE = 148.dp
 
+internal val SimilarArtistsState.showAutomaticSection: Boolean
+    get() = artists.isNotEmpty() || (!offline && (loading || busy))
+
 @Composable
 fun SimilarArtistsSection(
     state: SimilarArtistsState,
-    onRefresh: () -> Unit,
+    onRefresh: (() -> Unit)?,
     onViewArtist: (String) -> Unit,
     onOpenExternal: (String) -> Unit,
     artistArt: (Artist) -> ArtistArt = { ArtistArt() },
 ) {
+    if (onRefresh == null && !state.showAutomaticSection) return
     if (state.offline && state.artists.isEmpty()) return
     Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -77,12 +91,15 @@ fun SimilarArtistsSection(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
-        if (!state.offline) {
+        if (!state.offline && onRefresh != null) {
             TextButton(onClick = onRefresh, enabled = !state.loading && !state.busy, modifier = Modifier.padding(horizontal = 8.dp)) {
                 Text(stringResource(if (state.busy) R.string.similar_artists_loading else R.string.similar_artists_refresh))
             }
         }
-        if (state.checked && state.artists.isEmpty()) {
+        if (onRefresh == null && !state.offline && state.artists.isEmpty() && (state.loading || state.busy)) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+        }
+        if (onRefresh != null && state.checked && state.artists.isEmpty()) {
             Text(stringResource(R.string.similar_artists_empty), modifier = Modifier.padding(horizontal = 16.dp))
         }
         if (state.artists.isNotEmpty()) {

@@ -44,6 +44,48 @@ class SimilarArtistsViewModelTest {
         },
     ) = SimilarArtistsViewModel("seed", sources, offline, { _, _ -> cached }, refresh).also { model = it }
 
+    private fun createAutomatic(
+        read: suspend (Long, String) -> List<ResolvedSimilarArtist> = { _, _ -> emptyList() },
+        refresh: suspend (Long, String) -> List<ResolvedSimilarArtist>,
+    ) = SimilarArtistsViewModel("seed", sources, offline, read, refresh, autoLoad = true).also { model = it }
+
+    @Test fun onlineArtistOpenAutomaticallyLoadsRecommendations() =
+        runTest {
+            val requests = mutableListOf<Pair<Long, String>>()
+            val vm =
+                createAutomatic { id, seed ->
+                    requests += id to seed
+                    cached
+                }
+            assertEquals(listOf(1L to "seed"), requests)
+            assertEquals(cached, vm.state.value.artists)
+            assertEquals(false, vm.state.value.busy)
+        }
+
+    @Test fun cachedRecommendationsRemainVisibleWhileAutomaticRefreshIsRunning() =
+        runTest {
+            val reply = CompletableDeferred<List<ResolvedSimilarArtist>>()
+            val vm = createAutomatic(read = { _, _ -> cached }) { _, _ -> reply.await() }
+            assertEquals(true, vm.state.value.busy)
+            assertEquals(cached, vm.state.value.artists)
+            reply.complete(cached)
+            assertEquals(false, vm.state.value.busy)
+        }
+
+    @Test fun offlineArtistOpenReadsCacheAndOnlyRequestsAfterReconnect() =
+        runTest {
+            offline.value = true
+            val vm =
+                createAutomatic(read = { _, _ -> cached }) { _, _ ->
+                    requests++
+                    cached
+                }
+            assertEquals(cached, vm.state.value.artists)
+            assertEquals(0, requests)
+            offline.value = false
+            assertEquals(1, requests)
+        }
+
     private val external = SimilarArtist(null, "Outside")
     private val mixed =
         listOf(

@@ -8,7 +8,7 @@ import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Explicit refreshes only; browsing reads the cache without contacting a provider. */
+/** Stores similar-artist answers per source and seed, including successful empty answers. */
 class SimilarArtistsCache(
     private val dao: SimilarArtistsCacheDao,
     private val provider: suspend (Long) -> SimilarArtists?,
