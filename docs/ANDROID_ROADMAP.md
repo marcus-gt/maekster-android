@@ -935,7 +935,7 @@ Dependencies and gates:
 | UX-16 | [Album, playlist and artist pages: always show the back button](https://github.com/marcus-gt/maekster-android/issues/46) | Complete ([handoff](handoffs/UX-16-hero-back-button.md)) |
 | UX-17 | [Artist page: photo fades into the page as on iOS](https://github.com/marcus-gt/maekster-android/issues/47) | Complete ([handoff](handoffs/UX-17-artist-hero-fade.md)) |
 | UX-18 | [Artist page: Latest release card](https://github.com/marcus-gt/maekster-android/issues/48) | Complete ([handoff](handoffs/UX-18-latest-release.md)) |
-| UX-19 | [Artist page: Top songs carousel with Play and Shuffle](https://github.com/marcus-gt/maekster-android/issues/49) | Not started |
+| UX-19 | [Artist page: Top songs carousel with Play and Shuffle](https://github.com/marcus-gt/maekster-android/issues/49) | Complete ([handoff](handoffs/UX-19-top-songs.md)) |
 | UX-20 | [Artist page: Liked songs carousel](https://github.com/marcus-gt/maekster-android/issues/50) | Not started |
 | UX-21 | [Artist page: load similar artists automatically](https://github.com/marcus-gt/maekster-android/issues/51) | Not started |
 | UX-22 | [Artist page: optional album list layout](https://github.com/marcus-gt/maekster-android/issues/52) | Not started |
@@ -961,7 +961,7 @@ All decided on 10 November 2026.
 | D6 | Search history storage | **Agreed.** Room per source (cascade on server delete) |
 | D7 | Persistent stream cache (iOS-style LRU replay cache) | **Agreed.** Keep the scratch cache for now; persistent cache after M2 (issue #2) |
 | D8 | Swipe app away from recents | **Agreed.** Keep playing if playing; stop only when paused |
-| D9 | On-demand server calls for Instant Mix, similar songs and lyrics | **Agreed.** Browsing stays local-only; explicit actions may call the server, cached in Room, with offline fallbacks (see `FEATURE_PARITY.md` C1 and principle 5) |
+| D9 | On-demand server calls for Instant Mix, similar songs and lyrics | **Agreed.** Browsing reads the local mirror. Explicit actions may call the server, with Room caching and offline fallbacks (see `FEATURE_PARITY.md` C1 and principle 5). [UX-19](https://github.com/marcus-gt/maekster-android/issues/49) also fetches top songs on artist page open when online, as on iOS. Results are cached in Room per source and artist and joined to the mirror. Offline, only completed downloads from that cache are shown. |
 | D10 | Third-party lookups (external artist images, MusicBrainz fresh releases) | **Agreed.** Opt-in per integration, disclosed in Privacy |
 | D11 | Lidarr | **Out of scope.** Legacy from Mixtape and unused in the iOS product; M3.7 dropped |
 | D12 | ReplayGain default | **Agreed.** Android Auto mode, on by default |

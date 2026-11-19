@@ -10,6 +10,7 @@ import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.ListDownloadStatus
+import com.subtracks.data.model.Song
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
@@ -64,6 +65,19 @@ class ArtistDetailViewModel(
         sourceId
             .flatMapLatest { downloadRepository.status(it, DownloadList.Artist, artistId) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListDownloadStatus())
+
+    val songDownloads = downloadRepository.states()
+
+    fun download(song: Song) {
+        viewModelScope.launch { downloadRepository.download(song.sourceId, song.id) }
+    }
+
+    fun removeDownload(song: Song) {
+        viewModelScope.launch {
+            downloadRepository.remove(song.sourceId, song.id)
+            playbackController.refreshMediaItems()
+        }
+    }
 
     val albumDownloads: StateFlow<Map<String, ListDownloadStatus>> =
         sourceId

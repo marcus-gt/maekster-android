@@ -281,6 +281,34 @@ fun appModule(
             get(named("mixDownloadedOnly")),
         )
     }
+    single {
+        val sources = get<SourceRepository>()
+        com.subtracks.data.recommendations.TopSongsRepository(
+            get<SubtracksDatabase>().topSongsDao(),
+            sources::topSongs,
+            sources::activeSourceIdOnce,
+        )
+    }
+    viewModel { params ->
+        val sources = get<SourceRepository>()
+        val library = get<LibraryRepository>()
+        val topSongs = get<com.subtracks.data.recommendations.TopSongsRepository>()
+        val playback = get<PlaybackController>()
+        val artistId = params.get<String>()
+        com.subtracks.ui.library.TopSongsViewModel(
+            artistId = artistId,
+            artistName = { id ->
+                combine(library.artist(id, artistId), library.artistName(id, artistId)) { artist, fromSongs ->
+                    artist?.name?.takeIf { it.isNotBlank() } ?: fromSongs
+                }
+            },
+            sources = sources.activeSourceId(),
+            offline = combine(sources.offline, networkAvailable(context.applicationContext)) { off, connected -> off || !connected },
+            songs = topSongs::songs,
+            refresh = topSongs::refresh,
+            play = playback::playSongs,
+        )
+    }
     viewModel { params ->
         val sources = get<SourceRepository>()
         val recommendations = get<com.subtracks.data.recommendations.SimilarArtistsRepository>()

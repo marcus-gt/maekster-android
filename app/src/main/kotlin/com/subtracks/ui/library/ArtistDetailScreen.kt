@@ -197,6 +197,7 @@ internal const val ARTIST_NAME_SCRIM_TAG = "artistNameScrim"
 internal const val ARTIST_HERO_ART_TAG = "artistHeroArt"
 internal const val LATEST_RELEASE_TAG = "latestRelease"
 private const val LATEST_RELEASE_KEY = "latestRelease"
+private const val TOP_SONGS_KEY = "topSongs"
 private val LATEST_RELEASE_ART = 88.dp
 
 /** Where the photo starts to fade out, and how opaque it still is halfway through the fade. */
@@ -266,12 +267,17 @@ fun ArtistDetailRoute(
     val offline by viewModel.offline.collectAsStateWithLifecycle()
     CloseWhenDownloadsGone(downloadStatus.downloaded, offline, onBack)
     val albumDownloads by viewModel.albumDownloads.collectAsStateWithLifecycle()
+    val topSongs: TopSongsViewModel = koinViewModel(key = "topSongs:$artistId") { parametersOf(artistId) }
+    val topSongsState by topSongs.state.collectAsStateWithLifecycle()
     val pendingDelete = rememberPendingDownloadDelete(contextMenuHost?.dismissals ?: emptyFlow(), viewModel::downloadedBytes)
     val shortcutArt = remember(coverArtId) { coverArtId?.let { viewModel.coverArt(it, true) } }
     val actions =
         ItemActions(
             playNext = { playbackController.playNext(it.sourceId, it.kind, it.refId) },
             addToQueue = { playbackController.addToQueue(it.sourceId, it.kind, it.refId) },
+            download = viewModel::download,
+            cancelDownload = viewModel::removeDownload,
+            deleteDownload = viewModel::removeDownload,
             bulkDownload = { target, action -> pendingDelete.onAction(target, action, viewModel::onDownloadAction) },
             setStar = setStar,
             viewAlbum = onViewAlbum,
@@ -304,6 +310,21 @@ fun ArtistDetailRoute(
         onPlayShelf = viewModel::playShelf,
         onPlayAppearances = viewModel::playAppearances,
         similarArtists = { SimilarArtistsSectionRoute(artistId, onViewArtist) },
+        topSongs =
+            if (topSongsState.songs.isEmpty()) {
+                null
+            } else {
+                {
+                    TopSongsSectionRoute(
+                        state = topSongsState,
+                        coverArt = viewModel::coverArt,
+                        playbackController = playbackController,
+                        downloads = viewModel.songDownloads,
+                        onPlay = topSongs::play,
+                        onLongClick = { contextMenuHost?.show(it, actions) },
+                    )
+                }
+            },
     )
 
     PendingDownloadDeleteConfirmation(pendingDelete) { pending ->
@@ -342,6 +363,7 @@ fun ArtistDetailScreen(
     onPlayShelf: (List<Album>, Boolean) -> Unit = { _, _ -> },
     onPlayAppearances: (Boolean) -> Unit = {},
     similarArtists: (@Composable () -> Unit)? = null,
+    topSongs: (@Composable () -> Unit)? = null,
 ) {
     val listState = rememberRestorableLazyGridState(albumsLoaded)
     val shelves = remember(albums.albumCredits) { albums.albumCredits.releaseShelves() }
@@ -557,6 +579,9 @@ fun ArtistDetailScreen(
                                 },
                             )
                         }
+                    }
+                    topSongs?.let { section ->
+                        item(key = TOP_SONGS_KEY, span = { GridItemSpan(maxLineSpan) }) { section() }
                     }
                     shelves.forEachIndexed { shelfIndex, shelf ->
                         val key = shelf.category.name

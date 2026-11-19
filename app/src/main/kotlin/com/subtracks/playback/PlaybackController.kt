@@ -388,6 +388,27 @@ class PlaybackController(
         if (shuffled) shufflePlay(entries, origin) else play(entries, 0, disableShuffle = true, origin = origin)
     }
 
+    /**
+     * Plays a short list of songs (the artist page's Top songs) in its order from [startIndex], or shuffles it.
+     * One song entry per song, so the list is bounded by its own size; the queue is labelled as the artist.
+     */
+    fun playSongs(
+        sourceId: Long,
+        songIds: List<String>,
+        startIndex: Int,
+        shuffled: Boolean,
+        artistId: String? = null,
+    ) {
+        if (songIds.isEmpty()) return
+        val entries = songIds.map { queueRepository.songEntry(sourceId, it) }
+        val origin = artistId?.let { queueRepository.artistEntry(sourceId, it) }
+        if (shuffled) {
+            shufflePlay(entries, origin)
+        } else {
+            play(entries, startIndex.coerceIn(0, songIds.lastIndex).toLong(), disableShuffle = true, origin = origin)
+        }
+    }
+
     /** Plays or shuffles the artist's Appears On: only the songs crediting them on other artists' albums. */
     fun playArtistAppearances(
         sourceId: Long,
