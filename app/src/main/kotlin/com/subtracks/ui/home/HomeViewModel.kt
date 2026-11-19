@@ -158,7 +158,7 @@ class HomeViewModel(
                     combine(
                         libraryRepository.recentlyPlayedAlbums(sourceId, HOME_ROW_LIMIT),
                         libraryRepository.recentlyPlayedArtists(sourceId, HOME_ROW_LIMIT),
-                        libraryRepository.mostPlayedAlbums(sourceId, HOME_ROW_LIMIT),
+                        libraryRepository.heavyRotationAlbums(sourceId),
                         libraryRepository.mostPlayedArtists(sourceId, HOME_ROW_LIMIT),
                     ) { albums, artists, frequentAlbums, frequentArtists ->
                         PlayRows(albums, artists, frequentAlbums, frequentArtists)

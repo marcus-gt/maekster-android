@@ -137,7 +137,7 @@ class QueryTimingMeasurementTest {
         timed("albums search short") { dao.albumPages(1, 0, "al", sort = AlbumSort.Name).firstPage() }
         timed("songs search FTS") { dao.searchSongs(1, "Song", 50).first() }
         timed("home recently played") { dao.recentlyPlayedAlbums(1, 20).first() }
-        timed("home most played") { dao.mostPlayedAlbums(1, 20).first() }
+        timed("home heavy rotation") { dao.heavyRotationAlbums(1).first() }
         timed("home recently added") { dao.recentlyAddedAlbums(1, 20).first() }
         timed("home recently starred") { dao.recentlyStarredSongs(1, 20).first() }
         timed("home genres") { dao.genresByMostPlayed(1).first() }

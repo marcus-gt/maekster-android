@@ -164,29 +164,42 @@ internal fun playlistsPageQuery(
     )
 
 const val REDISCOVER_LIMIT = 12
-private const val REDISCOVER_FREQUENT_POOL = 40
-private const val REDISCOVER_RECENT_EXCLUDED = 20
-private const val REDISCOVER_FAVORITES_EXCLUDED = 40
+const val HEAVY_ROTATION_LIMIT = 12
+private const val FREQUENT_ALBUM_POOL = 40
+private const val RECENT_ALBUMS_EXCLUDED = 20
+private const val FAVORITE_ALBUMS_EXCLUDED = 40
 
 /**
- * Rediscover, as on iOS: the most played albums ([REDISCOVER_FREQUENT_POOL]) minus the recently played and favourite
- * ones, skipping the first [REDISCOVER_LIMIT] (iOS shows those as In heavy rotation). No time window.
+ * The most played albums ([FREQUENT_ALBUM_POOL]) that aren't among the recently played or favourite ones, numbered by
+ * `position`. As on iOS, In heavy rotation shows the first [HEAVY_ROTATION_LIMIT] and Rediscover the next
+ * [REDISCOVER_LIMIT], so the shelves never repeat each other. No time window.
  */
-internal const val REDISCOVER_ALBUMS_SQL =
+private const val UNSHOWN_FREQUENT_ALBUMS =
     "WITH frequent AS (" +
         "SELECT id, ROW_NUMBER() OVER (ORDER BY playCount DESC, sortName COLLATE NOCASE, id) AS frequency " +
         "FROM albums WHERE sourceId = :sourceId AND playCount > 0 " +
-        "ORDER BY playCount DESC, sortName COLLATE NOCASE, id LIMIT $REDISCOVER_FREQUENT_POOL" +
+        "ORDER BY playCount DESC, sortName COLLATE NOCASE, id LIMIT $FREQUENT_ALBUM_POOL" +
         "), shown AS (" +
         "SELECT id FROM (SELECT id FROM albums WHERE sourceId = :sourceId AND played IS NOT NULL " +
-        "ORDER BY played DESC, sortName COLLATE NOCASE, id LIMIT $REDISCOVER_RECENT_EXCLUDED) " +
+        "ORDER BY played DESC, sortName COLLATE NOCASE, id LIMIT $RECENT_ALBUMS_EXCLUDED) " +
         "UNION SELECT id FROM (SELECT id FROM albums WHERE sourceId = :sourceId AND starred IS NOT NULL " +
-        "ORDER BY starred DESC, sortName COLLATE NOCASE, id LIMIT $REDISCOVER_FAVORITES_EXCLUDED)" +
+        "ORDER BY starred DESC, sortName COLLATE NOCASE, id LIMIT $FAVORITE_ALBUMS_EXCLUDED)" +
         "), eligible AS (" +
         "SELECT id, ROW_NUMBER() OVER (ORDER BY frequency) AS position FROM frequent " +
         "WHERE id NOT IN (SELECT id FROM shown)" +
-        ") SELECT albums.* FROM eligible JOIN albums ON albums.sourceId = :sourceId AND albums.id = eligible.id " +
-        "WHERE eligible.position > $REDISCOVER_LIMIT ORDER BY eligible.position LIMIT $REDISCOVER_LIMIT"
+        ") SELECT albums.* FROM eligible JOIN albums ON albums.sourceId = :sourceId AND albums.id = eligible.id "
+
+/** In heavy rotation, as on iOS: see [UNSHOWN_FREQUENT_ALBUMS]. */
+internal const val HEAVY_ROTATION_ALBUMS_SQL =
+    UNSHOWN_FREQUENT_ALBUMS + "ORDER BY eligible.position LIMIT $HEAVY_ROTATION_LIMIT"
+
+/** Rediscover, as on iOS: see [UNSHOWN_FREQUENT_ALBUMS]. */
+internal const val REDISCOVER_ALBUMS_SQL =
+    UNSHOWN_FREQUENT_ALBUMS +
+        "WHERE eligible.position > $HEAVY_ROTATION_LIMIT ORDER BY eligible.position LIMIT $REDISCOVER_LIMIT"
+
+internal fun heavyRotationAlbumsQuery(sourceId: Long): RoomRawQuery =
+    rawQuery(sql = HEAVY_ROTATION_ALBUMS_SQL, bindings = mapOf("sourceId" to sourceId))
 
 internal fun rediscoverAlbumsQuery(sourceId: Long): RoomRawQuery =
     rawQuery(sql = REDISCOVER_ALBUMS_SQL, bindings = mapOf("sourceId" to sourceId))

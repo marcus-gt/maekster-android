@@ -910,7 +910,7 @@ prototype in UX-04 before rolling it out. The recommendation audit in UX-12 may 
 | UX-11 | [Home: rotating genre album grids](https://github.com/marcus-gt/maekster-android/issues/39) | [Complete](handoffs/UX-11-genre-grids.md) |
 | UX-12 | [Home and Discover: audit recommendation behavior against iOS](https://github.com/marcus-gt/maekster-android/issues/40) | [Complete](handoffs/UX-12-recommendation-audit.md) |
 | UX-13 | [Rediscover: fix the 60-day window (milliseconds compared with seconds)](https://github.com/marcus-gt/maekster-android/issues/41) | Superseded by UX-14 (the Rediscover window was removed) |
-| UX-14 | [Home: align In heavy rotation and Rediscover selection with iOS](https://github.com/marcus-gt/maekster-android/issues/42) | [Rediscover complete](handoffs/UX-14-rediscover-ios.md); heavy rotation unchanged |
+| UX-14 | [Home: align In heavy rotation and Rediscover selection with iOS](https://github.com/marcus-gt/maekster-android/issues/42) | [Complete](handoffs/UX-14-rediscover-ios.md) |
 | UX-15 | [Home: align Artist picks ranking and rotation with iOS](https://github.com/marcus-gt/maekster-android/issues/43) | [Complete](handoffs/UX-15-artist-picks-ios.md) |
 
 ---

@@ -64,7 +64,7 @@ The M3.C handoff already recorded this as partial parity.
 
 ## Owner decision (18 Nov 2026)
 
-Rediscover and Artist picks follow iOS. Rediscover was implemented in UX-14, and the iOS rule replaced the broken time window. Artist picks were implemented in UX-15 (`ArtistPicker` and the `MixDao.artistPick*` pools), keyed on the local day. They stay available offline, which is an intentional Android difference. In heavy rotation was not part of the decision.
+Rediscover and Artist picks follow iOS. Rediscover was implemented in UX-14, and the iOS rule replaced the broken time window. Artist picks were implemented in UX-15 (`ArtistPicker` and the `MixDao.artistPick*` pools), keyed on the local day. They stay available offline, which is an intentional Android difference. In heavy rotation was not part of that decision. On 19 Nov 2026 the owner decided it should also follow iOS: show the first 12 frequent albums that aren't recently played or favourites, with Rediscover taking the next 12. This was implemented in UX-14.
 
 ## Follow-ups
 

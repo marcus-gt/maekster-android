@@ -127,7 +127,7 @@ class LibraryHomeDaoTest {
         }
 
     @Test
-    fun mostPlayedAlbumsIgnoreUnplayedAndOrderByCount() =
+    fun heavyRotationIgnoresUnplayedAndOrdersByCount() =
         runTest {
             val sourceId = source()
             val dao = db.libraryDao()
@@ -139,10 +139,7 @@ class LibraryHomeDaoTest {
                 ),
             )
 
-            assertEquals(
-                listOf("Beta", "Alpha"),
-                dao.mostPlayedAlbums(sourceId, limit = 10).first().map { it.name },
-            )
+            assertEquals(listOf("Beta", "Alpha"), dao.heavyRotationAlbums(sourceId).first().map { it.name })
         }
 
     @Test
@@ -357,7 +354,7 @@ class LibraryHomeDaoTest {
         }
 
     @Test
-    fun rediscoverFollowsIosFrequentAlbumsAfterHeavyRotation() =
+    fun heavyRotationAndRediscoverFollowIosFrequentAlbumsMinusRecentAndFavorites() =
         runTest {
             val sourceId = source()
             val other = source()
@@ -377,6 +374,11 @@ class LibraryHomeDaoTest {
                     }
                 } + recentlyPlayed + album(other, "x", "x", playCount = 1000),
             )
+
+            // f02 and f04 are among the 20 most recently played and f06 is a favourite, so both shelves skip them.
+            val heavyRotation = listOf("f01", "f03", "f05") + (7..15).map { "f%02d".format(it) }
+            assertEquals(heavyRotation, dao.heavyRotationAlbums(sourceId).first().map { it.id })
+            assertEquals(heavyRotation, dao.albumsPaging(heavyRotationAlbumsQuery(sourceId)).page().map { it.id })
 
             val expected = (16..27).map { "f%02d".format(it) }
             assertEquals(expected, dao.rediscoverAlbums(sourceId).first().map { it.id })
@@ -406,10 +408,6 @@ class LibraryHomeDaoTest {
             assertEquals(
                 listOf("Beta", "Alpha"),
                 dao.homeRecentlyPlayedAlbums(sourceId).page().map { it.name },
-            )
-            assertEquals(
-                listOf("Beta", "Alpha"),
-                dao.homeMostPlayedAlbums(sourceId).page().map { it.name },
             )
             assertEquals(
                 listOf("Beta", "Gamma", "Alpha"),

@@ -190,7 +190,7 @@ class HomeListViewModel(
                         }
 
                         request.section == HomeSection.MostPlayedAlbums -> {
-                            libraryRepository.homeMostPlayedAlbums(id)
+                            libraryRepository.heavyRotationAlbumsPage(id)
                         }
 
                         request.section == HomeSection.RecentlyAddedAlbums -> {

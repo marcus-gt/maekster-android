@@ -19,6 +19,7 @@ import com.subtracks.data.db.genreGroupsQuery
 import com.subtracks.data.db.genreMapping
 import com.subtracks.data.db.groupedGenreAlbumsQuery
 import com.subtracks.data.db.hasDownloadedCollectionsQuery
+import com.subtracks.data.db.heavyRotationAlbumsQuery
 import com.subtracks.data.db.homeGenreAlbumsQuery
 import com.subtracks.data.db.letterBucketsQuery
 import com.subtracks.data.db.playlistsPageQuery
@@ -173,10 +174,7 @@ class LibraryRepository(
         limit: Int,
     ): Flow<List<Artist>> = db.libraryDao().recentlyPlayedArtists(sourceId, limit)
 
-    fun mostPlayedAlbums(
-        sourceId: Long,
-        limit: Int,
-    ): Flow<List<Album>> = db.libraryDao().mostPlayedAlbums(sourceId, limit)
+    fun heavyRotationAlbums(sourceId: Long): Flow<List<Album>> = db.libraryDao().heavyRotationAlbums(sourceId)
 
     fun mostPlayedArtists(
         sourceId: Long,
@@ -208,6 +206,9 @@ class LibraryRepository(
     fun genresByMostPlayed(sourceId: Long): Flow<List<String>> = db.libraryDao().genresByMostPlayed(sourceId)
 
     fun decades(sourceId: Long): Flow<List<Long>> = db.libraryDao().decades(sourceId)
+
+    fun heavyRotationAlbumsPage(sourceId: Long): Flow<PagingData<Album>> =
+        pager(40) { db.libraryDao().albumsPaging(heavyRotationAlbumsQuery(sourceId)) }
 
     fun rediscoverAlbumsPage(sourceId: Long): Flow<PagingData<Album>> =
         pager(40) { db.libraryDao().albumsPaging(rediscoverAlbumsQuery(sourceId)) }
@@ -291,8 +292,6 @@ class LibraryRepository(
     ): Flow<PagingData<Album>> = pager(40) { db.libraryDao().albumsByDecade(sourceId, decade, decade + 10) }
 
     fun homeRecentlyPlayedAlbums(sourceId: Long): Flow<PagingData<Album>> = pager(40) { db.libraryDao().homeRecentlyPlayedAlbums(sourceId) }
-
-    fun homeMostPlayedAlbums(sourceId: Long): Flow<PagingData<Album>> = pager(40) { db.libraryDao().homeMostPlayedAlbums(sourceId) }
 
     fun homeRecentlyAddedAlbums(sourceId: Long): Flow<PagingData<Album>> = pager(40) { db.libraryDao().homeRecentlyAddedAlbums(sourceId) }
 

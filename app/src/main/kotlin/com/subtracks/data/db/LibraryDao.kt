@@ -501,15 +501,6 @@ interface LibraryDao {
     ): Flow<List<Artist>>
 
     @Query(
-        "SELECT * FROM albums WHERE sourceId = :sourceId AND playCount > 0 " +
-            "ORDER BY playCount DESC, sortName COLLATE NOCASE, id LIMIT :limit",
-    )
-    fun mostPlayedAlbums(
-        sourceId: Long,
-        limit: Int,
-    ): Flow<List<Album>>
-
-    @Query(
         "SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND playCount > 0 AND $ARTIST_CREDITED " +
             "ORDER BY playCount DESC, sortName COLLATE NOCASE, id LIMIT :limit",
     )
@@ -546,6 +537,9 @@ interface LibraryDao {
         sourceId: Long,
         limit: Int,
     ): Flow<List<Playlist>>
+
+    @Query(HEAVY_ROTATION_ALBUMS_SQL)
+    fun heavyRotationAlbums(sourceId: Long): Flow<List<Album>>
 
     @Query(REDISCOVER_ALBUMS_SQL)
     fun rediscoverAlbums(sourceId: Long): Flow<List<Album>>
@@ -894,9 +888,6 @@ interface LibraryDao {
 
     @Query("SELECT * FROM albums WHERE sourceId = :sourceId AND played IS NOT NULL ORDER BY played DESC, sortName COLLATE NOCASE, id")
     fun homeRecentlyPlayedAlbums(sourceId: Long): PagingSource<Int, Album>
-
-    @Query("SELECT * FROM albums WHERE sourceId = :sourceId AND playCount > 0 ORDER BY playCount DESC, sortName COLLATE NOCASE, id")
-    fun homeMostPlayedAlbums(sourceId: Long): PagingSource<Int, Album>
 
     @Query("SELECT * FROM albums WHERE sourceId = :sourceId ORDER BY created DESC, sortName COLLATE NOCASE, id")
     fun homeRecentlyAddedAlbums(sourceId: Long): PagingSource<Int, Album>
