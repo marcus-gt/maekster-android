@@ -32,6 +32,18 @@ was clean and detached.
 - Offline behavior and request counts were exercised in automated tests. The emulator check did
   not disable connectivity, rotate the device, or trace live HTTP calls.
 
+## Follow-up: equal card heights
+
+- A later session left an uncommitted `SimilarArtistsSectionTest` change asserting that a local card
+  and an external card with a longer, wrapping name have the same height. It failed against `a391559a`
+  (236 vs 260 dp at 100%, 302 vs 323 dp at 200%). No owner comment requested it; it is a layout fix.
+- `SimilarArtistsSection` now gives the name and subtitle fixed two-line slots (`minLines`/`maxLines` 2,
+  ellipsis), so the row is even. The full name stays in the card's semantics. The test passes with
+  the fix. Cost: cards are one blank line taller at 100% when the subtitle fits on one line.
+- `:app:ktlintFormat`, `:app:assembleDebug`, `:app:testDebugUnitTest` (1990 tests, 0 failures),
+  `:app:ktlintCheck`, `:app:lintDebug` and `git diff --check` passed with Studio's JBR.
+  Not checked on the emulator.
+
 ## Next action
 
 UX-22 ([#52](https://github.com/marcus-gt/maekster-android/issues/52)) is the next slice.

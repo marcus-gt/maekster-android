@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
@@ -71,6 +72,9 @@ internal fun SimilarArtist.musicBrainzUrl(): String =
         ?: "https://musicbrainz.org/search?query=${Uri.encode(name)}&type=artist&method=indexed"
 
 private val ART_SIZE = 148.dp
+
+/** Fixed line slots keep every card in the row the same height, whatever the name length. */
+private const val CARD_TEXT_LINES = 2
 
 internal val SimilarArtistsState.showAutomaticSection: Boolean
     get() = artists.isNotEmpty() || (!offline && (loading || busy))
@@ -126,10 +130,19 @@ fun SimilarArtistsSection(
                                     resolved.recommendation.externalArtist(state.sourceId ?: 0, state.photos[resolved.recommendation])
                                 }
                             ArtistIcon(artist, art, Modifier.size(ART_SIZE).clip(CircleShape))
-                            Text(local?.name ?: resolved.recommendation.name, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                local?.name ?: resolved.recommendation.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                minLines = CARD_TEXT_LINES,
+                                maxLines = CARD_TEXT_LINES,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                             Text(
                                 stringResource(if (local != null) R.string.similar_artists_local else R.string.similar_artists_external),
                                 style = MaterialTheme.typography.bodySmall,
+                                minLines = CARD_TEXT_LINES,
+                                maxLines = CARD_TEXT_LINES,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }

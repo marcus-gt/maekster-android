@@ -4,6 +4,9 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -119,16 +122,20 @@ class SimilarArtistsSectionTest {
     @Test fun largeFont() = render(2f)
 
     private fun render(scale: Float) {
+        val externalName = "The Velvet Underground"
+        val recommendations = listOf(artists.first(), ResolvedSimilarArtist(SimilarArtist(null, externalName), null))
         composeRule.setContent {
             CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, scale)) {
                 MaeksterTheme {
                     Surface {
-                        SimilarArtistsSection(SimilarArtistsState(1, false, false, artists = artists), {}, {}, {})
+                        SimilarArtistsSection(SimilarArtistsState(1, false, false, artists = recommendations), {}, {}, {})
                     }
                 }
             }
         }
-        composeRule.onNodeWithText("Local artist").assertExists()
+        val localCard = composeRule.onNode(hasClickAction() and hasText("Local artist")).getBoundsInRoot()
+        val externalCard = composeRule.onNode(hasClickAction() and hasText(externalName)).getBoundsInRoot()
+        assertEquals(localCard.bottom - localCard.top, externalCard.bottom - externalCard.top)
         composeRule.onRoot().captureRoboImage("src/test/screenshots/similar_artists_$scale.png")
     }
 }
