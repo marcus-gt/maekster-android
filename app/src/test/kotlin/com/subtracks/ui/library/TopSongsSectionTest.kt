@@ -53,8 +53,10 @@ class TopSongsSectionTest {
             MaeksterTheme {
                 Column {
                     Text("Latest release")
-                    TopSongsSection(
-                        state = TopSongsState(1, songs),
+                    ArtistSongsSection(
+                        songs = songs,
+                        title = R.string.artist_top_songs,
+                        carouselTag = TOP_SONGS_TAG,
                         coverArt = { _, _ -> null },
                         playingSongId = null,
                         onPlay = { index, shuffle -> plays += index to shuffle },
@@ -90,8 +92,10 @@ class TopSongsSectionTest {
         composeRule.setContent {
             MaeksterTheme {
                 CompositionLocalProvider(LocalQuickPlaylists provides { quickPlaylists += it.id }) {
-                    TopSongsSection(
-                        state = TopSongsState(1, listOf(AlbumSongItem(current.value, null))),
+                    ArtistSongsSection(
+                        songs = listOf(AlbumSongItem(current.value, null)),
+                        title = R.string.artist_top_songs,
+                        carouselTag = TOP_SONGS_TAG,
                         coverArt = { _, _ -> null },
                         playingSongId = null,
                         onPlay = { index, shuffle -> plays += index to shuffle },

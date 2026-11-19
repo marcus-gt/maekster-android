@@ -1,5 +1,6 @@
 package com.subtracks.ui.library
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
+import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
@@ -37,8 +39,10 @@ import kotlinx.coroutines.flow.StateFlow
 internal const val TOP_SONGS_TAG = "topSongs"
 
 @Composable
-fun TopSongsSectionRoute(
-    state: TopSongsState,
+fun ArtistSongsSectionRoute(
+    songs: List<AlbumSongItem>,
+    @StringRes title: Int,
+    carouselTag: String,
     coverArt: (String?, Boolean) -> CoverArtRef?,
     playbackController: PlaybackController,
     downloads: StateFlow<Map<String, SongDownload>>,
@@ -48,8 +52,10 @@ fun TopSongsSectionRoute(
 ) {
     val playback by playbackController.state.collectAsStateWithLifecycle()
     val songDownloads by downloads.collectAsStateWithLifecycle()
-    TopSongsSection(
-        state = state,
+    ArtistSongsSection(
+        songs = songs,
+        title = title,
+        carouselTag = carouselTag,
         coverArt = coverArt,
         playingSongId = playback.item?.id,
         onPlay = onPlay,
@@ -59,12 +65,11 @@ fun TopSongsSectionRoute(
     )
 }
 
-/**
- * A first fetch does not insert a temporary shelf. Once songs are cached they stay visible during refresh.
- */
 @Composable
-fun TopSongsSection(
-    state: TopSongsState,
+fun ArtistSongsSection(
+    songs: List<AlbumSongItem>,
+    @StringRes title: Int,
+    carouselTag: String,
     coverArt: (String?, Boolean) -> CoverArtRef?,
     playingSongId: String?,
     onPlay: (Int, Boolean) -> Unit,
@@ -73,14 +78,15 @@ fun TopSongsSection(
     downloads: Map<String, SongDownload> = emptyMap(),
     onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
 ) {
-    if (state.songs.isEmpty()) return
+    if (songs.isEmpty()) return
+    val label = stringResource(title)
     Column(modifier.fillMaxWidth().padding(bottom = 24.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
         ) {
             Text(
-                text = stringResource(R.string.artist_top_songs),
+                text = label,
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f).semantics { heading() },
@@ -88,7 +94,7 @@ fun TopSongsSection(
             FilledIconButton(onClick = { onPlay(0, false) }, modifier = Modifier.size(40.dp)) {
                 Icon(
                     Icons.Rounded.PlayArrow,
-                    contentDescription = stringResource(R.string.artist_section_play, stringResource(R.string.artist_top_songs)),
+                    contentDescription = stringResource(R.string.artist_section_play, label),
                     modifier = Modifier.size(22.dp),
                 )
             }
@@ -96,18 +102,18 @@ fun TopSongsSection(
             FilledTonalIconButton(onClick = { onPlay(0, true) }, modifier = Modifier.size(40.dp)) {
                 Icon(
                     Icons.Rounded.Shuffle,
-                    contentDescription = stringResource(R.string.artist_section_shuffle, stringResource(R.string.artist_top_songs)),
+                    contentDescription = stringResource(R.string.artist_section_shuffle, label),
                     modifier = Modifier.size(22.dp),
                 )
             }
         }
         SongCarousel(
-            songs = state.songs,
+            songs = songs,
             coverArt = coverArt,
             playingSongId = playingSongId,
             onSongClick = { index, _ -> onPlay(index, false) },
             onLongClick = onLongClick,
-            modifier = Modifier.testTag(TOP_SONGS_TAG),
+            modifier = Modifier.testTag(carouselTag),
             downloads = downloads,
             onToggleFavorite = onToggleFavorite,
         )

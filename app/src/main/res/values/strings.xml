@@ -70,6 +70,7 @@
     <string name="artist_section_appearances">Appears on</string>
     <string name="artist_latest_release">Latest release</string>
     <string name="artist_top_songs">Top songs</string>
+    <string name="artist_liked_songs">Liked songs</string>
     <string name="artist_section_eps">EPs</string>
     <string name="artist_section_singles">Singles</string>
     <string name="artist_section_live">Live albums</string>

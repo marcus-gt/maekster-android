@@ -198,6 +198,7 @@ internal const val ARTIST_HERO_ART_TAG = "artistHeroArt"
 internal const val LATEST_RELEASE_TAG = "latestRelease"
 private const val LATEST_RELEASE_KEY = "latestRelease"
 private const val TOP_SONGS_KEY = "topSongs"
+internal const val LIKED_SONGS_TAG = "likedSongs"
 private val LATEST_RELEASE_ART = 88.dp
 
 /** Where the photo starts to fade out, and how opaque it still is halfway through the fade. */
@@ -269,6 +270,7 @@ fun ArtistDetailRoute(
     val albumDownloads by viewModel.albumDownloads.collectAsStateWithLifecycle()
     val topSongs: TopSongsViewModel = koinViewModel(key = "topSongs:$artistId") { parametersOf(artistId) }
     val topSongsState by topSongs.state.collectAsStateWithLifecycle()
+    val likedSongs = viewModel.likedSongs.collectAsStateWithLifecycle().value
     val pendingDelete = rememberPendingDownloadDelete(contextMenuHost?.dismissals ?: emptyFlow(), viewModel::downloadedBytes)
     val shortcutArt = remember(coverArtId) { coverArtId?.let { viewModel.coverArt(it, true) } }
     val actions =
@@ -315,12 +317,32 @@ fun ArtistDetailRoute(
                 null
             } else {
                 {
-                    TopSongsSectionRoute(
-                        state = topSongsState,
+                    ArtistSongsSectionRoute(
+                        songs = topSongsState.songs,
+                        title = R.string.artist_top_songs,
+                        carouselTag = TOP_SONGS_TAG,
                         coverArt = viewModel::coverArt,
                         playbackController = playbackController,
                         downloads = viewModel.songDownloads,
                         onPlay = topSongs::play,
+                        onLongClick = { contextMenuHost?.show(it, actions) },
+                        onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
+                    )
+                }
+            },
+        likedSongs =
+            if (likedSongs.isEmpty()) {
+                null
+            } else {
+                {
+                    ArtistSongsSectionRoute(
+                        songs = likedSongs,
+                        title = R.string.artist_liked_songs,
+                        carouselTag = LIKED_SONGS_TAG,
+                        coverArt = viewModel::coverArt,
+                        playbackController = playbackController,
+                        downloads = viewModel.songDownloads,
+                        onPlay = { index, shuffled -> viewModel.playLikedSongs(likedSongs, index, shuffled) },
                         onLongClick = { contextMenuHost?.show(it, actions) },
                         onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
                     )
@@ -365,6 +387,7 @@ fun ArtistDetailScreen(
     onPlayAppearances: (Boolean) -> Unit = {},
     similarArtists: (@Composable () -> Unit)? = null,
     topSongs: (@Composable () -> Unit)? = null,
+    likedSongs: (@Composable () -> Unit)? = null,
 ) {
     val listState = rememberRestorableLazyGridState(albumsLoaded)
     val shelves = remember(albums.albumCredits) { albums.albumCredits.releaseShelves() }
@@ -583,6 +606,9 @@ fun ArtistDetailScreen(
                     }
                     topSongs?.let { section ->
                         item(key = TOP_SONGS_KEY, span = { GridItemSpan(maxLineSpan) }) { section() }
+                    }
+                    likedSongs?.let { section ->
+                        item(key = LIKED_SONGS_TAG, span = { GridItemSpan(maxLineSpan) }) { section() }
                     }
                     shelves.forEachIndexed { shelfIndex, shelf ->
                         val key = shelf.category.name

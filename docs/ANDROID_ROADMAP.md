@@ -936,7 +936,7 @@ Dependencies and gates:
 | UX-17 | [Artist page: photo fades into the page as on iOS](https://github.com/marcus-gt/maekster-android/issues/47) | Complete ([handoff](handoffs/UX-17-artist-hero-fade.md)) |
 | UX-18 | [Artist page: Latest release card](https://github.com/marcus-gt/maekster-android/issues/48) | Complete ([handoff](handoffs/UX-18-latest-release.md)) |
 | UX-19 | [Artist page: Top songs carousel with Play and Shuffle](https://github.com/marcus-gt/maekster-android/issues/49) | Complete ([handoff](handoffs/UX-19-top-songs.md)) |
-| UX-20 | [Artist page: Liked songs carousel](https://github.com/marcus-gt/maekster-android/issues/50) | Not started |
+| UX-20 | [Artist page: Liked songs carousel](https://github.com/marcus-gt/maekster-android/issues/50) | Complete ([handoff](handoffs/UX-20-liked-songs.md)) |
 | UX-21 | [Artist page: load similar artists automatically](https://github.com/marcus-gt/maekster-android/issues/51) | Not started |
 | UX-22 | [Artist page: optional album list layout](https://github.com/marcus-gt/maekster-android/issues/52) | Not started |
 | UX-23 | [Artist page: align Start station with Discover stations and Instant Mix](https://github.com/marcus-gt/maekster-android/issues/53) | Not started |

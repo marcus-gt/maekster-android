@@ -558,6 +558,28 @@ interface LibraryDao {
     @Query(
         "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
             "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
+            "WHERE songs.sourceId = :sourceId AND songs.starred IS NOT NULL AND (" +
+            "songs.artistId = :artistId OR albums.artistId = :artistId " +
+            "OR EXISTS (SELECT 1 FROM song_artists sa WHERE sa.sourceId = songs.sourceId " +
+            "AND sa.songId = songs.id AND sa.artistId = :artistId) " +
+            "OR EXISTS (SELECT 1 FROM album_artists aa WHERE aa.sourceId = songs.sourceId " +
+            "AND aa.albumId = songs.albumId AND aa.artistId = :artistId) " +
+            "OR (songs.artistId IS NULL AND songs.artist GLOB :artistNamePattern)) " +
+            "AND (NOT :downloadedOnly OR EXISTS (SELECT 1 FROM song_downloads sd WHERE sd.sourceId = songs.sourceId " +
+            "AND sd.songId = songs.id AND sd.status = 'Completed')) " +
+            "ORDER BY songs.starred DESC, songs.sortName COLLATE NOCASE, songs.id LIMIT :limit",
+    )
+    fun artistLikedSongs(
+        sourceId: Long,
+        artistId: String,
+        artistNamePattern: String?,
+        downloadedOnly: Boolean,
+        limit: Int,
+    ): Flow<List<AlbumSongItem>>
+
+    @Query(
+        "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
+            "LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +
             "WHERE songs.sourceId = :sourceId AND songs.played IS NOT NULL " +
             "ORDER BY songs.played DESC, songs.id LIMIT 8",
     )
