@@ -1,6 +1,6 @@
 # UX polish 2 (#45) — starter handoff
 
-**Status: IN PROGRESS.** UX-16 done. The slices UX-16 to UX-27 are sub-issues #46–#57 of
+**Status: IN PROGRESS.** UX-16 and UX-17 done. The slices UX-16 to UX-27 are sub-issues #46–#57 of
 [parent #45](https://github.com/marcus-gt/maekster-android/issues/45), listed in the
 [roadmap](../ANDROID_ROADMAP.md#post-m4--ux-polish-2-artist-album-and-now-playing).
 
@@ -50,5 +50,5 @@ font scale afterwards. Don't replace the owner's queue on the emulator unless th
 
 ## Next action
 
-UX-16 is complete ([handoff](UX-16-hero-back-button.md)). Next: UX-17
-([#47](https://github.com/marcus-gt/maekster-android/issues/47)).
+UX-16 ([handoff](UX-16-hero-back-button.md)) and UX-17 ([handoff](UX-17-artist-hero-fade.md)) are complete.
+Next: UX-18 ([#48](https://github.com/marcus-gt/maekster-android/issues/48)).

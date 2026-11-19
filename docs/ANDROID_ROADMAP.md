@@ -933,7 +933,7 @@ Dependencies and gates:
 | Slice | GitHub issue | Handoff |
 |---|---|---|
 | UX-16 | [Album, playlist and artist pages: always show the back button](https://github.com/marcus-gt/maekster-android/issues/46) | Complete ([handoff](handoffs/UX-16-hero-back-button.md)) |
-| UX-17 | [Artist page: photo fades into the page as on iOS](https://github.com/marcus-gt/maekster-android/issues/47) | Not started |
+| UX-17 | [Artist page: photo fades into the page as on iOS](https://github.com/marcus-gt/maekster-android/issues/47) | Complete ([handoff](handoffs/UX-17-artist-hero-fade.md)) |
 | UX-18 | [Artist page: Latest release card](https://github.com/marcus-gt/maekster-android/issues/48) | Not started |
 | UX-19 | [Artist page: Top songs carousel with Play and Shuffle](https://github.com/marcus-gt/maekster-android/issues/49) | Not started |
 | UX-20 | [Artist page: Liked songs carousel](https://github.com/marcus-gt/maekster-android/issues/50) | Not started |

@@ -76,11 +76,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
@@ -190,6 +193,31 @@ private const val ARTIST_NAME_MAX_LINES = 6
 private const val THEME_TRANSITION_MS = 100
 private const val SCRIM_FADE_MS = 180
 internal const val ARTIST_NAME_SCRIM_TAG = "artistNameScrim"
+internal const val ARTIST_HERO_ART_TAG = "artistHeroArt"
+
+/** Where the photo starts to fade out, and how opaque it still is halfway through the fade. */
+private const val HERO_FADE_START = 0.45f
+private const val HERO_FADE_MID_ALPHA = 0.55f
+
+/**
+ * Fades the content's lower part to transparent so the page's [HeroGradient] shows through and the
+ * photo melts into it with no edge, as the iOS artist hero does.
+ */
+private fun Modifier.fadeIntoPage(): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            drawRect(
+                brush =
+                    Brush.verticalGradient(
+                        HERO_FADE_START to Color.Black,
+                        (HERO_FADE_START + 1f) / 2f to Color.Black.copy(alpha = HERO_FADE_MID_ALPHA),
+                        1f to Color.Transparent,
+                    ),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+
 internal const val ARTIST_BIO_MORE_TAG = "artistBioMore"
 internal const val ARTIST_BIO_LESS_TAG = "artistBioLess"
 
@@ -419,25 +447,33 @@ fun ArtistDetailScreen(
                                 .onSizeChanged { imageHeightPx = it.height.toFloat() },
                         ) {
                             Box(Modifier.fillMaxWidth()) {
-                                ArtistHeroArt(
-                                    art = heroArt ?: ArtistArt(image = art, thumbnail = artThumbnail),
-                                    name = displayName,
-                                    modifier = Modifier.fillMaxWidth().height(ART_HEIGHT),
-                                )
-                                if (nameScrimAlpha > 0f) {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .align(Alignment.BottomStart)
-                                                .fillMaxWidth()
-                                                .height(maxOf(ART_HEIGHT * 0.4f, titleHeight + TITLE_INSET * 2))
-                                                .graphicsLayer { alpha = nameScrimAlpha }
-                                                .background(
-                                                    Brush.verticalGradient(
-                                                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
-                                                    ),
-                                                ).testTag(ARTIST_NAME_SCRIM_TAG),
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(ART_HEIGHT)
+                                        .fadeIntoPage()
+                                        .testTag(ARTIST_HERO_ART_TAG),
+                                ) {
+                                    ArtistHeroArt(
+                                        art = heroArt ?: ArtistArt(image = art, thumbnail = artThumbnail),
+                                        name = displayName,
+                                        modifier = Modifier.fillMaxWidth().height(ART_HEIGHT),
                                     )
+                                    if (nameScrimAlpha > 0f) {
+                                        Box(
+                                            modifier =
+                                                Modifier
+                                                    .align(Alignment.BottomStart)
+                                                    .fillMaxWidth()
+                                                    .height(maxOf(ART_HEIGHT * 0.4f, titleHeight + TITLE_INSET * 2))
+                                                    .graphicsLayer { alpha = nameScrimAlpha }
+                                                    .background(
+                                                        Brush.verticalGradient(
+                                                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
+                                                        ),
+                                                    ).testTag(ARTIST_NAME_SCRIM_TAG),
+                                        )
+                                    }
                                 }
                                 Box(Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
                                     ArtistTitle(
