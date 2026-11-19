@@ -274,7 +274,7 @@ fun ItemContextMenu(
             if (target.mixRequest() != null && onInstantMix != null) {
                 MenuItem(
                     Icons.AutoMirrored.Rounded.QueueMusic,
-                    stringResource(if (target is MenuTarget.Artist) R.string.start_station else R.string.instant_mix_title),
+                    stringResource(if (target is MenuTarget.Artist) R.string.artist_radio else R.string.instant_mix_title),
                 ) {
                     dismiss { onInstantMix(target) }
                 }

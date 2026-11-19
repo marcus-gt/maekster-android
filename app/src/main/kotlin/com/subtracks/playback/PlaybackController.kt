@@ -142,7 +142,7 @@ private data class PendingPlay(
     val position: Long,
     val disableShuffle: Boolean,
     val origin: QueueEntry?,
-    val collection: QueueCollection? = null,
+    val sourceLabel: String? = null,
 )
 
 private data class PendingShuffle(
@@ -286,7 +286,7 @@ class PlaybackController(
                     pendingShuffle = null
                     when {
                         pending != null -> {
-                            start(pending.entries, pending.position, pending.disableShuffle, pending.origin, pending.collection)
+                            start(pending.entries, pending.position, pending.disableShuffle, pending.origin, pending.sourceLabel)
                         }
 
                         shuffle != null -> {
@@ -420,16 +420,18 @@ class PlaybackController(
     }
 
     /**
-     * Plays a mix (Smart Shuffle) in its given order: one song entry per pick, labelled as [collection]. The
-     * mix is already shuffled, so shuffle mode is turned off. Bounded by the mix size, never a whole table.
+     * Plays a mix (Smart Shuffle) in its given order: one song entry per pick, labelled as [collection] (or the
+     * [sourceLabel] it stores, such as an artist radio's). The mix is already shuffled, so shuffle mode is turned
+     * off. Bounded by the mix size, never a whole table.
      */
     internal fun playMix(
         sourceId: Long,
         songIds: List<String>,
         collection: QueueCollection,
+        sourceLabel: String = collection.storedLabel,
     ) {
         if (songIds.isEmpty()) return
-        play(songIds.map { queueRepository.songEntry(sourceId, it) }, 0, disableShuffle = true, collection = collection)
+        play(songIds.map { queueRepository.songEntry(sourceId, it) }, 0, disableShuffle = true, sourceLabel = sourceLabel)
     }
 
     fun shuffleStarred(sourceId: Long) = shuffleContext(queueRepository.starredEntry(sourceId))
@@ -1358,16 +1360,16 @@ class PlaybackController(
         startPosition: Long,
         disableShuffle: Boolean = false,
         origin: QueueEntry? = null,
-        collection: QueueCollection? = null,
+        sourceLabel: String? = null,
     ) {
         playbackCommandVersion++
         unplayableRun = 0
         if (player == null) {
-            pendingPlay = PendingPlay(entries, startPosition, disableShuffle, origin, collection)
+            pendingPlay = PendingPlay(entries, startPosition, disableShuffle, origin, sourceLabel)
             connect()
             return
         }
-        scope.launch { start(entries, startPosition, disableShuffle, origin, collection) }
+        scope.launch { start(entries, startPosition, disableShuffle, origin, sourceLabel) }
     }
 
     private suspend fun start(
@@ -1375,7 +1377,7 @@ class PlaybackController(
         startPosition: Long,
         disableShuffle: Boolean = false,
         origin: QueueEntry? = null,
-        collection: QueueCollection? = null,
+        sourceLabel: String? = null,
     ) = startLock.withLock {
         if (!canStartLibraryEntry(entries.singleOrNull())) return@withLock
         windowJob?.cancel()
@@ -1387,7 +1389,7 @@ class PlaybackController(
         shuffleEnabled = !disableShuffle && modes.shuffle
         repeatMode = modes.repeat.toRepeatMode()
         player?.setRepeatOne(repeatMode == RepeatMode.One)
-        queueRepository.replace(entries, sourceLabel = collection?.storedLabel ?: sourceLabelFor(entries, origin))
+        queueRepository.replace(entries, sourceLabel = sourceLabel ?: sourceLabelFor(entries, origin))
         val snapshot = queueRepository.snapshot()
         this.snapshot = snapshot
         queueSourceId = entries.firstOrNull()?.sourceId
@@ -2032,7 +2034,7 @@ class PlaybackController(
     ): SourceHeading? {
         queueRepository.sourceLabel()?.let { label ->
             val collection = QueueCollection.fromStored(label)
-            val name = collection?.let { resources.getString(it.title) } ?: label
+            val name = QueueCollection.displayName(label, resources)
             if (generated && collection?.endless != true) {
                 return SourceHeading(resources.getString(R.string.queue_similar_to, name), similar = true)
             }

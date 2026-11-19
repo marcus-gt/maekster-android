@@ -7,11 +7,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -164,10 +167,23 @@ class DiscoverScreenTest {
         }
         composeRule.onNodeWithText("Smart Shuffle").performClick()
         assertEquals(true, shuffled)
-        composeRule.onNodeWithText("Start station").assertDoesNotExist()
         composeRule.onNodeWithTag("discoverList").performScrollToIndex(0)
         composeRule.onNodeWithText(artist.name).performClick()
         assertEquals(artist, selected)
+    }
+
+    @Test fun artistTilesSitUnderArtistRadioWithoutACaption() {
+        composeRule.setContent {
+            MaeksterTheme {
+                DiscoverScreen(DiscoverState(artists = listOf(artist)), false, {}, {}, {})
+            }
+        }
+        composeRule.onNodeWithText("Artist radio").assertExists()
+        composeRule.onNodeWithText("Stations for you").assertDoesNotExist()
+        composeRule.onNodeWithText("Radio station").assertDoesNotExist()
+        composeRule
+            .onNode(hasClickAction() and hasText(artist.name))
+            .assert(hasText(artist.name) and !hasText("radio", substring = true, ignoreCase = true))
     }
 
     @Test fun layoutControlsOrderAndVisibilityWithoutSettingsSwitches() {
@@ -196,7 +212,7 @@ class DiscoverScreenTest {
         }
         composeRule.onNodeWithText("Autoplay similar").assertDoesNotExist()
         composeRule.onNodeWithTag("freshReleasesSwitch").assertDoesNotExist()
-        composeRule.onNodeWithText("Stations for you").assertDoesNotExist()
+        composeRule.onNodeWithText("Artist radio").assertDoesNotExist()
         val builderTop =
             composeRule
                 .onNodeWithText("Builder marker")
@@ -431,7 +447,7 @@ class DiscoverScreenTest {
         composeRule.setContent {
             MaeksterTheme { DiscoverScreen(DiscoverState(true, listOf(artist)), false, {}, {}, {}) }
         }
-        composeRule.onNodeWithText("Stations for you").assertDoesNotExist()
+        composeRule.onNodeWithText("Artist radio").assertDoesNotExist()
         composeRule.onNodeWithText("Smart Shuffle").assertExists()
         composeRule.onNodeWithText("Offline: a fresh mix from your downloaded music.").assertExists()
     }

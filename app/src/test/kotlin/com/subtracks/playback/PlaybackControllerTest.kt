@@ -329,6 +329,15 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun anArtistRadioIsNamedAfterTheArtistAndKeepsItsNameWhenExtended() {
+        seedAlbum(20, sourceId = 1)
+        controller.playMix(1, listOf("s1", "s2"), QueueCollection.ArtistRadio, QueueCollection.artistRadioLabel("Bob Dylan"))
+        await { controller.state.value.isPlaying }
+        assertEquals(SourceHeading("Bob Dylan radio"), runBlocking { controller.sourceHeading(null, resources, generated = false) })
+        assertEquals(SourceHeading("Bob Dylan radio"), runBlocking { controller.sourceHeading(null, resources, generated = true) })
+    }
+
+    @Test
     fun persistedAutoplayPreferenceDrivesRefillAndTruncation() {
         networkAvailable.value = true
         seedAlbum(20, sourceId = 1)

@@ -939,7 +939,7 @@ Dependencies and gates:
 | UX-20 | [Artist page: Liked songs carousel](https://github.com/marcus-gt/maekster-android/issues/50) | Complete ([handoff](handoffs/UX-20-liked-songs.md)) |
 | UX-21 | [Artist page: load similar artists automatically](https://github.com/marcus-gt/maekster-android/issues/51) | Complete ([handoff](handoffs/UX-21-similar-artists.md)) |
 | UX-22 | [Artist page: optional album list layout](https://github.com/marcus-gt/maekster-android/issues/52) | Complete ([handoff](handoffs/UX-22-artist-album-list.md)) |
-| UX-23 | [Artist page: align Start station with Discover stations and Instant Mix](https://github.com/marcus-gt/maekster-android/issues/53) | Not started |
+| UX-23 | [Artist page: align Start station with Discover stations and Instant Mix](https://github.com/marcus-gt/maekster-android/issues/53) | Complete ([handoff](handoffs/UX-23-artist-station-name.md)) |
 | UX-24 | [Now Playing: static header and playback source type](https://github.com/marcus-gt/maekster-android/issues/54) | Not started |
 | UX-25 | [Now Playing: album line and iOS text hierarchy](https://github.com/marcus-gt/maekster-android/issues/55) | Not started |
 | UX-26 | [Lyrics: find out why lyrics are not synced](https://github.com/marcus-gt/maekster-android/issues/56) | Not started |
@@ -970,6 +970,7 @@ All decided on 10 November 2026.
 | D15 | Crossfade | **Agreed.** Prototype in M3.8, drop if it compromises gapless. On hold since 16 Nov 2026 (issue #13) |
 | D16 | Casting | **Wanted, later.** Deferred to Post-M4 (former M4.7, issue #3); ordinary playback must never depend on Play Services |
 | D17 | Internet radio | **Dropped (16 Nov 2026).** Not needed; M3.9 is skipped |
+| D18 | Name of the artist-seeded mix ([UX-23](https://github.com/marcus-gt/maekster-android/issues/53)) | **Agreed (19 Nov 2026).** "Artist radio": the artist … menu item and the Discover shelf (formerly "Stations for you") say Artist radio, the Discover tiles have no caption, and the queue and Now Playing say "<Artist> radio". Song and album mixes stay "Instant Mix" |
 
 ## Smallest sensible first implementation slice
 

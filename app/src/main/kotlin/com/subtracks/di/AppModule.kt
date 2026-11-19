@@ -368,6 +368,15 @@ fun appModule(
             mix = InstantMix(get<SubtracksDatabase>().mixDao(), SimilarSongs(sources::similarSongs), get()),
             activeSourceId = sources::activeSourceIdOnce,
             downloadedOnly = get(named("mixDownloadedOnly")),
+            artistName = { sourceId, artistId ->
+                val library = get<SubtracksDatabase>().libraryDao()
+                library
+                    .artist(sourceId, artistId)
+                    .first()
+                    ?.name
+                    ?.takeIf { it.isNotBlank() }
+                    ?: library.artistName(sourceId, artistId).first()
+            },
             controller = get(),
         )
     }

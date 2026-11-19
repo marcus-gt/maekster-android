@@ -417,10 +417,9 @@
     <string name="autoplay_similar_description">Continue with similar songs as the queue ends. Uses your music server online and downloads offline. Paused with repeat or shuffle.</string>
     <string name="discover_shuffle_description">Favorites, recent taste and forgotten gems. A fresh mix from your library.</string>
     <string name="discover_shuffle_offline">Offline: a fresh mix from your downloaded music.</string>
-    <string name="discover_stations">Stations for you</string>
+    <string name="discover_stations">Artist radio</string>
     <string name="discover_stations_description">Start with an artist. See where the music takes you.</string>
-    <string name="discover_stations_empty">Sync your library to find artist stations here.</string>
-    <string name="discover_station_caption">Radio station</string>
+    <string name="discover_stations_empty">Sync your library to find artist radio here.</string>
     <string name="discover_moods">Moods</string>
     <string name="discover_moods_description">Radios picked by how your music sounds, using AudioMuse.</string>
     <string name="mood_night">Night</string>
@@ -466,6 +465,8 @@
     <string name="song_path_picker_failed">Could not load songs. Try opening the picker again.</string>
     <string name="mood_radio_failed">Could not start the mood radio. Try again.</string>
     <string name="instant_mix_title">Instant Mix</string>
+    <string name="artist_radio">Artist radio</string>
+    <string name="artist_radio_queue">%1$s radio</string>
     <string name="queue_builder_title">Queue Builder</string>
     <string name="queue_builder_anything">Anything in your library</string>
     <string name="queue_builder_offline">Offline: built from your downloaded music.</string>
@@ -512,7 +513,6 @@
     <string name="queue_builder_moods_unavailable">No mood scores are available for these songs. Moods need AudioMuse, or songs scored before when offline.</string>
     <string name="queue_builder_moods_no_match">AudioMuse has not analysed these songs for the picked moods yet.</string>
     <string name="queue_builder_moods_partial">Some songs could not be scored for mood, so the queue is shorter.</string>
-    <string name="start_station">Start station</string>
     <string name="mix_preparing">Preparing mix…</string>
     <string name="mix_empty">No songs available for this mix. Offline mixes need downloaded songs.</string>
     <string name="mix_failed">Could not start the mix. Try again.</string>

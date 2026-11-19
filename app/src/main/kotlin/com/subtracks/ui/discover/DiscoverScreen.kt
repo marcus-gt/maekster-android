@@ -220,7 +220,7 @@ private fun StationsSection(
                         enabled = !busy,
                         brush = brush,
                         title = artist.name,
-                        caption = stringResource(R.string.discover_station_caption),
+                        caption = null,
                         modifier = Modifier.width(VIVID_TILE),
                     ) {
                         ArtistIcon(artist, artistArt, Modifier.size(104.dp).clip(CircleShape))

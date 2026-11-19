@@ -43,7 +43,7 @@ class ItemContextMenuMixTest {
     }
 
     @Test
-    fun artistStartsStation() {
-        check(MenuTarget.Artist(Artist(1, "ar", "Artist", 1, null)), "Start station")
+    fun artistStartsArtistRadio() {
+        check(MenuTarget.Artist(Artist(1, "ar", "Artist", 1, null)), "Artist radio")
     }
 }
