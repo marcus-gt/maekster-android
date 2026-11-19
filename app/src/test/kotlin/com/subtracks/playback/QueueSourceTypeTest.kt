@@ -20,15 +20,15 @@ class QueueSourceTypeTest {
     ) = nowPlayingSourceType(label, contextKind, generated, resources)
 
     @Test
-    fun everyNamedKindShowsItsTypeRatherThanItsName() {
+    fun playlistsArtistsAndGenresAreNamedWhileAlbumsShowOnlyTheirType() {
         val expected =
             mapOf(
                 QueueKind.Album to "Album",
                 QueueKind.Song to "Album",
-                QueueKind.Playlist to "Playlist",
-                QueueKind.Artist to "Artist",
-                QueueKind.ArtistAppearances to "Artist",
-                QueueKind.Genre to "Genre",
+                QueueKind.Playlist to "Love and Theft",
+                QueueKind.Artist to "Love and Theft",
+                QueueKind.ArtistAppearances to "Love and Theft",
+                QueueKind.Genre to "Love and Theft",
                 QueueKind.Downloaded to "Downloads",
                 QueueKind.Starred to "Favorites",
                 QueueKind.Library to "Songs",
@@ -77,7 +77,10 @@ class QueueSourceTypeTest {
 
     @Test
     fun oldPlainNameLabelsAndUnlabelledQueuesFallBackToTheCurrentKind() {
-        assertEquals("Playlist", type("Jazz tunes", QueueKind.Playlist))
+        assertEquals("Jazz tunes", type("Jazz tunes", QueueKind.Playlist))
+        assertEquals("Contemporary Jazz", type("Contemporary Jazz", QueueKind.Genre))
+        assertEquals("Album", type("Love and Theft", QueueKind.Album))
+        assertEquals("Playlist", type(null, QueueKind.Playlist))
         assertEquals("Similar to Jazz tunes", type("Jazz tunes", QueueKind.Song, generated = true))
         assertEquals("Album", type(null, QueueKind.Album))
         assertEquals("Songs", type(null, QueueKind.Song))

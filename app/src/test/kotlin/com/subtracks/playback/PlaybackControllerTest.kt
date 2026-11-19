@@ -181,9 +181,12 @@ class PlaybackControllerTest {
             "Similar to Love and Theft",
             runBlocking { controller.nowPlayingSource(controller.state.value.context, resources, generated = true) },
         )
-        // After process death only the stored cursor is left: the type comes from it, not from the current entry.
+        // After process death only the stored cursor is left: the kind comes from it, not from the current entry,
+        // and a playlist or artist is named.
         runBlocking { queues.replace(emptyList(), sourceLabel = NamedQueueSource.label(QueueKind.Playlist, "Jazz tunes")) }
-        assertEquals("Playlist", runBlocking { controller.nowPlayingSource(QueueContext(QueueKind.Song, 1, "s1"), resources) })
+        assertEquals("Jazz tunes", runBlocking { controller.nowPlayingSource(QueueContext(QueueKind.Song, 1, "s1"), resources) })
+        runBlocking { queues.replace(emptyList(), sourceLabel = NamedQueueSource.label(QueueKind.Artist, "Bob Dylan")) }
+        assertEquals("Bob Dylan", runBlocking { controller.nowPlayingSource(QueueContext(QueueKind.Song, 1, "s1"), resources) })
     }
 
     @Test

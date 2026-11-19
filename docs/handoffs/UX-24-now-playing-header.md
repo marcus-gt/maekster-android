@@ -21,6 +21,10 @@ Branch `ux/45-artist-now-playing`, based on `b816c5d0`.
   Unnamed collections read "Similar to Favorites/Songs/Downloads"; a queue with no name reads "Autoplay".
 - Artist radio keeps D18: line 2 "<artist> radio". Mixes and radios keep their own name after refills.
 - A single song is labelled by its album (as on iOS), so its type is "Album".
+- Owner follow-up after the first commit (`86bea585`): **playlists, artists and genres show their name**, e.g.
+  "Jazz tunes", "Bob Dylan", "Contemporary Jazz" (the header line 1 is shown uppercase; line 2 keeps the
+  name's own case). Albums stay "Album" because the album name goes under the cover (UX-25). Implemented as
+  `NAMED_KINDS` in `QueueSourceType.kt`; old plain-name labels with a playlist or genre entry are named too.
 
 ## Implementation
 
@@ -54,6 +58,12 @@ Branch `ux/45-artist-now-playing`, based on `b816c5d0`.
   changed it to Bob Dylan's "It Ain't Me Babe" since UX-23).
 - Not checked on the device: albums and playlists (unit and controller tests), an autoplay continuation, and
   200% font (the line is one `maxLines = 1` ellipsized `Text`, unchanged).
+
+- Follow-up (named playlists, artists, genres): updated `QueueSourceTypeTest` and the controller test (a
+  stored playlist reads "Jazz tunes" and a stored artist "Bob Dylan" while the current entry is a song);
+  with the naming rule disabled they failed, restored they pass. Full run again: 2012 tests, 0 failures;
+  build, ktlint and lint (no issues) pass. Emulator: the queue in use (a Miles Davis album someone was playing)
+  read "NOW PLAYING / Album"; I did not replace it to view a playlist or artist on the device.
 
 ## Known limitation
 

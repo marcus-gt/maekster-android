@@ -27,9 +27,11 @@ internal object NamedQueueSource {
 }
 
 /**
- * Now Playing's second line: the type of thing playing (Album, Playlist, Instant Mix, "Bob Dylan radio"…),
- * never an album or playlist name. Once autoplay extends a finite source it reads "Similar to <source>";
- * mixes and radios keep their own name. [contextKind] covers a queue with no stored source.
+ * Now Playing's second line: what is playing. A playlist, artist or genre is named ("Jazz tunes", "Bob Dylan",
+ * "Contemporary Jazz"); an album is only "Album", since its name sits under the cover; everything else is its
+ * type or collection (Favorites, Instant Mix, "Bob Dylan radio"…). Once autoplay extends a finite source it
+ * reads "Similar to <source>"; mixes and radios keep their own name. [contextKind] covers a queue with no
+ * stored source.
  */
 internal fun nowPlayingSourceType(
     label: String?,
@@ -48,6 +50,9 @@ internal fun nowPlayingSourceType(
         return name?.takeIf { it.isNotBlank() }?.let { resources.getString(R.string.queue_similar_to, it) }
             ?: resources.getString(R.string.queue_type_autoplay)
     }
+    val kind = named?.first ?: contextKind
+    val name = named?.second ?: label
+    if (kind in NAMED_KINDS && !name.isNullOrBlank()) return name
     val title =
         when {
             named != null -> named.first.typeTitle(labelledByAlbum = true)
@@ -55,6 +60,9 @@ internal fun nowPlayingSourceType(
         }
     return resources.getString(title ?: R.string.queue_type_queue)
 }
+
+/** Sources Now Playing names rather than types, as the owner asked in #54. */
+private val NAMED_KINDS = setOf(QueueKind.Playlist, QueueKind.Artist, QueueKind.ArtistAppearances, QueueKind.Genre)
 
 /** A stored single-song source is labelled by its album; a bare song entry is just songs. */
 @StringRes
