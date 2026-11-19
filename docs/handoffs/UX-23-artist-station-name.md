@@ -42,7 +42,10 @@ renamed **Artist radio**. Song and album mixes stay "Instant Mix". UX-24 uses th
   `DiscoverViewModel.station` calls; the menu goes through `MenuTarget.mixRequest()` and `play`.
 - Discover tiles: `VividTileCard.caption` is nullable; the Artist radio tiles pass none.
 - Owner follow-up: the shelf description wrapped to two lines, so `discover_stations_description` is now
-  "Pick an artist and see where it takes you." (one line on the Pixel 9 emulator at 100% font).
+  "Pick an artist and see where it takes you." (one line on the Pixel 9 emulator at 100% font; it still
+  wraps at larger font sizes, which is fine). Committed as `ff3fd244`. Checked after the change:
+  `:app:assembleDebug`, `:app:ktlintCheck`, `:app:lintDebug` (no issues) and `DiscoverScreenTest`
+  (22 tests, 0 failures); the full unit suite was not rerun for this one-string change.
 
 ## Verification
 
@@ -66,6 +69,11 @@ renamed **Artist radio**. Song and album mixes stay "Instant Mix". UX-24 uses th
 - Not checked: offline start, autoplay refill on the device (covered by the controller test), TalkBack on
   the captionless tiles (the shelf heading gives the context).
 - Still "NOW PLAYING: SONG" above the title in Now Playing: that line is UX-24's scope.
+
+## Git state
+
+Branch `ux/45-artist-now-playing`: UX-23 is `c74964e3` plus the copy follow-up `ff3fd244` and this handoff
+update. Nothing pushed; the owner opens one PR for #45 at the end.
 
 ## Next action
 
