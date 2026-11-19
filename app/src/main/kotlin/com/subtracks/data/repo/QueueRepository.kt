@@ -6,6 +6,7 @@ import androidx.room3.useReaderConnection
 import androidx.room3.useWriterConnection
 import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.db.SubtracksDatabase
+import com.subtracks.data.db.songsExistQuery
 import com.subtracks.data.model.PlaybackCursor
 import com.subtracks.data.model.QueueEntry
 import com.subtracks.data.model.QueueKind
@@ -510,6 +511,12 @@ class QueueRepository(
     private val cursorMutex = Mutex()
     private val orderCache = ConcurrentHashMap<Long, RetainedQueueOrder>()
 
+    internal suspend fun recordPlaylistStart(entry: QueueEntry) {
+        if (entry.kind == QueueKind.Playlist) {
+            db.libraryDao().recordPlaylistUse(entry.sourceId, entry.refId, System.currentTimeMillis())
+        }
+    }
+
     fun playlistEntry(
         sourceId: Long,
         playlistId: String,
@@ -543,6 +550,11 @@ class QueueRepository(
     fun downloadedEntry(sourceId: Long) = QueueEntry(position = 0, sourceId = sourceId, kind = QueueKind.Downloaded, refId = "")
 
     fun starredEntry(sourceId: Long) = QueueEntry(position = 0, sourceId = sourceId, kind = QueueKind.Starred, refId = "")
+
+    internal suspend fun hasLibrarySongs(entry: QueueEntry): Boolean {
+        val spec = SongListSpec.decode(entry.refId) ?: return false
+        return dao.count(songsExistQuery(entry.sourceId, spec)) != 0L
+    }
 
     fun libraryEntry(
         sourceId: Long,

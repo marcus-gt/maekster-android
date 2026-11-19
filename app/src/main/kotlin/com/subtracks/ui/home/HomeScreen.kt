@@ -3,17 +3,18 @@ package com.subtracks.ui.home
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -49,7 +49,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -57,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,6 +64,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -81,6 +82,7 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.HomeGenreShelf
 import com.subtracks.data.model.PinnedItem
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
@@ -96,9 +98,12 @@ import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
+import com.subtracks.ui.components.SectionOpenArrow
 import com.subtracks.ui.components.playlistUpdatedText
+import com.subtracks.ui.components.sectionOpenAction
 import com.subtracks.ui.components.statusBarScrim
 import com.subtracks.ui.discover.QueueBuilderRoute
+import com.subtracks.ui.discover.rememberSongPathCard
 import com.subtracks.ui.library.SongRow
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -216,6 +221,10 @@ private fun HomeFeedContent(
     onPlaylistsMore: () -> Unit,
 ) {
     val layout by viewModel.homeLayout.collectAsStateWithLifecycle()
+    val genreShelves =
+        key(offline) {
+            remember(viewModel, offline) { viewModel.genreShelves(offline) }.collectAsStateWithLifecycle(emptyList()).value
+        }
     val artistPicks by viewModel.artistPicks.collectAsStateWithLifecycle()
     val onPinnedClick: (PinnedItem) -> Unit = { item ->
         viewModel.withPinTarget(item) { target ->
@@ -231,6 +240,8 @@ private fun HomeFeedContent(
     if (offline) {
         OfflineHomeScreen(
             layout = layout,
+            genreShelves = genreShelves,
+            onGenreClick = onGenreClick,
             pins = viewModel.downloadedPins.collectAsLazyPagingItems(),
             queueBuilderContent = { QueueBuilderRoute() },
             onPinnedClick = onPinnedClick,
@@ -255,8 +266,10 @@ private fun HomeFeedContent(
         )
     } else {
         val feed by viewModel.feed.collectAsStateWithLifecycle()
+        val songPath = if (HomeShelf.SongPath in layout.visible) rememberSongPathCard(koinViewModel()) else null
         HomeScreen(
             feed = feed,
+            genreShelves = genreShelves,
             layout = layout,
             pins = viewModel.pins.collectAsLazyPagingItems(),
             onPinnedClick = onPinnedClick,
@@ -273,6 +286,7 @@ private fun HomeFeedContent(
             onPlayStarred = viewModel::playStarred,
             artistPicks = artistPicks,
             queueBuilderContent = { QueueBuilderRoute() },
+            songPathContent = songPath,
             onLongClick = onLongClick,
             onMore = onMore,
             onGenreClick = onGenreClick,
@@ -307,13 +321,16 @@ fun HomeScreen(
     onPinnedClick: (PinnedItem) -> Unit = {},
     onPinnedLongClick: (PinnedItem) -> Unit = {},
     queueBuilderContent: (@Composable () -> Unit)? = null,
+    songPathContent: (@Composable () -> Unit)? = null,
+    genreShelves: List<HomeGenreShelf> = emptyList(),
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
-        if (feed.loading || (feed.isEmpty() && pins?.itemCount == 0 && pins.loadState.refresh is androidx.paging.LoadState.Loading)) {
+        val empty = feed.isEmpty() && (genreShelves.isEmpty() || HomeShelf.Genres in layout.hidden)
+        if (feed.loading || (empty && pins?.itemCount == 0 && pins.loadState.refresh is androidx.paging.LoadState.Loading)) {
             LoadingState(modifier)
             return@CompositionLocalProvider
         }
-        if (feed.isEmpty() && (pins?.itemCount ?: 0) == 0) {
+        if (empty && (pins?.itemCount ?: 0) == 0) {
             EmptyState(
                 text = stringResource(R.string.home_empty),
                 modifier = modifier,
@@ -323,7 +340,7 @@ fun HomeScreen(
             return@CompositionLocalProvider
         }
         BoxWithConstraints(modifier.fillMaxSize()) {
-            val pinColumns = pinGridColumns(maxWidth)
+            val gridColumns = homeGridColumns(maxWidth, LocalDensity.current.fontScale)
             LazyColumn(
                 modifier = Modifier.fillMaxSize().testTag("homeList"),
                 contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
@@ -331,15 +348,26 @@ fun HomeScreen(
                 homeTitle()
                 for (shelf in layout.visible) {
                     if (shelf == HomeShelf.Pinned) {
-                        pinnedSection(pins, shelf in layout.grids, pinColumns, coverArt, onPinnedClick, onPinnedLongClick)
+                        pinnedSection(pins, shelf in layout.grids, gridColumns, coverArt, onPinnedClick, onPinnedLongClick)
                         continue
                     }
                     if (shelf == HomeShelf.YourPlaylists) {
-                        yourPlaylistsRow(feed.yourPlaylists, coverArt, onPlaylistClick, onLongClick, onPlaylistsMore, shelf in layout.grids)
+                        yourPlaylistsRow(
+                            feed.yourPlaylists,
+                            coverArt,
+                            onPlaylistClick,
+                            onLongClick,
+                            onPlaylistsMore,
+                            if (shelf in layout.grids) gridColumns else null,
+                        )
                         continue
                     }
                     if (shelf == HomeShelf.QueueBuilder) {
                         queueBuilderContent?.let { queueBuilderItem(it) }
+                        continue
+                    }
+                    if (shelf == HomeShelf.SongPath) {
+                        songPathContent?.let { songPathItem(it) }
                         continue
                     }
                     if (shelf == HomeShelf.ArtistPicks) {
@@ -382,11 +410,19 @@ fun HomeScreen(
                         }
 
                         HomeShelf.RecentlyStarredSongs -> {
-                            homeSongs(section, feed.recentlyStarredSongs, coverArt, playingSongId, onPlayStarred, onLongClick, onMore)
+                            favoriteSongColumns(
+                                section,
+                                feed.recentlyStarredSongs,
+                                coverArt,
+                                playingSongId,
+                                onPlayStarred,
+                                onLongClick,
+                                onMore,
+                            )
                         }
 
                         HomeShelf.Genres -> {
-                            genreBlock(section, feed.genres, onGenreClick, onMore, shelf in layout.grids)
+                            genreGrids(genreShelves, gridColumns, coverArt, onAlbumClick, onLongClick, onGenreClick)
                         }
 
                         HomeShelf.Decades -> {
@@ -402,7 +438,21 @@ fun HomeScreen(
                                     HomeShelf.RecentlyPlayedAlbums -> feed.recentlyPlayedAlbums
                                     else -> feed.rediscoverAlbums
                                 }
-                            albumRow(section, albums, coverArt, onAlbumClick, onLongClick, onMore, shelf in layout.grids)
+                            albumRow(
+                                section,
+                                albums,
+                                coverArt,
+                                onAlbumClick,
+                                onLongClick,
+                                onMore,
+                                if (shelf in
+                                    layout.grids
+                                ) {
+                                    gridColumns
+                                } else {
+                                    null
+                                },
+                            )
                         }
                     }
                 }
@@ -456,10 +506,12 @@ fun OfflineHomeScreen(
     queueBuilderContent: (@Composable () -> Unit)? = null,
     offlineSongCount: Int? = null,
     onTurnOffOffline: (() -> Unit)? = null,
+    genreShelves: List<HomeGenreShelf> = emptyList(),
+    onGenreClick: (String) -> Unit = {},
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         BoxWithConstraints(modifier.fillMaxSize()) {
-            val pinColumns = pinGridColumns(maxWidth)
+            val gridColumns = homeGridColumns(maxWidth, LocalDensity.current.fontScale)
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = topInset + 8.dp, bottom = bottomInset + 24.dp),
@@ -481,7 +533,7 @@ fun OfflineHomeScreen(
                             pinnedSection(
                                 pins,
                                 shelf in layout.grids,
-                                pinColumns,
+                                gridColumns,
                                 coverArt,
                                 onPinnedClick,
                                 onPinnedLongClick,
@@ -490,6 +542,10 @@ fun OfflineHomeScreen(
 
                         HomeShelf.QueueBuilder -> {
                             queueBuilderContent?.let { queueBuilderItem(it) }
+                        }
+
+                        HomeShelf.Genres -> {
+                            genreGrids(genreShelves, gridColumns, coverArt, onAlbumClick, onLongClick, onGenreClick)
                         }
 
                         else -> {
@@ -647,26 +703,25 @@ private fun LazyListScope.yourPlaylistsRow(
     onPlaylistClick: (Playlist) -> Unit,
     onLongClick: (MenuTarget) -> Unit,
     onMore: () -> Unit,
-    grid: Boolean = false,
+    gridColumns: Int? = null,
 ) {
     if (playlists.isEmpty()) return
     item(key = "your-playlists-header") {
         HomeSectionHeader(R.string.home_section_your_playlists, Icons.AutoMirrored.Rounded.PlaylistPlay, onMore)
     }
-    if (grid) {
+    if (gridColumns != null) {
         item(key = "your-playlists-grid") {
-            HomeCoverGrid("YourPlaylists-grid") {
-                playlists.forEach { playlist ->
-                    val ref = coverArt(playlist.coverArt, true)
-                    RecentPlaylistCard(
-                        playlist,
-                        ref,
-                        ref,
-                        { onPlaylistClick(playlist) },
-                        { onLongClick(MenuTarget.Playlist(playlist, ref)) },
-                        size = TILE_SIZE,
-                    )
-                }
+            HomeGrid(playlists, gridColumns, "YourPlaylists-grid") { playlist, modifier ->
+                val ref = coverArt(playlist.coverArt, true)
+                val count = playlist.songCount.toInt()
+                HomeGridTile(
+                    title = playlist.name,
+                    subtitle = pluralStringResource(R.plurals.resources_song_count, count, count),
+                    ref = ref,
+                    onClick = { onPlaylistClick(playlist) },
+                    onLongClick = { onLongClick(MenuTarget.Playlist(playlist, ref)) },
+                    modifier = modifier,
+                )
             }
         }
         return
@@ -703,19 +758,18 @@ private fun RecentPlaylistCard(
     thumbnailRef: CoverArtRef?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    size: Dp = PLAYLIST_CARD_SIZE,
 ) {
     val resources = LocalResources.current
     val updated = remember(playlist.changed, resources) { playlistUpdatedText(resources, playlist.changed) }
     val count = playlist.songCount.toInt()
     Column(
-        modifier = Modifier.width(size).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        modifier = Modifier.width(PLAYLIST_CARD_SIZE).combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         CoverArt(
             ref = ref,
             name = playlist.name,
             thumbnailRef = thumbnailRef,
-            modifier = Modifier.size(size).clip(RoundedCornerShape(4.dp)),
+            modifier = Modifier.size(PLAYLIST_CARD_SIZE).clip(RoundedCornerShape(4.dp)),
         )
         Spacer(Modifier.height(8.dp))
         Text(
@@ -752,7 +806,6 @@ private fun HomeFeed.isEmpty(): Boolean =
         recentlyPlayedArtists.isEmpty() &&
         mostPlayedAlbums.isEmpty() &&
         mostPlayedArtists.isEmpty() &&
-        genres.isEmpty() &&
         decades.isEmpty() &&
         recentlyStarredSongs.isEmpty() &&
         recentlyAddedAlbums.isEmpty() &&
@@ -762,14 +815,33 @@ private fun LazyListScope.queueBuilderItem(content: @Composable () -> Unit) {
     item(key = "queue-builder") { Column(Modifier.padding(top = SECTION_TOP)) { content() } }
 }
 
+private fun LazyListScope.songPathItem(content: @Composable () -> Unit) {
+    item(key = "song-path") { Column(Modifier.padding(top = SECTION_TOP)) { content() } }
+}
+
 @Composable
 private fun HomeSectionHeader(
     @StringRes title: Int,
     icon: ImageVector,
     onMore: (() -> Unit)?,
 ) {
+    HomeSectionHeader(stringResource(title), icon, onMore)
+}
+
+@Composable
+private fun HomeSectionHeader(
+    text: String,
+    icon: ImageVector,
+    onMore: (() -> Unit)?,
+) {
+    val openLabel = stringResource(R.string.section_open, text)
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = SECTION_TOP, bottom = 0.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(top = SECTION_TOP)
+                .then(if (onMore != null) Modifier.sectionOpenAction(openLabel, onMore) else Modifier.heightIn(min = 48.dp))
+                .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -780,14 +852,13 @@ private fun HomeSectionHeader(
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            text = stringResource(title),
+            text = text,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.weight(1f),
         )
         if (onMore != null) {
-            TextButton(onClick = onMore) {
-                Text(stringResource(R.string.controls_more))
-            }
+            Spacer(Modifier.width(8.dp))
+            SectionOpenArrow()
         }
     }
 }
@@ -813,25 +884,6 @@ private val TILE_SPACING = 8.dp
 private val ARTIST_SPACING = 16.dp
 private val SECTION_TOP = 24.dp
 private val SECTION_CONTENT_TOP = 4.dp
-private val GENRE_ROW_SPACING = 2.dp
-private const val GENRE_ROWS = 3
-private const val GENRE_CHIP_WIDTH = 6
-
-internal fun brickRows(
-    genres: List<String>,
-    rows: Int,
-): List<List<String>> {
-    if (rows < 2) return listOf(genres)
-    val balanced = List(rows) { mutableListOf<String>() }
-    val widths = LongArray(rows)
-    genres.forEach { genre ->
-        val shortest = widths.indices.minBy { widths[it] }
-        balanced[shortest] += genre
-        widths[shortest] += genre.length + GENRE_CHIP_WIDTH
-    }
-    return balanced
-}
-
 private const val REVEAL_NEAR_FRONT = 1
 
 internal fun shouldRevealNewFront(
@@ -869,23 +921,6 @@ internal fun <T> RevealNewFrontItem(
     }
 }
 
-@Composable
-private fun HomeCoverGrid(
-    tag: String,
-    content: @Composable () -> Unit,
-) {
-    FlowRow(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(top = SECTION_CONTENT_TOP)
-                .testTag(tag),
-        horizontalArrangement = Arrangement.spacedBy(TILE_SPACING),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) { content() }
-}
-
 private fun LazyListScope.albumRow(
     section: HomeSection,
     albums: List<Album>,
@@ -893,21 +928,14 @@ private fun LazyListScope.albumRow(
     onAlbumClick: (Album) -> Unit,
     onLongClick: (MenuTarget) -> Unit,
     onMore: (HomeSection) -> Unit,
-    grid: Boolean = false,
+    gridColumns: Int? = null,
 ) {
     if (albums.isEmpty()) return
     item(key = "${section.name}-header") {
         HomeSectionHeader(section.title, section.icon) { onMore(section) }
     }
-    if (grid) {
-        item(key = "${section.name}-grid") {
-            HomeCoverGrid("${section.name}-grid") {
-                albums.forEach { album ->
-                    val ref = coverArt(album.coverArt, true)
-                    AlbumTile(album, ref, { onAlbumClick(album) }, { onLongClick(MenuTarget.Album(album, ref)) })
-                }
-            }
-        }
+    if (gridColumns != null) {
+        homeAlbumGrid("${section.name}-grid", albums, gridColumns, coverArt, onAlbumClick, onLongClick)
         return
     }
     item(key = "${section.name}-row") {
@@ -970,43 +998,42 @@ private fun LazyListScope.artistRow(
     }
 }
 
-private fun LazyListScope.genreBlock(
-    section: HomeSection,
-    genres: List<String>,
+private fun LazyListScope.genreGrids(
+    shelves: List<HomeGenreShelf>,
+    columns: Int,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onAlbumClick: (Album) -> Unit,
+    onLongClick: (MenuTarget) -> Unit,
     onGenreClick: (String) -> Unit,
-    onMore: (HomeSection) -> Unit,
-    grid: Boolean = false,
 ) {
-    if (genres.isEmpty()) return
-    item(key = "${section.name}-header") {
-        HomeSectionHeader(section.title, section.icon) { onMore(section) }
+    for (shelf in shelves) {
+        val key = "genre-${shelf.genre}"
+        item(key = "$key-header") {
+            HomeSectionHeader(shelf.genre, HomeSection.Genres.icon) { onGenreClick(shelf.genre) }
+        }
+        homeAlbumGrid("$key-grid", shelf.albums, columns, coverArt, onAlbumClick, onLongClick)
     }
-    item(key = "${section.name}-row") {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .then(if (grid) Modifier else Modifier.horizontalScroll(rememberScrollState()))
-                    .padding(start = 16.dp, end = 16.dp, top = SECTION_CONTENT_TOP),
-        ) {
-            val rows = remember(genres, grid) { if (grid) genres.chunked(2) else brickRows(genres, GENRE_ROWS) }
-            Column(verticalArrangement = Arrangement.spacedBy(GENRE_ROW_SPACING)) {
-                rows.forEach { rowGenres ->
-                    if (rowGenres.isEmpty()) return@forEach
-                    Row(
-                        modifier = if (grid) Modifier.fillMaxWidth() else Modifier,
-                        horizontalArrangement = Arrangement.spacedBy(TILE_SPACING),
-                    ) {
-                        rowGenres.forEach { genre ->
-                            AssistChip(
-                                onClick = { onGenreClick(genre) },
-                                label = { Text(genre) },
-                                modifier = if (grid) Modifier.weight(1f) else Modifier,
-                            )
-                        }
-                    }
-                }
-            }
+}
+
+private fun LazyListScope.homeAlbumGrid(
+    key: String,
+    albums: List<Album>,
+    columns: Int,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onAlbumClick: (Album) -> Unit,
+    onLongClick: (MenuTarget) -> Unit,
+) {
+    item(key = key) {
+        HomeGrid(albums, columns, key) { album, modifier ->
+            val ref = coverArt(album.coverArt, true)
+            HomeGridTile(
+                title = album.name,
+                subtitle = album.albumArtist,
+                ref = ref,
+                onClick = { onAlbumClick(album) },
+                onLongClick = { onLongClick(MenuTarget.Album(album, ref)) },
+                modifier = modifier,
+            )
         }
     }
 }
@@ -1034,7 +1061,11 @@ private fun LazyListScope.decadeRow(
     }
 }
 
-private fun LazyListScope.homeSongs(
+/**
+ * Favorite songs as side-scrolling columns of up to [FAVORITE_SONG_ROWS] rows. When there is more than
+ * one column, each is slightly narrower than the screen so the next one peeks in as a swipe hint.
+ */
+private fun LazyListScope.favoriteSongColumns(
     section: HomeSection,
     songs: List<AlbumSongItem>,
     coverArt: (String?, Boolean) -> CoverArtRef?,
@@ -1042,17 +1073,45 @@ private fun LazyListScope.homeSongs(
     onSongPlay: (Song) -> Unit,
     onLongClick: (MenuTarget) -> Unit,
     onMore: (HomeSection) -> Unit,
-) = songList(
-    key = section.name,
-    title = section.title,
-    icon = section.icon,
-    songs = songs,
-    coverArt = coverArt,
-    playingSongId = playingSongId,
-    onSongPlay = onSongPlay,
-    onLongClick = onLongClick,
-    onMore = { onMore(section) },
-)
+) {
+    if (songs.isEmpty()) return
+    item(key = "${section.name}-header") {
+        HomeSectionHeader(section.title, section.icon) { onMore(section) }
+    }
+    item(key = "${section.name}-columns") {
+        val columns = remember(songs) { songs.chunked(FAVORITE_SONG_ROWS) }
+        val rowState = rememberLazyListState()
+        RevealNewFrontItem(columns, rowState) { it.first().song.id }
+        LazyRow(
+            state = rowState,
+            flingBehavior = rememberSnapFlingBehavior(rowState, SnapPosition.Start),
+            modifier = Modifier.fillMaxWidth().testTag(FAVORITE_SONGS_TAG),
+        ) {
+            items(columns, key = { it.first().song.id }) { column ->
+                Column(Modifier.fillParentMaxWidth(if (columns.size > 1) FAVORITE_COLUMN_WIDTH else 1f)) {
+                    column.forEach { item ->
+                        SongRow(
+                            song = item.song,
+                            coverArtId = item.coverArt,
+                            coverArt = coverArt,
+                            isPlaying = item.song.id == playingSongId,
+                            durationSeconds = item.song.duration,
+                            modifier =
+                                Modifier.combinedClickable(
+                                    onClick = { onSongPlay(item.song) },
+                                    onLongClick = { onLongClick(MenuTarget.Song(item.song, coverArt(item.coverArt, true))) },
+                                ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal const val FAVORITE_SONGS_TAG = "favoriteSongs"
+private const val FAVORITE_SONG_ROWS = 3
+private const val FAVORITE_COLUMN_WIDTH = 0.88f
 
 private fun LazyListScope.songList(
     key: String,

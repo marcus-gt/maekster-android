@@ -162,7 +162,7 @@ private object Routes {
 
     // Not under library/, which LIBRARY_LIST would match.
     const val FAVORITES = "favorites"
-    const val COLLECTION = "collection/{kind}/{name}"
+    const val COLLECTION = "collection/{kind}/{name}?mode={mode}&style={style}"
     const val SETTINGS = "settings"
     const val SETTINGS_PAGE = "settings/{page}"
     const val DOWNLOADS = "downloads"
@@ -195,6 +195,13 @@ private object Routes {
         kind: AlbumCollectionKind,
         name: String,
     ) = "collection/${kind.name}/${Uri.encode(name)}"
+
+    fun genreStyles(main: String) = "${collection(AlbumCollectionKind.Genre, main)}?mode=styles"
+
+    fun genreAlbums(
+        main: String,
+        style: String?,
+    ) = "${collection(AlbumCollectionKind.Genre, main)}?mode=albums" + if (style == null) "" else "&style=${Uri.encode(style)}"
 
     fun settingsPage(page: SettingsPage) = "settings/${page.name}"
 
@@ -515,7 +522,7 @@ private fun MainNavigation() {
                                     },
                                     onMore = { section -> navController.navigate(Routes.homeSection(section)) },
                                     onDownloadedMore = { kind -> navController.navigate(Routes.homeDownloaded(kind)) },
-                                    onGenreClick = { genre -> navController.navigate(Routes.homeGenre(genre)) },
+                                    onGenreClick = { genre -> navController.navigate(Routes.genreAlbums(genre, style = null)) },
                                     onDecadeClick = { decade -> navController.navigate(Routes.homeDecade(decade)) },
                                     onPlaylistsMore = { navController.navigate(Routes.libraryList(LibraryTab.Playlists)) },
                                     contextMenuHost = contextMenuHost,
@@ -589,7 +596,17 @@ private fun MainNavigation() {
                                     contextMenuHost = contextMenuHost,
                                     setStar = libraryRepository::star,
                                     bottomInset = bottomInset,
-                                    onCollectionClick = { kind, name -> navController.navigate(Routes.collection(kind, name)) },
+                                    onCollectionClick = { kind, name ->
+                                        navController.navigate(
+                                            if (kind ==
+                                                AlbumCollectionKind.Genre
+                                            ) {
+                                                Routes.genreStyles(name)
+                                            } else {
+                                                Routes.collection(kind, name)
+                                            },
+                                        )
+                                    },
                                 )
                             }
                             composable(
@@ -598,14 +615,33 @@ private fun MainNavigation() {
                                     listOf(
                                         navArgument("kind") { type = NavType.StringType },
                                         navArgument("name") { type = NavType.StringType },
+                                        navArgument("mode") {
+                                            type = NavType.StringType
+                                            nullable = true
+                                        },
+                                        navArgument("style") {
+                                            type = NavType.StringType
+                                            nullable = true
+                                        },
                                     ),
                             ) { entry ->
                                 val kind =
                                     AlbumCollectionKind.entries.firstOrNull { it.name == entry.arguments?.getString("kind") }
                                         ?: return@composable
                                 val name = entry.arguments?.getString("name") ?: return@composable
+                                val mode = entry.arguments?.getString("mode")
+                                val style = entry.arguments?.getString("style")
                                 HomeListRoute(
-                                    request = HomeListRequest(title = name, collection = kind, collectionName = name),
+                                    request =
+                                        HomeListRequest(
+                                            title = style ?: name,
+                                            collection = kind,
+                                            collectionName = name,
+                                            showGenreStyles = mode == "styles",
+                                            groupedGenre = mode == "albums",
+                                            genreStyle = style,
+                                        ),
+                                    onGenreStyleClick = { navController.navigate(Routes.genreAlbums(name, it)) },
                                     onBack = { navController.popBackStack() },
                                     onAlbumClick = { album ->
                                         navigateDetail(Routes.ALBUM_DETAIL, "albumId", album.id, Routes.album(album.id, album.coverArt))

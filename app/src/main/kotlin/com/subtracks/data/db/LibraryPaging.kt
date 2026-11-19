@@ -163,24 +163,46 @@ internal fun playlistsPageQuery(
             ),
     )
 
-internal fun rediscoverAlbumsQuery(
-    sourceId: Long,
-    starredFilter: Int,
-    search: String,
-    cutoff: Long,
-): RoomRawQuery =
-    rawQuery(
-        sql =
-            "SELECT * $ALBUMS_FILTER AND played IS NOT NULL AND played < :cutoff " +
-                "ORDER BY played ASC, sortName COLLATE NOCASE, id",
-        bindings =
-            mapOf(
-                "sourceId" to sourceId,
-                "starredFilter" to starredFilter,
-                "search" to search,
-                "cutoff" to cutoff,
-            ),
-    )
+const val REDISCOVER_LIMIT = 12
+const val HEAVY_ROTATION_LIMIT = 12
+private const val FREQUENT_ALBUM_POOL = 40
+private const val RECENT_ALBUMS_EXCLUDED = 20
+private const val FAVORITE_ALBUMS_EXCLUDED = 40
+
+/**
+ * The most played albums ([FREQUENT_ALBUM_POOL]) that aren't among the recently played or favourite ones, numbered by
+ * `position`. As on iOS, In heavy rotation shows the first [HEAVY_ROTATION_LIMIT] and Rediscover the next
+ * [REDISCOVER_LIMIT], so the shelves never repeat each other. No time window.
+ */
+private const val UNSHOWN_FREQUENT_ALBUMS =
+    "WITH frequent AS (" +
+        "SELECT id, ROW_NUMBER() OVER (ORDER BY playCount DESC, sortName COLLATE NOCASE, id) AS frequency " +
+        "FROM albums WHERE sourceId = :sourceId AND playCount > 0 " +
+        "ORDER BY playCount DESC, sortName COLLATE NOCASE, id LIMIT $FREQUENT_ALBUM_POOL" +
+        "), shown AS (" +
+        "SELECT id FROM (SELECT id FROM albums WHERE sourceId = :sourceId AND played IS NOT NULL " +
+        "ORDER BY played DESC, sortName COLLATE NOCASE, id LIMIT $RECENT_ALBUMS_EXCLUDED) " +
+        "UNION SELECT id FROM (SELECT id FROM albums WHERE sourceId = :sourceId AND starred IS NOT NULL " +
+        "ORDER BY starred DESC, sortName COLLATE NOCASE, id LIMIT $FAVORITE_ALBUMS_EXCLUDED)" +
+        "), eligible AS (" +
+        "SELECT id, ROW_NUMBER() OVER (ORDER BY frequency) AS position FROM frequent " +
+        "WHERE id NOT IN (SELECT id FROM shown)" +
+        ") SELECT albums.* FROM eligible JOIN albums ON albums.sourceId = :sourceId AND albums.id = eligible.id "
+
+/** In heavy rotation, as on iOS: see [UNSHOWN_FREQUENT_ALBUMS]. */
+internal const val HEAVY_ROTATION_ALBUMS_SQL =
+    UNSHOWN_FREQUENT_ALBUMS + "ORDER BY eligible.position LIMIT $HEAVY_ROTATION_LIMIT"
+
+/** Rediscover, as on iOS: see [UNSHOWN_FREQUENT_ALBUMS]. */
+internal const val REDISCOVER_ALBUMS_SQL =
+    UNSHOWN_FREQUENT_ALBUMS +
+        "WHERE eligible.position > $HEAVY_ROTATION_LIMIT ORDER BY eligible.position LIMIT $REDISCOVER_LIMIT"
+
+internal fun heavyRotationAlbumsQuery(sourceId: Long): RoomRawQuery =
+    rawQuery(sql = HEAVY_ROTATION_ALBUMS_SQL, bindings = mapOf("sourceId" to sourceId))
+
+internal fun rediscoverAlbumsQuery(sourceId: Long): RoomRawQuery =
+    rawQuery(sql = REDISCOVER_ALBUMS_SQL, bindings = mapOf("sourceId" to sourceId))
 
 // RoomRawQuery takes a positional bind function, but SQLite gives a repeated named parameter one
 // index, so the SQL can keep its names and only the first-appearance order needs binding.
@@ -213,25 +235,31 @@ private fun SQLiteStatement.bind(
     }
 }
 
-internal fun albumNameSortKey(mode: SortNameMode): String =
+internal fun albumNameSortKey(
+    mode: SortNameMode,
+    prefix: String = "",
+): String =
     when (mode) {
-        SortNameMode.SortName -> "sortName COLLATE NOCASE"
-        SortNameMode.Name -> "name COLLATE NOCASE"
-        SortNameMode.NonLatin -> "(CASE WHEN name GLOB '*[A-Za-z]*' THEN name ELSE sortName END) COLLATE NOCASE"
+        SortNameMode.SortName -> "${prefix}sortName COLLATE NOCASE"
+        SortNameMode.Name -> "${prefix}name COLLATE NOCASE"
+        SortNameMode.NonLatin -> "(CASE WHEN ${prefix}name GLOB '*[A-Za-z]*' THEN ${prefix}name ELSE ${prefix}sortName END) COLLATE NOCASE"
     }
 
-internal fun albumArtistSortKey(mode: SortNameMode): String =
+internal fun albumArtistSortKey(
+    mode: SortNameMode,
+    prefix: String = "",
+): String =
     when (mode) {
         SortNameMode.SortName -> {
-            "albumArtistSort COLLATE NOCASE"
+            "${prefix}albumArtistSort COLLATE NOCASE"
         }
 
         SortNameMode.Name -> {
-            "albumArtist COLLATE NOCASE"
+            "${prefix}albumArtist COLLATE NOCASE"
         }
 
         SortNameMode.NonLatin -> {
-            "(CASE WHEN albumArtist GLOB '*[A-Za-z]*' THEN albumArtist ELSE albumArtistSort END) COLLATE NOCASE"
+            "(CASE WHEN ${prefix}albumArtist GLOB '*[A-Za-z]*' THEN ${prefix}albumArtist ELSE ${prefix}albumArtistSort END) COLLATE NOCASE"
         }
     }
 
@@ -242,43 +270,26 @@ internal fun artistNameSortKey(mode: SortNameMode): String =
         SortNameMode.NonLatin -> "(CASE WHEN name GLOB '*[A-Za-z]*' THEN name ELSE sortName END) COLLATE NOCASE"
     }
 
-private fun albumOrder(
+internal fun albumOrder(
     sort: AlbumSort,
     descending: Boolean,
     mode: SortNameMode,
-): String =
-    when (sort) {
-        AlbumSort.Name -> {
-            val name = albumNameSortKey(mode)
-            if (descending) "$name DESC, id DESC" else "$name, id"
-        }
-
-        AlbumSort.Artist -> {
-            val artist = albumArtistSortKey(mode)
-            val name = albumNameSortKey(mode)
-            if (descending) "$artist DESC, year DESC, $name DESC, id DESC" else "$artist, year, $name, id"
-        }
-
-        AlbumSort.Year -> {
-            if (descending) ALBUM_ORDER_BY_YEAR_REVERSED else ALBUM_ORDER_BY_YEAR
-        }
-
-        AlbumSort.Added -> {
-            if (descending) ALBUM_ORDER_BY_ADDED_REVERSED else ALBUM_ORDER_BY_ADDED
-        }
-
-        AlbumSort.Starred -> {
-            if (descending) ALBUM_ORDER_BY_STARRED_REVERSED else ALBUM_ORDER_BY_STARRED
-        }
-
-        AlbumSort.Frequent -> {
-            if (descending) ALBUM_ORDER_BY_FREQUENT_REVERSED else ALBUM_ORDER_BY_FREQUENT
-        }
-
-        AlbumSort.Recent -> {
-            if (descending) ALBUM_ORDER_BY_RECENT_REVERSED else ALBUM_ORDER_BY_RECENT
-        }
+    prefix: String = "",
+): String {
+    val tieDirection = if (descending) " DESC" else ""
+    val primaryDirection = if (descending) "ASC" else "DESC"
+    val name = albumNameSortKey(mode, prefix)
+    val id = "${prefix}id$tieDirection"
+    return when (sort) {
+        AlbumSort.Name -> "$name$tieDirection, $id"
+        AlbumSort.Artist -> "${albumArtistSortKey(mode, prefix)}$tieDirection, ${prefix}year$tieDirection, $name$tieDirection, $id"
+        AlbumSort.Year -> "${prefix}year $primaryDirection, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
+        AlbumSort.Added -> "${prefix}created $primaryDirection, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
+        AlbumSort.Starred -> "${prefix}starred $primaryDirection NULLS LAST, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
+        AlbumSort.Frequent -> "${prefix}playCount $primaryDirection, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
+        AlbumSort.Recent -> "${prefix}played $primaryDirection NULLS LAST, ${prefix}sortName COLLATE NOCASE$tieDirection, $id"
     }
+}
 
 private fun artistOrder(
     sort: ArtistSort,
@@ -308,12 +319,40 @@ private fun artistOrder(
         }
     }
 
+private const val PLAYLIST_LAST_USED_DATE = """
+COALESCE(
+    (SELECT usedAt FROM playlist_usage WHERE sourceId = playlists.sourceId AND playlistId = playlists.id),
+    CASE
+        WHEN name COLLATE BINARY IN ('maekster · Night', 'maekster · Energetic', 'maekster · Workout', 'maekster · Chill', 'maekster · Focus')
+            OR (name GLOB 'maekster Wrapped [0-9]*' AND substr(name, length('maekster Wrapped ') + 1) NOT GLOB '*[^0-9]*')
+        THEN NULL
+        ELSE NULLIF(changed, 0)
+    END
+)
+"""
+
 private fun playlistOrder(
     sort: PlaylistSort,
     descending: Boolean,
 ): String =
     when (sort) {
-        PlaylistSort.Name -> if (descending) PLAYLIST_ORDER_BY_NAME_REVERSED else PLAYLIST_ORDER_BY_NAME
-        PlaylistSort.Added -> if (descending) PLAYLIST_ORDER_BY_ADDED_REVERSED else PLAYLIST_ORDER_BY_ADDED
-        PlaylistSort.Updated -> if (descending) PLAYLIST_ORDER_BY_UPDATED_REVERSED else PLAYLIST_ORDER_BY_UPDATED
+        PlaylistSort.Name -> {
+            if (descending) PLAYLIST_ORDER_BY_NAME_REVERSED else PLAYLIST_ORDER_BY_NAME
+        }
+
+        PlaylistSort.Added -> {
+            if (descending) PLAYLIST_ORDER_BY_ADDED_REVERSED else PLAYLIST_ORDER_BY_ADDED
+        }
+
+        PlaylistSort.Updated -> {
+            if (descending) PLAYLIST_ORDER_BY_UPDATED_REVERSED else PLAYLIST_ORDER_BY_UPDATED
+        }
+
+        PlaylistSort.LastUsed -> {
+            if (descending) {
+                "$PLAYLIST_LAST_USED_DATE DESC NULLS LAST, $PLAYLIST_ORDER_BY_NAME"
+            } else {
+                "$PLAYLIST_LAST_USED_DATE ASC NULLS LAST, $PLAYLIST_ORDER_BY_NAME_REVERSED"
+            }
+        }
     }

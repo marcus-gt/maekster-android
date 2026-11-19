@@ -3,7 +3,6 @@ package com.subtracks.ui.discover
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RestartAlt
@@ -57,7 +55,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -68,6 +65,8 @@ import com.subtracks.R
 import com.subtracks.data.audiomuse.QueueBuilderMood
 import com.subtracks.data.mix.QueueBuilderColumn
 import com.subtracks.data.mix.QueueBuilderPicks
+import com.subtracks.ui.components.SectionOpenArrow
+import com.subtracks.ui.components.sectionOpenAction
 import kotlin.math.roundToInt
 
 /** What the Queue Builder card and page can do; grouped so screens and tests pass one value. */
@@ -224,12 +223,12 @@ fun QueueBuilderSection(
             Row(
                 Modifier
                     .weight(1f)
-                    .clickable(role = Role.Button, onClickLabel = openLabel, onClick = actions.open)
+                    .sectionOpenAction(openLabel, actions.open)
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.queue_builder_title), style = MaterialTheme.typography.titleLarge)
-                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null)
+                SectionOpenArrow()
             }
             if (!state.selection.isEmpty) {
                 FilledTonalIconButton(onClick = actions.reset) {

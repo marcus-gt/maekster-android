@@ -7,16 +7,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.ArrowDownward
@@ -28,10 +31,15 @@ import androidx.compose.material.icons.rounded.FilterAltOff
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Piano
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.ViewModule
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -39,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -94,7 +103,6 @@ import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.PendingDownloadDeleteConfirmation
 import com.subtracks.ui.components.SearchField
-import com.subtracks.ui.components.ShuffleFab
 import com.subtracks.ui.components.rememberPendingDownloadDelete
 import com.subtracks.ui.theme.MaeksterSpacing
 import kotlinx.coroutines.flow.Flow
@@ -143,7 +151,7 @@ fun sortOptionsFor(
     when (tab) {
         LibraryTab.Albums -> {
             buildList {
-                add(SortOption(AlbumSort.Name.name, R.string.resources_sort_by_name))
+                add(SortOption(AlbumSort.Name.name, R.string.resources_sort_by_title))
                 add(SortOption(AlbumSort.Artist.name, R.string.resources_sort_by_artist))
                 add(SortOption(AlbumSort.Year.name, R.string.resources_sort_by_year, descendingByDefault = true))
                 add(SortOption(AlbumSort.Added.name, R.string.resources_sort_by_added, descendingByDefault = true))
@@ -164,7 +172,7 @@ fun sortOptionsFor(
         LibraryTab.Artists -> {
             buildList {
                 add(SortOption(ArtistSort.Name.name, R.string.resources_sort_by_name))
-                add(SortOption(ArtistSort.AlbumCount.name, R.string.resources_album_name, descendingByDefault = true))
+                add(SortOption(ArtistSort.AlbumCount.name, R.string.artist_sort_by_album_count, descendingByDefault = true))
                 add(SortOption(ArtistSort.Starred.name, R.string.resources_filter_starred, descendingByDefault = true))
                 if (play.frequent) {
                     add(
@@ -192,6 +200,8 @@ fun sortOptionsFor(
                 SortOption(SongSort.Artist.name, R.string.resources_sort_by_artist),
                 SortOption(SongSort.Album.name, R.string.resources_filter_album),
                 SortOption(SongSort.Added.name, R.string.resources_sort_by_added, descendingByDefault = true),
+                SortOption(SongSort.Recent.name, R.string.resources_sort_by_recently_played, descendingByDefault = true),
+                SortOption(SongSort.Released.name, R.string.resources_sort_by_released, descendingByDefault = true),
             )
         }
 
@@ -200,6 +210,7 @@ fun sortOptionsFor(
                 SortOption(PlaylistSort.Name.name, R.string.resources_sort_by_name),
                 SortOption(PlaylistSort.Added.name, R.string.resources_sort_by_added, descendingByDefault = true),
                 SortOption(PlaylistSort.Updated.name, R.string.resources_sort_by_updated, descendingByDefault = true),
+                SortOption(PlaylistSort.LastUsed.name, R.string.resources_sort_by_last_used, descendingByDefault = true),
             )
         }
     }
@@ -222,6 +233,8 @@ fun LibraryListRoute(
 ) {
     val listTab = list.listTab() ?: return
     val letters by viewModel.letterBuckets.getValue(listTab).collectAsStateWithLifecycle()
+    val albumsAsList = list == LibraryTab.Albums && viewModel.albumsAsList.collectAsStateWithLifecycle().value
+    val artistsAsGrid = list == LibraryTab.Artists && viewModel.artistsAsGrid.collectAsStateWithLifecycle().value
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val listQuery by viewModel.listQuery(listTab).collectAsStateWithLifecycle()
     val offline by viewModel.offline.collectAsStateWithLifecycle()
@@ -229,7 +242,8 @@ fun LibraryListRoute(
     val displayQuery = if (offline) listQuery.copy(downloaded = true) else listQuery
     val search by viewModel.search(listTab).collectAsStateWithLifecycle()
     val downloads by viewModel.downloads(listTab).collectAsStateWithLifecycle()
-    val songsSpec by viewModel.songListSpec.collectAsStateWithLifecycle()
+    val songsQuery = if (list == LibraryTab.Songs) viewModel.songsQuery.collectAsStateWithLifecycle().value else null
+    val songs = remember(viewModel, songsQuery) { songsQuery?.let(viewModel::songs) ?: flowOf(PagingData.empty()) }
     val songDownloads =
         if (list == LibraryTab.Songs) viewModel.songDownloads.collectAsStateWithLifecycle().value else emptyMap()
     val playback by playbackController.state.collectAsStateWithLifecycle()
@@ -252,7 +266,7 @@ fun LibraryListRoute(
         albums = if (list == LibraryTab.Albums) viewModel.albums else emptyFlow(),
         artists = if (list == LibraryTab.Artists) viewModel.artists else emptyFlow(),
         playlists = if (list == LibraryTab.Playlists) viewModel.playlists else emptyFlow(),
-        songs = if (list == LibraryTab.Songs) viewModel.songs else emptyFlow(),
+        songs = songs,
         collections =
             when (list) {
                 LibraryTab.Genres -> viewModel.genres
@@ -260,8 +274,9 @@ fun LibraryListRoute(
                 else -> emptyFlow()
             },
         onCollectionClick = onCollectionClick,
-        onSongClick = { _, index -> viewModel.playSongs(index) },
-        onShuffleSongs = viewModel::shuffleSongs,
+        onSongClick = { _, index -> songsQuery?.let { viewModel.playSongs(it, index) } },
+        onPlaySongs = { songsQuery?.let { viewModel.playSongs(it, index = 0, inOrder = true) } },
+        onShuffleSongs = { songsQuery?.let(viewModel::shuffleSongs) },
         onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
         playingSongId = playback.item?.id,
         songDownloads = songDownloads,
@@ -279,7 +294,11 @@ fun LibraryListRoute(
         listQuery = displayQuery,
         resetKey =
             "${listQuery.sort}|${listQuery.descending}|${listQuery.starred}|${listQuery.downloaded || offline}|$search|" +
-                if (list == LibraryTab.Songs) songsSpec.sortNameMode.name else "",
+                songsQuery
+                    ?.spec
+                    ?.sortNameMode
+                    ?.name
+                    .orEmpty(),
         offline = offline,
         onExitOffline = { viewModel.setOffline(false) },
         sortOptions = sortOptionsFor(list, playSort),
@@ -304,6 +323,10 @@ fun LibraryListRoute(
         onToggleDownloaded = { viewModel.setListQuery(listTab, listQuery.copy(downloaded = !listQuery.downloaded)) },
         downloads = downloads,
         dismissals = contextMenuHost?.dismissals ?: emptyFlow(),
+        albumsAsList = albumsAsList,
+        onAlbumsLayoutChange = viewModel::setAlbumsAsList,
+        artistsAsGrid = artistsAsGrid,
+        onArtistsLayoutChange = viewModel::setArtistsAsGrid,
     )
 
     PendingDownloadDeleteConfirmation(pendingDelete) { pending ->
@@ -332,6 +355,7 @@ fun LibraryListScreen(
     collections: Flow<PagingData<AlbumCollectionSummary>> = remember { flowOf(PagingData.empty()) },
     onCollectionClick: (AlbumCollectionKind, String) -> Unit = { _, _ -> },
     onSongClick: (Song, Int) -> Unit = { _, _ -> },
+    onPlaySongs: () -> Unit = {},
     onShuffleSongs: () -> Unit = {},
     onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
     playingSongId: String? = null,
@@ -359,6 +383,10 @@ fun LibraryListScreen(
     onSearchChange: (String) -> Unit = {},
     downloads: Map<String, ListDownloadStatus> = emptyMap(),
     dismissals: Flow<Unit> = emptyFlow(),
+    albumsAsList: Boolean = false,
+    onAlbumsLayoutChange: (Boolean) -> Unit = {},
+    artistsAsGrid: Boolean = false,
+    onArtistsLayoutChange: (Boolean) -> Unit = {},
 ) {
     var showOptions by rememberSaveable { mutableStateOf(false) }
     var searchActive by rememberSaveable { mutableStateOf(false) }
@@ -375,9 +403,34 @@ fun LibraryListScreen(
     LaunchedEffect(Unit) { if (search.isNotEmpty()) searchActive = true }
 
     val filtersActive = listQuery.starred != StarredFilter.Any || listQuery.downloaded || search.isNotEmpty()
-    // Collected here rather than in the list so the shuffle button knows whether there is anything to shuffle.
     val songItems = if (list == LibraryTab.Songs) songs.collectAsLazyPagingItems() else null
     val listBottomInset = bottomInset + MaeksterSpacing.l
+    val layoutAction: (@Composable () -> Unit)? =
+        when (list) {
+            LibraryTab.Albums -> {
+                {
+                    LibraryLayoutButton(
+                        showGrid = albumsAsList,
+                        label = if (albumsAsList) R.string.albums_show_grid else R.string.albums_show_list,
+                        onClick = { onAlbumsLayoutChange(!albumsAsList) },
+                    )
+                }
+            }
+
+            LibraryTab.Artists -> {
+                {
+                    LibraryLayoutButton(
+                        showGrid = !artistsAsGrid,
+                        label = if (artistsAsGrid) R.string.artists_show_list else R.string.artists_show_grid,
+                        onClick = { onArtistsLayoutChange(!artistsAsGrid) },
+                    )
+                }
+            }
+
+            else -> {
+                null
+            }
+        }
     val open = { action: () -> Unit ->
         focusManager.clearFocus()
         action()
@@ -387,47 +440,61 @@ fun LibraryListScreen(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            if (searchActive) {
-                SearchField(
-                    value = search,
-                    onValueChange = onSearchChange,
-                    onClose = closeSearch,
-                    focusRequester = searchFocus,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = MaeksterSpacing.m, vertical = MaeksterSpacing.s),
-                )
-            } else {
-                TopAppBar(
-                    title = { Text(stringResource(list.label)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
-                        }
-                    },
-                    actions = {
-                        if (offline) {
-                            IconButton(onClick = onExitOffline) {
-                                Icon(Icons.Rounded.CloudOff, contentDescription = stringResource(R.string.offline_mode_status))
+            Column {
+                if (searchActive) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier =
+                            Modifier.fillMaxWidth().statusBarsPadding().padding(
+                                start = MaeksterSpacing.m,
+                                end = if (layoutAction != null) MaeksterSpacing.s else MaeksterSpacing.m,
+                                top = MaeksterSpacing.s,
+                                bottom = MaeksterSpacing.s,
+                            ),
+                    ) {
+                        SearchField(
+                            value = search,
+                            onValueChange = onSearchChange,
+                            onClose = closeSearch,
+                            focusRequester = searchFocus,
+                            modifier = Modifier.weight(1f),
+                        )
+                        layoutAction?.invoke()
+                    }
+                } else {
+                    TopAppBar(
+                        title = { Text(stringResource(list.label)) },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
                             }
-                        }
-                        IconButton(onClick = { searchActive = true }) {
-                            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search_this_list))
-                        }
-                        IconButton(onClick = { showOptions = true }) {
-                            BadgedBox(badge = { if (filtersActive) Badge() }) {
-                                Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = stringResource(R.string.list_options))
+                        },
+                        actions = {
+                            if (offline) {
+                                IconButton(onClick = onExitOffline) {
+                                    Icon(Icons.Rounded.CloudOff, contentDescription = stringResource(R.string.offline_mode_status))
+                                }
                             }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
-                )
+                            layoutAction?.invoke()
+                            IconButton(onClick = { searchActive = true }) {
+                                Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.search_this_list))
+                            }
+                            IconButton(onClick = { showOptions = true }) {
+                                BadgedBox(badge = { if (filtersActive) Badge() }) {
+                                    Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = stringResource(R.string.list_options))
+                                }
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                    )
+                }
+                if (songItems != null && songItems.itemCount > 0) {
+                    SongListPlaybackActions(
+                        onPlay = { open(onPlaySongs) },
+                        onShuffle = { open(onShuffleSongs) },
+                    )
+                }
             }
-        },
-        floatingActionButton = {
-            if (songItems != null && songItems.itemCount > 0) ShuffleFab(onClick = onShuffleSongs)
         },
     ) { padding ->
         PullToRefreshBox(
@@ -449,6 +516,7 @@ fun LibraryListScreen(
                         letterBuckets = letterBuckets,
                         onSync = onSync,
                         downloadStatuses = downloads,
+                        asList = albumsAsList,
                     )
                 }
 
@@ -466,6 +534,7 @@ fun LibraryListScreen(
                         onSync = onSync,
                         downloadStatuses = downloads,
                         artistArt = artistArt,
+                        asGrid = artistsAsGrid,
                     )
                 }
 
@@ -541,6 +610,42 @@ fun LibraryListScreen(
                 },
             )
         }
+    }
+}
+
+@Composable
+internal fun SongListPlaybackActions(
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = MaeksterSpacing.m),
+        horizontalArrangement = Arrangement.spacedBy(MaeksterSpacing.s),
+    ) {
+        Button(onClick = onPlay) {
+            Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.controls_play))
+        }
+        OutlinedButton(onClick = onShuffle) {
+            Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.controls_shuffle))
+        }
+    }
+}
+
+@Composable
+private fun LibraryLayoutButton(
+    showGrid: Boolean,
+    @StringRes label: Int,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick) {
+        Icon(
+            imageVector = if (showGrid) Icons.Rounded.ViewModule else Icons.AutoMirrored.Rounded.ViewList,
+            contentDescription = stringResource(label),
+        )
     }
 }
 

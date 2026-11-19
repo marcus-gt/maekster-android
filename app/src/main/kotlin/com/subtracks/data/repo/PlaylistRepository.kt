@@ -169,6 +169,7 @@ class PlaylistRepository(
         } else {
             writer.remove(playlistId, positions)
             refresh(writer, sourceId, playlistId)
+            db.libraryDao().recordPlaylistUse(sourceId, playlistId, now())
         }
         db.playlistDestinationDao().record(sourceId, playlistId, now())
         return positions.size
@@ -187,6 +188,7 @@ class PlaylistRepository(
         val missing = intent.remaining(current.songIds())
         if (missing.isNotEmpty()) writer.append(addition.playlistId, missing)
         refresh(writer, addition.sourceId, addition.playlistId)
+        db.libraryDao().recordPlaylistUse(addition.sourceId, addition.playlistId, now())
         db.playlistDestinationDao().record(addition.sourceId, addition.playlistId, now())
         return AddOutcome.Added(intent.songIds.size)
     }
@@ -425,6 +427,7 @@ class PlaylistRepository(
             if (saved.count < draft.size) throw IOException("The server has not kept every song yet")
             drafts.complete(draftId, saved.playlist)
             libraryChanged()
+            db.libraryDao().recordPlaylistUse(draft.sourceId, playlistId, now())
             db.playlistDestinationDao().record(draft.sourceId, playlistId, now())
             playlistId
         }

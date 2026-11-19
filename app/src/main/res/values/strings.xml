@@ -48,6 +48,7 @@
     <string name="controls_playback_position">Playback position</string>
     <string name="controls_queue">Queue</string>
     <string name="controls_more">More</string>
+    <string name="section_open">Open %1$s</string>
 
     <string name="navigation_back">Back</string>
     <string name="scroll_to_top">Scroll to top</string>
@@ -91,10 +92,14 @@
     <string name="resources_sort_by_frequently_played">Frequently played</string>
     <string name="resources_sort_by_name">Name</string>
     <string name="resources_sort_by_recently_played">Recently played</string>
+    <string name="resources_sort_by_recently_favorited">Recently favorited</string>
     <string name="resources_sort_by_title">Title</string>
     <string name="resources_sort_by_updated">Updated</string>
+    <string name="resources_sort_by_released">Released</string>
+    <string name="resources_sort_by_last_used">Last used</string>
     <string name="resources_sort_by_year">Year</string>
     <string name="resources_sort_by_album_count">Most albums</string>
+    <string name="artist_sort_by_album_count">Album count</string>
 
     <plurals name="resources_album_count">
         <item quantity="one">%1$d album</item>
@@ -252,8 +257,14 @@
     <string name="genres_empty">No genres.\nNone of your songs are tagged with a genre.</string>
     <string name="labels_empty">No labels.\nNone of your albums are tagged with a record label.</string>
     <string name="collection_albums_empty">No albums here.\nNothing in your library matches.</string>
+    <string name="genre_all">All %1$s</string>
+    <string name="genre_styles">Styles</string>
     <string name="sync">Sync</string>
     <string name="list_options">List options</string>
+    <string name="albums_show_grid">Show albums as a grid</string>
+    <string name="albums_show_list">Show albums as a list</string>
+    <string name="artists_show_grid">Show artists as a grid</string>
+    <string name="artists_show_list">Show artists as a list</string>
     <string name="search">Search</string>
     <string name="search_this_list">Search this list</string>
     <string name="search_songs">Songs</string>
@@ -404,6 +415,7 @@
     <string name="discover_stations">Stations for you</string>
     <string name="discover_stations_description">Start with an artist. See where the music takes you.</string>
     <string name="discover_stations_empty">Sync your library to find artist stations here.</string>
+    <string name="discover_station_caption">Radio station</string>
     <string name="discover_moods">Moods</string>
     <string name="discover_moods_description">Radios picked by how your music sounds, using AudioMuse.</string>
     <string name="mood_night">Night</string>

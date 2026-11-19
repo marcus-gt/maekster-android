@@ -27,6 +27,8 @@ import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.data.model.Source
 import com.subtracks.data.net.NetworkMode
+import com.subtracks.data.prefs.SongSort
+import com.subtracks.data.prefs.StarredFilter
 import com.subtracks.data.prefs.StreamQuality
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.prefs.fakeUserPreferences
@@ -467,6 +469,97 @@ class PlaybackControllerTest {
         assertEquals(listOf("s3", "s1"), handle.items.map { it.id })
         assertFalse(controller.state.value.shuffle)
         assertEquals("Smart Shuffle", runBlocking { controller.sourceTitle(controller.state.value.context, resources) })
+    }
+
+    @Test
+    fun libraryPlayAndShuffleUseTheEntireFilteredResultAcrossPages() {
+        seedAlbum(180, sourceId = 1)
+        runBlocking { db.libraryDao().setSongStar(1, "s180", 1) }
+        val spec = SongListSpec(sort = SongSort.Album, descending = true, starred = StarredFilter.NotStarred, search = "Song 1")
+        val expected = (1..179).reversed().filter { "Song $it".startsWith("Song 1") }.map { "s$it" }
+        assertTrue(expected.size > 60)
+
+        controller.shuffleAlbum(1, "al1")
+        awaitUntil("initial shuffle is active") { controller.state.value.shuffle }
+
+        controller.playLibrarySongs(1, spec, 0, disableShuffle = true)
+        awaitUntil("filtered songs start in order") {
+            controller.state.value.item
+                ?.id == expected.first() && controller.state.value.context
+                ?.kind == QueueKind.Library
+        }
+        assertFalse(controller.state.value.shuffle)
+        val ordered = runBlocking { queues.snapshot() }
+        assertEquals(
+            queues.libraryEntry(1, spec).refId,
+            ordered.entries
+                .single()
+                .entry.refId,
+        )
+        assertEquals(expected.size.toLong(), ordered.contextSize)
+        assertTrue(handle.items.size < expected.size)
+
+        controller.playAt(expected.lastIndex.toLong())
+        awaitUntil("the last result plays past the first page") {
+            controller.state.value.item
+                ?.id == expected.last()
+        }
+
+        controller.shuffleLibrarySongs(1, spec)
+        awaitUntil("the result is shuffled") { controller.state.value.shuffle }
+        runBlocking {
+            val shuffled = queues.snapshot()
+            val ids = (0L until shuffled.size).map { queues.itemAt(shuffled, it)?.song?.id }
+            assertEquals(expected.toSet(), ids.toSet())
+            assertEquals(expected.size, ids.size)
+        }
+    }
+
+    @Test
+    fun libraryPlaybackOfflineIntersectsDownloadsWithSearchAndFavorites() {
+        seedAlbum(15, sourceId = 1)
+        runBlocking {
+            for (id in listOf("s1", "s2", "s12", "s14")) db.libraryDao().setSongStar(1, id, 1)
+        }
+        for (id in listOf("s1", "s2", "s12", "s13")) markDownloaded(1, id)
+        setOffline()
+        val spec =
+            SongListSpec(sort = SongSort.Album, descending = true, starred = StarredFilter.Starred, downloaded = true, search = "Song 1")
+
+        controller.playLibrarySongs(1, spec, 0, disableShuffle = true)
+        awaitUntil("offline result plays in order") {
+            controller.state.value.item
+                ?.id == "s12"
+        }
+        assertEquals(listOf("s12", "s1"), handle.items.map { it.id })
+        assertEquals(2L, runBlocking { queues.snapshot().contextSize })
+
+        controller.shuffleLibrarySongs(1, spec)
+        awaitUntil("offline result shuffles") { controller.state.value.shuffle }
+        assertEquals(setOf("s12", "s1"), handle.items.map { it.id }.toSet())
+    }
+
+    @Test
+    fun favoriteSongPlaybackFollowsTheSortAndKeepsOnlyDownloadedFavoritesOffline() {
+        seedAlbum(5, sourceId = 1)
+        runBlocking {
+            db.libraryDao().setSongStar(1, "s2", 100)
+            db.libraryDao().setSongStar(1, "s4", 300)
+            db.libraryDao().setSongStar(1, "s5", 500)
+        }
+        for (id in listOf("s1", "s2", "s4")) markDownloaded(1, id)
+        setOffline()
+        val spec = SongListSpec(sort = SongSort.Starred, starred = StarredFilter.Starred, downloaded = true)
+
+        controller.playFavoriteSongs(1, spec, 0, shuffled = false, inOrder = true)
+        awaitUntil("sorted favorites play offline") { controller.state.value.item != null }
+        assertEquals(listOf("s4", "s2"), handle.items.map { it.id })
+        assertEquals("Favorites", runBlocking { controller.sourceTitle(controller.state.value.context, resources) })
+
+        controller.playFavoriteSongs(1, spec, 0, shuffled = true, inOrder = false)
+        awaitUntil("favorites shuffle") { controller.state.value.shuffle }
+        assertEquals(setOf("s2", "s4"), handle.items.map { it.id }.toSet())
+        assertEquals(2L, runBlocking { queues.snapshot().contextSize })
     }
 
     @Test

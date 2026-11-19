@@ -21,11 +21,13 @@ import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.ArtistSearch
 import com.subtracks.data.model.Disc
 import com.subtracks.data.model.DiscKey
+import com.subtracks.data.model.HomeGenreAlbum
 import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.PlaylistSearch
 import com.subtracks.data.model.PlaylistSong
 import com.subtracks.data.model.PlaylistSongItem
+import com.subtracks.data.model.PlaylistUsage
 import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongArtistRef
 import com.subtracks.data.model.SongDownload
@@ -499,15 +501,6 @@ interface LibraryDao {
     ): Flow<List<Artist>>
 
     @Query(
-        "SELECT * FROM albums WHERE sourceId = :sourceId AND playCount > 0 " +
-            "ORDER BY playCount DESC, sortName COLLATE NOCASE, id LIMIT :limit",
-    )
-    fun mostPlayedAlbums(
-        sourceId: Long,
-        limit: Int,
-    ): Flow<List<Album>>
-
-    @Query(
         "SELECT $ARTIST_COLUMNS FROM artists WHERE sourceId = :sourceId AND playCount > 0 AND $ARTIST_CREDITED " +
             "ORDER BY playCount DESC, sortName COLLATE NOCASE, id LIMIT :limit",
     )
@@ -545,15 +538,11 @@ interface LibraryDao {
         limit: Int,
     ): Flow<List<Playlist>>
 
-    @Query(
-        "SELECT * FROM albums WHERE sourceId = :sourceId AND played IS NOT NULL AND played < :cutoff " +
-            "ORDER BY played ASC, sortName COLLATE NOCASE, id LIMIT :limit",
-    )
-    fun rediscoverAlbums(
-        sourceId: Long,
-        cutoff: Long,
-        limit: Int,
-    ): Flow<List<Album>>
+    @Query(HEAVY_ROTATION_ALBUMS_SQL)
+    fun heavyRotationAlbums(sourceId: Long): Flow<List<Album>>
+
+    @Query(REDISCOVER_ALBUMS_SQL)
+    fun rediscoverAlbums(sourceId: Long): Flow<List<Album>>
 
     @Query(
         "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
@@ -819,7 +808,22 @@ interface LibraryDao {
     @RawQuery(observedEntities = [Artist::class, Source::class])
     fun artistsPaging(query: RoomRawQuery): PagingSource<Int, Artist>
 
-    @RawQuery(observedEntities = [Playlist::class])
+    @Query(
+        """
+        INSERT OR REPLACE INTO playlist_usage (sourceId, playlistId, usedAt)
+        SELECT :sourceId, :playlistId, MAX(:usedAt, COALESCE((
+            SELECT usedAt FROM playlist_usage WHERE sourceId = :sourceId AND playlistId = :playlistId
+        ), :usedAt))
+        WHERE EXISTS (SELECT 1 FROM playlists WHERE sourceId = :sourceId AND id = :playlistId)
+        """,
+    )
+    suspend fun recordPlaylistUse(
+        sourceId: Long,
+        playlistId: String,
+        usedAt: Long,
+    )
+
+    @RawQuery(observedEntities = [Playlist::class, PlaylistUsage::class])
     fun playlistsPaging(query: RoomRawQuery): PagingSource<Int, Playlist>
 
     @RawQuery(observedEntities = [Song::class, Album::class, SongSearch::class])
@@ -835,6 +839,15 @@ interface LibraryDao {
 
     @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, AlbumLabel::class, SongDownload::class])
     fun albumCollectionsPaging(query: RoomRawQuery): PagingSource<Int, AlbumCollectionSummary>
+
+    @Query("SELECT DISTINCT genre FROM song_genres WHERE sourceId = :sourceId AND trim(genre) != '' ORDER BY genre")
+    fun genreTags(sourceId: Long): Flow<List<String>>
+
+    @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, SongDownload::class])
+    fun genreAlbumSummary(query: RoomRawQuery): Flow<AlbumCollectionSummary>
+
+    @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, SongDownload::class])
+    fun homeGenreAlbums(query: RoomRawQuery): Flow<List<HomeGenreAlbum>>
 
     @RawQuery(observedEntities = [SongGenre::class, Song::class, Album::class, AlbumLabel::class, SongDownload::class])
     fun collectionAlbumsPaging(query: RoomRawQuery): PagingSource<Int, Album>
@@ -870,14 +883,11 @@ interface LibraryDao {
     )
     fun downloadedArtistsPaging(query: RoomRawQuery): PagingSource<Int, Artist>
 
-    @RawQuery(observedEntities = [PlaylistSong::class, SongDownload::class, Playlist::class, PlaylistSearch::class])
+    @RawQuery(observedEntities = [PlaylistSong::class, SongDownload::class, Playlist::class, PlaylistSearch::class, PlaylistUsage::class])
     fun downloadedPlaylistsPaging(query: RoomRawQuery): PagingSource<Int, Playlist>
 
     @Query("SELECT * FROM albums WHERE sourceId = :sourceId AND played IS NOT NULL ORDER BY played DESC, sortName COLLATE NOCASE, id")
     fun homeRecentlyPlayedAlbums(sourceId: Long): PagingSource<Int, Album>
-
-    @Query("SELECT * FROM albums WHERE sourceId = :sourceId AND playCount > 0 ORDER BY playCount DESC, sortName COLLATE NOCASE, id")
-    fun homeMostPlayedAlbums(sourceId: Long): PagingSource<Int, Album>
 
     @Query("SELECT * FROM albums WHERE sourceId = :sourceId ORDER BY created DESC, sortName COLLATE NOCASE, id")
     fun homeRecentlyAddedAlbums(sourceId: Long): PagingSource<Int, Album>

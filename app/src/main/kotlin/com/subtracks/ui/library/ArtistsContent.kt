@@ -1,25 +1,35 @@
 package com.subtracks.ui.library
 
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -61,6 +71,7 @@ fun ArtistsContent(
     downloadStatuses: Map<String, ListDownloadStatus> = emptyMap(),
     scrollToTopKey: Any? = null,
     artistArt: (Artist) -> ArtistArt = { ArtistArt() },
+    asGrid: Boolean = false,
 ) {
     when {
         items.itemCount == 0 && items.loadState.refresh is LoadState.Loading -> {
@@ -76,70 +87,94 @@ fun ArtistsContent(
         }
 
         else -> {
-            val listState = rememberLazyListState()
-            ResetScrollOnChange(resetKey, { items.loadState.refresh }) { listState.scrollToItem(0) }
-            ScrollToTopOnRequest(scrollToTopKey, listState)
-            val fill = rememberViewportFill(listState)
+            val state = rememberLazyGridState()
+            ResetScrollOnChange(resetKey, { items.loadState.refresh }) { state.scrollToItem(0) }
+            ScrollToTopOnRequest(scrollToTopKey, state)
+            val fill = rememberViewportFill(state)
             val scope = rememberCoroutineScope()
             LetterIndexedContent(letterBuckets, { position ->
-                if (position < items.itemCount) scope.launch { listState.scrollToItem(position) }
+                if (position < items.itemCount) scope.launch { state.scrollToItem(position) }
             }, modifier) { listModifier ->
-                LazyColumn(
-                    state = listState,
+                val inset = if (asGrid) 8.dp else 0.dp
+                LazyVerticalGrid(
+                    state = state,
+                    columns = GridCells.Fixed(if (asGrid) 3 else 1),
                     modifier = listModifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = topInset, bottom = bottomInset),
+                    contentPadding = PaddingValues(start = inset, end = inset, top = topInset + inset, bottom = bottomInset),
+                    horizontalArrangement = Arrangement.spacedBy(inset),
+                    verticalArrangement = Arrangement.spacedBy(inset),
                 ) {
                     items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
                         val artist = items[index]
-                        if (artist != null) {
-                            val art = artistArt(artist)
-                            PrefetchArtworkSeeds(art.primary)
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        text = artist.name,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        text =
-                                            pluralStringResource(
-                                                R.plurals.resources_album_count,
-                                                artist.albumCount.toInt(),
-                                                artist.albumCount,
-                                            ),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                },
-                                leadingContent = {
-                                    ArtistIcon(
-                                        artist = artist,
-                                        art = art,
-                                        modifier = Modifier.size(48.dp).clip(CircleShape),
-                                    )
-                                },
-                                trailingContent = {
-                                    ListDownloadIndicator(downloadStatuses[artist.id], Modifier.padding(end = 8.dp))
-                                },
-                                modifier =
-                                    Modifier.combinedClickable(
-                                        onClick = { onArtistClick(artist) },
-                                        onLongClick = {
-                                            onLongClick(MenuTarget.Artist(artist, art.primary, downloadStatuses[artist.id]))
-                                        },
-                                    ),
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            )
+                        if (artist == null) {
+                            Spacer(if (asGrid) Modifier.fillMaxWidth().aspectRatio(1f) else Modifier.height(72.dp))
                         } else {
-                            Spacer(Modifier.height(72.dp))
+                            val art = artistArt(artist)
+                            val download = downloadStatuses[artist.id]
+                            val albumCount =
+                                pluralStringResource(R.plurals.resources_album_count, artist.albumCount.toInt(), artist.albumCount)
+                            val clickModifier =
+                                Modifier.combinedClickable(
+                                    onClick = { onArtistClick(artist) },
+                                    onLongClick = { onLongClick(MenuTarget.Artist(artist, art.primary, download)) },
+                                )
+                            PrefetchArtworkSeeds(art.primary)
+                            if (asGrid) {
+                                ArtistGridTile(artist, art, albumCount, download, clickModifier)
+                            } else {
+                                ListItem(
+                                    headlineContent = { Text(artist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    supportingContent = { Text(albumCount, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    leadingContent = {
+                                        ArtistIcon(
+                                            artist = artist,
+                                            art = art,
+                                            modifier = Modifier.size(48.dp).clip(CircleShape),
+                                        )
+                                    },
+                                    trailingContent = { ListDownloadIndicator(download, Modifier.padding(end = 8.dp)) },
+                                    modifier = clickModifier,
+                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                )
+                            }
                         }
                     }
-                    item { Spacer(Modifier.height(fill)) }
+                    item(span = { GridItemSpan(maxLineSpan) }) { Spacer(Modifier.height(fill)) }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ArtistGridTile(
+    artist: Artist,
+    art: ArtistArt,
+    albumCount: String,
+    download: ListDownloadStatus?,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
+            ArtistIcon(artist, art, Modifier.fillMaxSize().clip(CircleShape))
+            ListDownloadIndicator(download, Modifier.align(Alignment.BottomEnd), scrim = true)
+        }
+        Text(
+            text = artist.name,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = albumCount,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }

@@ -21,10 +21,6 @@ private const val LABEL_ROWS =
     "FROM album_labels al JOIN albums ON albums.sourceId = al.sourceId AND albums.id = al.albumId " +
         "WHERE al.sourceId = :sourceId AND trim(al.name) != ''"
 
-private const val ALBUM_DOWNLOADED =
-    "EXISTS (SELECT 1 FROM songs JOIN song_downloads sd ON sd.sourceId = songs.sourceId AND sd.songId = songs.id " +
-        "WHERE songs.sourceId = albums.sourceId AND songs.albumId = albums.id AND sd.status = 'Completed')"
-
 private const val COLLECTION_ALBUM_ORDER = "year IS NULL, year DESC, sortName COLLATE NOCASE, id"
 
 /** The Genres or Labels list: one row per name with its album count, sorted and searched like the other lists. */
@@ -50,7 +46,7 @@ internal fun albumCollectionsPageQuery(
     )
 }
 
-/** Whether any downloaded song has a genre (or any downloaded album a label), so offline can hide an empty list. */
+/** Whether any downloaded album belongs to this kind of collection, so offline can hide an empty list. */
 internal fun hasDownloadedCollectionsQuery(
     sourceId: Long,
     kind: AlbumCollectionKind,
@@ -58,7 +54,7 @@ internal fun hasDownloadedCollectionsQuery(
     rawQuery(
         sql =
             when (kind) {
-                AlbumCollectionKind.Genre -> "SELECT EXISTS(SELECT 1 $GENRE_ROWS$GENRE_SONG_DOWNLOADED)"
+                AlbumCollectionKind.Genre -> "SELECT EXISTS(SELECT 1 $GENRE_ROWS AND $ALBUM_DOWNLOADED)"
                 AlbumCollectionKind.Label -> "SELECT EXISTS(SELECT 1 $LABEL_ROWS AND $ALBUM_DOWNLOADED)"
             },
         bindings = mapOf("sourceId" to sourceId),
@@ -93,7 +89,7 @@ internal fun collectionAlbumsQuery(
     )
 }
 
-private fun collectionOrder(
+internal fun collectionOrder(
     sort: CollectionSort,
     descending: Boolean,
 ): String =

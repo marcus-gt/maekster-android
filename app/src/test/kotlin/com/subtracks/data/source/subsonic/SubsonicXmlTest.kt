@@ -517,8 +517,9 @@ class SubsonicXmlTest {
             """
             <subsonic-response status="ok">
               <searchResult3>
-                <song id="s1" title="Played" playCount="12" played="2023-03-26T22:27:46Z"/>
+                <song id="s1" title="Played" playCount="12" played="2023-03-26T22:27:46Z" year="1957"/>
                 <song id="s2" title="Never"/>
+                <song id="s3" title="Unknown year" year="0"/>
               </searchResult3>
             </subsonic-response>
             """.trimIndent()
@@ -529,6 +530,7 @@ class SubsonicXmlTest {
         assertEquals(1679869666L, songs[0].played)
         assertEquals(0L, songs[1].playCount)
         assertEquals(null, songs[1].played)
+        assertEquals(listOf(1957L, null, null), songs.map { it.year })
     }
 
     @Test

@@ -396,7 +396,7 @@ fun appModule(
     viewModel { LibraryViewModel(get(), get(), get(), get(), get(), get()) }
     viewModel { LibraryHubViewModel(get(), get(), get()) }
     viewModel { HomeViewModel(get(), get(), get(), get(), get()) }
-    viewModel { params -> HomeListViewModel(get(), get(), get(), params.get()) }
+    viewModel { params -> HomeListViewModel(get(), get(), get(), get(), params.get()) }
     viewModel { SearchViewModel(get(), get(), get()) }
     viewModel { SettingsViewModel(get(), get()) }
     viewModel { ListenBrainzSettingsViewModel(get()) }

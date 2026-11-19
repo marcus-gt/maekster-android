@@ -97,6 +97,7 @@ object SubsonicXml {
             bitDepth = attrs.positiveLongAttr("bitDepth"),
             samplingRate = attrs.positiveLongAttr("samplingRate"),
             channelCount = attrs.positiveLongAttr("channelCount"),
+            year = attrs.positiveLongAttr("year"),
         )
 
     internal fun songChild(
@@ -358,6 +359,7 @@ internal class SongDraft(
     private val bitDepth: Long? = null,
     private val samplingRate: Long? = null,
     private val channelCount: Long? = null,
+    private val year: Long? = null,
 ) {
     private val artists = mutableListOf<ArtistRef>()
     private var nestedArtists: MutableList<ArtistRef>? = null
@@ -426,6 +428,7 @@ internal class SongDraft(
             bitDepth = bitDepth,
             samplingRate = samplingRate,
             channelCount = channelCount,
+            year = year,
         )
     }
 }

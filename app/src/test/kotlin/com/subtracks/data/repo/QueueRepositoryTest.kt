@@ -1,5 +1,6 @@
 package com.subtracks.data.repo
 
+import androidx.paging.PagingSource
 import androidx.room3.useReaderConnection
 import androidx.room3.useWriterConnection
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -696,6 +697,47 @@ class QueueRepositoryTest {
                 // The list reads the same rows in the same order, so a tapped row's index is where the queue starts.
                 val listed = db.queueDao().songItems(songsPageQuery(1, spec)).map { it.song.id }
                 assertEquals(spec.toString(), expected, listed)
+            }
+        }
+
+    @Test
+    fun libraryDateSortsKeepMissingValuesLastAndShareTheFilteredPagingOrder() =
+        runTest {
+            seedLibrary()
+            val library = db.libraryDao()
+            library.upsertAlbums(listOf(album("al1", "First Album", "Artist One").copy(year = 1999)))
+            library.upsertSongs(
+                listOf(
+                    song("s1", "al1", 1, title = "Match C", starred = 1).copy(played = 300, year = 2005),
+                    song("s2", "al1", 2, title = "Match A", starred = 1).copy(played = 100),
+                    song("s3", "al2", 1, title = "Match B", starred = 1),
+                    song("s4", "al2", 2, title = "Match D", starred = 1).copy(played = 200, year = 2010),
+                    song("s5", "al2", 3, title = "Match A", starred = 1).copy(played = 100, year = 2005),
+                    song("s6", "al1", 3, title = "Other", starred = 1).copy(played = 400, year = 2026),
+                    song("s7", "al1", 4, title = "Match E").copy(played = 400, year = 2026),
+                ),
+            )
+            for (id in listOf("s1", "s2", "s3", "s5", "s6", "s7")) {
+                db.downloadDao().upsert(SongDownload(1, id, DownloadStatus.Completed))
+            }
+            val base = SongListSpec(starred = StarredFilter.Starred, downloaded = true, search = "Match")
+            val cases =
+                mapOf(
+                    base.copy(sort = SongSort.Recent) to listOf("s1", "s2", "s5", "s3"),
+                    base.copy(sort = SongSort.Recent, descending = true) to listOf("s5", "s2", "s1", "s3"),
+                    base.copy(sort = SongSort.Released) to listOf("s5", "s1", "s2", "s3"),
+                    base.copy(sort = SongSort.Released, descending = true) to listOf("s2", "s1", "s5", "s3"),
+                )
+            for ((spec, expected) in cases) {
+                val source = library.downloadedSongsPaging(songsPageQuery(1, spec))
+                val first = source.load(PagingSource.LoadParams.Refresh(null, 2, true)) as PagingSource.LoadResult.Page
+                val next = source.load(PagingSource.LoadParams.Append(checkNotNull(first.nextKey), 2, true)) as PagingSource.LoadResult.Page
+                assertEquals(expected, (first.data + next.data).map { it.song.id })
+
+                val snapshot = repository.snapshotAfter(listOf(repository.libraryEntry(1, spec)))
+                assertEquals(expected, resolveAll(snapshot))
+                repository.setShuffle(seed = 17)
+                assertEquals(expected.toSet(), resolveAll(repository.snapshot()).toSet())
             }
         }
 

@@ -3,6 +3,7 @@ package com.subtracks.ui
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -153,6 +154,88 @@ class LibraryScreenTest {
         composeRule.waitForIdle()
 
         assertEquals(listOf("artists"), collected.toList())
+    }
+
+    @Test
+    fun artistLayoutCanBeChangedWhileSearching() {
+        val asGrid = mutableStateOf(false)
+        val search = mutableStateOf("Artist")
+        var opened: Artist? = null
+        composeRule.setContent {
+            MaeksterTheme {
+                LibraryListScreen(
+                    list = LibraryTab.Artists,
+                    artists = remember { flowOf(PagingData.from(artists().take(3))) },
+                    coverArt = { _, _ -> null },
+                    onSync = {},
+                    onBack = {},
+                    search = search.value,
+                    onSearchChange = { search.value = it },
+                    artistsAsGrid = asGrid.value,
+                    onArtistsLayoutChange = { asGrid.value = it },
+                    onArtistClick = { opened = it },
+                )
+            }
+        }
+
+        try {
+            val first = composeRule.onNodeWithText("Artist 1")
+            val second = composeRule.onNodeWithText("Artist 2")
+            assertTrue(first.getUnclippedBoundsInRoot().top < second.getUnclippedBoundsInRoot().top)
+
+            composeRule.onNodeWithContentDescription("Show artists as a grid").assertIsDisplayed().performClick()
+            assertTrue(first.getUnclippedBoundsInRoot().right < second.getUnclippedBoundsInRoot().left)
+            second.performClick()
+            assertEquals("Artist 2", opened?.name)
+
+            composeRule.onNodeWithContentDescription("Show artists as a list").assertIsDisplayed().performClick()
+            assertTrue(first.getUnclippedBoundsInRoot().top < second.getUnclippedBoundsInRoot().top)
+            assertEquals("Artist", search.value)
+        } finally {
+            composeRule.onNodeWithContentDescription("Close search").performClick()
+        }
+    }
+
+    @Test
+    fun albumLayoutCanBeChangedWhileSearching() {
+        val asList = mutableStateOf(false)
+        val search = mutableStateOf("Album")
+        var opened: Album? = null
+        composeRule.setContent {
+            MaeksterTheme {
+                LibraryListScreen(
+                    list = LibraryTab.Albums,
+                    albums = remember { flowOf(PagingData.from(albums().take(1))) },
+                    coverArt = { _, _ -> null },
+                    onSync = {},
+                    onBack = {},
+                    search = search.value,
+                    onSearchChange = { search.value = it },
+                    albumsAsList = asList.value,
+                    onAlbumsLayoutChange = { asList.value = it },
+                    onAlbumClick = { opened = it },
+                )
+            }
+        }
+
+        try {
+            val showList = composeRule.onNodeWithContentDescription("Show albums as a list")
+            val showGrid = composeRule.onNodeWithContentDescription("Show albums as a grid")
+            val title = albums().first().name
+            showList.assertIsDisplayed().performClick()
+            composeRule.onNodeWithText(title).assertIsDisplayed().performClick()
+            assertEquals(title, opened?.name)
+
+            showGrid.assertIsDisplayed().performClick()
+            composeRule.waitUntil(timeoutMillis = 5_000) {
+                composeRule.onAllNodesWithTag(ALBUM_COVER_TAG).fetchSemanticsNodes().isNotEmpty()
+            }
+            showList.performClick()
+            composeRule.onNodeWithText(title).assertIsDisplayed()
+            assertEquals("Album", search.value)
+        } finally {
+            composeRule.onNodeWithContentDescription("Close search").performClick()
+        }
     }
 
     @Test

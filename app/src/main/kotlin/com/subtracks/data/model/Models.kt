@@ -374,6 +374,7 @@ data class Song(
     val bitDepth: Long? = null,
     val samplingRate: Long? = null,
     val channelCount: Long? = null,
+    val year: Long? = null,
 ) {
     val artistRefs: List<ArtistRef>
         get() =

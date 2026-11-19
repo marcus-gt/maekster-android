@@ -20,7 +20,6 @@ class HomeViewModelTest {
                 recentArtists = listOf(artist("r")),
                 frequentAlbums = listOf(album("b")),
                 frequentArtists = listOf(artist("s")),
-                genres = listOf("Rock"),
                 decades = listOf(1970L),
                 starredSongs = listOf(starred("song")),
                 addedAlbums = listOf(album("c")),
@@ -32,7 +31,6 @@ class HomeViewModelTest {
         assertEquals(listOf("r"), feed.recentlyPlayedArtists.map { it.id })
         assertEquals(listOf("b"), feed.mostPlayedAlbums.map { it.id })
         assertEquals(listOf("s"), feed.mostPlayedArtists.map { it.id })
-        assertEquals(listOf("Rock"), feed.genres)
         assertEquals(listOf(1970L), feed.decades)
         assertEquals(listOf("song"), feed.recentlyStarredSongs.map { it.song.id })
         assertEquals(listOf("c"), feed.recentlyAddedAlbums.map { it.id })
@@ -47,7 +45,6 @@ class HomeViewModelTest {
                 recentArtists = listOf(artist("r")),
                 frequentAlbums = listOf(album("b")),
                 frequentArtists = listOf(artist("s")),
-                genres = listOf("Rock"),
                 decades = listOf(1970L),
                 starredSongs = listOf(starred("song")),
                 addedAlbums = listOf(album("c")),
@@ -60,7 +57,6 @@ class HomeViewModelTest {
         assertTrue(feed.mostPlayedAlbums.isEmpty())
         assertTrue(feed.mostPlayedArtists.isEmpty())
         assertEquals(listOf("c"), feed.recentlyAddedAlbums.map { it.id })
-        assertEquals(listOf("Rock"), feed.genres)
         assertEquals(listOf("song"), feed.recentlyStarredSongs.map { it.song.id })
     }
 

@@ -1,10 +1,10 @@
 package com.subtracks.ui.library
 
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -14,6 +14,8 @@ import com.subtracks.R
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Song
 import com.subtracks.ui.theme.MaeksterTheme
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -47,8 +49,9 @@ class LibrarySongsListTest {
     )
 
     @Test
-    fun tappingASongPlaysTheListFromItsRowAndShuffleIsOffered() {
+    fun rowClicksAndBothPlaybackActionsAreReachable() {
         val played = mutableListOf<Pair<String, Int>>()
+        var playAll = 0
         var shuffled = 0
         val songs = flowOf(PagingData.from(listOf(item("s1", "Blue Train"), item("s2", "Moment's Notice"), item("s3", "Locomotion"))))
         composeRule.setContent {
@@ -60,6 +63,7 @@ class LibrarySongsListTest {
                     onBack = {},
                     songs = songs,
                     onSongClick = { song, index -> played += song.id to index },
+                    onPlaySongs = { playAll++ },
                     onShuffleSongs = { shuffled++ },
                 )
             }
@@ -67,15 +71,17 @@ class LibrarySongsListTest {
 
         composeRule.onNodeWithText("Locomotion").performClick()
         composeRule.onNodeWithText("Moment's Notice").performClick()
-        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.controls_shuffle_play)).performClick()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.controls_play)).performClick()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.controls_shuffle)).performClick()
 
         assertEquals(listOf("s3" to 2, "s2" to 1), played)
+        assertEquals(1, playAll)
         assertEquals(1, shuffled)
     }
 
     @Test
     fun letterJumpsToAnAbsoluteSongRow() {
-        val songs = flowOf(PagingData.from((0..999).map { item("s$it", "Track $it") }))
+        val songs = MutableStateFlow(PagingData.from((0..999).map { item("s$it", "Track $it") }))
         composeRule.setContent {
             MaeksterTheme {
                 LibraryListScreen(
@@ -97,7 +103,10 @@ class LibrarySongsListTest {
     }
 
     @Test
-    fun anEmptySongsListOffersNoShuffle() {
+    fun playbackActionsFollowResultChangesWhileSearching() {
+        var search by mutableStateOf("Blue Train")
+        var songs by mutableStateOf<Flow<PagingData<AlbumSongItem>>>(flowOf(PagingData.from(listOf(item("s1", "Blue Train")))))
+
         composeRule.setContent {
             MaeksterTheme {
                 LibraryListScreen(
@@ -105,11 +114,30 @@ class LibrarySongsListTest {
                     coverArt = { _, _ -> null },
                     onSync = {},
                     onBack = {},
-                    songs = flowOf(PagingData.empty()),
+                    search = search,
+                    songs = songs,
                 )
             }
         }
 
-        composeRule.onAllNodesWithContentDescription(composeRule.activity.getString(R.string.controls_shuffle_play)).assertCountEquals(0)
+        val play = composeRule.onNodeWithText(composeRule.activity.getString(R.string.controls_play))
+        val shuffle = composeRule.onNodeWithText(composeRule.activity.getString(R.string.controls_shuffle))
+        play.assertExists()
+        shuffle.assertExists()
+
+        composeRule.runOnIdle {
+            search = "No matching song"
+            songs = flowOf(PagingData.empty())
+        }
+        play.assertDoesNotExist()
+        shuffle.assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            search = "coltrane"
+            songs = flowOf(PagingData.from(listOf(item("s3", "Locomotion"))))
+        }
+        composeRule.onNodeWithText("Locomotion").assertExists()
+        play.assertExists()
+        shuffle.assertExists()
     }
 }

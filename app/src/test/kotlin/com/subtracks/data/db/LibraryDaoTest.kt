@@ -44,6 +44,56 @@ class LibraryDaoTest {
     }
 
     @Test
+    fun lastUsedPrefersLocalActivityAndKeepsUnknownDatesLast() =
+        runTest {
+            val sourceId = source()
+            val other = source()
+            val dao = db.libraryDao()
+            val ordinary = playlist(sourceId, "recent", "Recent", created = 0, changed = 50)
+            val local = playlist(sourceId, "local", "maekster · Chill", created = 0, changed = 100)
+            dao.upsertPlaylists(
+                listOf(
+                    ordinary,
+                    local,
+                    playlist(sourceId, "a", "Tie", created = 0, changed = 50),
+                    playlist(sourceId, "b", "Tie", created = 0, changed = 50),
+                    playlist(sourceId, "wrapped", "maekster Wrapped 2025", created = 0, changed = 250),
+                    playlist(sourceId, "unknown", "Unknown", created = 0, changed = 0),
+                    ordinary.copy(sourceId = other),
+                ),
+            )
+            dao.recordPlaylistUse(other, "recent", 999)
+            dao.recordPlaylistUse(sourceId, "local", 75)
+            dao.recordPlaylistUse(sourceId, "local", 10)
+            dao.upsertPlaylists(listOf(local.copy(changed = 300)))
+            dao.upsertSongs(listOf(song(sourceId, "s1", "One", starred = null)))
+            dao.upsertPlaylistSongs(listOf(PlaylistSong(sourceId, "local", "s1", 0), PlaylistSong(sourceId, "a", "s1", 0)))
+            db.downloadDao().upsert(SongDownload(sourceId, "s1", DownloadStatus.Completed))
+
+            assertEquals(
+                listOf("local", "a"),
+                dao.playlistPages(sourceId, sort = PlaylistSort.LastUsed, descending = true, downloaded = true).page().map { it.id },
+            )
+
+            assertEquals(
+                listOf("local", "recent", "a", "b", "wrapped", "unknown"),
+                dao.playlistPages(sourceId, sort = PlaylistSort.LastUsed, descending = true).page().map { it.id },
+            )
+            assertEquals(
+                listOf("b", "a", "recent", "local", "unknown", "wrapped"),
+                dao.playlistPages(sourceId, sort = PlaylistSort.LastUsed).page().map { it.id },
+            )
+            assertEquals(
+                listOf("local", "wrapped"),
+                dao
+                    .playlistPages(sourceId, sort = PlaylistSort.Updated)
+                    .page()
+                    .take(2)
+                    .map { it.id },
+            )
+        }
+
+    @Test
     fun albumSortsAndStarredFilter() =
         runTest {
             val sourceId = source()

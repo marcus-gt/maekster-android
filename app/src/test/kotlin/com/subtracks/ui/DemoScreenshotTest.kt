@@ -468,13 +468,12 @@ class DemoScreenshotTest {
                         HomeFeed(
                             recentlyPlayedAlbums = coveredAlbums(dao.recentlyPlayedAlbums(1, 10).first()),
                             recentlyPlayedArtists = namedArtists(dao.recentlyPlayedArtists(1, 10).first()),
-                            mostPlayedAlbums = coveredAlbums(dao.mostPlayedAlbums(1, 10).first()),
+                            mostPlayedAlbums = coveredAlbums(dao.heavyRotationAlbums(1).first()),
                             mostPlayedArtists = namedArtists(dao.mostPlayedArtists(1, 10).first()),
-                            genres = dao.genresByMostPlayed(1).first(),
                             decades = dao.decades(1).first(),
                             recentlyStarredSongs = dao.recentlyStarredSongs(1, 10).first().filter { it.coverArt != null },
                             recentlyAddedAlbums = albums.take(10),
-                            rediscoverAlbums = coveredAlbums(dao.rediscoverAlbums(1, System.currentTimeMillis() / 1000, 10).first()),
+                            rediscoverAlbums = coveredAlbums(dao.rediscoverAlbums(1).first()),
                         )
 
                     val search =

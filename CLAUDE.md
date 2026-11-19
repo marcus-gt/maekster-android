@@ -101,6 +101,13 @@ Before making changes:
 
 Avoid repeating broad architecture investigations when the existing documentation provides sufficient context.
 
+### Current UX polish work
+
+Use [Post-M4 UX polish](docs/ANDROID_ROADMAP.md#post-m4--ux-polish) for slice order and GitHub
+links. Take the explicitly assigned slice, read its issue and relevant handoff, and update one
+`docs/handoffs/UX-<number>-<topic>.md` when handing it back. Use the umbrella issue for screenshots
+and shared design context. The roadmap links the starter handoff for the first slice.
+
 ### Current release-readiness handoff
 
 Milestone 4 is limited to M4.8 GrapheneOS, M4.10 background reliability, M4.9 core accessibility,

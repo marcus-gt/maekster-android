@@ -37,6 +37,7 @@ import com.subtracks.data.model.PlaylistSaveDraft
 import com.subtracks.data.model.PlaylistSaveDraftSong
 import com.subtracks.data.model.PlaylistSearch
 import com.subtracks.data.model.PlaylistSong
+import com.subtracks.data.model.PlaylistUsage
 import com.subtracks.data.model.QueueEntry
 import com.subtracks.data.model.QueueKindConverter
 import com.subtracks.data.model.QuickPlaylist
@@ -74,6 +75,7 @@ import com.subtracks.data.model.UpNextEntry
         Playlist::class,
         PlaylistSearch::class,
         PlaylistSong::class,
+        PlaylistUsage::class,
         Song::class,
         SongGenre::class,
         SongArtistRef::class,
@@ -102,7 +104,7 @@ import com.subtracks.data.model.UpNextEntry
         FreshReleaseState::class,
         MusicBrainzName::class,
     ],
-    version = 62,
+    version = 64,
     exportSchema = true,
 )
 @ColumnTypeConverters(

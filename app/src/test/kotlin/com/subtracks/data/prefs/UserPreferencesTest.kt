@@ -78,6 +78,44 @@ class UserPreferencesTest {
         }
 
     @Test
+    fun albumLibraryLayoutDefaultsToGridAndPersistsAcrossReaders() =
+        runTest {
+            val file = File.createTempFile("album-layout", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val prefs = UserPreferences(store)
+            val query = ListQuery(AlbumSort.Name.name, descending = true, downloaded = true)
+            prefs.setListQuery(LibraryListTab.Albums, query)
+            assertEquals(false, prefs.albumsAsList().first())
+
+            prefs.setAlbumsAsList(true)
+            val reopened = UserPreferences(store)
+            assertEquals(true, reopened.albumsAsList().first())
+            assertEquals(query, reopened.listQuery(LibraryListTab.Albums).first())
+
+            reopened.setAlbumsAsList(false)
+            assertEquals(false, UserPreferences(store).albumsAsList().first())
+            file.delete()
+        }
+
+    @Test
+    fun artistLibraryGridPersistsIndependentlyOfAlbums() =
+        runTest {
+            val file = File.createTempFile("artist-layout", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val prefs = UserPreferences(store)
+            assertEquals(false, prefs.artistsAsGrid().first())
+            prefs.setAlbumsAsList(true)
+            prefs.setArtistsAsGrid(true)
+
+            val reopened = UserPreferences(store)
+            assertEquals(true, reopened.artistsAsGrid().first())
+            assertEquals(true, reopened.albumsAsList().first())
+            reopened.setArtistsAsGrid(false)
+            assertEquals(true, reopened.albumsAsList().first())
+            file.delete()
+        }
+
+    @Test
     fun homeLayoutPersistsVisibilityAndOrderAcrossReaders() =
         runTest {
             val file = File.createTempFile("home-layout", ".preferences_pb").apply { delete() }
@@ -90,6 +128,7 @@ class UserPreferencesTest {
                         HomeShelf.FavoriteAlbums,
                         -1,
                     ).show(HomeShelf.Genres, false)
+                    .show(HomeShelf.SongPath, true)
                     .grid(HomeShelf.FavoriteAlbums, true)
                     .grid(HomeShelf.Pinned, true)
             prefs.setHomeLayout(custom)
@@ -97,7 +136,7 @@ class UserPreferencesTest {
             store.edit { it[stringPreferencesKey("home_layout")] = "FavoriteAlbums,FavoriteAlbums,Unknown|Genres,Unknown" }
             val recovered = prefs.homeLayout().first()
             assertEquals(HomeShelf.entries.size, recovered.order.distinct().size)
-            assertEquals(setOf(HomeShelf.Genres), recovered.hidden)
+            assertEquals(setOf(HomeShelf.Genres, HomeShelf.SongPath), recovered.hidden)
             assertEquals(HomeShelf.Pinned, recovered.order.first())
             prefs.setHomeLayout(HomeLayout())
             assertEquals(HomeLayout(), prefs.homeLayout().first())
@@ -109,9 +148,9 @@ class UserPreferencesTest {
         val legacy = HomeLayout.decode("FavoriteAlbums,YourPlaylists|Genres")
         assertEquals(emptySet<HomeShelf>(), legacy.grids)
         val decoded = HomeLayout.decode("FavoriteAlbums|Genres|FavoriteAlbums,YourPlaylists,Unknown,Genres,RecentlyStarredSongs")
-        assertEquals(setOf(HomeShelf.FavoriteAlbums, HomeShelf.YourPlaylists, HomeShelf.Genres), decoded.grids)
+        assertEquals(setOf(HomeShelf.FavoriteAlbums, HomeShelf.YourPlaylists), decoded.grids)
         assertEquals(decoded, HomeLayout.decode(decoded.encode()))
-        assertEquals(decoded.copy(grids = setOf(HomeShelf.YourPlaylists, HomeShelf.Genres)), decoded.grid(HomeShelf.FavoriteAlbums, false))
+        assertEquals(decoded.copy(grids = setOf(HomeShelf.YourPlaylists)), decoded.grid(HomeShelf.FavoriteAlbums, false))
     }
 
     @Test

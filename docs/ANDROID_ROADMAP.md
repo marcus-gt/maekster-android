@@ -885,6 +885,34 @@ are recorded in the [M4 handoff](handoffs/M4-release-readiness.md). The four rel
 | P2 | M4.11 | [F-Droid](https://github.com/marcus-gt/maekster-android/issues/25) and [Google Play](https://github.com/marcus-gt/maekster-android/issues/26) |
 | P2 | M4.9 | [Advanced accessibility](https://github.com/marcus-gt/maekster-android/issues/27) |
 
+## Post-M4 — UX polish
+
+[Issue #31](https://github.com/marcus-gt/maekster-android/issues/31) holds the original UX review and screenshots.
+The slices below can proceed while [physical-device verification](https://github.com/marcus-gt/maekster-android/issues/29)
+and [signed upgrade verification](https://github.com/marcus-gt/maekster-android/issues/30) are pending.
+
+Start with UX-01. Work one slice per session and use GitHub for status and acceptance criteria.
+UX-10 establishes genre/style behavior before UX-11 connects the Home grids. Review the visual
+prototype in UX-04 before rolling it out. The recommendation audit in UX-12 may yield focused follow-ups.
+
+| Slice | GitHub issue | Handoff |
+|---|---|---|
+| UX-01 | [Library labels and album layout switch](https://github.com/marcus-gt/maekster-android/issues/10) | [Starter handoff](handoffs/UX-01-library-layout.md) |
+| UX-02 | [Home: compact grids and favorite songs carousel](https://github.com/marcus-gt/maekster-android/issues/32) | [Complete](handoffs/UX-02-home-grids-favorites.md) |
+| UX-03 | [Home and Discover: consistent section arrows](https://github.com/marcus-gt/maekster-android/issues/33) | [Complete](handoffs/UX-03-section-arrows.md) |
+| UX-04 | [Discover: review and refresh the card design](https://github.com/marcus-gt/maekster-android/issues/34) | [Complete](handoffs/UX-04-discover-cards.md) |
+| UX-05 | [Home: offer Song Path as an opt-in section](https://github.com/marcus-gt/maekster-android/issues/35) | [Complete](handoffs/UX-05-home-song-path.md) |
+| UX-06 | [Playlists: clarify Updated and add Last used if distinct](https://github.com/marcus-gt/maekster-android/issues/36) | [Complete](handoffs/UX-06-playlist-last-used.md) |
+| UX-07 | [Songs: play or shuffle the current Library result](https://github.com/marcus-gt/maekster-android/issues/37) | [Complete](handoffs/UX-07-songs-result-playback.md) |
+| UX-08 | [Songs: Recently played and Released sorting](https://github.com/marcus-gt/maekster-android/issues/7) | [Complete](handoffs/UX-08-song-date-sorts.md) |
+| UX-09 | [Favorites: sorting and Play/Shuffle](https://github.com/marcus-gt/maekster-android/issues/38) | [Complete](handoffs/UX-09-favorites-sorts.md) |
+| UX-10 | [Library Genres: styles and playback controls](https://github.com/marcus-gt/maekster-android/issues/9) | [Complete](handoffs/UX-10-genre-styles.md) |
+| UX-11 | [Home: rotating genre album grids](https://github.com/marcus-gt/maekster-android/issues/39) | [Complete](handoffs/UX-11-genre-grids.md) |
+| UX-12 | [Home and Discover: audit recommendation behavior against iOS](https://github.com/marcus-gt/maekster-android/issues/40) | [Complete](handoffs/UX-12-recommendation-audit.md) |
+| UX-13 | [Rediscover: fix the 60-day window (milliseconds compared with seconds)](https://github.com/marcus-gt/maekster-android/issues/41) | Superseded by UX-14 (the Rediscover window was removed) |
+| UX-14 | [Home: align In heavy rotation and Rediscover selection with iOS](https://github.com/marcus-gt/maekster-android/issues/42) | [Complete](handoffs/UX-14-rediscover-ios.md) |
+| UX-15 | [Home: align Artist picks ranking and rotation with iOS](https://github.com/marcus-gt/maekster-android/issues/43) | [Complete](handoffs/UX-15-artist-picks-ios.md) |
+
 ---
 
 ## Product decisions

@@ -42,13 +42,37 @@ class ScreenLayoutsTest {
             )
         val decoded = HomeLayout.decode(legacyOrder.joinToString(",") { it.name } + "|Genres|FavoriteAlbums")
         assertEquals(legacyOrder, decoded.order.filter { it in legacyOrder })
-        assertEquals(setOf(HomeShelf.Genres), decoded.hidden)
+        assertEquals(setOf(HomeShelf.Genres, HomeShelf.SongPath), decoded.hidden)
         assertEquals(setOf(HomeShelf.FavoriteAlbums), decoded.grids)
         assertTrue(HomeShelf.QueueBuilder in decoded.order)
         assertTrue(HomeShelf.ArtistPicks in decoded.order)
         assertEquals(HomeShelf.Pinned, HomeLayout().visible.first())
         assertFalse(HomeShelf.Decades in HomeLayout().visible)
         assertFalse(HomeShelf.MostPlayedArtists in HomeLayout().visible)
+        assertEquals(HomeShelf.Genres, HomeLayout().order.last())
+        assertEquals(HomeShelf.Genres, HomeLayout().visible.last())
+    }
+
+    @Test fun songPathStartsHiddenOnHomeForNewAndSavedLayoutsAndThenKeepsTheUsersChoice() {
+        assertFalse(HomeShelf.SongPath in HomeLayout().visible)
+        assertEquals(
+            HomeLayout().order.indexOf(HomeShelf.QueueBuilder) + 1,
+            HomeLayout().order.indexOf(HomeShelf.SongPath),
+        )
+        assertFalse(HomeShelf.SongPath.supportsGrid)
+
+        // Saved before Song Path existed: the user moved Genres first, hid Pinned and re-showed Decades.
+        val savedOrder = DEFAULT_HOME_ORDER.filter { it != HomeShelf.SongPath }.let { listOf(HomeShelf.Genres) + (it - HomeShelf.Genres) }
+        val saved = HomeLayout.decode(savedOrder.joinToString(",") { it.name } + "|Pinned,RecentlyPlayedArtists,MostPlayedArtists|")
+        assertFalse(HomeShelf.SongPath in saved.visible)
+        assertTrue(HomeShelf.Decades in saved.visible)
+        assertFalse(HomeShelf.Pinned in saved.visible)
+        assertEquals(savedOrder, saved.order.filter { it != HomeShelf.SongPath })
+        assertEquals(saved.order.indexOf(HomeShelf.QueueBuilder) + 1, saved.order.indexOf(HomeShelf.SongPath))
+
+        val shown = HomeLayout.decode(saved.show(HomeShelf.SongPath, true).encode())
+        assertTrue(HomeShelf.SongPath in shown.visible)
+        assertFalse(HomeShelf.SongPath in HomeLayout.decode(shown.show(HomeShelf.SongPath, false).encode()).visible)
     }
 
     @Test fun layoutsAreIndependentAndResetNeverGrantsConsentOrChangesAutoplay() =

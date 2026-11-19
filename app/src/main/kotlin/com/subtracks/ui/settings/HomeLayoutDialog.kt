@@ -45,6 +45,7 @@ internal fun HomeShelf.title(): Int =
         HomeShelf.YourPlaylists -> R.string.home_section_your_playlists
         HomeShelf.QueueBuilder -> R.string.queue_builder_title
         HomeShelf.ArtistPicks -> R.string.home_section_artist_picks
+        HomeShelf.SongPath -> R.string.song_path_title
         else -> HomeSection.valueOf(name).title
     }
 

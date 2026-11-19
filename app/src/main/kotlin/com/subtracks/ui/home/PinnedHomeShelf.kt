@@ -4,7 +4,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
@@ -53,8 +51,6 @@ internal fun PinnedHomeShelf(
         }
     }
 }
-
-internal fun pinGridColumns(width: Dp): Int = ((width.value - 24) / 140).toInt().coerceAtLeast(1)
 
 /** The Pinned shelf as a carousel or a paged grid; nothing when there are no pins. */
 internal fun LazyListScope.pinnedSection(
@@ -88,14 +84,21 @@ internal fun LazyListScope.pinnedGrid(
         )
     }
     items(count = (pins.itemCount + columns - 1) / columns, key = { "pins-grid-row-$it" }) { row ->
-        Row(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            for (index in row * columns until minOf((row + 1) * columns, pins.itemCount)) {
-                val item = pins[index]
-                if (item != null) {
-                    PinnedTile(item, coverArt, onClick, onLongClick)
-                } else {
-                    Spacer(Modifier.size(132.dp))
-                }
+        val start = row * columns
+        HomeGridRow(columns, minOf(columns, pins.itemCount - start), Modifier.padding(bottom = 8.dp)) { offset, modifier ->
+            val item = pins[start + offset]
+            if (item != null) {
+                HomeGridTile(
+                    title = item.name,
+                    subtitle = item.subtitle,
+                    ref = coverArt(item.coverArt, true),
+                    onClick = { onClick(item) },
+                    onLongClick = { onLongClick(item) },
+                    modifier = modifier,
+                    circular = item.kind == PinKind.Artist,
+                )
+            } else {
+                Spacer(modifier.height(HOME_GRID_COVER))
             }
         }
     }

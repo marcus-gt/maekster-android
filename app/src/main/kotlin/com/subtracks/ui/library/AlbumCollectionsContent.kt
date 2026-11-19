@@ -83,7 +83,7 @@ fun AlbumCollectionsContent(
 }
 
 @Composable
-private fun AlbumCollectionRow(
+internal fun AlbumCollectionRow(
     collection: AlbumCollectionSummary,
     coverArt: (String?, Boolean) -> CoverArtRef?,
     onClick: () -> Unit,

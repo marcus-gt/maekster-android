@@ -78,12 +78,12 @@ fun LibrarySongsContent(
                 buckets = letterBuckets,
                 onJump = { position -> if (position < items.itemCount) scope.launch { listState.scrollToItem(position) } },
                 modifier = modifier,
-                railBottomPadding = bottomInset + FAB_CLEARANCE,
+                railBottomPadding = bottomInset,
             ) { listModifier ->
                 LazyColumn(
                     state = listState,
                     modifier = listModifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = bottomInset + FAB_CLEARANCE),
+                    contentPadding = PaddingValues(bottom = bottomInset),
                 ) {
                     items(count = items.itemCount, key = items.itemKey { it.song.id }) { index ->
                         val item = items[index]
@@ -115,9 +115,6 @@ fun LibrarySongsContent(
         }
     }
 }
-
-// Keeps the last row clear of the shuffle button.
-private val FAB_CLEARANCE = 72.dp
 
 // A song row's height, so rows not loaded yet keep the scroll position steady.
 private val PLACEHOLDER_ROW_HEIGHT = 72.dp

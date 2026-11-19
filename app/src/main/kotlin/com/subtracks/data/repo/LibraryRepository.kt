@@ -14,11 +14,18 @@ import com.subtracks.data.db.albumCollectionsPageQuery
 import com.subtracks.data.db.albumsPageQuery
 import com.subtracks.data.db.artistsPageQuery
 import com.subtracks.data.db.collectionAlbumsQuery
+import com.subtracks.data.db.genreAlbumSummaryQuery
+import com.subtracks.data.db.genreGroupsQuery
+import com.subtracks.data.db.genreMapping
+import com.subtracks.data.db.groupedGenreAlbumsQuery
 import com.subtracks.data.db.hasDownloadedCollectionsQuery
+import com.subtracks.data.db.heavyRotationAlbumsQuery
+import com.subtracks.data.db.homeGenreAlbumsQuery
 import com.subtracks.data.db.letterBucketsQuery
 import com.subtracks.data.db.playlistsPageQuery
 import com.subtracks.data.db.rediscoverAlbumsQuery
 import com.subtracks.data.db.songsPageQuery
+import com.subtracks.data.mix.ArtistPicker
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumCollectionKind
 import com.subtracks.data.model.AlbumCollectionSummary
@@ -28,6 +35,7 @@ import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistAlbums
 import com.subtracks.data.model.ArtistBio
 import com.subtracks.data.model.Disc
+import com.subtracks.data.model.HomeGenreShelf
 import com.subtracks.data.model.ListTotals
 import com.subtracks.data.model.PinRef
 import com.subtracks.data.model.PinnedItem
@@ -54,6 +62,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -74,21 +83,24 @@ class LibraryRepository(
 ) {
     val activeSourceId: Flow<Long?> = sourceRepository.activeSourceId()
 
+    /** Home's Artist picks for the local epoch [day], as on iOS. [now] is in epoch seconds. */
     fun artistPicks(
         sourceId: Long,
-        now: Long = System.currentTimeMillis(),
+        day: Long,
+        now: Long,
     ): Flow<List<Artist>> {
         val dao = db.mixDao()
-        val day = now / 86_400_000L
-        return combine(
-            dao.homeFavoriteArtists(sourceId, day),
-            dao.homeDormantArtists(sourceId, now / 1000 - 90 * 86_400L),
-            dao.homeUnplayedArtists(sourceId, day),
-        ) { favorites, dormant, unplayed ->
-            (0 until 4)
-                .flatMap { index -> listOfNotNull(favorites.getOrNull(index), dormant.getOrNull(index), unplayed.getOrNull(index)) }
-                .distinctBy { it.id }
-        }
+        return dao
+            .artistPickEarliestPlay(sourceId)
+            .map { earliest -> now - ArtistPicker.dormancy(earliest, now) }
+            .distinctUntilChanged()
+            .flatMapLatest { cutoff ->
+                combine(
+                    dao.artistPickPlayed(sourceId),
+                    dao.artistPickDormant(sourceId, cutoff),
+                    dao.artistPickFresh(sourceId, day),
+                ) { played, dormant, fresh -> ArtistPicker.pick(played, dormant, fresh, ArtistPicker.seed(sourceId, day)) }
+            }
     }
 
     fun pinnedItems(sourceId: Long): Flow<PagingData<PinnedItem>> =
@@ -162,10 +174,7 @@ class LibraryRepository(
         limit: Int,
     ): Flow<List<Artist>> = db.libraryDao().recentlyPlayedArtists(sourceId, limit)
 
-    fun mostPlayedAlbums(
-        sourceId: Long,
-        limit: Int,
-    ): Flow<List<Album>> = db.libraryDao().mostPlayedAlbums(sourceId, limit)
+    fun heavyRotationAlbums(sourceId: Long): Flow<List<Album>> = db.libraryDao().heavyRotationAlbums(sourceId)
 
     fun mostPlayedArtists(
         sourceId: Long,
@@ -187,11 +196,7 @@ class LibraryRepository(
         limit: Int,
     ): Flow<List<Playlist>> = db.libraryDao().recentlyChangedPlaylists(sourceId, limit)
 
-    fun rediscoverAlbums(
-        sourceId: Long,
-        cutoff: Long,
-        limit: Int,
-    ): Flow<List<Album>> = db.libraryDao().rediscoverAlbums(sourceId, cutoff, limit)
+    fun rediscoverAlbums(sourceId: Long): Flow<List<Album>> = db.libraryDao().rediscoverAlbums(sourceId)
 
     fun recentlyStarredSongs(
         sourceId: Long,
@@ -202,10 +207,11 @@ class LibraryRepository(
 
     fun decades(sourceId: Long): Flow<List<Long>> = db.libraryDao().decades(sourceId)
 
+    fun heavyRotationAlbumsPage(sourceId: Long): Flow<PagingData<Album>> =
+        pager(40) { db.libraryDao().albumsPaging(heavyRotationAlbumsQuery(sourceId)) }
+
     fun rediscoverAlbumsPage(sourceId: Long): Flow<PagingData<Album>> =
-        pager(
-            40,
-        ) { db.libraryDao().albumsPaging(rediscoverAlbumsQuery(sourceId, starredFilter = 0, search = "", cutoff = rediscoverCutoff())) }
+        pager(40) { db.libraryDao().albumsPaging(rediscoverAlbumsQuery(sourceId)) }
 
     fun starredSongs(sourceId: Long): Flow<PagingData<AlbumSongItem>> = pager(60) { db.libraryDao().starredSongs(sourceId) }
 
@@ -286,8 +292,6 @@ class LibraryRepository(
     ): Flow<PagingData<Album>> = pager(40) { db.libraryDao().albumsByDecade(sourceId, decade, decade + 10) }
 
     fun homeRecentlyPlayedAlbums(sourceId: Long): Flow<PagingData<Album>> = pager(40) { db.libraryDao().homeRecentlyPlayedAlbums(sourceId) }
-
-    fun homeMostPlayedAlbums(sourceId: Long): Flow<PagingData<Album>> = pager(40) { db.libraryDao().homeMostPlayedAlbums(sourceId) }
 
     fun homeRecentlyAddedAlbums(sourceId: Long): Flow<PagingData<Album>> = pager(40) { db.libraryDao().homeRecentlyAddedAlbums(sourceId) }
 
@@ -405,6 +409,67 @@ class LibraryRepository(
         pager(60) {
             db.libraryDao().albumCollectionsPaging(
                 albumCollectionsPageQuery(sourceId, kind, sort, descending, search, downloaded),
+            )
+        }
+
+    internal fun genreGroups(
+        sourceId: Long,
+        sort: CollectionSort,
+        descending: Boolean,
+        search: String,
+        downloaded: Boolean,
+        main: String? = null,
+    ): Flow<PagingData<AlbumCollectionSummary>> =
+        genreMapping(sourceId).flatMapLatest { mapping ->
+            pager(60) {
+                db.libraryDao().albumCollectionsPaging(genreGroupsQuery(sourceId, mapping, sort, descending, search, downloaded, main))
+            }
+        }
+
+    private fun genreMapping(sourceId: Long) = db.libraryDao().genreTags(sourceId).map(::genreMapping)
+
+    internal fun genreTags(
+        sourceId: Long,
+        main: String,
+        style: String?,
+    ) = genreMapping(sourceId).map { mapping ->
+        mapping.filter { it.main == main && (style == null || it.style == style) }.map { it.tag }
+    }
+
+    internal fun genreAlbumSummary(
+        sourceId: Long,
+        genre: String,
+        downloaded: Boolean,
+    ): Flow<AlbumCollectionSummary> =
+        genreTags(sourceId, genre, style = null).distinctUntilChanged().flatMapLatest { tags ->
+            db.libraryDao().genreAlbumSummary(genreAlbumSummaryQuery(sourceId, genre, tags, downloaded))
+        }
+
+    internal fun homeGenreShelves(
+        sourceId: Long,
+        day: Long,
+        downloaded: Boolean,
+    ): Flow<List<HomeGenreShelf>> =
+        genreMapping(sourceId).distinctUntilChanged().flatMapLatest { mapping ->
+            db.libraryDao().homeGenreAlbums(homeGenreAlbumsQuery(sourceId, mapping, day, downloaded)).map { rows ->
+                rows.groupBy({ it.shelfGenre }, { it.album }).map { (genre, albums) -> HomeGenreShelf(genre, albums) }
+            }
+        }
+
+    internal fun groupedGenreAlbums(
+        sourceId: Long,
+        spec: SongListSpec,
+    ): Flow<PagingData<Album>> =
+        pager(40) {
+            db.libraryDao().collectionAlbumsPaging(
+                groupedGenreAlbumsQuery(
+                    sourceId,
+                    checkNotNull(spec.albumGenreTags),
+                    spec.downloaded,
+                    spec.albumSort,
+                    spec.descending,
+                    spec.sortNameMode,
+                ),
             )
         }
 
@@ -662,8 +727,6 @@ class LibraryRepository(
         ).flow
 }
 
-const val REDISCOVER_WINDOW_MS = 60L * 24 * 60 * 60 * 1000
-
 const val SEARCH_RESULT_LIMIT = 50
 
 private val LETTER_INDEXED_LISTS = setOf(LibraryListTab.Albums, LibraryListTab.Artists, LibraryListTab.Songs)
@@ -675,5 +738,3 @@ internal fun normalizeBiography(value: String?): String? =
         ?.replace(Regex(" {3,}"), "\n\n")
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
-
-fun rediscoverCutoff(): Long = System.currentTimeMillis() - REDISCOVER_WINDOW_MS

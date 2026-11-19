@@ -47,6 +47,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+internal data class LibrarySongsQuery(
+    val sourceId: Long,
+    val spec: SongListSpec,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryViewModel(
     private val libraryRepository: LibraryRepository,
@@ -151,52 +156,66 @@ class LibraryViewModel(
                 combine(listQueries.getValue(tab), searches.getValue(tab), sourceRepository.offline) { query, search, offline ->
                     Triple(query, search, offline)
                 }.flatMapLatest { (query, search, offline) ->
-                    libraryRepository.albumCollections(
-                        sourceId = sourceId,
-                        kind = kind,
-                        sort = query.collectionSort(),
-                        descending = query.descending,
-                        search = search,
-                        downloaded = query.downloaded || offline,
-                    )
+                    if (kind == AlbumCollectionKind.Genre) {
+                        libraryRepository.genreGroups(
+                            sourceId,
+                            query.collectionSort(),
+                            query.descending,
+                            search,
+                            query.downloaded || offline,
+                        )
+                    } else {
+                        libraryRepository.albumCollections(
+                            sourceId = sourceId,
+                            kind = kind,
+                            sort = query.collectionSort(),
+                            descending = query.descending,
+                            search = search,
+                            downloaded = query.downloaded || offline,
+                        )
+                    }
                 }
             }.cachedIn(viewModelScope)
 
-    /** What the Songs list shows; playing from it queues the same spec, so the queue follows the list. */
-    val songListSpec: StateFlow<SongListSpec> =
+    internal val songsQuery: StateFlow<LibrarySongsQuery?> =
         combine(
+            libraryRepository.activeSourceId,
             listQueries.getValue(LibraryListTab.Songs),
             searches.getValue(LibraryListTab.Songs),
             sourceRepository.offline,
             userPreferences.sortNameMode(),
-        ) { query, search, offline, mode ->
-            SongListSpec(
-                sort = query.songSort(),
-                descending = query.descending,
-                starred = query.starred,
-                downloaded = query.downloaded || offline,
-                search = search,
-                sortNameMode = mode,
-            )
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, SongListSpec())
+        ) { sourceId, query, search, offline, mode ->
+            sourceId?.let {
+                LibrarySongsQuery(
+                    it,
+                    SongListSpec(
+                        sort = query.songSort(),
+                        descending = query.descending,
+                        starred = query.starred,
+                        downloaded = query.downloaded || offline,
+                        search = search,
+                        sortNameMode = mode,
+                    ),
+                )
+            }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val songs: Flow<PagingData<AlbumSongItem>> =
-        libraryRepository.activeSourceId
-            .filterNotNull()
-            .flatMapLatest { sourceId -> songListSpec.flatMapLatest { spec -> libraryRepository.songs(sourceId, spec) } }
-            .cachedIn(viewModelScope)
+    internal fun songs(query: LibrarySongsQuery): Flow<PagingData<AlbumSongItem>> = libraryRepository.songs(query.sourceId, query.spec)
 
     val songDownloads: StateFlow<Map<String, SongDownload>> = downloadRepository.states()
 
-    /** Plays the Songs list as shown, starting at the tapped row. */
-    fun playSongs(index: Int) {
-        val spec = songListSpec.value
-        viewModelScope.launch { playbackController.playLibrarySongs(activeSourceId.first(), spec, index.toLong()) }
+    internal fun playSongs(
+        query: LibrarySongsQuery,
+        index: Int,
+        inOrder: Boolean = false,
+    ) {
+        if (query == songsQuery.value) {
+            playbackController.playLibrarySongs(query.sourceId, query.spec, index.toLong(), disableShuffle = inOrder)
+        }
     }
 
-    fun shuffleSongs() {
-        val spec = songListSpec.value
-        viewModelScope.launch { playbackController.shuffleLibrarySongs(activeSourceId.first(), spec) }
+    internal fun shuffleSongs(query: LibrarySongsQuery) {
+        if (query == songsQuery.value) playbackController.shuffleLibrarySongs(query.sourceId, query.spec)
     }
 
     val offline: StateFlow<Boolean> = sourceRepository.offline
@@ -263,6 +282,20 @@ class LibraryViewModel(
             downloadRepository.applyAction(activeSourceId.first(), list, refId, action)
             if (action == BulkDownloadAction.Delete) playbackController.refreshMediaItems()
         }
+    }
+
+    val albumsAsList: StateFlow<Boolean> =
+        userPreferences.albumsAsList().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setAlbumsAsList(enabled: Boolean) {
+        viewModelScope.launch { userPreferences.setAlbumsAsList(enabled) }
+    }
+
+    val artistsAsGrid: StateFlow<Boolean> =
+        userPreferences.artistsAsGrid().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setArtistsAsGrid(enabled: Boolean) {
+        viewModelScope.launch { userPreferences.setArtistsAsGrid(enabled) }
     }
 
     fun listQuery(tab: LibraryListTab): StateFlow<ListQuery> = listQueries.getValue(tab)

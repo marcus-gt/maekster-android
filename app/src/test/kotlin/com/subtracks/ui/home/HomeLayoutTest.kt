@@ -14,6 +14,7 @@ import androidx.compose.ui.test.swipe
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.HomeGenreShelf
 import com.subtracks.data.prefs.HomeLayout
 import com.subtracks.data.prefs.HomeShelf
 import com.subtracks.ui.settings.HomeLayoutDialog
@@ -56,11 +57,11 @@ class HomeLayoutTest {
                             HomeFeed(
                                 favoriteAlbums = listOf(album("Favorite")),
                                 recentlyAddedAlbums = listOf(album("Added")),
-                                genres = listOf("Rock"),
                             ),
                         coverArt = { _, _ -> null },
                         playingSongId = null,
                         layout = layout,
+                        genreShelves = listOf(HomeGenreShelf("Rock", listOf(album("Rock Album")))),
                     )
                 }
             }

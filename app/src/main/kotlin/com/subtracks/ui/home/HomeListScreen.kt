@@ -5,9 +5,11 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +24,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,8 +40,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,16 +55,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
+import androidx.paging.PagingData
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.subtracks.R
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumCollectionSummary
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.ListDownloadStatus
 import com.subtracks.data.model.Playlist
 import com.subtracks.data.model.Song
+import com.subtracks.data.prefs.AlbumSort
+import com.subtracks.data.prefs.ListQuery
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.ArtistArt
@@ -64,11 +78,18 @@ import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.components.CoverArt
 import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.ItemActions
+import com.subtracks.ui.components.ListDownloadIndicator
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
 import com.subtracks.ui.components.ShuffleFab
+import com.subtracks.ui.library.AlbumCollectionRow
+import com.subtracks.ui.library.LibraryTab
+import com.subtracks.ui.library.PlaySortAvailability
 import com.subtracks.ui.library.PlaylistsContent
+import com.subtracks.ui.library.SongListPlaybackActions
 import com.subtracks.ui.library.SongRow
+import com.subtracks.ui.library.sortOptionsFor
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -90,10 +111,21 @@ fun HomeListRoute(
     viewModel: HomeListViewModel = koinViewModel { parametersOf(request) },
     playbackController: PlaybackController = koinInject(),
     topBarExtra: (@Composable () -> Unit)? = null,
+    topBarActions: @Composable RowScope.() -> Unit = {},
+    onGenreStyleClick: (String?) -> Unit = {},
 ) {
     val playback by playbackController.state.collectAsStateWithLifecycle()
+    val favoriteQuery =
+        if (request.favorites == FavoriteKind.Songs) viewModel.favoriteSongsQuery.collectAsStateWithLifecycle().value else null
+    val favoriteSongs =
+        remember(viewModel, favoriteQuery) {
+            favoriteQuery?.let(viewModel::favoriteSongs) ?: flowOf(PagingData.empty())
+        }
     val genresState = if (request.section == HomeSection.Genres) viewModel.genres.collectAsStateWithLifecycle() else null
     val genres = genresState?.value.orEmpty()
+    val genreStyles = if (request.showGenreStyles) viewModel.genreStyles.collectAsLazyPagingItems() else null
+    val allGenreAlbums =
+        if (request.showGenreStyles) viewModel.allGenreAlbums.collectAsStateWithLifecycle(initialValue = null).value else null
     val decadesState = if (request.section == HomeSection.Decades) viewModel.decades.collectAsStateWithLifecycle() else null
     val decades = decadesState?.value.orEmpty()
     val actions =
@@ -108,7 +140,7 @@ fun HomeListRoute(
         request = request,
         albums = viewModel.albums.collectAsLazyPagingItems(),
         artists = viewModel.artists.collectAsLazyPagingItems(),
-        songs = viewModel.songs.collectAsLazyPagingItems(),
+        songs = (if (request.favorites == FavoriteKind.Songs) favoriteSongs else viewModel.songs).collectAsLazyPagingItems(),
         playlists = viewModel.playlists.collectAsLazyPagingItems(),
         genres = genres,
         decades = decades,
@@ -120,11 +152,26 @@ fun HomeListRoute(
         onArtistClick = onArtistClick,
         onPlaylistClick = onPlaylistClick,
         onSongClick = viewModel::play,
+        genreStyles = genreStyles,
+        allGenreAlbums = allGenreAlbums,
+        onGenreStyleClick = onGenreStyleClick,
+        onPlayGenreAlbums = if (request.groupedGenre) viewModel::playGenreAlbums else null,
+        onFavoriteSongClick = favoriteQuery?.let { query -> { index -> viewModel.playFavorites(query, index) } },
+        onPlayFavorites = favoriteQuery?.let { query -> { viewModel.playFavorites(query, inOrder = true) } },
+        onShuffleFavorites = favoriteQuery?.let { query -> { viewModel.playFavorites(query, shuffled = true) } },
         onLongClick = { contextMenuHost?.show(it, actions) },
         onShuffle = if (viewModel.canShuffle) viewModel::shuffle else null,
         onGenreClick = onGenreClick,
         onDecadeClick = onDecadeClick,
         topBarExtra = topBarExtra,
+        topBarActions = {
+            topBarActions()
+            if (request.groupedGenre) {
+                val sort by viewModel.genreAlbumSort.collectAsStateWithLifecycle(ListQuery(AlbumSort.Year.name))
+                val availability by viewModel.genrePlaySortAvailability.collectAsStateWithLifecycle(PlaySortAvailability(false, false))
+                GenreAlbumSortMenu(sort, availability, viewModel::changeGenreAlbumSort)
+            }
+        },
     )
 }
 
@@ -149,10 +196,18 @@ fun HomeListScreen(
     onSongClick: (Song) -> Unit = {},
     onLongClick: (MenuTarget) -> Unit = {},
     onShuffle: (() -> Unit)? = null,
+    onFavoriteSongClick: ((Int) -> Unit)? = null,
+    onPlayFavorites: (() -> Unit)? = null,
+    onShuffleFavorites: (() -> Unit)? = null,
     onGenreClick: (String) -> Unit = {},
     onDecadeClick: (Long) -> Unit = {},
     // Shown under the top bar, such as the Favorites page's Songs, Albums and Artists switcher.
     topBarExtra: (@Composable () -> Unit)? = null,
+    topBarActions: @Composable RowScope.() -> Unit = {},
+    genreStyles: LazyPagingItems<AlbumCollectionSummary>? = null,
+    allGenreAlbums: AlbumCollectionSummary? = null,
+    onGenreStyleClick: (String?) -> Unit = {},
+    onPlayGenreAlbums: ((Boolean) -> Unit)? = null,
 ) {
     val now = remember { System.currentTimeMillis() }
     val resources = LocalResources.current
@@ -164,6 +219,7 @@ fun HomeListScreen(
             Column {
                 TopAppBar(
                     title = { Text(request.title) },
+                    actions = topBarActions,
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
@@ -179,6 +235,14 @@ fun HomeListScreen(
                         },
                 )
                 topBarExtra?.invoke()
+                if (albums.itemCount > 0 && onPlayGenreAlbums != null) {
+                    SongListPlaybackActions({ onPlayGenreAlbums(false) }, { onPlayGenreAlbums(true) })
+                }
+                if (request.favorites == FavoriteKind.Songs && songs.itemCount > 0 && onPlayFavorites != null &&
+                    onShuffleFavorites != null
+                ) {
+                    SongListPlaybackActions(onPlayFavorites, onShuffleFavorites)
+                }
             }
         },
         floatingActionButton = {
@@ -187,6 +251,16 @@ fun HomeListScreen(
             }
         },
     ) { padding ->
+        if (genreStyles != null) {
+            GenreStylesContent(
+                allAlbums = allGenreAlbums,
+                styles = genreStyles,
+                coverArt = coverArt,
+                onClick = onGenreStyleClick,
+                modifier = Modifier.padding(padding),
+            )
+            return@Scaffold
+        }
         val favorites = request.favorites
         if (favorites != null) {
             FavoritesContent(
@@ -202,6 +276,7 @@ fun HomeListScreen(
                 onSongClick = onSongClick,
                 onLongClick = onLongClick,
                 songListState = songListState,
+                onSongIndexClick = onFavoriteSongClick,
                 modifier = Modifier.padding(padding),
             )
             return@Scaffold
@@ -332,6 +407,79 @@ fun HomeListScreen(
 }
 
 @Composable
+private fun GenreStylesContent(
+    allAlbums: AlbumCollectionSummary?,
+    styles: LazyPagingItems<AlbumCollectionSummary>,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onClick: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(modifier.fillMaxSize()) {
+        if (allAlbums != null) {
+            item(key = "all") {
+                AlbumCollectionRow(
+                    collection = allAlbums.copy(name = stringResource(R.string.genre_all, allAlbums.name)),
+                    coverArt = coverArt,
+                    onClick = { onClick(null) },
+                )
+            }
+        }
+        if (styles.itemCount > 0) {
+            item(key = "heading") {
+                Text(
+                    stringResource(R.string.genre_styles),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+            }
+            items(styles.itemCount, key = styles.itemKey { "style:${it.name}" }) { index ->
+                val style = styles[index]
+                if (style != null) AlbumCollectionRow(style, coverArt) { onClick(style.name) }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun GenreAlbumSortMenu(
+    sort: ListQuery,
+    availability: PlaySortAvailability,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.AutoMirrored.Rounded.Sort, contentDescription = stringResource(R.string.sort_by))
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            sortOptionsFor(LibraryTab.Albums, availability).forEach { option ->
+                val selected = option.value == sort.sort
+                val descending = option.descendingByDefault != sort.descending
+                val directionLabel = if (descending) R.string.sort_descending else R.string.sort_ascending
+                DropdownMenuItem(
+                    text = { Text(stringResource(option.label)) },
+                    onClick = {
+                        expanded = false
+                        onSelect(option.value)
+                    },
+                    trailingIcon =
+                        if (selected) {
+                            {
+                                Icon(
+                                    if (descending) Icons.Rounded.ArrowDownward else Icons.Rounded.ArrowUpward,
+                                    contentDescription = stringResource(directionLabel),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun <T> PlainList(
     items: List<T>,
     label: @Composable (T) -> String,
@@ -349,7 +497,7 @@ private fun <T> PlainList(
     }
 }
 
-/** One list of the Favorites page, newest favorite first, with a hint when it is empty. */
+/** One list of the Favorites page, with a hint when it is empty. */
 @Composable
 private fun FavoritesContent(
     kind: FavoriteKind,
@@ -365,6 +513,7 @@ private fun FavoritesContent(
     onLongClick: (MenuTarget) -> Unit,
     songListState: LazyListState,
     modifier: Modifier = Modifier,
+    onSongIndexClick: ((Int) -> Unit)? = null,
 ) {
     val shown: LazyPagingItems<*> =
         when (kind) {
@@ -378,7 +527,7 @@ private fun FavoritesContent(
     }
     when (kind) {
         FavoriteKind.Songs -> {
-            SongsList(songs, coverArt, playingSongId, onSongClick, onLongClick, songListState, modifier)
+            SongsList(songs, coverArt, playingSongId, onSongClick, onLongClick, songListState, modifier, onSongIndexClick)
         }
 
         FavoriteKind.Albums -> {
@@ -400,6 +549,7 @@ private fun SongsList(
     onLongClick: (MenuTarget) -> Unit,
     listState: LazyListState,
     modifier: Modifier = Modifier,
+    onSongIndexClick: ((Int) -> Unit)? = null,
 ) {
     if (songs.itemCount == 0 && songs.loadState.refresh is LoadState.Loading) {
         LoadingState(modifier)
@@ -421,7 +571,7 @@ private fun SongsList(
                     durationSeconds = item.song.duration,
                     modifier =
                         Modifier.combinedClickable(
-                            onClick = { onSongClick(item.song) },
+                            onClick = { if (onSongIndexClick != null) onSongIndexClick(index) else onSongClick(item.song) },
                             onLongClick = { onLongClick(MenuTarget.Song(item.song, coverArt(item.coverArt, true))) },
                         ),
                 )
@@ -477,6 +627,7 @@ internal fun AlbumListRow(
     info: String?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    downloadStatus: ListDownloadStatus? = null,
 ) {
     Row(
         modifier =
@@ -519,6 +670,7 @@ internal fun AlbumListRow(
                 }
             }
         }
+        ListDownloadIndicator(downloadStatus, modifier = Modifier.padding(start = 8.dp))
     }
 }
 
