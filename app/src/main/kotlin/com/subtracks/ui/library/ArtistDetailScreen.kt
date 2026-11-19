@@ -322,6 +322,7 @@ fun ArtistDetailRoute(
                         downloads = viewModel.songDownloads,
                         onPlay = topSongs::play,
                         onLongClick = { contextMenuHost?.show(it, actions) },
+                        onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
                     )
                 }
             },

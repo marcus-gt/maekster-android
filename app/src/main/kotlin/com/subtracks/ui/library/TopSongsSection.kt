@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.R
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.playback.PlaybackController
 import com.subtracks.ui.components.MenuTarget
@@ -43,6 +44,7 @@ fun TopSongsSectionRoute(
     downloads: StateFlow<Map<String, SongDownload>>,
     onPlay: (Int, Boolean) -> Unit,
     onLongClick: (MenuTarget) -> Unit,
+    onToggleFavorite: (Song, Boolean) -> Unit,
 ) {
     val playback by playbackController.state.collectAsStateWithLifecycle()
     val songDownloads by downloads.collectAsStateWithLifecycle()
@@ -53,6 +55,7 @@ fun TopSongsSectionRoute(
         onPlay = onPlay,
         downloads = songDownloads,
         onLongClick = onLongClick,
+        onToggleFavorite = onToggleFavorite,
     )
 }
 
@@ -68,6 +71,7 @@ fun TopSongsSection(
     onLongClick: (MenuTarget) -> Unit,
     modifier: Modifier = Modifier,
     downloads: Map<String, SongDownload> = emptyMap(),
+    onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
 ) {
     if (state.songs.isEmpty()) return
     Column(modifier.fillMaxWidth().padding(bottom = 24.dp)) {
@@ -105,6 +109,7 @@ fun TopSongsSection(
             onLongClick = onLongClick,
             modifier = Modifier.testTag(TOP_SONGS_TAG),
             downloads = downloads,
+            onToggleFavorite = onToggleFavorite,
         )
     }
 }

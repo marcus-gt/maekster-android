@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.Song
 import com.subtracks.data.model.SongDownload
 import com.subtracks.ui.library.SongRow
 
@@ -36,6 +37,7 @@ fun SongCarousel(
     modifier: Modifier = Modifier,
     state: LazyListState = rememberLazyListState(),
     downloads: Map<String, SongDownload> = emptyMap(),
+    onToggleFavorite: ((Song, Boolean) -> Unit)? = null,
 ) {
     val columns = remember(songs) { songs.withIndex().chunked(SONG_CAROUSEL_ROWS) }
     LazyRow(
@@ -58,6 +60,7 @@ fun SongCarousel(
                         isPlaying = item.song.id == playingSongId,
                         durationSeconds = item.song.duration,
                         download = download,
+                        onToggleFavorite = onToggleFavorite?.let { toggle -> { favorite -> toggle(item.song, favorite) } },
                         modifier =
                             Modifier.combinedClickable(
                                 onClick = { onSongClick(index, item) },

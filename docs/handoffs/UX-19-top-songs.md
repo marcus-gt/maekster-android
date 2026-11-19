@@ -41,7 +41,20 @@ on top of UX-18 (`85eb5be9`). The M1.2 worktree was clean and detached.
   Offline on the emulator and actual Play, Shuffle and row taps were skipped to preserve the
   existing playback queue. The paused track remained “Estate”.
 
+## Inline favorite and quick playlists follow-up
+
+**Status: COMPLETE.** Committed on `ux/45-artist-now-playing` after `3c767323`. The artist route
+passes the existing song favorite action to the shared carousel. The standard song heart opens
+Quick playlists on long-press when available. The song row retains its standard long-press menu.
+
+The new Compose test failed with the heart absent and passed with the wiring. It verifies add and
+remove Favorites, quick playlist selection entry, and no playback or row menu from a heart gesture.
+Formatting, debug build, full unit suite and both lint tasks passed. On Pixel 9, Bob Dylan's hearts
+were visible at 100% and 200% font. Holding the first song heart opened the configured Quick playlists.
+Restored 100% font. The Compose test exercised the favorite callback and opening Quick playlists.
+The emulator check stopped at the playlist picker to preserve the device library and queue.
+
 ## Next action
 
-UX-20 ([#50](https://github.com/marcus-gt/maekster-android/issues/50)) can reuse `SongCarousel`.
-Stop this session after the UX-19 commit. Do not push.
+UX-20 ([#50](https://github.com/marcus-gt/maekster-android/issues/50)) can reuse `SongCarousel`
+and pass the song favorite callback for the same heart and Quick playlists gestures.
