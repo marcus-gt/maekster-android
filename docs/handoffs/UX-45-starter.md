@@ -1,6 +1,6 @@
 # UX polish 2 (#45) — starter handoff
 
-**Status: IN PROGRESS.** UX-16 to UX-23 done. The slices UX-16 to UX-27 are sub-issues #46–#57 of
+**Status: IN PROGRESS.** UX-16 to UX-24 done. The slices UX-16 to UX-27 are sub-issues #46–#57 of
 [parent #45](https://github.com/marcus-gt/maekster-android/issues/45), listed in the
 [roadmap](../ANDROID_ROADMAP.md#post-m4--ux-polish-2-artist-album-and-now-playing).
 
@@ -50,5 +50,5 @@ font scale afterwards. Don't replace the owner's queue on the emulator unless th
 
 ## Next action
 
-UX-16 to UX-23 are complete (see their handoffs; the artist mix is "Artist radio", D18). Next: UX-24
-([#54](https://github.com/marcus-gt/maekster-android/issues/54)).
+UX-16 to UX-24 are complete (see their handoffs; the artist mix is "Artist radio", D18; Now Playing's
+header is static with a type line, UX-24). Next: UX-25 ([#55](https://github.com/marcus-gt/maekster-android/issues/55)).

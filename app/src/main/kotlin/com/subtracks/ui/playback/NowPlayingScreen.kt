@@ -1,6 +1,5 @@
 package com.subtracks.ui.playback
 
-import androidx.annotation.StringRes
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -81,7 +80,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.LocalPlatformContext
 import com.subtracks.R
 import com.subtracks.data.model.CoverArtRef
-import com.subtracks.data.model.QueueKind
 import com.subtracks.data.model.Song
 import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.DownloadRepository
@@ -248,12 +246,10 @@ fun NowPlayingRoute(
     val thumbnail = controller.coverArt(state.item, thumbnail = true)
     val titleResources = LocalResources.current
     val queueContext = state.context
-    val fallbackTitle = state.item?.album?.takeIf { it.isNotBlank() } ?: stringResource(R.string.navigation_tabs_library)
     val generated = state.generated
-    val sourceTitle = remember(queueContext, generated) { mutableStateOf(fallbackTitle) }
+    val sourceType = remember(queueContext, generated) { mutableStateOf("") }
     LaunchedEffect(queueContext, generated, titleResources) {
-        sourceTitle.value =
-            controller.sourceTitle(queueContext, titleResources, generated)?.takeIf { it.isNotBlank() } ?: fallbackTitle
+        sourceType.value = controller.nowPlayingSource(queueContext, titleResources, generated)
     }
 
     fun artFor(item: QueueItem) =
@@ -279,7 +275,7 @@ fun NowPlayingRoute(
     NowPlayingScreen(
         state = state,
         positionMs = positionMs,
-        title = sourceTitle.value,
+        title = sourceType.value,
         coverArt = art,
         thumbnailRef = thumbnail,
         previousArt = adjacent.previous,
@@ -422,8 +418,6 @@ fun NowPlayingScreen(
             frozenStrip = null
         }
     }
-    val kindLabel = stringResource(state.context?.kind?.label() ?: R.string.context_kind_library)
-
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         ArtworkTheme(artwork) {
             WhiteStatusBarIcons()
@@ -446,7 +440,7 @@ fun NowPlayingScreen(
                             title = {
                                 Column {
                                     Text(
-                                        text = stringResource(R.string.now_playing_header, kindLabel).uppercase(),
+                                        text = stringResource(R.string.now_playing_header).uppercase(),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.SemiBold,
                                         letterSpacing = 1.sp,
@@ -812,19 +806,6 @@ fun NowPlayingScreen(
         }
     }
 }
-
-@StringRes
-private fun QueueKind.label(): Int =
-    when (this) {
-        QueueKind.Album -> R.string.context_kind_album
-        QueueKind.Playlist -> R.string.context_kind_playlist
-        QueueKind.Song -> R.string.context_kind_song
-        QueueKind.Artist, QueueKind.ArtistAppearances -> R.string.context_kind_artist
-        QueueKind.Genre -> R.string.context_kind_genre
-        QueueKind.Downloaded -> R.string.context_kind_downloads
-        QueueKind.Starred -> R.string.context_kind_starred
-        QueueKind.Library, QueueKind.Order -> R.string.context_kind_songs
-    }
 
 private fun formatTime(milliseconds: Long): String {
     val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)

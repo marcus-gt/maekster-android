@@ -345,16 +345,13 @@
     <string name="playlist_duration_hours_minutes">%1$d hr %2$d min</string>
     <string name="playlist_updated">Updated %1$s</string>
 
-    <string name="now_playing_header">Now playing: %1$s</string>
-    <string name="context_kind_library">library</string>
-    <string name="context_kind_album">album</string>
-    <string name="context_kind_playlist">playlist</string>
-    <string name="context_kind_song">song</string>
-    <string name="context_kind_artist">artist</string>
-    <string name="context_kind_genre">genre</string>
-    <string name="context_kind_downloads">downloads</string>
-    <string name="context_kind_starred">favorites</string>
-    <string name="context_kind_songs">songs</string>
+    <string name="now_playing_header">Now playing</string>
+    <string name="queue_type_album">Album</string>
+    <string name="queue_type_playlist">Playlist</string>
+    <string name="queue_type_artist">Artist</string>
+    <string name="queue_type_genre">Genre</string>
+    <string name="queue_type_queue">Queue</string>
+    <string name="queue_type_autoplay">Autoplay</string>
     <string name="repeat_off">Repeat off</string>
     <string name="repeat_all">Repeat all</string>
     <string name="repeat_one">Repeat one</string>

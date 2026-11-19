@@ -2014,7 +2014,8 @@ class PlaybackController(
         origin: QueueEntry?,
     ): String? =
         (origin ?: entries.singleOrNull())?.let {
-            QueueCollection.forKind(it.kind)?.storedLabel ?: queueRepository.sourceName(it.kind, it.sourceId, it.refId)
+            QueueCollection.forKind(it.kind)?.storedLabel
+                ?: queueRepository.sourceName(it.kind, it.sourceId, it.refId)?.let { name -> NamedQueueSource.label(it.kind, name) }
         }
 
     suspend fun sourceTitle(
@@ -2022,6 +2023,13 @@ class PlaybackController(
         resources: Resources,
         generated: Boolean = false,
     ): String? = sourceHeading(context, resources, generated)?.title
+
+    /** Now Playing's type line for the queue's stored source; see [nowPlayingSourceType]. */
+    suspend fun nowPlayingSource(
+        context: QueueContext?,
+        resources: Resources,
+        generated: Boolean = false,
+    ): String = nowPlayingSourceType(queueRepository.sourceLabel(), context?.kind, generated, resources)
 
     /**
      * The queue's source for [context]. When [generated], a song autoplay appended after a finite source reads

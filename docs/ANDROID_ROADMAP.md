@@ -940,7 +940,7 @@ Dependencies and gates:
 | UX-21 | [Artist page: load similar artists automatically](https://github.com/marcus-gt/maekster-android/issues/51) | Complete ([handoff](handoffs/UX-21-similar-artists.md)) |
 | UX-22 | [Artist page: optional album list layout](https://github.com/marcus-gt/maekster-android/issues/52) | Complete ([handoff](handoffs/UX-22-artist-album-list.md)) |
 | UX-23 | [Artist page: align Start station with Discover stations and Instant Mix](https://github.com/marcus-gt/maekster-android/issues/53) | Complete ([handoff](handoffs/UX-23-artist-station-name.md)) |
-| UX-24 | [Now Playing: static header and playback source type](https://github.com/marcus-gt/maekster-android/issues/54) | Not started |
+| UX-24 | [Now Playing: static header and playback source type](https://github.com/marcus-gt/maekster-android/issues/54) | Complete ([handoff](handoffs/UX-24-now-playing-header.md)) |
 | UX-25 | [Now Playing: album line and iOS text hierarchy](https://github.com/marcus-gt/maekster-android/issues/55) | Not started |
 | UX-26 | [Lyrics: find out why lyrics are not synced](https://github.com/marcus-gt/maekster-android/issues/56) | Not started |
 | UX-27 | [Lyrics: blur, reading mode and inline line as on iOS](https://github.com/marcus-gt/maekster-android/issues/57) | Not started |

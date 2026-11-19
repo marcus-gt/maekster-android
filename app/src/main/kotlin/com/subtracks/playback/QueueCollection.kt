@@ -50,7 +50,7 @@ internal enum class QueueCollection(
             label: String,
             resources: Resources,
         ): String {
-            val collection = fromStored(label) ?: return label
+            val collection = fromStored(label) ?: return NamedQueueSource.parse(label)?.second ?: label
             if (collection == ArtistRadio) {
                 val artist = label.removePrefix(ArtistRadio.storedLabel)
                 if (artist.isNotEmpty()) return resources.getString(R.string.artist_radio_queue, artist)

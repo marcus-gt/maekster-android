@@ -161,6 +161,32 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun nowPlayingNamesTheTypeOfSourceFromItsStoredLabelWhileTheQueueKeepsTheName() {
+        seedAlbum(20, sourceId = 1)
+        runBlocking {
+            db.libraryDao().upsertSongs(
+                listOf(Song(1, "lt1", "al-lt", "ar1", "Mississippi", "Love and Theft", "Bob Dylan", 100, 1, 1, null)),
+            )
+        }
+        controller.playSong(1, "lt1")
+        await {
+            controller.state.value.item
+                ?.id == "lt1"
+        }
+        val label = runBlocking { queues.sourceLabel() }!!
+        assertEquals(QueueKind.Song to "Love and Theft", NamedQueueSource.parse(label))
+        assertEquals("Album", runBlocking { controller.nowPlayingSource(controller.state.value.context, resources) })
+        assertEquals("Love and Theft", runBlocking { controller.sourceTitle(controller.state.value.context, resources) })
+        assertEquals(
+            "Similar to Love and Theft",
+            runBlocking { controller.nowPlayingSource(controller.state.value.context, resources, generated = true) },
+        )
+        // After process death only the stored cursor is left: the type comes from it, not from the current entry.
+        runBlocking { queues.replace(emptyList(), sourceLabel = NamedQueueSource.label(QueueKind.Playlist, "Jazz tunes")) }
+        assertEquals("Playlist", runBlocking { controller.nowPlayingSource(QueueContext(QueueKind.Song, 1, "s1"), resources) })
+    }
+
+    @Test
     fun autoplaySongsAfterAFiniteSourceAreLabelledSimilarToIt() {
         seedAlbum(20, sourceId = 1)
         runBlocking {
@@ -611,12 +637,13 @@ class PlaybackControllerTest {
             controller.state.value.item
                 ?.id == "s1"
         }
-        assertEquals("Album", runBlocking { queues.sourceLabel() })
+        val stored = NamedQueueSource.label(QueueKind.Album, "Album")
+        assertEquals(stored, runBlocking { queues.sourceLabel() })
         runBlocking {
             controller.clearUpcoming()
             controller.undo()
         }
-        assertEquals("Album", runBlocking { queues.sourceLabel() })
+        assertEquals(stored, runBlocking { queues.sourceLabel() })
         assertEquals("Album", runBlocking { controller.sourceTitle(null, resources) })
     }
 
