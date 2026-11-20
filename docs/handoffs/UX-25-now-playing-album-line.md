@@ -28,6 +28,16 @@ Branch `ux/45-artist-now-playing`, based on `7480c594`.
   `titleLarge` at 18sp / 26sp line height (between the 24sp title and 16sp album); the title+artist block is
   64 dp. "Reggy van Oers · Joachim Spieth" now fits beside the heart on the Pixel 9. Full run again:
   2016 tests, 0 failures; build, ktlint and lint (no issues) pass.
+- Owner follow-up (20 Nov 2026): a split-second "Buffering" at a track change looked like a glitch. Cause: the
+  waiting label was an extra line above the controls, so the weighted cover shrank by one line (16 dp) and grew
+  back. New `PlaybackStatusLine` (`PlaybackWaitingLabel.kt`) is one reserved slot: the format line
+  ("Streaming · FLAC …") keeps its space, hidden and silent for TalkBack, with the wait status drawn over it;
+  with no format line it still reserves one `bodySmall` line. `PlaybackWaitingUiTest` gains two tests (with and
+  without a format line) that the cover and Next button do not move and the hidden format line is not
+  exposed; both failed before the change (cover 328.9 → 312.9 dp bottom). Full run: build, ktlint, lint and
+  `git diff --check` pass; 2018 tests with 1 failure, the known `enteringShuffleOrRepeatTrimsTheGeneratedTail`
+  flake (2 vs 4; it failed again in one whole-class run and passed 3/3 alone; no playback code changed). Not
+  checked on the emulator: the owner was using it, and the blip is too brief to capture.
 
 ## Verification
 
