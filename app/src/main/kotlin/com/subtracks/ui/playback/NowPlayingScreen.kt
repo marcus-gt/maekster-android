@@ -378,7 +378,11 @@ fun NowPlayingScreen(
             .copy(fontWeight = FontWeight.SemiBold)
     // Untrimmed: with large text the trim cuts off descenders ("Reggy") inside the marquee's clip.
     val untrimmed = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
-    val subtitleStyle = MaterialTheme.typography.titleLarge.merge(untrimmed)
+    // Between the title (24sp) and the album (16sp); titleLarge's 22sp crowded long artist names.
+    val subtitleStyle =
+        MaterialTheme.typography.titleLarge
+            .merge(untrimmed)
+            .copy(fontSize = 18.sp, lineHeight = 26.sp)
     val albumStyle = MaterialTheme.typography.bodyLarge.merge(untrimmed)
     val currentArt =
         NowPlayingArt(
@@ -597,7 +601,7 @@ fun NowPlayingScreen(
                             }
                         val subtitleHeight =
                             with(density) {
-                                MaterialTheme.typography.titleLarge.lineHeight
+                                subtitleStyle.lineHeight
                                     .toDp()
                             }
                         val albumHeight =

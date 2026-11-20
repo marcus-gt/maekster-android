@@ -150,9 +150,9 @@ class NowPlayingTapsTest {
         render(onArtistClick = {})
 
         // The block is the title line (32dp) plus the gap (6dp) plus the artist line
-        // (28dp); it must not absorb the album line or the slider's own top padding.
+        // (26dp); it must not absorb the album line or the slider's own top padding.
         composeRule.onNodeWithText("Radiohead").assertHeightIsAtLeast(48.dp)
-        composeRule.onNodeWithText("Radiohead").assertHeightIsEqualTo(66.dp)
+        composeRule.onNodeWithText("Radiohead").assertHeightIsEqualTo(64.dp)
         composeRule.onNodeWithText("Radiohead").assertWidthIsAtLeast(48.dp)
     }
 

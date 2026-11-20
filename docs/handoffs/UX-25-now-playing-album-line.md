@@ -24,6 +24,11 @@ Branch `ux/45-artist-now-playing`, based on `7480c594`.
   (and the title+artist block) use `heightIn(min = …)`, so the glyphs fit; one-line text keeps every height
   stable, so the controls still never move. The title keeps the trimmed style (as before).
 
+- Owner follow-up (20 Nov 2026): long artist names felt cramped at 22sp, so the artist line is now
+  `titleLarge` at 18sp / 26sp line height (between the 24sp title and 16sp album); the title+artist block is
+  64 dp. "Reggy van Oers · Joachim Spieth" now fits beside the heart on the Pixel 9. Full run again:
+  2016 tests, 0 failures; build, ktlint and lint (no issues) pass.
+
 ## Verification
 
 - `NowPlayingTapsTest` now runs at `PixelXL` (as `NowPlayingLyricsTest` does): on Robolectric's default
