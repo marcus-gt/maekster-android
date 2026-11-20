@@ -4,12 +4,15 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -24,6 +27,7 @@ import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.playback.PlaybackState
 import com.subtracks.playback.QueueItem
@@ -34,10 +38,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(qualifiers = RobolectricDeviceQualifiers.PixelXL)
 class NowPlayingTapsTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
@@ -67,15 +73,18 @@ class NowPlayingTapsTest {
         previousArt: NowPlayingArt? = null,
         nextArt: NowPlayingArt? = null,
         fontScale: Float = 1f,
+        album: String? = "Kid A",
+        showLyrics: Boolean = false,
     ) {
         composeRule.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
                 MaeksterTheme {
                     NowPlayingScreen(
-                        state = state,
+                        state = state.copy(item = state.item!!.copy(album = album)),
                         positionMs = 62_000,
-                        title = "Kid A",
+                        title = "Album",
+                        showLyrics = showLyrics,
                         coverArt = CoverArtRef("art-al-kid-a", "test:art-al-kid-a"),
                         artwork = artworkColorsFromSeed(android.graphics.Color.rgb(120, 80, 200)),
                         onBack = {},
@@ -141,9 +150,9 @@ class NowPlayingTapsTest {
         render(onArtistClick = {})
 
         // The block is the title line (32dp) plus the gap (6dp) plus the artist line
-        // (20dp); it must not absorb the slider's own top padding.
+        // (28dp); it must not absorb the album line or the slider's own top padding.
         composeRule.onNodeWithText("Radiohead").assertHeightIsAtLeast(48.dp)
-        composeRule.onNodeWithText("Radiohead").assertHeightIsEqualTo(58.dp)
+        composeRule.onNodeWithText("Radiohead").assertHeightIsEqualTo(66.dp)
         composeRule.onNodeWithText("Radiohead").assertWidthIsAtLeast(48.dp)
     }
 
@@ -171,6 +180,49 @@ class NowPlayingTapsTest {
 
         composeRule.onNodeWithTag(NOW_PLAYING_COVER_TAG).assertIsNotEnabled()
         composeRule.onNodeWithText("Radiohead").assertIsNotEnabled()
+        composeRule.onNodeWithTag(NOW_PLAYING_ALBUM_TAG).assertIsNotEnabled()
+    }
+
+    @Test
+    fun theAlbumSitsBelowTheArtistAndOpensTheAlbum() {
+        var opened = 0
+        render(onAlbumClick = { opened++ }, onArtistClick = {})
+
+        val album = composeRule.onNodeWithTag(NOW_PLAYING_ALBUM_TAG).assert(hasText("Kid A")).assertIsDisplayed()
+        val artist = composeRule.onNodeWithText("Radiohead").getBoundsInRoot()
+        assertTrue("the album is below the artist", album.getBoundsInRoot().top >= artist.bottom)
+        album.performClick()
+        composeRule.onNodeWithTag(NOW_PLAYING_COVER_TAG).performClick()
+
+        assertEquals("both the album line and the cover open the album", 2, opened)
+    }
+
+    @Test
+    fun theAlbumLineIsHiddenWithoutAnAlbum() {
+        render(onAlbumClick = {}, album = null)
+        composeRule.onNodeWithTag(NOW_PLAYING_ALBUM_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun theTitleArtistAndAlbumStepDownInSize() {
+        render()
+
+        val title = composeRule.onNodeWithText("Everything In Its Right Place", useUnmergedTree = true).getBoundsInRoot()
+        val artist = composeRule.onNodeWithText("Radiohead", useUnmergedTree = true).getBoundsInRoot()
+        val album = composeRule.onNodeWithText("Kid A", useUnmergedTree = true).getBoundsInRoot()
+        val heights = listOf(title, artist, album).map { it.bottom - it.top }
+        assertTrue("title > artist > album: $heights", heights[0] > heights[1] && heights[1] > heights[2])
+    }
+
+    @Test
+    fun theAlbumLineStaysOneLineAtDoubleFontAndInTheLyricsPane() {
+        render(onAlbumClick = {}, fontScale = 2f, showLyrics = true)
+
+        val album = composeRule.onNodeWithTag(NOW_PLAYING_ALBUM_TAG).performScrollTo().assertIsDisplayed()
+        val line = composeRule.onNodeWithText("Kid A", useUnmergedTree = true).getBoundsInRoot()
+        val box = album.getBoundsInRoot()
+        assertTrue("the album stays on one line inside its fixed line", line.bottom - line.top <= box.bottom - box.top)
+        composeRule.onNodeWithContentDescription("Pause").performScrollTo().assertIsDisplayed()
     }
 
     @Test

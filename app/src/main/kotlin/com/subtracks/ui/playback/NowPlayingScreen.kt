@@ -71,6 +71,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -113,6 +114,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
 const val NOW_PLAYING_COVER_TAG = "now-playing-cover"
+const val NOW_PLAYING_ALBUM_TAG = "now-playing-album"
 const val NOW_PLAYING_PREVIOUS_TAG = "now-playing-previous"
 const val NOW_PLAYING_NEXT_TAG = "now-playing-next"
 
@@ -125,6 +127,9 @@ private const val HAND_BACK_TIMEOUT_MS = 750L
 // The strip is unclipped, so this spacing is what keeps the neighbours off-screen, and it has to
 // clear the content inset plus a tile's shadow. It doubles as the gap between tiles while dragging.
 private val TILE_GAP = 40.dp
+private val TITLE_GAP = 6.dp
+private val ALBUM_GAP = 4.dp
+private const val ALBUM_ALPHA = 0.75f
 
 data class NowPlayingArt(
     val id: String?,
@@ -361,16 +366,20 @@ fun NowPlayingScreen(
 ) {
     val playButtonSize = 90.dp
     val playCircleDiameter = playButtonSize * 20f / 24f
+    // The iOS hierarchy: a large bold title, the artist a step down in secondary, the album smaller still.
+    val trimmed =
+        TextStyle(
+            platformStyle = PlatformTextStyle(includeFontPadding = false),
+            lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
+        )
     val titleStyle =
-        MaterialTheme.typography.headlineSmall.copy(
-            platformStyle = PlatformTextStyle(includeFontPadding = false),
-            lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
-        )
-    val subtitleStyle =
-        MaterialTheme.typography.bodyMedium.copy(
-            platformStyle = PlatformTextStyle(includeFontPadding = false),
-            lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
-        )
+        MaterialTheme.typography.headlineSmall
+            .merge(trimmed)
+            .copy(fontWeight = FontWeight.SemiBold)
+    // Untrimmed: with large text the trim cuts off descenders ("Reggy") inside the marquee's clip.
+    val untrimmed = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+    val subtitleStyle = MaterialTheme.typography.titleLarge.merge(untrimmed)
+    val albumStyle = MaterialTheme.typography.bodyLarge.merge(untrimmed)
     val currentArt =
         NowPlayingArt(
             id = state.item?.id,
@@ -588,49 +597,77 @@ fun NowPlayingScreen(
                             }
                         val subtitleHeight =
                             with(density) {
-                                MaterialTheme.typography.bodyMedium.lineHeight
+                                MaterialTheme.typography.titleLarge.lineHeight
                                     .toDp()
                             }
+                        val albumHeight =
+                            with(density) {
+                                MaterialTheme.typography.bodyLarge.lineHeight
+                                    .toDp()
+                            }
+                        val albumName = state.item?.album?.takeIf { it.isNotBlank() }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 12.dp)
-                                    .height(titleHeight + 6.dp + subtitleHeight),
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.Start,
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null,
-                                            enabled = onArtistClick != null,
-                                            onClickLabel = stringResource(R.string.open_artist),
-                                        ) { onArtistClick?.invoke() },
-                            ) {
-                                Box(Modifier.height(titleHeight), contentAlignment = Alignment.CenterStart) {
-                                    Text(
-                                        text = state.item?.title.orEmpty(),
-                                        style = titleStyle,
-                                        maxLines = 1,
-                                        modifier = Modifier.basicMarquee(),
-                                    )
+                            Column(Modifier.weight(1f)) {
+                                Column(
+                                    horizontalAlignment = Alignment.Start,
+                                    verticalArrangement = Arrangement.spacedBy(TITLE_GAP),
+                                    modifier =
+                                        Modifier
+                                            .heightIn(min = titleHeight + TITLE_GAP + subtitleHeight)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null,
+                                                enabled = onArtistClick != null,
+                                                onClickLabel = stringResource(R.string.open_artist),
+                                            ) { onArtistClick?.invoke() },
+                                ) {
+                                    Box(Modifier.height(titleHeight), contentAlignment = Alignment.CenterStart) {
+                                        Text(
+                                            text = state.item?.title.orEmpty(),
+                                            style = titleStyle,
+                                            maxLines = 1,
+                                            modifier = Modifier.basicMarquee(),
+                                        )
+                                    }
+                                    Box(Modifier.heightIn(min = subtitleHeight), contentAlignment = Alignment.CenterStart) {
+                                        Text(
+                                            text =
+                                                state.item
+                                                    ?.let { artistSubtitle(it.artist, it.artists) }
+                                                    .orEmpty(),
+                                            style = subtitleStyle,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            modifier = Modifier.basicMarquee(),
+                                        )
+                                    }
                                 }
-                                Box(Modifier.height(subtitleHeight), contentAlignment = Alignment.CenterStart) {
-                                    Text(
-                                        text =
-                                            state.item
-                                                ?.let { artistSubtitle(it.artist, it.artists) }
-                                                .orEmpty(),
-                                        style = subtitleStyle,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        maxLines = 1,
-                                        modifier = Modifier.basicMarquee(),
-                                    )
+                                if (albumName != null) {
+                                    Box(
+                                        contentAlignment = Alignment.CenterStart,
+                                        modifier =
+                                            Modifier
+                                                .padding(top = ALBUM_GAP)
+                                                .heightIn(min = albumHeight)
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null,
+                                                    enabled = onAlbumClick != null,
+                                                    onClickLabel = stringResource(R.string.open_album),
+                                                ) { onAlbumClick?.invoke() }
+                                                .testTag(NOW_PLAYING_ALBUM_TAG),
+                                    ) {
+                                        Text(
+                                            text = albumName,
+                                            style = albumStyle,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = ALBUM_ALPHA),
+                                            maxLines = 1,
+                                            modifier = Modifier.basicMarquee(),
+                                        )
+                                    }
                                 }
                             }
                             FavoriteHeart(
