@@ -111,7 +111,7 @@ class UserPreferences(
 ) {
     fun lyrics(): Flow<LyricsPreferences> =
         store.data.map { prefs ->
-            val allowed = prefs[lyricsLrclibKey] ?: false
+            val allowed = prefs[lyricsLrclibKey] ?: LRCLIB_ALLOWED_BY_DEFAULT
             val source = LyricsSource.entries.firstOrNull { it.name == prefs[lyricsSourceKey] } ?: LyricsSource.Auto
             LyricsPreferences(
                 source = source.takeUnless { it == LyricsSource.Lrclib && !allowed } ?: LyricsSource.Auto,
@@ -124,7 +124,13 @@ class UserPreferences(
     suspend fun setLyricsSource(source: LyricsSource) {
         store.edit { prefs ->
             prefs[lyricsSourceKey] =
-                if (source == LyricsSource.Lrclib && prefs[lyricsLrclibKey] != true) LyricsSource.Auto.name else source.name
+                if (source == LyricsSource.Lrclib &&
+                    !(prefs[lyricsLrclibKey] ?: LRCLIB_ALLOWED_BY_DEFAULT)
+                ) {
+                    LyricsSource.Auto.name
+                } else {
+                    source.name
+                }
         }
     }
 
@@ -180,6 +186,15 @@ class UserPreferences(
     }
 
     private val artistsAsGridKey = booleanPreferencesKey("library_artists_as_grid")
+
+    /** The artist page's discography layout; the grid is the default, independent of the Library's album layout. */
+    fun artistAlbumsAsList(): Flow<Boolean> = store.data.map { it[artistAlbumsAsListKey] ?: false }
+
+    suspend fun setArtistAlbumsAsList(enabled: Boolean) {
+        store.edit { it[artistAlbumsAsListKey] = enabled }
+    }
+
+    private val artistAlbumsAsListKey = booleanPreferencesKey("artist_albums_as_list")
 
     private val genreAlbumSortKey = stringPreferencesKey("genre_album_sort")
 

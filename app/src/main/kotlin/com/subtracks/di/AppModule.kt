@@ -281,6 +281,34 @@ fun appModule(
             get(named("mixDownloadedOnly")),
         )
     }
+    single {
+        val sources = get<SourceRepository>()
+        com.subtracks.data.recommendations.TopSongsRepository(
+            get<SubtracksDatabase>().topSongsDao(),
+            sources::topSongs,
+            sources::activeSourceIdOnce,
+        )
+    }
+    viewModel { params ->
+        val sources = get<SourceRepository>()
+        val library = get<LibraryRepository>()
+        val topSongs = get<com.subtracks.data.recommendations.TopSongsRepository>()
+        val playback = get<PlaybackController>()
+        val artistId = params.get<String>()
+        com.subtracks.ui.library.TopSongsViewModel(
+            artistId = artistId,
+            artistName = { id ->
+                combine(library.artist(id, artistId), library.artistName(id, artistId)) { artist, fromSongs ->
+                    artist?.name?.takeIf { it.isNotBlank() } ?: fromSongs
+                }
+            },
+            sources = sources.activeSourceId(),
+            offline = combine(sources.offline, networkAvailable(context.applicationContext)) { off, connected -> off || !connected },
+            songs = topSongs::songs,
+            refresh = topSongs::refresh,
+            play = playback::playSongs,
+        )
+    }
     viewModel { params ->
         val sources = get<SourceRepository>()
         val recommendations = get<com.subtracks.data.recommendations.SimilarArtistsRepository>()
@@ -291,7 +319,8 @@ fun appModule(
             recommendations::read,
             recommendations::refresh,
             get<UserPreferences>().externalArtistImagesEnabled(),
-            get<ExternalArtistImages>()::imageUrl,
+            autoLoad = params.getOrNull<Boolean>() ?: false,
+            photo = get<ExternalArtistImages>()::imageUrl,
         )
     }
     single { SmartShuffle(get<SubtracksDatabase>().mixDao()) }
@@ -339,6 +368,15 @@ fun appModule(
             mix = InstantMix(get<SubtracksDatabase>().mixDao(), SimilarSongs(sources::similarSongs), get()),
             activeSourceId = sources::activeSourceIdOnce,
             downloadedOnly = get(named("mixDownloadedOnly")),
+            artistName = { sourceId, artistId ->
+                val library = get<SubtracksDatabase>().libraryDao()
+                library
+                    .artist(sourceId, artistId)
+                    .first()
+                    ?.name
+                    ?.takeIf { it.isNotBlank() }
+                    ?: library.artistName(sourceId, artistId).first()
+            },
             controller = get(),
         )
     }
@@ -450,7 +488,7 @@ fun appModule(
     }
     viewModel { params -> AddSourceViewModel(get(), get(), get(), params.getOrNull(), context.resources) }
     viewModel { params -> AlbumDetailViewModel(get(), get(), get(), get(), params.get()) }
-    viewModel { params -> ArtistDetailViewModel(get(), get(), get(), get(), params.get()) }
+    viewModel { params -> ArtistDetailViewModel(get(), get(), get(), get(), params.get(), get()) }
     viewModel { params ->
         val sources = get<SourceRepository>()
         PlaylistDetailViewModel(get(), sources, get(), get(), params.get(), get(), owner = sources::username, showMessage = showMessage)

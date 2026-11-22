@@ -16,8 +16,25 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class LyricsPreferencesTest {
+    // UX-26 (#56): as on iOS, Auto falls back to LRCLIB for timed lyrics unless the listener turns it off.
     @Test
-    fun defaultsAndChangesPersistAcrossReadersWithoutEnablingExternalLookup() =
+    fun lrclibIsAllowedByDefaultButAnExplicitChoiceIsKept() =
+        runTest {
+            val file = File.createTempFile("lyrics-prefs", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val prefs = UserPreferences(store)
+            val defaults = prefs.lyrics().first()
+            assertEquals(LyricsSource.Auto, defaults.source)
+            assertEquals(true, defaults.allowLrclib)
+            prefs.setLyricsSource(LyricsSource.Lrclib)
+            assertEquals(LyricsSource.Lrclib, prefs.lyrics().first().source)
+            store.edit { it[booleanPreferencesKey("lyrics_lrclib_allowed")] = false }
+            assertEquals(false, UserPreferences(store).lyrics().first().allowLrclib)
+            file.delete()
+        }
+
+    @Test
+    fun changesPersistAcrossReaders() =
         runTest {
             val file = File.createTempFile("lyrics-prefs", ".preferences_pb").apply { delete() }
             val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
@@ -26,7 +43,8 @@ class LyricsPreferencesTest {
             prefs.setLyricsSource(LyricsSource.Server)
             prefs.setShowCurrentLyricLine(false)
             prefs.setLyricsTimingOffsetMs(-125)
-            assertEquals(LyricsPreferences(LyricsSource.Server, false, false, -125), UserPreferences(store).lyrics().first())
+            assertEquals(LyricsPreferences(LyricsSource.Server, true, false, -125), UserPreferences(store).lyrics().first())
+            prefs.setLrclibAllowed(false)
             prefs.setLyricsSource(LyricsSource.Lrclib)
             assertEquals(LyricsPreferences(LyricsSource.Auto, false, false, -125), prefs.lyrics().first())
             file.delete()
@@ -40,12 +58,12 @@ class LyricsPreferencesTest {
             prefs.setLyricsSource(LyricsSource.Lrclib)
             assertEquals(LyricsPreferences(LyricsSource.Lrclib, true), prefs.lyrics().first())
             prefs.setLrclibAllowed(false)
-            assertEquals(LyricsPreferences(), prefs.lyrics().first())
+            assertEquals(LyricsPreferences(allowLrclib = false), prefs.lyrics().first())
             prefs.setLrclibAllowed(true)
             assertEquals(LyricsPreferences(allowLrclib = true), prefs.lyrics().first())
             prefs.setLyricsSource(LyricsSource.Server)
             prefs.setLrclibAllowed(false)
-            assertEquals(LyricsPreferences(source = LyricsSource.Server), prefs.lyrics().first())
+            assertEquals(LyricsPreferences(source = LyricsSource.Server, allowLrclib = false), prefs.lyrics().first())
         }
 
     @Test
@@ -68,7 +86,7 @@ class LyricsPreferencesTest {
                 it[stringPreferencesKey("lyrics_source")] = LyricsSource.Lrclib.name
                 it[booleanPreferencesKey("lyrics_lrclib_allowed")] = false
             }
-            assertEquals(LyricsPreferences(timingOffsetMs = -3000), prefs.lyrics().first())
+            assertEquals(LyricsPreferences(allowLrclib = false, timingOffsetMs = -3000), prefs.lyrics().first())
             file.delete()
         }
 }

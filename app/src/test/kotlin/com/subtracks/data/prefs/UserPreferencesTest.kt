@@ -116,6 +116,27 @@ class UserPreferencesTest {
         }
 
     @Test
+    fun artistPageAlbumLayoutDefaultsToGridAndPersistsIndependentlyOfTheLibrary() =
+        runTest {
+            val file = File.createTempFile("artist-album-layout", ".preferences_pb").apply { delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val prefs = UserPreferences(store)
+            assertEquals(false, prefs.artistAlbumsAsList().first())
+            prefs.setAlbumsAsList(true)
+            assertEquals(false, prefs.artistAlbumsAsList().first())
+
+            prefs.setArtistAlbumsAsList(true)
+            prefs.setAlbumsAsList(false)
+            val reopened = UserPreferences(store)
+            assertEquals(true, reopened.artistAlbumsAsList().first())
+            assertEquals(false, reopened.albumsAsList().first())
+
+            reopened.setArtistAlbumsAsList(false)
+            assertEquals(false, UserPreferences(store).artistAlbumsAsList().first())
+            file.delete()
+        }
+
+    @Test
     fun homeLayoutPersistsVisibilityAndOrderAcrossReaders() =
         runTest {
             val file = File.createTempFile("home-layout", ".preferences_pb").apply { delete() }

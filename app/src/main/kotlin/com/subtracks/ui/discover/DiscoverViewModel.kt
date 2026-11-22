@@ -11,7 +11,6 @@ import com.subtracks.data.audiomuse.RadioMood
 import com.subtracks.data.audiomuse.SongPathResult
 import com.subtracks.data.db.LibraryDao
 import com.subtracks.data.db.MixDao
-import com.subtracks.data.mix.MixSeed
 import com.subtracks.data.model.Artist
 import com.subtracks.data.prefs.DiscoverLayout
 import com.subtracks.data.prefs.UserPreferences
@@ -91,7 +90,7 @@ class DiscoverViewModel(
 
     fun smartShuffle() = start { if (shuffle.play()) null else R.string.mix_empty }
 
-    fun station(artist: Artist) = start { if (station.play(MixSeed.Artist(artist.id), artist.sourceId)) null else R.string.mix_empty }
+    fun station(artist: Artist) = start { if (station.playArtistRadio(artist.sourceId, artist.id)) null else R.string.mix_empty }
 
     fun moodRadio(mood: RadioMood) = start(mood, failure = R.string.mood_radio_failed) { moodRadioMessage(playMood(mood)) }
 

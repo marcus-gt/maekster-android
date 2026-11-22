@@ -913,6 +913,38 @@ prototype in UX-04 before rolling it out. The recommendation audit in UX-12 may 
 | UX-14 | [Home: align In heavy rotation and Rediscover selection with iOS](https://github.com/marcus-gt/maekster-android/issues/42) | [Complete](handoffs/UX-14-rediscover-ios.md) |
 | UX-15 | [Home: align Artist picks ranking and rotation with iOS](https://github.com/marcus-gt/maekster-android/issues/43) | [Complete](handoffs/UX-15-artist-picks-ios.md) |
 
+## Post-M4 — UX polish 2: artist, album and Now Playing
+
+[Issue #45](https://github.com/marcus-gt/maekster-android/issues/45) holds the owner's requests and the iOS
+reference screenshots. Its sub-issues hold the acceptance criteria. Work on branch `ux/45-artist-now-playing`,
+one slice per session, in table order unless a slice is blocked. Handoffs are `docs/handoffs/UX-<number>-<topic>.md`.
+The [starter handoff](handoffs/UX-45-starter.md) sets out the shared context, the key files and the workflow.
+
+Dependencies and gates:
+
+- UX-20 reuses the carousel extracted in UX-19.
+- UX-24 uses the station name decided in UX-23.
+- UX-27 follows UX-26, but its tests can use fakes.
+- UX-17 needs owner feedback on a before/after screenshot before rollout.
+- UX-23 and possibly UX-26 need an owner decision.
+- Record a pending decision in the handoff, then stop the slice or take the next unblocked one.
+- UX-19 and UX-21 fetch on page open. Record that in D9 below; it is the owner's request (#45), matching iOS.
+
+| Slice | GitHub issue | Handoff |
+|---|---|---|
+| UX-16 | [Album, playlist and artist pages: always show the back button](https://github.com/marcus-gt/maekster-android/issues/46) | Complete ([handoff](handoffs/UX-16-hero-back-button.md)) |
+| UX-17 | [Artist page: photo fades into the page as on iOS](https://github.com/marcus-gt/maekster-android/issues/47) | Complete ([handoff](handoffs/UX-17-artist-hero-fade.md)) |
+| UX-18 | [Artist page: Latest release card](https://github.com/marcus-gt/maekster-android/issues/48) | Complete ([handoff](handoffs/UX-18-latest-release.md)) |
+| UX-19 | [Artist page: Top songs carousel with Play and Shuffle](https://github.com/marcus-gt/maekster-android/issues/49) | Complete ([handoff](handoffs/UX-19-top-songs.md)) |
+| UX-20 | [Artist page: Liked songs carousel](https://github.com/marcus-gt/maekster-android/issues/50) | Complete ([handoff](handoffs/UX-20-liked-songs.md)) |
+| UX-21 | [Artist page: load similar artists automatically](https://github.com/marcus-gt/maekster-android/issues/51) | Complete ([handoff](handoffs/UX-21-similar-artists.md)) |
+| UX-22 | [Artist page: optional album list layout](https://github.com/marcus-gt/maekster-android/issues/52) | Complete ([handoff](handoffs/UX-22-artist-album-list.md)) |
+| UX-23 | [Artist page: align Start station with Discover stations and Instant Mix](https://github.com/marcus-gt/maekster-android/issues/53) | Complete ([handoff](handoffs/UX-23-artist-station-name.md)) |
+| UX-24 | [Now Playing: static header and playback source type](https://github.com/marcus-gt/maekster-android/issues/54) | Complete ([handoff](handoffs/UX-24-now-playing-header.md)) |
+| UX-25 | [Now Playing: album line and iOS text hierarchy](https://github.com/marcus-gt/maekster-android/issues/55) | Complete ([handoff](handoffs/UX-25-now-playing-album-line.md)) |
+| UX-26 | [Lyrics: find out why lyrics are not synced](https://github.com/marcus-gt/maekster-android/issues/56) | Complete ([handoff](handoffs/UX-26-lyrics-sync.md)) |
+| UX-27 | [Lyrics: blur, reading mode and inline line as on iOS](https://github.com/marcus-gt/maekster-android/issues/57) | Complete, reduced scope: the owner dropped blur and reading mode on 22 Nov 2026; the player's lyric line now shrinks to fit ([handoff](handoffs/UX-27-lyrics-reading.md)) |
+
 ---
 
 ## Product decisions
@@ -929,8 +961,8 @@ All decided on 10 November 2026.
 | D6 | Search history storage | **Agreed.** Room per source (cascade on server delete) |
 | D7 | Persistent stream cache (iOS-style LRU replay cache) | **Agreed.** Keep the scratch cache for now; persistent cache after M2 (issue #2) |
 | D8 | Swipe app away from recents | **Agreed.** Keep playing if playing; stop only when paused |
-| D9 | On-demand server calls for Instant Mix, similar songs and lyrics | **Agreed.** Browsing stays local-only; explicit actions may call the server, cached in Room, with offline fallbacks (see `FEATURE_PARITY.md` C1 and principle 5) |
-| D10 | Third-party lookups (external artist images, MusicBrainz fresh releases) | **Agreed.** Opt-in per integration, disclosed in Privacy |
+| D9 | On-demand server calls for Instant Mix, similar songs and lyrics | **Agreed.** Browsing reads the local mirror. Explicit actions may call the server, with Room caching and offline fallbacks (see `FEATURE_PARITY.md` C1 and principle 5). [UX-19](https://github.com/marcus-gt/maekster-android/issues/49) also fetches top songs on artist page open when online, as on iOS. Results are cached in Room per source and artist and joined to the mirror. Offline, only completed downloads from that cache are shown. At the owner's request in #45, [UX-21](https://github.com/marcus-gt/maekster-android/issues/51) also loads similar artists on artist page open, with the existing 24-hour per-source and per-artist Room cache and cached results available offline. |
+| D10 | Third-party lookups (external artist images, MusicBrainz fresh releases) | **Agreed.** Opt-in per integration, disclosed in Privacy. Exception (20 Nov 2026, [UX-26](https://github.com/marcus-gt/maekster-android/issues/56)): LRCLIB lyrics are **on by default**, as on iOS, so Auto falls back to LRCLIB when the server's lyrics are plain or missing; "Allow LRCLIB lookups" turns it off and an explicit choice is kept. Disclosed in Settings > Lyrics and `PRIVACY.md` |
 | D11 | Lidarr | **Out of scope.** Legacy from Mixtape and unused in the iOS product; M3.7 dropped |
 | D12 | ReplayGain default | **Agreed.** Android Auto mode, on by default |
 | D13 | Multi-server UI | **Keep.** The existing Android server list and switching stay; the feature is wanted on iOS later too |
@@ -938,6 +970,7 @@ All decided on 10 November 2026.
 | D15 | Crossfade | **Agreed.** Prototype in M3.8, drop if it compromises gapless. On hold since 16 Nov 2026 (issue #13) |
 | D16 | Casting | **Wanted, later.** Deferred to Post-M4 (former M4.7, issue #3); ordinary playback must never depend on Play Services |
 | D17 | Internet radio | **Dropped (16 Nov 2026).** Not needed; M3.9 is skipped |
+| D18 | Name of the artist-seeded mix ([UX-23](https://github.com/marcus-gt/maekster-android/issues/53)) | **Agreed (19 Nov 2026).** "Artist radio": the artist … menu item and the Discover shelf (formerly "Stations for you") say Artist radio, the Discover tiles have no caption, and the queue and Now Playing say "<Artist> radio". Song and album mixes stay "Instant Mix" |
 
 ## Smallest sensible first implementation slice
 

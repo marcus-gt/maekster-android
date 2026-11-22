@@ -96,6 +96,39 @@ class LrclibProviderTest {
             assertEquals(4, server.requestCount)
         }
 
+    // UX-26 (#56): a server album name such as "… (digital)" misses LRCLIB's exact match although the song is there.
+    @Test
+    fun anAlbumMissRetriesOnceWithoutTheAlbumButKeepsTheDuration() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(404))
+            server.enqueue(response("""{"syncedLyrics":"[00:02.00]Timed","instrumental":false}"""))
+            assertEquals(listOf(Lyrics(listOf(LyricsLine("Timed", 2000)), synced = true)), provider.fetch(song))
+            assertEquals("Album", server.takeRequest().requestUrl!!.queryParameter("album_name"))
+            val retry = server.takeRequest().requestUrl!!
+            assertEquals(setOf("track_name", "artist_name", "duration"), retry.queryParameterNames)
+            assertEquals("夜 & Day", retry.queryParameter("track_name"))
+            assertEquals("Artist", retry.queryParameter("artist_name"))
+            assertEquals("123", retry.queryParameter("duration"))
+            assertEquals(listOf(250L), pauses)
+        }
+
+    @Test
+    fun theAlbumRetryNeedsADurationAndHappensOnlyOnce() =
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(404))
+            server.enqueue(MockResponse().setResponseCode(404))
+            assertEquals(emptyList<Lyrics>(), provider.fetch(song))
+            assertEquals(2, server.requestCount)
+            clock.addAndGet(1000)
+            server.enqueue(MockResponse().setResponseCode(404))
+            assertEquals(emptyList<Lyrics>(), provider.fetch(song.copy(duration = null)))
+            assertEquals(3, server.requestCount)
+            clock.addAndGet(1000)
+            server.enqueue(MockResponse().setResponseCode(500))
+            assertThrows(LrclibHttpException::class.java) { runBlocking { provider.fetch(song) } }
+            assertEquals(4, server.requestCount)
+        }
+
     @Test
     fun instrumentalAndPlainFallbackDecodeWithoutInventingTimedText() =
         runBlocking {
@@ -109,7 +142,7 @@ class LrclibProviderTest {
     @Test
     fun notFoundIsEmptyAndOtherStatusesOrBadDataSurfaceWithoutFollowingRedirects() {
         server.enqueue(MockResponse().setResponseCode(404))
-        assertEquals(emptyList<Lyrics>(), runBlocking { provider.fetch(song) })
+        assertEquals(emptyList<Lyrics>(), runBlocking { provider.fetch(song.copy(album = null)) })
         for (status in listOf(302, 401, 500)) {
             clock.addAndGet(1000)
             server.enqueue(MockResponse().setResponseCode(status).setHeader("Location", server.url("/must-not-follow")))

@@ -3,6 +3,7 @@ package com.subtracks.ui.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.AlbumSongItem
 import com.subtracks.data.model.Artist
 import com.subtracks.data.model.ArtistAlbums
 import com.subtracks.data.model.ArtistBio
@@ -10,6 +11,8 @@ import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.DownloadList
 import com.subtracks.data.model.ListDownloadStatus
+import com.subtracks.data.model.Song
+import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.DownloadRepository
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
@@ -23,9 +26,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -36,6 +41,7 @@ class ArtistDetailViewModel(
     private val playbackController: PlaybackController,
     private val downloadRepository: DownloadRepository,
     private val artistId: String,
+    private val userPreferences: UserPreferences,
 ) : ViewModel() {
     private val sourceId = libraryRepository.activeSourceId.filterNotNull()
 
@@ -44,16 +50,51 @@ class ArtistDetailViewModel(
             .flatMapLatest { libraryRepository.artist(it, artistId) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    private fun nameForSource(id: Long) =
+        combine(
+            libraryRepository.artist(id, artistId),
+            libraryRepository.artistName(id, artistId),
+        ) { loaded, fromSongs -> loaded?.name?.takeIf { it.isNotBlank() } ?: fromSongs }
+            .distinctUntilChanged()
+
     val artistName: StateFlow<String?> =
         sourceId
-            .flatMapLatest { id ->
-                combine(
-                    libraryRepository.artist(id, artistId),
-                    libraryRepository.artistName(id, artistId),
-                ) { loaded, fromSongs -> loaded?.name?.takeIf { it.isNotBlank() } ?: fromSongs }
-            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+            .flatMapLatest(::nameForSource)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val likedSongs =
+        combine(libraryRepository.activeSourceId, sourceRepository.offline) { id, offline -> id to offline }
+            .flatMapLatest { (id, offline) ->
+                if (id == null) {
+                    flowOf(emptyList())
+                } else {
+                    nameForSource(id).flatMapLatest { name ->
+                        libraryRepository.artistLikedSongs(id, artistId, name, offline)
+                    }
+                }
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun playLikedSongs(
+        songs: List<AlbumSongItem>,
+        index: Int,
+        shuffled: Boolean,
+    ) {
+        val id = songs.firstOrNull()?.song?.sourceId ?: return
+        viewModelScope.launch {
+            if (libraryRepository.activeSourceId.first() == id) {
+                playbackController.playSongs(id, songs.map { it.song.id }, index, shuffled, artistId)
+            }
+        }
+    }
 
     val offline: StateFlow<Boolean> = sourceRepository.offline
+
+    val albumsAsList: StateFlow<Boolean> =
+        userPreferences.artistAlbumsAsList().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setAlbumsAsList(asList: Boolean) {
+        viewModelScope.launch { userPreferences.setArtistAlbumsAsList(asList) }
+    }
 
     val albums: StateFlow<ArtistAlbums?> =
         combine(sourceId, sourceRepository.offline) { id, offline -> id to offline }
@@ -64,6 +105,19 @@ class ArtistDetailViewModel(
         sourceId
             .flatMapLatest { downloadRepository.status(it, DownloadList.Artist, artistId) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ListDownloadStatus())
+
+    val songDownloads = downloadRepository.states()
+
+    fun download(song: Song) {
+        viewModelScope.launch { downloadRepository.download(song.sourceId, song.id) }
+    }
+
+    fun removeDownload(song: Song) {
+        viewModelScope.launch {
+            downloadRepository.remove(song.sourceId, song.id)
+            playbackController.refreshMediaItems()
+        }
+    }
 
     val albumDownloads: StateFlow<Map<String, ListDownloadStatus>> =
         sourceId

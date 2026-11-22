@@ -65,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
@@ -192,12 +193,7 @@ fun HeroDetailScaffold(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack, modifier = Modifier.graphicsLayer { alpha = barFraction }) {
-                            Icon(
-                                Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.navigation_back),
-                            )
-                        }
+                        HeroBackButton(onBack = onBack, barFraction = { barFraction })
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     modifier =
@@ -214,6 +210,44 @@ fun HeroDetailScaffold(
         }
     }
 }
+
+/**
+ * The back button of a hero screen. Over the artwork it sits on a translucent dark disc with a white
+ * arrow, so it reads on light, dark and missing art; as the top bar fades in ([barFraction] towards 1)
+ * the disc fades out and the arrow takes the bar's content colour.
+ */
+@Composable
+fun HeroBackButton(
+    onBack: () -> Unit,
+    barFraction: () -> Float,
+    modifier: Modifier = Modifier,
+) {
+    val barContent = LocalContentColor.current
+    IconButton(onClick = onBack, modifier = modifier.size(HERO_BACK_TARGET)) {
+        Box(
+            modifier =
+                Modifier
+                    .size(HERO_BACK_DISC)
+                    .drawBehind {
+                        val heroFraction = 1f - barFraction()
+                        if (heroFraction > 0f) {
+                            drawCircle(Color.Black.copy(alpha = HERO_BACK_SCRIM_ALPHA * heroFraction))
+                        }
+                    },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = stringResource(R.string.navigation_back),
+                tint = lerp(Color.White, barContent, barFraction()),
+            )
+        }
+    }
+}
+
+private val HERO_BACK_TARGET = 48.dp
+private val HERO_BACK_DISC = 40.dp
+private const val HERO_BACK_SCRIM_ALPHA = 0.4f
 
 @Composable
 private fun rememberRestorableLazyListState(contentReady: Boolean): LazyListState {

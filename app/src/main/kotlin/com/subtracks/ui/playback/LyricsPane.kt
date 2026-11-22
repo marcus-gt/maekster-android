@@ -54,10 +54,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.subtracks.R
 import com.subtracks.data.lyrics.LyricsDisplay
@@ -71,6 +76,8 @@ const val LYRICS_PREVIEW_TAG = "lyrics-preview"
 fun lyricsLineTag(index: Int) = "lyrics-line-$index"
 
 private const val NOTE = "♪"
+private const val PREVIEW_MIN_SCALE = 0.7f
+private const val PREVIEW_SCALE_STEP = 0.02f
 
 /** The current synced line, or null when the lyrics have no timing or nothing has been sung yet. */
 fun LyricsUi.currentLineText(positionMs: Long): String? {
@@ -291,6 +298,7 @@ fun CurrentLyricLine(
     text: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
     val style = MaterialTheme.typography.bodyLarge.copy(fontStyle = FontStyle.Italic)
     val height = with(LocalDensity.current) { style.lineHeight.toDp() } + 8.dp
@@ -301,24 +309,52 @@ fun CurrentLyricLine(
     Box(modifier.fillMaxWidth().height(height), contentAlignment = Alignment.Center) {
         Crossfade(text, label = "lyric-preview") { line ->
             if (line != null) {
-                Text(
-                    text = "$NOTE $line $NOTE",
-                    style = style,
-                    color = color,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .testTag(LYRICS_PREVIEW_TAG)
-                            .clickable(onClickLabel = action, onClick = onClick)
-                            .semantics {
-                                contentDescription = label
-                                stateDescription = line
-                            },
-                )
+                val shown = "$NOTE $line $NOTE"
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val measurer = rememberTextMeasurer()
+                    val available = constraints.maxWidth
+                    val fontSize = remember(shown, style, available) { previewFontSize(measurer, shown, style, available) }
+                    Text(
+                        text = shown,
+                        style = style,
+                        fontSize = fontSize,
+                        color = color,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        onTextLayout = onTextLayout,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .testTag(LYRICS_PREVIEW_TAG)
+                                .clickable(onClickLabel = action, onClick = onClick)
+                                .semantics {
+                                    contentDescription = label
+                                    stateDescription = line
+                                },
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * As on iOS, a long line shrinks (down to 70%) rather than losing its ending; only a line too long even then is cut
+ * off with an ellipsis. Width grows with the font size, so the fitting size is found by scaling, then checked.
+ */
+private fun previewFontSize(
+    measurer: TextMeasurer,
+    text: String,
+    style: TextStyle,
+    available: Int,
+): TextUnit {
+    fun width(size: TextUnit) = measurer.measure(text, style.copy(fontSize = size), maxLines = 1, softWrap = false).size.width
+    val full = width(style.fontSize)
+    if (full <= available) return style.fontSize
+    var scale = (available.toFloat() / full).coerceIn(PREVIEW_MIN_SCALE, 1f)
+    while (scale > PREVIEW_MIN_SCALE && width(style.fontSize * scale) > available) {
+        scale = (scale - PREVIEW_SCALE_STEP).coerceAtLeast(PREVIEW_MIN_SCALE)
+    }
+    return style.fontSize * scale
 }

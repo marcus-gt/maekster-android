@@ -426,6 +426,20 @@ class SourceRepository(
         return SubsonicSimilarSongs(config.toClient()).similar(seed, count)
     }
 
+    /** The server's top songs of an artist, by name; fetched when the artist page opens, cached by the caller (D9). */
+    suspend fun topSongs(
+        sourceId: Long,
+        artistName: String,
+        count: Int,
+    ): List<String> {
+        check(!_offline.value) { "Offline mode is on" }
+        val config = sourceConfigOnce(sourceId) ?: error("No configured source")
+        check(!config.needsSignIn) { "The source needs signing in" }
+        return com.subtracks.data.source.subsonic
+            .SubsonicTopSongs(config.toClient())
+            .top(artistName, count)
+    }
+
     /** Source-specific provider, with its own headers, even if the active server changes during construction. */
     suspend fun similarArtists(sourceId: Long): com.subtracks.data.recommendations.SimilarArtists? {
         if (_offline.value) return null

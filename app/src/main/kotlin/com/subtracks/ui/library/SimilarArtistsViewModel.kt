@@ -34,6 +34,7 @@ class SimilarArtistsViewModel(
     private val read: suspend (Long, String) -> List<ResolvedSimilarArtist>,
     private val refresh: suspend (Long, String) -> List<ResolvedSimilarArtist>,
     photosEnabled: Flow<Boolean> = flowOf(false),
+    private val autoLoad: Boolean = false,
     private val photo: suspend (SimilarArtist) -> String? = { null },
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(SimilarArtistsState())
@@ -43,12 +44,13 @@ class SimilarArtistsViewModel(
 
     init {
         viewModelScope.launch {
-            combine(sources, offline) { id, off -> id to off }.collectLatest { (id, off) ->
+            combine(sources, offline) { id, off -> id to off }.distinctUntilChanged().collectLatest { (id, off) ->
                 generation++
                 request?.cancel()
                 mutableState.value = SimilarArtistsState(sourceId = id, offline = off)
                 val artists = if (id == null) emptyList() else read(id, artistId)
                 mutableState.value = mutableState.value.copy(loading = false, artists = artists)
+                if (autoLoad) refresh()
             }
         }
         viewModelScope.launch {

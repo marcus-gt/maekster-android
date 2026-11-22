@@ -288,7 +288,7 @@ class AppScreenshotTest {
     @Test
     fun artistDetail() {
         renderArtistDetail(bioExpanded = false)
-        awaitText("Kid A")
+        awaitText("Amnesiac")
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithTag(ARTIST_NAME_SCRIM_TAG).fetchSemanticsNodes().isNotEmpty()
         }
@@ -298,7 +298,7 @@ class AppScreenshotTest {
     @Test
     fun artistDetailExpandedBio() {
         renderArtistDetail(bioExpanded = true)
-        awaitText("Kid A")
+        awaitText("Amnesiac")
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithTag(ARTIST_NAME_SCRIM_TAG).fetchSemanticsNodes().isNotEmpty()
         }
@@ -333,7 +333,7 @@ class AppScreenshotTest {
                 )
             }
         }
-        awaitText("Kid A")
+        awaitText("Amnesiac")
         composeRule.onRoot().captureRoboImage("src/test/screenshots/artist_detail_art_grid.png")
     }
 

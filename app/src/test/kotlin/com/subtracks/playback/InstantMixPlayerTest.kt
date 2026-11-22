@@ -40,7 +40,7 @@ class InstantMixPlayerTest {
         offline: Boolean,
     ) = InstantMixPlayer(InstantMix(db.mixDao(), { _, _, _ -> emptyList() }, SmartShuffle(db.mixDao())), {
         sourceId
-    }, { offline }) { id, songs ->
+    }, { offline }) { id, songs, _ ->
         started =
             id to songs
     }
@@ -57,7 +57,7 @@ class InstantMixPlayerTest {
                     active = null
                     emptyList()
                 }, SmartShuffle(db.mixDao()))
-            val player = InstantMixPlayer(mix, { active }, { false }) { id, songs -> started = id to songs }
+            val player = InstantMixPlayer(mix, { active }, { false }) { id, songs, _ -> started = id to songs }
             assertFalse(player.play(MixSeed.Song("a"), expectedSourceId = sourceId))
             assertNull(started)
         }

@@ -54,6 +54,8 @@ import com.subtracks.data.model.StoredQueueOrder
 import com.subtracks.data.model.StoredQueueOrderEntry
 import com.subtracks.data.model.StringListConverter
 import com.subtracks.data.model.SubsonicSource
+import com.subtracks.data.model.TopSong
+import com.subtracks.data.model.TopSongsFetch
 import com.subtracks.data.model.UpNextEntry
 
 @Database(
@@ -103,8 +105,10 @@ import com.subtracks.data.model.UpNextEntry
         FreshRelease::class,
         FreshReleaseState::class,
         MusicBrainzName::class,
+        TopSong::class,
+        TopSongsFetch::class,
     ],
-    version = 64,
+    version = 65,
     exportSchema = true,
 )
 @ColumnTypeConverters(
@@ -158,4 +162,6 @@ abstract class SubtracksDatabase : RoomDatabase() {
     abstract fun mixDao(): MixDao
 
     abstract fun freshReleaseDao(): FreshReleaseDao
+
+    abstract fun topSongsDao(): TopSongsDao
 }

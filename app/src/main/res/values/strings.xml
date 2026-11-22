@@ -68,6 +68,11 @@
     <string name="artist_type_album_artist">Album artist</string>
     <string name="artist_section_albums">Albums</string>
     <string name="artist_section_appearances">Appears on</string>
+    <string name="artist_latest_release">Latest release</string>
+    <string name="artist_albums_as_list">Show albums as a list</string>
+    <string name="artist_albums_as_grid">Show albums as a grid</string>
+    <string name="artist_top_songs">Top songs</string>
+    <string name="artist_liked_songs">Liked songs</string>
     <string name="artist_section_eps">EPs</string>
     <string name="artist_section_singles">Singles</string>
     <string name="artist_section_live">Live albums</string>
@@ -340,16 +345,13 @@
     <string name="playlist_duration_hours_minutes">%1$d hr %2$d min</string>
     <string name="playlist_updated">Updated %1$s</string>
 
-    <string name="now_playing_header">Now playing: %1$s</string>
-    <string name="context_kind_library">library</string>
-    <string name="context_kind_album">album</string>
-    <string name="context_kind_playlist">playlist</string>
-    <string name="context_kind_song">song</string>
-    <string name="context_kind_artist">artist</string>
-    <string name="context_kind_genre">genre</string>
-    <string name="context_kind_downloads">downloads</string>
-    <string name="context_kind_starred">favorites</string>
-    <string name="context_kind_songs">songs</string>
+    <string name="now_playing_header">Now playing</string>
+    <string name="queue_type_album">Album</string>
+    <string name="queue_type_playlist">Playlist</string>
+    <string name="queue_type_artist">Artist</string>
+    <string name="queue_type_genre">Genre</string>
+    <string name="queue_type_queue">Queue</string>
+    <string name="queue_type_autoplay">Autoplay</string>
     <string name="repeat_off">Repeat off</string>
     <string name="repeat_all">Repeat all</string>
     <string name="repeat_one">Repeat one</string>
@@ -412,10 +414,9 @@
     <string name="autoplay_similar_description">Continue with similar songs as the queue ends. Uses your music server online and downloads offline. Paused with repeat or shuffle.</string>
     <string name="discover_shuffle_description">Favorites, recent taste and forgotten gems. A fresh mix from your library.</string>
     <string name="discover_shuffle_offline">Offline: a fresh mix from your downloaded music.</string>
-    <string name="discover_stations">Stations for you</string>
-    <string name="discover_stations_description">Start with an artist. See where the music takes you.</string>
-    <string name="discover_stations_empty">Sync your library to find artist stations here.</string>
-    <string name="discover_station_caption">Radio station</string>
+    <string name="discover_stations">Artist radio</string>
+    <string name="discover_stations_description">Pick an artist and see where it takes you.</string>
+    <string name="discover_stations_empty">Sync your library to find artist radio here.</string>
     <string name="discover_moods">Moods</string>
     <string name="discover_moods_description">Radios picked by how your music sounds, using AudioMuse.</string>
     <string name="mood_night">Night</string>
@@ -461,6 +462,8 @@
     <string name="song_path_picker_failed">Could not load songs. Try opening the picker again.</string>
     <string name="mood_radio_failed">Could not start the mood radio. Try again.</string>
     <string name="instant_mix_title">Instant Mix</string>
+    <string name="artist_radio">Artist radio</string>
+    <string name="artist_radio_queue">%1$s radio</string>
     <string name="queue_builder_title">Queue Builder</string>
     <string name="queue_builder_anything">Anything in your library</string>
     <string name="queue_builder_offline">Offline: built from your downloaded music.</string>
@@ -507,7 +510,6 @@
     <string name="queue_builder_moods_unavailable">No mood scores are available for these songs. Moods need AudioMuse, or songs scored before when offline.</string>
     <string name="queue_builder_moods_no_match">AudioMuse has not analysed these songs for the picked moods yet.</string>
     <string name="queue_builder_moods_partial">Some songs could not be scored for mood, so the queue is shorter.</string>
-    <string name="start_station">Start station</string>
     <string name="mix_preparing">Preparing mix…</string>
     <string name="mix_empty">No songs available for this mix. Offline mixes need downloaded songs.</string>
     <string name="mix_failed">Could not start the mix. Try again.</string>
@@ -666,7 +668,7 @@
     <string name="lyrics_source_server">Server</string>
     <string name="lyrics_source_lrclib">LRCLIB</string>
     <string name="lyrics_allow_lrclib">Allow LRCLIB lookups</string>
-    <string name="lyrics_privacy_disclosure">LRCLIB lookups send the track title, artist, album and duration to lrclib.net over HTTPS. Your server address, credentials and custom headers are never shared. When disabled, Auto uses only your server and cached LRCLIB lyrics stay hidden.</string>
+    <string name="lyrics_privacy_disclosure">Auto checks your server first, prefers lyrics with timings and falls back to LRCLIB. LRCLIB lookups send the track title, artist, album and duration to lrclib.net over HTTPS. Your server address, credentials and custom headers are never shared. When disabled, Auto uses only your server and cached LRCLIB lyrics stay hidden.</string>
     <string name="lyrics_current_line_setting">Show current line in player</string>
     <string name="lyrics_timing_correction">Timing correction</string>
     <string name="lyrics_timing_value">%1$d ms</string>

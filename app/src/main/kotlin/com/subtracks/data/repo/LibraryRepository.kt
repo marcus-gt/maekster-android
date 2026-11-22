@@ -72,6 +72,30 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+private const val LIKED_SONGS_LIMIT = 25
+
+// Bundled SQLite's NOCASE is ASCII-only. Match a literal name with Unicode case variants.
+internal fun artistNamePattern(name: String): String =
+    buildString {
+        name.codePoints().forEach { codePoint ->
+            val lower = Character.toLowerCase(codePoint)
+            val upper = Character.toUpperCase(codePoint)
+            when {
+                codePoint == '['.code || codePoint == '*'.code || codePoint == '?'.code -> {
+                    append('[').appendCodePoint(codePoint).append(']')
+                }
+
+                lower != upper -> {
+                    append('[').appendCodePoint(lower).appendCodePoint(upper).append(']')
+                }
+
+                else -> {
+                    appendCodePoint(codePoint)
+                }
+            }
+        }
+    }
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryRepository(
     private val db: SubtracksDatabase,
@@ -496,6 +520,14 @@ class LibraryRepository(
         sourceId: Long,
         artistId: String,
     ): Flow<String?> = db.libraryDao().artistName(sourceId, artistId)
+
+    fun artistLikedSongs(
+        sourceId: Long,
+        artistId: String,
+        artistName: String?,
+        downloadedOnly: Boolean,
+    ): Flow<List<AlbumSongItem>> =
+        db.libraryDao().artistLikedSongs(sourceId, artistId, artistName?.let(::artistNamePattern), downloadedOnly, LIKED_SONGS_LIMIT)
 
     fun artistBio(
         sourceId: Long,

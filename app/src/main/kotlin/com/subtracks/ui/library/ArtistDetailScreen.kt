@@ -30,13 +30,14 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Audiotrack
 import androidx.compose.material.icons.rounded.Category
@@ -77,11 +78,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
@@ -120,15 +124,18 @@ import com.subtracks.data.model.ArtistAlbums
 import com.subtracks.data.model.BulkDownloadAction
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.ListDownloadStatus
+import com.subtracks.data.model.latestRelease
 import com.subtracks.data.model.releaseShelves
 import com.subtracks.data.source.StarType
 import com.subtracks.playback.PlaybackController
+import com.subtracks.ui.components.AlbumLayoutChoice
 import com.subtracks.ui.components.ArtistArt
 import com.subtracks.ui.components.ArtistHeroArt
 import com.subtracks.ui.components.CloseWhenDownloadsGone
 import com.subtracks.ui.components.ContextMenuHost
 import com.subtracks.ui.components.CoverArt
 import com.subtracks.ui.components.DismissOnRequest
+import com.subtracks.ui.components.HeroBackButton
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.ListDownloadIndicator
 import com.subtracks.ui.components.MenuTarget
@@ -178,11 +185,12 @@ internal fun estimateScrollPx(
     imageHeightPx: Float,
     albumHeightPx: Float,
     albumRowGapPx: Float,
+    columns: Int = 2,
 ): Float =
     if (index <= 0) {
         offset
     } else {
-        imageHeightPx + albumRowGapPx + (albumHeightPx + albumRowGapPx) * ((index - 1) / 2) + offset
+        imageHeightPx + albumRowGapPx + (albumHeightPx + albumRowGapPx) * ((index - 1) / columns) + offset
     }
 
 private val FADE_LEAD = 24.dp
@@ -190,6 +198,39 @@ private const val ARTIST_NAME_MAX_LINES = 6
 private const val THEME_TRANSITION_MS = 100
 private const val SCRIM_FADE_MS = 180
 internal const val ARTIST_NAME_SCRIM_TAG = "artistNameScrim"
+internal const val ARTIST_HERO_ART_TAG = "artistHeroArt"
+internal const val LATEST_RELEASE_TAG = "latestRelease"
+private const val LATEST_RELEASE_KEY = "latestRelease"
+private const val TOP_SONGS_KEY = "topSongs"
+internal const val LIKED_SONGS_TAG = "likedSongs"
+private val LATEST_RELEASE_ART = 88.dp
+private val ALBUM_ROW_ART = 64.dp
+
+internal fun artistAlbumRowTag(albumId: String) = "artistAlbumRow-$albumId"
+
+/** Where the photo starts to fade out, and how opaque it still is halfway through the fade. */
+private const val HERO_FADE_START = 0.45f
+private const val HERO_FADE_MID_ALPHA = 0.55f
+
+/**
+ * Fades the content's lower part to transparent so the page's [HeroGradient] shows through and the
+ * photo melts into it with no edge, as the iOS artist hero does.
+ */
+private fun Modifier.fadeIntoPage(): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            drawRect(
+                brush =
+                    Brush.verticalGradient(
+                        HERO_FADE_START to Color.Black,
+                        (HERO_FADE_START + 1f) / 2f to Color.Black.copy(alpha = HERO_FADE_MID_ALPHA),
+                        1f to Color.Transparent,
+                    ),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+
 internal const val ARTIST_BIO_MORE_TAG = "artistBioMore"
 internal const val ARTIST_BIO_LESS_TAG = "artistBioLess"
 
@@ -234,12 +275,21 @@ fun ArtistDetailRoute(
     val offline by viewModel.offline.collectAsStateWithLifecycle()
     CloseWhenDownloadsGone(downloadStatus.downloaded, offline, onBack)
     val albumDownloads by viewModel.albumDownloads.collectAsStateWithLifecycle()
+    val albumsAsList by viewModel.albumsAsList.collectAsStateWithLifecycle()
+    val topSongs: TopSongsViewModel = koinViewModel(key = "topSongs:$artistId") { parametersOf(artistId) }
+    val topSongsState by topSongs.state.collectAsStateWithLifecycle()
+    val likedSongs = viewModel.likedSongs.collectAsStateWithLifecycle().value
+    val similar: SimilarArtistsViewModel = koinViewModel(key = "similar:$artistId") { parametersOf(artistId, true) }
+    val similarState = similar.state.collectAsStateWithLifecycle().value
     val pendingDelete = rememberPendingDownloadDelete(contextMenuHost?.dismissals ?: emptyFlow(), viewModel::downloadedBytes)
     val shortcutArt = remember(coverArtId) { coverArtId?.let { viewModel.coverArt(it, true) } }
     val actions =
         ItemActions(
             playNext = { playbackController.playNext(it.sourceId, it.kind, it.refId) },
             addToQueue = { playbackController.addToQueue(it.sourceId, it.kind, it.refId) },
+            download = viewModel::download,
+            cancelDownload = viewModel::removeDownload,
+            deleteDownload = viewModel::removeDownload,
             bulkDownload = { target, action -> pendingDelete.onAction(target, action, viewModel::onDownloadAction) },
             setStar = setStar,
             viewAlbum = onViewAlbum,
@@ -263,7 +313,15 @@ fun ArtistDetailRoute(
         onAlbumClick = onAlbumClick,
         albumDownloads = albumDownloads,
         onAlbumLongClick = { contextMenuHost?.show(it, actions) },
-        onMore = { artist?.let { contextMenuHost?.show(MenuTarget.Artist(it, artThumbnail ?: art, downloadStatus), actions) } },
+        albumsAsList = albumsAsList,
+        onMore = {
+            artist?.let {
+                contextMenuHost?.show(
+                    MenuTarget.Artist(it, artThumbnail ?: art, downloadStatus),
+                    actions.copy(albumLayout = AlbumLayoutChoice(albumsAsList, viewModel::setAlbumsAsList)),
+                )
+            }
+        },
         starred = artist?.starred != null,
         onToggleStar = artist?.let { a -> { setStar(StarType.Artist, a.id, a.starred == null) } },
         onExpandBio = viewModel::expandBio,
@@ -271,7 +329,48 @@ fun ArtistDetailRoute(
         onShuffle = viewModel::shuffle,
         onPlayShelf = viewModel::playShelf,
         onPlayAppearances = viewModel::playAppearances,
-        similarArtists = { SimilarArtistsSectionRoute(artistId, onViewArtist) },
+        similarArtists =
+            if (similarState.showAutomaticSection) {
+                { SimilarArtistsSectionRoute(similarState, onViewArtist) }
+            } else {
+                null
+            },
+        topSongs =
+            if (topSongsState.songs.isEmpty()) {
+                null
+            } else {
+                {
+                    ArtistSongsSectionRoute(
+                        songs = topSongsState.songs,
+                        title = R.string.artist_top_songs,
+                        carouselTag = TOP_SONGS_TAG,
+                        coverArt = viewModel::coverArt,
+                        playbackController = playbackController,
+                        downloads = viewModel.songDownloads,
+                        onPlay = topSongs::play,
+                        onLongClick = { contextMenuHost?.show(it, actions) },
+                        onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
+                    )
+                }
+            },
+        likedSongs =
+            if (likedSongs.isEmpty()) {
+                null
+            } else {
+                {
+                    ArtistSongsSectionRoute(
+                        songs = likedSongs,
+                        title = R.string.artist_liked_songs,
+                        carouselTag = LIKED_SONGS_TAG,
+                        coverArt = viewModel::coverArt,
+                        playbackController = playbackController,
+                        downloads = viewModel.songDownloads,
+                        onPlay = { index, shuffled -> viewModel.playLikedSongs(likedSongs, index, shuffled) },
+                        onLongClick = { contextMenuHost?.show(it, actions) },
+                        onToggleFavorite = { song, favorite -> setStar(StarType.Song, song.id, favorite) },
+                    )
+                }
+            },
     )
 
     PendingDownloadDeleteConfirmation(pendingDelete) { pending ->
@@ -300,6 +399,7 @@ fun ArtistDetailScreen(
     onBack: () -> Unit,
     onAlbumClick: (Album) -> Unit,
     albumDownloads: Map<String, ListDownloadStatus> = emptyMap(),
+    albumsAsList: Boolean = false,
     onAlbumLongClick: (MenuTarget) -> Unit = {},
     onMore: () -> Unit = {},
     starred: Boolean = false,
@@ -310,9 +410,12 @@ fun ArtistDetailScreen(
     onPlayShelf: (List<Album>, Boolean) -> Unit = { _, _ -> },
     onPlayAppearances: (Boolean) -> Unit = {},
     similarArtists: (@Composable () -> Unit)? = null,
+    topSongs: (@Composable () -> Unit)? = null,
+    likedSongs: (@Composable () -> Unit)? = null,
 ) {
     val listState = rememberRestorableLazyGridState(albumsLoaded)
     val shelves = remember(albums.albumCredits) { albums.albumCredits.releaseShelves() }
+    val latest = remember(albums.albumCredits) { latestRelease(albums.albumCredits) }
     // Shelves the listener folded away; everything starts expanded, as on iOS.
     var collapsed by rememberSaveable(stateSaver = CollapsedSaver) { mutableStateOf(emptySet<String>()) }
     val fill = rememberViewportFill(listState)
@@ -372,6 +475,7 @@ fun ArtistDetailScreen(
                 imageHeightPx = imageHeightPx,
                 albumHeightPx = albumHeightPx,
                 albumRowGapPx = albumRowGapPx,
+                columns = if (albumsAsList) 1 else 2,
             )
         }
     }
@@ -388,6 +492,8 @@ fun ArtistDetailScreen(
     val nameBusy = rememberOverlaidNameBusy(artThumbnail ?: art)
     val nameScrimAlpha by animateFloatAsState(if (nameBusy) 1f else 0f, tween(SCRIM_FADE_MS), label = "artistNameScrim")
     val effectiveArtwork = artwork ?: baseArtworkColors()
+    val albumSpan: (LazyGridItemSpanScope.(Int, Album) -> GridItemSpan)? =
+        if (albumsAsList) { _, _ -> GridItemSpan(maxLineSpan) } else null
 
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
         ArtworkTheme(effectiveArtwork) {
@@ -419,25 +525,33 @@ fun ArtistDetailScreen(
                                 .onSizeChanged { imageHeightPx = it.height.toFloat() },
                         ) {
                             Box(Modifier.fillMaxWidth()) {
-                                ArtistHeroArt(
-                                    art = heroArt ?: ArtistArt(image = art, thumbnail = artThumbnail),
-                                    name = displayName,
-                                    modifier = Modifier.fillMaxWidth().height(ART_HEIGHT),
-                                )
-                                if (nameScrimAlpha > 0f) {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .align(Alignment.BottomStart)
-                                                .fillMaxWidth()
-                                                .height(maxOf(ART_HEIGHT * 0.4f, titleHeight + TITLE_INSET * 2))
-                                                .graphicsLayer { alpha = nameScrimAlpha }
-                                                .background(
-                                                    Brush.verticalGradient(
-                                                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
-                                                    ),
-                                                ).testTag(ARTIST_NAME_SCRIM_TAG),
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(ART_HEIGHT)
+                                        .fadeIntoPage()
+                                        .testTag(ARTIST_HERO_ART_TAG),
+                                ) {
+                                    ArtistHeroArt(
+                                        art = heroArt ?: ArtistArt(image = art, thumbnail = artThumbnail),
+                                        name = displayName,
+                                        modifier = Modifier.fillMaxWidth().height(ART_HEIGHT),
                                     )
+                                    if (nameScrimAlpha > 0f) {
+                                        Box(
+                                            modifier =
+                                                Modifier
+                                                    .align(Alignment.BottomStart)
+                                                    .fillMaxWidth()
+                                                    .height(maxOf(ART_HEIGHT * 0.4f, titleHeight + TITLE_INSET * 2))
+                                                    .graphicsLayer { alpha = nameScrimAlpha }
+                                                    .background(
+                                                        Brush.verticalGradient(
+                                                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
+                                                        ),
+                                                    ).testTag(ARTIST_NAME_SCRIM_TAG),
+                                        )
+                                    }
                                 }
                                 Box(Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
                                     ArtistTitle(
@@ -505,6 +619,24 @@ fun ArtistDetailScreen(
                             }
                         }
                     }
+                    latest?.let { album ->
+                        item(key = LATEST_RELEASE_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                            LatestReleaseCard(
+                                album = album,
+                                coverArt = coverArt,
+                                onClick = { onAlbumClick(album) },
+                                onLongClick = { thumbnail ->
+                                    onAlbumLongClick(MenuTarget.Album(album, thumbnail, albumDownloads[album.id]))
+                                },
+                            )
+                        }
+                    }
+                    topSongs?.let { section ->
+                        item(key = TOP_SONGS_KEY, span = { GridItemSpan(maxLineSpan) }) { section() }
+                    }
+                    likedSongs?.let { section ->
+                        item(key = LIKED_SONGS_TAG, span = { GridItemSpan(maxLineSpan) }) { section() }
+                    }
                     shelves.forEachIndexed { shelfIndex, shelf ->
                         val key = shelf.category.name
                         item(key = "shelf:$key", span = { GridItemSpan(maxLineSpan) }) {
@@ -520,10 +652,12 @@ fun ArtistDetailScreen(
                             )
                         }
                         if (key in collapsed) return@forEachIndexed
-                        itemsIndexed(shelf.albums, key = { _, album -> album.id }) { index, album ->
-                            ArtistAlbumCard(
+                        itemsIndexed(shelf.albums, key = { _, album -> album.id }, span = albumSpan) { index, album ->
+                            DiscographyEntry(
+                                asList = albumsAsList,
                                 album = album,
                                 index = index,
+                                appearance = false,
                                 coverArt = coverArt,
                                 downloadStatus = albumDownloads[album.id],
                                 onClick = { onAlbumClick(album) },
@@ -549,10 +683,12 @@ fun ArtistDetailScreen(
                         }
                     }
                     if (albums.appearances.isNotEmpty() && APPEARS_ON !in collapsed) {
-                        itemsIndexed(albums.appearances, key = { _, album -> album.id }) { index, album ->
-                            ArtistAlbumCard(
+                        itemsIndexed(albums.appearances, key = { _, album -> album.id }, span = albumSpan) { index, album ->
+                            DiscographyEntry(
+                                asList = albumsAsList,
                                 album = album,
                                 index = index,
+                                appearance = true,
                                 coverArt = coverArt,
                                 downloadStatus = albumDownloads[album.id],
                                 onClick = { onAlbumClick(album) },
@@ -589,9 +725,7 @@ fun ArtistDetailScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack, modifier = Modifier.graphicsLayer { alpha = barFraction }) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.navigation_back))
-                        }
+                        HeroBackButton(onBack = onBack, barFraction = { barFraction })
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                     modifier =
@@ -1054,6 +1188,95 @@ private fun ArtistActions(
 }
 
 @Composable
+private fun DiscographyEntry(
+    asList: Boolean,
+    album: Album,
+    index: Int,
+    appearance: Boolean,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    downloadStatus: ListDownloadStatus?,
+    onClick: () -> Unit,
+    onLongClick: (CoverArtRef?) -> Unit,
+    onSizeChanged: (Float) -> Unit,
+) {
+    if (asList) {
+        ArtistAlbumRow(album, appearance, coverArt, downloadStatus, onClick, onLongClick, onSizeChanged)
+    } else {
+        ArtistAlbumCard(album, index, coverArt, downloadStatus, onClick, onLongClick, onSizeChanged)
+    }
+}
+
+/** The secondary line of a list row: year and song count, after the album artist on Appears on, as on iOS. */
+@Composable
+internal fun artistAlbumRowMeta(
+    album: Album,
+    appearance: Boolean,
+): String =
+    listOfNotNull(
+        album.albumArtist?.takeIf { appearance && it.isNotBlank() },
+        album.year?.takeIf { it > 0 }?.toString(),
+        pluralStringResource(R.plurals.resources_song_count, album.songCount.toInt(), album.songCount),
+    ).joinToString(" · ")
+
+/** The discography's list layout: artwork, title, details, download status and a chevron. */
+@Composable
+private fun ArtistAlbumRow(
+    album: Album,
+    appearance: Boolean,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    downloadStatus: ListDownloadStatus?,
+    onClick: () -> Unit,
+    onLongClick: (CoverArtRef?) -> Unit,
+    onSizeChanged: (Float) -> Unit,
+) {
+    val thumbnail = coverArt(album.coverArt, true)
+    PrefetchArtworkSeeds(thumbnail)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(onClick = onClick, onLongClick = { onLongClick(thumbnail) })
+                .onSizeChanged { onSizeChanged(it.height.toFloat()) }
+                .heightIn(min = 48.dp)
+                .padding(horizontal = 16.dp)
+                .testTag(artistAlbumRowTag(album.id)),
+    ) {
+        CoverArt(
+            ref = thumbnail,
+            name = album.name,
+            thumbnailRef = thumbnail,
+            showPlaceholder = thumbnail == null,
+            modifier = Modifier.size(ALBUM_ROW_ART).clip(RoundedCornerShape(4.dp)),
+        )
+        Spacer(Modifier.width(16.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = album.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = artistAlbumRowMeta(album, appearance),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        ListDownloadIndicator(status = downloadStatus, modifier = Modifier.padding(start = 8.dp))
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp).size(20.dp),
+        )
+    }
+}
+
+@Composable
 private fun ArtistAlbumCard(
     album: Album,
     index: Int,
@@ -1106,6 +1329,68 @@ private fun ArtistAlbumCard(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/** The artist's newest release, above the discography: artwork, year, title and song count, as on iOS. */
+@Composable
+private fun LatestReleaseCard(
+    album: Album,
+    coverArt: (String?, Boolean) -> CoverArtRef?,
+    onClick: () -> Unit,
+    onLongClick: (CoverArtRef?) -> Unit,
+) {
+    val art = coverArt(album.coverArt, false)
+    val thumbnail = coverArt(album.coverArt, true)
+    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+        Text(
+            text = stringResource(R.string.artist_latest_release),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(horizontal = 16.dp).semantics { heading() },
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier =
+                Modifier
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White.copy(alpha = 0.10f))
+                    .combinedClickable(onClick = onClick, onLongClick = { onLongClick(thumbnail) })
+                    .testTag(LATEST_RELEASE_TAG)
+                    .padding(12.dp),
+        ) {
+            CoverArt(
+                ref = art,
+                name = album.name,
+                thumbnailRef = thumbnail,
+                showPlaceholder = art == null,
+                modifier = Modifier.size(LATEST_RELEASE_ART).clip(RoundedCornerShape(8.dp)),
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                album.year?.takeIf { it > 0 }?.let { year ->
+                    Text(
+                        text = year.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = album.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = pluralStringResource(R.plurals.resources_song_count, album.songCount.toInt(), album.songCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 

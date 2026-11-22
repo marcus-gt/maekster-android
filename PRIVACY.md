@@ -7,12 +7,15 @@ The only data stored on your device is information about the music on the server
 ## Optional third-party services
 
 ListenBrainz, AudioMuse, Fresh releases and recommended artist photos are managed in Settings > Integrations.
+LRCLIB lyrics are managed in Settings > Lyrics.
 
-Each of these is off until you turn it on, and makes no request while off. None of them ever receives your server address, credentials or custom headers.
+LRCLIB lyrics are on by default, as in the iOS app, so that lyrics can follow the music when your server only has
+plain lyrics. Turn off "Allow LRCLIB lookups" to use only your server. Every other service is off until you turn it on.
+Each service makes no request while off, and none of them ever receives your server address, credentials or custom headers.
 
 | Service | Hosts | When | What is sent |
 |---|---|---|---|
-| LRCLIB lyrics | `lrclib.net` | Lyrics, when "Allow LRCLIB" is on | Track title, artist, album and duration |
+| LRCLIB lyrics | `lrclib.net` | While "Allow LRCLIB lookups" is on (the default) and Now Playing shows lyrics (the lyrics pane or the current-line preview): for a song whose server lyrics have no timings or are missing (source Auto), or for every song (source LRCLIB). Results are cached on the device | Track title, artist, album and duration |
 | ListenBrainz | `api.listenbrainz.org`, or the server you enter | When you connect a ListenBrainz token | Your token and the songs you listen to (title, artist, album, duration, time) |
 | Fresh releases | `musicbrainz.org` | On Discover, when "Fresh releases" is on, about once a day while online | Names and MusicBrainz IDs of album artists in your library, and a date range |
 | Fresh releases covers | `coverartarchive.org` (which may redirect to `archive.org`) | When "Fresh releases" is on and showing releases | The MusicBrainz release group ID of each cover shown |

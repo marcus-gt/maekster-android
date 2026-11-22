@@ -87,7 +87,8 @@ internal fun vividCardColors(): CardColors =
 
 /**
  * A square gradient tile with a centred visual, and the title and caption below it on the page
- * surface. The whole card is one button, so TalkBack reads the title and caption with the action.
+ * surface. The whole card is one button, so TalkBack reads the title and caption with the action. A shelf whose
+ * header already says what its cards play (Artist radio) leaves the caption out.
  */
 @Composable
 internal fun VividTileCard(
@@ -95,7 +96,7 @@ internal fun VividTileCard(
     enabled: Boolean,
     brush: Brush,
     title: String,
-    caption: String,
+    caption: String?,
     modifier: Modifier = Modifier,
     detail: String? = null,
     visual: @Composable BoxScope.() -> Unit,
@@ -123,13 +124,15 @@ internal fun VividTileCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    caption,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (detail == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (caption != null) {
+                    Text(
+                        caption,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (detail == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 if (!detail.isNullOrEmpty()) {
                     Text(
                         detail,

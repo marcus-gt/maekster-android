@@ -98,7 +98,9 @@ import com.subtracks.ui.components.EmptyState
 import com.subtracks.ui.components.ItemActions
 import com.subtracks.ui.components.LoadingState
 import com.subtracks.ui.components.MenuTarget
+import com.subtracks.ui.components.SONG_CAROUSEL_ROWS
 import com.subtracks.ui.components.SectionOpenArrow
+import com.subtracks.ui.components.SongCarousel
 import com.subtracks.ui.components.playlistUpdatedText
 import com.subtracks.ui.components.sectionOpenAction
 import com.subtracks.ui.components.statusBarScrim
@@ -1062,8 +1064,7 @@ private fun LazyListScope.decadeRow(
 }
 
 /**
- * Favorite songs as side-scrolling columns of up to [FAVORITE_SONG_ROWS] rows. When there is more than
- * one column, each is slightly narrower than the screen so the next one peeks in as a swipe hint.
+ * Favorite songs in a [SongCarousel]; the row jumps back to its front when a newly starred song arrives.
  */
 private fun LazyListScope.favoriteSongColumns(
     section: HomeSection,
@@ -1079,39 +1080,22 @@ private fun LazyListScope.favoriteSongColumns(
         HomeSectionHeader(section.title, section.icon) { onMore(section) }
     }
     item(key = "${section.name}-columns") {
-        val columns = remember(songs) { songs.chunked(FAVORITE_SONG_ROWS) }
+        val columns = remember(songs) { songs.chunked(SONG_CAROUSEL_ROWS) }
         val rowState = rememberLazyListState()
         RevealNewFrontItem(columns, rowState) { it.first().song.id }
-        LazyRow(
+        SongCarousel(
+            songs = songs,
+            coverArt = coverArt,
+            playingSongId = playingSongId,
+            onSongClick = { _, item -> onSongPlay(item.song) },
+            onLongClick = onLongClick,
             state = rowState,
-            flingBehavior = rememberSnapFlingBehavior(rowState, SnapPosition.Start),
-            modifier = Modifier.fillMaxWidth().testTag(FAVORITE_SONGS_TAG),
-        ) {
-            items(columns, key = { it.first().song.id }) { column ->
-                Column(Modifier.fillParentMaxWidth(if (columns.size > 1) FAVORITE_COLUMN_WIDTH else 1f)) {
-                    column.forEach { item ->
-                        SongRow(
-                            song = item.song,
-                            coverArtId = item.coverArt,
-                            coverArt = coverArt,
-                            isPlaying = item.song.id == playingSongId,
-                            durationSeconds = item.song.duration,
-                            modifier =
-                                Modifier.combinedClickable(
-                                    onClick = { onSongPlay(item.song) },
-                                    onLongClick = { onLongClick(MenuTarget.Song(item.song, coverArt(item.coverArt, true))) },
-                                ),
-                        )
-                    }
-                }
-            }
-        }
+            modifier = Modifier.testTag(FAVORITE_SONGS_TAG),
+        )
     }
 }
 
 internal const val FAVORITE_SONGS_TAG = "favoriteSongs"
-private const val FAVORITE_SONG_ROWS = 3
-private const val FAVORITE_COLUMN_WIDTH = 0.88f
 
 private fun LazyListScope.songList(
     key: String,
