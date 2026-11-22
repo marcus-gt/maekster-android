@@ -38,7 +38,8 @@ class LyricsSettingsDialogTest {
         fontScale: Float,
         suffix: String,
     ) {
-        val settings = mutableStateOf(LyricsPreferences())
+        // Starts from a listener who turned LRCLIB off; the default is on (UX-26).
+        val settings = mutableStateOf(LyricsPreferences(allowLrclib = false))
         val sources = mutableListOf<LyricsSource>()
         val permissions = mutableListOf<Boolean>()
         val offsets = mutableListOf<Int>()

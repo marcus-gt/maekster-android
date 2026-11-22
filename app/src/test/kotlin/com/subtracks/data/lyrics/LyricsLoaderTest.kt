@@ -28,7 +28,7 @@ class LyricsLoaderTest {
     private val timed = ProvidedLyrics(LyricsProviderId.Server, Lyrics(listOf(LyricsLine("Hello", 1000)), synced = true))
 
     private val song = MutableStateFlow<Song?>(null)
-    private val preferences = MutableStateFlow(LyricsPreferences())
+    private val preferences = MutableStateFlow(LyricsPreferences(allowLrclib = false))
     private val offline = MutableStateFlow(false)
     private val attempts = MutableStateFlow(0)
     private val calls = mutableListOf<Call>()

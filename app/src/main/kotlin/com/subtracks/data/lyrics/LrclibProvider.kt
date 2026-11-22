@@ -51,23 +51,39 @@ class LrclibProvider internal constructor(
     private var blockedUntil = 0L
     private var blockedStatus = 429
 
+    /**
+     * Looks the song up by title, artist, album and duration. Server album names often differ from LRCLIB's ("… (digital)",
+     * a compilation), so after a miss with an album it tries once more without it, still matched by duration.
+     */
     override suspend fun fetch(song: Song): List<Lyrics> {
         val title = song.title.trim()
         val artist = song.artist?.trim().orEmpty()
         if (title.isEmpty() || artist.isEmpty()) return emptyList()
-        val url =
-            endpoint
-                .newBuilder()
-                .addQueryParameter("track_name", title)
-                .addQueryParameter("artist_name", artist)
-                .apply {
-                    song.album
-                        ?.trim()
-                        ?.takeIf { it.isNotEmpty() }
-                        ?.let { addQueryParameter("album_name", it) }
-                    song.duration?.takeIf { it in 1..3600 }?.let { addQueryParameter("duration", it.toString()) }
-                }.build()
-        return requests.withLock {
+        val album = song.album?.trim()?.takeIf { it.isNotEmpty() }
+        val duration = song.duration?.takeIf { it in 1..3600 }
+        val exact = lookup(url(title, artist, album, duration))
+        if (exact != null || album == null || duration == null) return exact.orEmpty()
+        return lookup(url(title, artist, null, duration)).orEmpty()
+    }
+
+    private fun url(
+        title: String,
+        artist: String,
+        album: String?,
+        duration: Long?,
+    ): HttpUrl =
+        endpoint
+            .newBuilder()
+            .addQueryParameter("track_name", title)
+            .addQueryParameter("artist_name", artist)
+            .apply {
+                album?.let { addQueryParameter("album_name", it) }
+                duration?.let { addQueryParameter("duration", it.toString()) }
+            }.build()
+
+    /** The lyrics for [url], or null when LRCLIB has no such track. */
+    private suspend fun lookup(url: HttpUrl): List<Lyrics>? =
+        requests.withLock {
             if (blockedUntil > clock()) throw LrclibHttpException(blockedStatus, blockedUntil - clock())
             if (nextRequestAt > clock()) pause(nextRequestAt - clock())
             try {
@@ -88,14 +104,13 @@ class LrclibProvider internal constructor(
                 }
                 when (response.status) {
                     200 -> withContext(Dispatchers.Default) { decode(response.body!!) }
-                    404 -> emptyList()
+                    404 -> null
                     else -> throw LrclibHttpException(response.status)
                 }
             } finally {
                 nextRequestAt = deadline(clock(), 250)
             }
         }
-    }
 
     private suspend fun execute(request: Request): Payload =
         suspendCancellableCoroutine { continuation ->

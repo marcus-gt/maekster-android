@@ -51,5 +51,6 @@ font scale afterwards. Don't replace the owner's queue on the emulator unless th
 ## Next action
 
 UX-16 to UX-24 are complete (see their handoffs; the artist mix is "Artist radio", D18; Now Playing's
-header is static with a type line, UX-24; album line and text hierarchy, UX-25). Next: UX-26
-([#56](https://github.com/marcus-gt/maekster-android/issues/56)).
+header is static with a type line, UX-24; album line and text hierarchy, UX-25). UX-26 is complete: LRCLIB
+is on by default (D10) and retries without the album after a miss. Next: UX-27
+([#57](https://github.com/marcus-gt/maekster-android/issues/57)).

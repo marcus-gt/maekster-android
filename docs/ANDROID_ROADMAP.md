@@ -942,7 +942,7 @@ Dependencies and gates:
 | UX-23 | [Artist page: align Start station with Discover stations and Instant Mix](https://github.com/marcus-gt/maekster-android/issues/53) | Complete ([handoff](handoffs/UX-23-artist-station-name.md)) |
 | UX-24 | [Now Playing: static header and playback source type](https://github.com/marcus-gt/maekster-android/issues/54) | Complete ([handoff](handoffs/UX-24-now-playing-header.md)) |
 | UX-25 | [Now Playing: album line and iOS text hierarchy](https://github.com/marcus-gt/maekster-android/issues/55) | Complete ([handoff](handoffs/UX-25-now-playing-album-line.md)) |
-| UX-26 | [Lyrics: find out why lyrics are not synced](https://github.com/marcus-gt/maekster-android/issues/56) | Not started |
+| UX-26 | [Lyrics: find out why lyrics are not synced](https://github.com/marcus-gt/maekster-android/issues/56) | Complete ([handoff](handoffs/UX-26-lyrics-sync.md)) |
 | UX-27 | [Lyrics: blur, reading mode and inline line as on iOS](https://github.com/marcus-gt/maekster-android/issues/57) | Not started |
 
 ---
@@ -962,7 +962,7 @@ All decided on 10 November 2026.
 | D7 | Persistent stream cache (iOS-style LRU replay cache) | **Agreed.** Keep the scratch cache for now; persistent cache after M2 (issue #2) |
 | D8 | Swipe app away from recents | **Agreed.** Keep playing if playing; stop only when paused |
 | D9 | On-demand server calls for Instant Mix, similar songs and lyrics | **Agreed.** Browsing reads the local mirror. Explicit actions may call the server, with Room caching and offline fallbacks (see `FEATURE_PARITY.md` C1 and principle 5). [UX-19](https://github.com/marcus-gt/maekster-android/issues/49) also fetches top songs on artist page open when online, as on iOS. Results are cached in Room per source and artist and joined to the mirror. Offline, only completed downloads from that cache are shown. At the owner's request in #45, [UX-21](https://github.com/marcus-gt/maekster-android/issues/51) also loads similar artists on artist page open, with the existing 24-hour per-source and per-artist Room cache and cached results available offline. |
-| D10 | Third-party lookups (external artist images, MusicBrainz fresh releases) | **Agreed.** Opt-in per integration, disclosed in Privacy |
+| D10 | Third-party lookups (external artist images, MusicBrainz fresh releases) | **Agreed.** Opt-in per integration, disclosed in Privacy. Exception (20 Nov 2026, [UX-26](https://github.com/marcus-gt/maekster-android/issues/56)): LRCLIB lyrics are **on by default**, as on iOS, so Auto falls back to LRCLIB when the server's lyrics are plain or missing; "Allow LRCLIB lookups" turns it off and an explicit choice is kept. Disclosed in Settings > Lyrics and `PRIVACY.md` |
 | D11 | Lidarr | **Out of scope.** Legacy from Mixtape and unused in the iOS product; M3.7 dropped |
 | D12 | ReplayGain default | **Agreed.** Android Auto mode, on by default |
 | D13 | Multi-server UI | **Keep.** The existing Android server list and switching stay; the feature is wanted on iOS later too |
