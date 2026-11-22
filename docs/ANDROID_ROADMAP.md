@@ -943,7 +943,7 @@ Dependencies and gates:
 | UX-24 | [Now Playing: static header and playback source type](https://github.com/marcus-gt/maekster-android/issues/54) | Complete ([handoff](handoffs/UX-24-now-playing-header.md)) |
 | UX-25 | [Now Playing: album line and iOS text hierarchy](https://github.com/marcus-gt/maekster-android/issues/55) | Complete ([handoff](handoffs/UX-25-now-playing-album-line.md)) |
 | UX-26 | [Lyrics: find out why lyrics are not synced](https://github.com/marcus-gt/maekster-android/issues/56) | Complete ([handoff](handoffs/UX-26-lyrics-sync.md)) |
-| UX-27 | [Lyrics: blur, reading mode and inline line as on iOS](https://github.com/marcus-gt/maekster-android/issues/57) | Not started |
+| UX-27 | [Lyrics: blur, reading mode and inline line as on iOS](https://github.com/marcus-gt/maekster-android/issues/57) | Complete, reduced scope: the owner dropped blur and reading mode on 22 Nov 2026; the player's lyric line now shrinks to fit ([handoff](handoffs/UX-27-lyrics-reading.md)) |
 
 ---
 
