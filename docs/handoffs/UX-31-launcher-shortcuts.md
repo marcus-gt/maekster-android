@@ -77,6 +77,34 @@ stop playback, as Spotify does ("I want that for mækster as well"). Changes:
 - Installed on the owner's Pixel at 18:22 (debug APK). Swipe-away on the phone is **not verified yet**: waiting
   for the owner to confirm that music and the notification stop.
 
+## Follow-up: no network counts as offline for playback (23 Nov 2026) — COMMITTED, phone check pending
+
+Owner phone test, airplane mode with downloads: the long-press Smart Shuffle and a shuffled, partly downloaded
+playlist both queued songs that were not downloaded and kept loading. They only worked with offline mode switched
+on by hand. The owner asked for a fix. Decision: as on iOS (`ServerState.isOnline = network && !offlineMode`), "no
+network" makes playback behave as offline, but the offline mode setting is never switched automatically.
+
+- `PlaybackController`: `offline` is now `offline mode || no network`. The two collectors are merged, so a change
+  in either reloads the window. When the network drops, the song already streaming keeps playing from its buffer
+  (`keptStream`), with only downloaded songs after it. If it fails, or had already failed, playback moves on to the
+  next downloaded song. With nothing downloaded, it waits and retries when the network returns, as before. Back
+  online, the full queue returns without restarting the current song. A new `networkAvailableNow` parameter seeds
+  the state, so a play request before the first network callback is not misled.
+- `mixDownloadedOnly` (Smart Shuffle and the other mixes) checks the network when called (`isNetworkAvailable`).
+  The old `stateIn(..., true)` started out assuming "connected", so a cold-start shortcut built an online mix.
+- Tests: 4 new `PlaybackControllerTest` cases: no network plays only downloads, the streaming song finishes then
+  downloads, a failure with no network moves on, and a failure before the drop moves on. All 4 failed with
+  `offline` reverted to the setting only. The test network now starts up. One retry test now drops the network
+  before failing.
+- Not covered: in-flight Wi-Fi or captive portals still count as a network (a later step: fall back on stream
+  errors). The queue screen still lists songs that are not downloaded while only the network is missing.
+  Lyrics, Discover and the library views already combine the setting with the network on their own.
+- Full checks passed: ktlintFormat, assembleDebug, testDebugUnitTest (2,037 of 2,037), ktlintCheck, lintDebug.
+- Emulator (API 37, nothing downloaded): airplane mode on, offline mode off, app force-stopped, then the Smart
+  Shuffle shortcut. The log reads "smart shuffle: 0 songs (downloads only)" and the snackbar says "Smart Shuffle
+  needs downloaded songs while offline." Before the fix it built an online mix. Playback of real downloads with no
+  network is unit-tested only. The emulator has no downloads, so it needs the phone check.
+
 ## Next action
 
 Next Wave B slice: UX-32 (widget, #22). Its gate is an owner decision: Glance (new dependency) or `RemoteViews`.

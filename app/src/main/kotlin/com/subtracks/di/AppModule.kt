@@ -46,6 +46,7 @@ import com.subtracks.data.musicbrainz.MusicBrainz
 import com.subtracks.data.musicbrainz.MusicBrainzRateLimiter
 import com.subtracks.data.musicbrainz.OkHttpMusicBrainz
 import com.subtracks.data.net.ServerHeaders
+import com.subtracks.data.net.isNetworkAvailable
 import com.subtracks.data.net.networkAvailable
 import com.subtracks.data.net.networkMode
 import com.subtracks.data.prefs.UserPreferences
@@ -217,6 +218,7 @@ fun appModule(
             showMessage = showMessage,
             scope = get(named("playback")),
             networkAvailable = networkAvailable(context.applicationContext),
+            networkAvailableNow = { isNetworkAvailable(context.applicationContext) },
             autoplayPreference = preferences.autoplaySimilar(),
             autoplayFactory = { enabled ->
                 com.subtracks.playback.AutoplayRefill
@@ -360,9 +362,9 @@ fun appModule(
     // Offline mode or no network: mixes may only use downloaded songs.
     single(named("mixDownloadedOnly")) {
         val sources = get<SourceRepository>()
-        val connected =
-            networkAvailable(context.applicationContext).stateIn(get<CoroutineScope>(), SharingStarted.Eagerly, true)
-        val downloadedOnly: () -> Boolean = { sources.offline.value || !connected.value }
+        val appContext = context.applicationContext
+        // Asked at the moment a mix is built: a cold-start launcher shortcut asks before any network callback ran.
+        val downloadedOnly: () -> Boolean = { sources.offline.value || !isNetworkAvailable(appContext) }
         downloadedOnly
     }
     single {

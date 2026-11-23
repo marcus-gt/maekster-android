@@ -84,7 +84,7 @@ class PlaybackControllerTest {
     private var autoplayGenerate: suspend () -> List<String> = { emptyList() }
     private var builtRefill: suspend () -> List<String> = { emptyList() }
     private val builtRefillExclusions = CopyOnWriteArrayList<Set<String>>()
-    private val networkAvailable = MutableStateFlow(false)
+    private val networkAvailable = MutableStateFlow(true)
     private lateinit var resources: Resources
 
     @Before
@@ -700,8 +700,13 @@ class PlaybackControllerTest {
         seedAlbum(3, sourceId = 1)
         controller.playAlbum(1, "al1", 0)
         await { controller.state.value.isPlaying }
+        // Nothing is downloaded, so the failed song waits for the network instead of moving on.
+        networkAvailable.value = false
+        runBlocking { withContext(dispatcher) { } }
         handle.positionMs = 12345
         handle.fail(UiMessage(R.string.playback_error_network))
+        runBlocking { withContext(dispatcher) { } }
+        assertEquals("s1", handle.currentItem?.id)
         handle.operations.clear()
         networkAvailable.value = true
         await { handle.operations.contains("prepare") }
@@ -794,6 +799,83 @@ class PlaybackControllerTest {
         runBlocking { withContext(dispatcher) { controller.retryNetworkPlayback() } }
         assertFalse(handle.operations.contains("prepare"))
         assertFalse(handle.playWhenReady)
+    }
+
+    @Test
+    fun withNoNetworkAPartlyDownloadedQueuePlaysOnlyItsDownloadedSongsWithoutTurningOnOfflineMode() {
+        networkAvailable.value = false
+        seedAlbum(5, sourceId = 1)
+        markDownloaded(1, "s2")
+        markDownloaded(1, "s4")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying }
+        assertEquals(listOf("s2", "s4"), handle.items.map { it.id })
+        assertEquals(
+            "s2",
+            controller.state.value.item
+                ?.id,
+        )
+        assertFalse(sources.offline.value)
+    }
+
+    @Test
+    fun losingTheNetworkLetsTheStreamingSongFinishWithOnlyDownloadedSongsAfterItUntilTheNetworkIsBack() {
+        seedAlbum(5, sourceId = 1)
+        markDownloaded(1, "s3")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying && handle.itemCount == 5 }
+        handle.operations.clear()
+
+        networkAvailable.value = false
+        await { handle.itemCount == 2 }
+        assertEquals(listOf("s1", "s3"), handle.items.map { it.id })
+        assertEquals("s1", handle.currentItem?.id)
+        assertFalse("the buffered song must not restart", handle.operations.contains("prepare"))
+
+        // It ends: the next song is the downloaded one.
+        handle.advanceTo(1)
+        await {
+            controller.state.value.item
+                ?.id == "s3"
+        }
+
+        networkAvailable.value = true
+        await { handle.itemCount == 5 }
+        assertEquals("s3", handle.currentItem?.id)
+        assertFalse(sources.offline.value)
+    }
+
+    @Test
+    fun aStreamThatFailsWithNoNetworkMovesOnToTheNextDownloadedSong() {
+        seedAlbum(5, sourceId = 1)
+        markDownloaded(1, "s4")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying && handle.itemCount == 5 }
+
+        networkAvailable.value = false
+        await { handle.itemCount == 2 }
+        handle.fail(UiMessage(R.string.playback_error_network))
+        await {
+            controller.state.value.item
+                ?.id == "s4"
+        }
+        assertTrue(handle.playWhenReady)
+        assertEquals(listOf("s4"), handle.items.map { it.id })
+    }
+
+    @Test
+    fun aStreamThatFailedBeforeTheNetworkWentAwayMovesOnToTheNextDownloadedSong() {
+        seedAlbum(5, sourceId = 1)
+        markDownloaded(1, "s3")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying && handle.itemCount == 5 }
+        handle.fail(UiMessage(R.string.playback_error_network))
+        networkAvailable.value = false
+        await {
+            controller.state.value.item
+                ?.id == "s3"
+        }
+        assertTrue(handle.playWhenReady)
     }
 
     @Test

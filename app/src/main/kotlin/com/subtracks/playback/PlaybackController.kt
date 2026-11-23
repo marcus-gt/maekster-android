@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -166,6 +167,8 @@ class PlaybackController(
     private val showMessage: (UiMessage) -> Unit = {},
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
     networkAvailable: Flow<Boolean> = flowOf(true),
+    /** Whether a network is up right now, so a play request made before [networkAvailable] reports is not misled. */
+    networkAvailableNow: () -> Boolean = { true },
     private val autoplayFactory: ((() -> Boolean) -> AutoplayRefill)? = null,
     private val autoplayPreference: Flow<Boolean>? = null,
     /** More songs from the server's Queue Builder picks: (sourceId, songs to skip, count, downloads only). */
@@ -195,7 +198,7 @@ class PlaybackController(
 
     /** Autoplay or a Queue Builder refill may extend the queue. */
     private val refillActive: Boolean get() = !finiteQueue && (autoplayEnabled || (builtQueue && builtQueueRefill != null))
-    private var networkConnected = true
+    private var networkConnected = networkAvailableNow()
     private var autoplayJob: Job? = null
     private var autoplayAttempt: Triple<Long, Long, Long>? = null
     private val autoplay by lazy { autoplayFactory?.invoke { autoplayEnabled } }
@@ -220,23 +223,51 @@ class PlaybackController(
     private var repeatMode = RepeatMode.Off
     private var endedHandled = false
     private var lastSavedPositionMs = 0L
-    private val offline: Boolean get() = sourceRepository.offline.value
+
+    /**
+     * Only downloaded songs can play: offline mode is on, or there is no network (airplane mode, no signal), as
+     * iOS treats it. Losing the network never changes the offline mode setting itself.
+     */
+    private val offline: Boolean get() = sourceRepository.offline.value || !networkConnected
+
+    /** Offline only because the network is gone: the user still wants streaming once it is back. */
+    private val offlineByNetwork: Boolean get() = !sourceRepository.offline.value && !networkConnected
+
+    /**
+     * The streamed song that was playing when the network went away. It may be buffered, so it keeps its place
+     * among the downloaded songs until it ends or fails, instead of being cut off mid-song.
+     */
+    private var keptStream: Pair<Long, String>? = null
+    private var effectiveOffline: Boolean? = null
     private var windowPositions = LongArray(0)
     private var windowFiltered = false
 
     init {
         scope.launch { autoplayPreference?.distinctUntilChanged()?.collect { setAutoplaySimilar(it) } }
         scope.launch {
-            networkAvailable.collect { available ->
-                if (networkConnected != available && refillActive) {
-                    playbackIntentVersion++
-                    autoplayJob?.cancel()
-                    autoplayAttempt = null
+            combine(sourceRepository.offline, networkAvailable) { manual, available -> manual to available }
+                .collect { (manual, available) ->
+                    val networkChanged = networkConnected != available
+                    networkConnected = available
+                    val nowOffline = manual || !available
+                    if (nowOffline != effectiveOffline) {
+                        effectiveOffline = nowOffline
+                        if (refillActive) {
+                            playbackIntentVersion++
+                            autoplayJob?.cancel()
+                            autoplayAttempt = null
+                        }
+                        // A song waiting for the network keeps waiting; offline mode means it never comes back.
+                        if (manual) networkRetry = null
+                        reloadForOffline()
+                    } else if (networkChanged && refillActive) {
+                        playbackIntentVersion++
+                        autoplayJob?.cancel()
+                        autoplayAttempt = null
+                    }
+                    if (available) retryNetworkPlayback()
+                    if (refillActive) refresh()
                 }
-                networkConnected = available
-                if (available) retryNetworkPlayback()
-                if (refillActive) refresh()
-            }
         }
         scope.launch {
             sourceRepository.activeSourceId().collect { sourceId ->
@@ -244,17 +275,6 @@ class PlaybackController(
                     playbackIntentVersion++
                     stop()
                 }
-            }
-        }
-        scope.launch {
-            sourceRepository.offline.collect {
-                if (refillActive) {
-                    playbackIntentVersion++
-                    autoplayJob?.cancel()
-                    autoplayAttempt = null
-                }
-                if (it) networkRetry = null
-                reloadForOffline()
             }
         }
         scope.launch {
@@ -1532,6 +1552,7 @@ class PlaybackController(
         windowEnd = -1
         windowPositions = LongArray(0)
         windowFiltered = false
+        keptStream = null
         lastPosition = null
         lastEdit = null
         player?.run {
@@ -1555,7 +1576,7 @@ class PlaybackController(
         val snapshot = snapshot ?: return
         downloads.awaitLoaded()
         val requested =
-            if (offline) {
+            if (offline && keptStream?.first != position) {
                 downloadedAtOrAfter(snapshot, position) ?: downloadedAtOrBefore(snapshot, position - 1) ?: run {
                     stopLocked()
                     return
@@ -1564,7 +1585,7 @@ class PlaybackController(
                 position
             }
         val raw = queueRepository.window(snapshot, requested, QUEUE_WINDOW_RADIUS)
-        val window = if (offline) raw.filter { downloads.localUri(it.item.song.id) != null } else raw
+        val window = if (offline) raw.filter(::playableOffline) else raw
         if (window.isEmpty()) {
             stopLocked()
             return
@@ -1694,6 +1715,7 @@ class PlaybackController(
             consumeUpNext(previous)
             return
         }
+        if (keptStream != null && keptStream?.first != position) keptStream = null
         lastSavedPositionMs = 0
         queueRepository.setCursor(position)
         refresh(position)
@@ -1769,7 +1791,7 @@ class PlaybackController(
         val snapshot = this.snapshot ?: return
         downloads.awaitLoaded()
         val ordered =
-            if (offline) window.filter { downloads.localUri(it.item.song.id) != null } else window
+            if (offline) window.filter(::playableOffline) else window
         val index = ordered.indexOfFirst { it.position == position }
         if (index < 0) {
             loadWindow(position, autoplay = player.playWhenReady, startPositionMs = player.currentPositionMs)
@@ -1796,6 +1818,10 @@ class PlaybackController(
             updating = false
         }
     }
+
+    private fun playableOffline(item: QueueWindowItem): Boolean =
+        downloads.localUri(item.item.song.id) != null ||
+            keptStream.let { it != null && it.first == item.position && it.second == item.item.song.id }
 
     private fun currentPosition(): Long? {
         val player = player ?: return null
@@ -1852,9 +1878,26 @@ class PlaybackController(
             if (snapshot.size == 0L) return@withLock
             downloads.awaitLoaded()
             val current = currentPosition() ?: return@withLock
+            if (!offlineByNetwork) keptStream = null
+            val currentSongId = queueRepository.itemAt(snapshot, current)?.song?.id
+            val currentDownloaded = currentSongId != null && downloads.localUri(currentSongId) != null
+            if (offlineByNetwork && !currentDownloaded && currentSongId != null) {
+                if (networkRetry == null) {
+                    // Still streaming from its buffer: let it play, with only downloaded songs after it.
+                    keptStream = current to currentSongId
+                } else {
+                    // It already failed for want of network: move on to a downloaded song, or wait for the network.
+                    keptStream = null
+                    val downloaded = downloadedAtOrAfter(snapshot, current) ?: return@withLock
+                    windowJob?.cancel()
+                    queueRepository.setCursor(downloaded)
+                    loadWindow(downloaded, autoplay = player.playWhenReady, startPositionMs = 0)
+                    return@withLock
+                }
+            }
             windowJob?.cancel()
             val target =
-                if (offline) {
+                if (offline && keptStream?.first != current) {
                     downloadedAtOrAfter(snapshot, current) ?: run {
                         stopLocked()
                         return@withLock
@@ -1913,7 +1956,7 @@ class PlaybackController(
                 val position = currentPosition()
                 val item = player?.currentItem
                 networkRetry =
-                    if (message.resId == R.string.playback_error_network && !offline &&
+                    if (message.resId == R.string.playback_error_network && !sourceRepository.offline.value &&
                         player?.playWhenReady == true && sourceId != null && position != null && item != null &&
                         player.itemUris().getOrNull(player.currentIndex)?.startsWith(FILE_SCHEME) != true
                     ) {
@@ -1921,6 +1964,11 @@ class PlaybackController(
                     } else {
                         null
                     }
+                if (networkRetry != null && offlineByNetwork) {
+                    // The streamed song ran out of buffer with no network: carry on with the downloaded songs.
+                    keptStream = null
+                    scope.launch { reloadForOffline() }
+                }
                 if (failure != PlaybackFailure.Unplayable || !skipUnplayable()) showMessage(message)
                 refresh()
             }

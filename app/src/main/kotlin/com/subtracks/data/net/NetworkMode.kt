@@ -54,16 +54,24 @@ fun networkMode(context: Context): Flow<NetworkMode> {
     }.distinctUntilChanged()
 }
 
+private fun ConnectivityManager?.hasNetwork(): Boolean {
+    val capabilities = this?.activeNetwork?.let { getNetworkCapabilities(it) }
+    // INTERNET, not VALIDATED: a LAN-only server is reachable without internet validation.
+    return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+}
+
+/** Whether a network is up right now. Unlike [networkAvailable], it never reports a stale starting value. */
+fun isNetworkAvailable(context: Context): Boolean =
+    runCatching { context.applicationContext.getSystemService(ConnectivityManager::class.java).hasNetwork() }
+        .getOrDefault(true)
+
 fun networkAvailable(context: Context): Flow<Boolean> {
     val connectivity = context.applicationContext.getSystemService(ConnectivityManager::class.java)
     // Conflated, not distinct: switching between two available networks must still re-notify so the
     // replay retries against the (possibly different) newly active route to the server.
     return callbackFlow {
         fun push() {
-            val capabilities =
-                connectivity?.activeNetwork?.let { connectivity.getNetworkCapabilities(it) }
-            // INTERNET, not VALIDATED: a LAN-only server is reachable without internet validation.
-            trySend(capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true)
+            trySend(connectivity.hasNetwork())
         }
         val callback =
             object : ConnectivityManager.NetworkCallback() {
