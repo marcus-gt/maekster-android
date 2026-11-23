@@ -78,6 +78,7 @@ class PlaybackControllerTest {
     private lateinit var downloads: DownloadRepository
     private lateinit var downloadsDir: File
     private lateinit var handle: FakePlayerHandle
+    private lateinit var connection: FakePlayerConnection
     private lateinit var controller: PlaybackController
     private val messages = CopyOnWriteArrayList<String>()
     private var autoplayGenerate: suspend () -> List<String> = { emptyList() }
@@ -116,11 +117,12 @@ class PlaybackControllerTest {
                 scope = repoScope,
             ).also { it.start() }
         handle = FakePlayerHandle()
+        connection = FakePlayerConnection(handle)
         controller =
             PlaybackController(
                 sources,
                 queues,
-                FakePlayerConnection(handle),
+                connection,
                 downloads,
                 showMessage = { messages += it.resolve(resources) },
                 scope = controllerScope,
@@ -1050,6 +1052,38 @@ class PlaybackControllerTest {
         assertEquals(12_000L, restored.positionMs.value)
         assertEquals(queuedBefore, runBlocking { queues.snapshot().size })
         assertEquals(1L, runBlocking { queues.cursor() })
+    }
+
+    @Test
+    fun resumeAfterTheServiceStoppedReconnectsAndPlaysTheSameQueue() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 1)
+        await { handle.playWhenReady }
+        handle.pause()
+        connection.disconnect()
+        await { controller.state.value.item == null }
+
+        assertTrue(runBlocking { withTimeout(TEST_TIMEOUT_MS) { controller.resume() } })
+        await { handle.playWhenReady }
+
+        assertEquals(
+            "s2",
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals(3L, runBlocking { queues.snapshot().size })
+    }
+
+    @Test
+    fun aPauseFromOutsideTheAppSavesThePositionForTheNextResume() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { handle.playWhenReady }
+        handle.positionMs = 7_000L
+
+        handle.pause()
+
+        await { runBlocking { queues.cursorPositionMs() } == 7_000L }
     }
 
     @Test

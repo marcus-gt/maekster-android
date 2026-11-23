@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -271,6 +272,9 @@ class PlaybackController(
     private val _ready = MutableStateFlow(false)
     val ready: StateFlow<Boolean> = _ready
 
+    /** A player is connected and the saved queue restored. Unlike [ready], it turns false when the service stops. */
+    private val connected = MutableStateFlow(false)
+
     fun connect() {
         if (player != null || connecting) return
         connecting = true
@@ -298,10 +302,12 @@ class PlaybackController(
                         }
                     }
                     _ready.value = true
+                    connected.value = true
                 }
             },
             onDisconnected = {
                 player = null
+                connected.value = false
                 connecting = false
                 scope.launch { stop() }
                 _ready.value = true
@@ -889,7 +895,7 @@ class PlaybackController(
      */
     suspend fun resume(): Boolean {
         connect()
-        ready.first { it }
+        withTimeoutOrNull(RESUME_CONNECT_TIMEOUT_MS) { connected.first { it } } ?: return false
         val player = player ?: return false
         if (_state.value.item == null) return false
         if (networkRetry != null || (player.playWhenReady && !player.isEnded)) return true
@@ -1891,6 +1897,8 @@ class PlaybackController(
                 if (!updating && player?.playWhenReady != true) {
                     playbackIntentVersion++
                     networkRetry = null
+                    // Paused from outside the app (notification, headset, swipe-away): keep the spot for Resume.
+                    if (positionJob?.isActive == true) savePosition()
                 }
                 if (player?.isEnded == true) handleEnded() else endedHandled = false
                 refresh()
@@ -2183,6 +2191,7 @@ class PlaybackController(
     private companion object {
         const val POSITION_TICK_MS = 500L
         const val POSITION_SAVE_INTERVAL_MS = 15_000L
+        const val RESUME_CONNECT_TIMEOUT_MS = 10_000L
         const val STALL_WATCHDOG_MS = 15_000L
         const val MAX_UNPLAYABLE_SKIPS = 5
         const val QUEUE_WINDOW_RADIUS = 25L

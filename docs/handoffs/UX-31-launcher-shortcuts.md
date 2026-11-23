@@ -50,6 +50,33 @@ Committed on the wave branch, not pushed. The launcher popup itself still needs 
 Long-press the mækster icon: are both shortcuts there with readable icons? Do Resume after a reboot and Smart
 Shuffle in airplane mode with and without downloads behave as described? Should a successful shortcut open Now Playing?
 
+## Follow-up: swipe-away stops playback (D8 changed, 23 Nov 2026) — COMMITTED, phone check pending
+
+The owner tested on the Pixel (debug APK installed 17:37) and asked that swiping the app away from recents
+stop playback, as Spotify does ("I want that for mækster as well"). Changes:
+
+- `PlaybackService.onTaskRemoved` always calls `pauseAllPlayersAndStopSelf()`, then releases the player and
+  session. Without the release, the app's own `MediaController` kept the service bound and a paused media
+  notification stayed (seen on the emulator). Removed `keepPlayingOnTaskRemoved` and its `TaskRemovedTest`.
+- Found while doing this, a UX-31 bug: `ready` stays true after the service stops, so `resume()` reported
+  "nothing to resume" if the process survived. `resume()` now waits (10 s at most) for a private `connected`
+  flag that turns false on disconnect.
+- A pause from outside the app (notification, headset, the swipe) now saves the position, so Resume continues
+  where it stopped instead of up to 15 s earlier.
+- Tests: `resumeAfterTheServiceStoppedReconnectsAndPlaysTheSameQueue` and
+  `aPauseFromOutsideTheAppSavesThePositionForTheNextResume`. Both fail when `resume()` waits for `ready` and the
+  save is removed; both pass with the fix. `FakePlayerConnection.disconnect()` simulates the service stopping.
+- Docs: D8 in the roadmap, C11 in `FEATURE_PARITY.md`, the swipe check in `RELEASE_READINESS.md`.
+- Emulator (API 37): with `pauseAllPlayersAndStopSelf()` alone, a playing swipe paused but left the service and a
+  paused notification. With the release: the log reads "task removed: pausing and stopping", and afterwards there
+  is no PlaybackService record and no app notification. The Resume shortcut then reconnected and continued about
+  where the swipe stopped (4:21 → 4:24 after 3 s). Recents swipe needed a fast flick:
+  `input touchscreen swipe 540 1400 540 100 60`.
+- Full checks passed after the release change: ktlintFormat, assembleDebug, testDebugUnitTest (2,033 of 2,033;
+  +2 new, -4 removed with `TaskRemovedTest`), ktlintCheck, lintDebug.
+- Installed on the owner's Pixel at 18:22 (debug APK). Swipe-away on the phone is **not verified yet**: waiting
+  for the owner to confirm that music and the notification stop.
+
 ## Next action
 
 Next Wave B slice: UX-32 (widget, #22). Its gate is an owner decision: Glance (new dependency) or `RemoteViews`.
