@@ -104,6 +104,14 @@ network" makes playback behave as offline, but the offline mode setting is never
   Shuffle shortcut. The log reads "smart shuffle: 0 songs (downloads only)" and the snackbar says "Smart Shuffle
   needs downloaded songs while offline." Before the fix it built an online mix. Playback of real downloads with no
   network is unit-tested only. The emulator has no downloads, so it needs the phone check.
+- Owner phone test (build `c5f30aff`): still broken. In airplane mode Smart Shuffle picked songs that were not
+  downloaded. Cause, from `dumpsys connectivity` on the Pixel: the Tailscale VPN stays the default network,
+  CONNECTED with INTERNET and VALIDATED and `UnderlyingNetworks: []`, so the app saw a network. Fix:
+  `hasUsableNetwork` counts a VPN only while a non-VPN network with INTERNET exists (`allNetworks`), and
+  `networkAvailable` also listens to non-VPN networks, because the VPN can stay the default while Wi-Fi or mobile
+  data change under it. `NetworkModeTest` has 3 new cases. The VPN case failed under the old rule.
+  Full checks passed (testDebugUnitTest 2,040 of 2,040). Not yet on the phone: the Pixel was disconnected when
+  the build was ready. Next: install, then the owner repeats airplane mode with Tailscale on.
 
 ## Next action
 

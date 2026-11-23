@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -54,10 +55,36 @@ fun networkMode(context: Context): Flow<NetworkMode> {
     }.distinctUntilChanged()
 }
 
+/** What matters about one network for reaching the server. */
+internal data class NetworkFacts(
+    val internet: Boolean,
+    val vpn: Boolean,
+)
+
+/**
+ * Whether the server may be reachable. INTERNET, not VALIDATED: a LAN-only server is reachable without internet
+ * validation. A VPN (Tailscale, WireGuard) stays connected and validated in airplane mode with nothing under it,
+ * so it only counts while a real network is up too.
+ */
+internal fun hasUsableNetwork(
+    active: NetworkFacts?,
+    all: List<NetworkFacts>,
+): Boolean = active?.internet == true && (!active.vpn || all.any { it.internet && !it.vpn })
+
+private fun NetworkCapabilities.facts() =
+    NetworkFacts(
+        internet = hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET),
+        vpn = hasTransport(NetworkCapabilities.TRANSPORT_VPN),
+    )
+
 private fun ConnectivityManager?.hasNetwork(): Boolean {
-    val capabilities = this?.activeNetwork?.let { getNetworkCapabilities(it) }
-    // INTERNET, not VALIDATED: a LAN-only server is reachable without internet validation.
-    return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    val connectivity = this ?: return false
+    val active = connectivity.activeNetwork?.let { connectivity.getNetworkCapabilities(it) }?.facts()
+    if (active?.vpn != true) return hasUsableNetwork(active, emptyList())
+    // The VPN's own capabilities hide whether anything is under it, so look at the other networks.
+    @Suppress("DEPRECATION")
+    val all = connectivity.allNetworks.mapNotNull { connectivity.getNetworkCapabilities(it)?.facts() }
+    return hasUsableNetwork(active, all)
 }
 
 /** Whether a network is up right now. Unlike [networkAvailable], it never reports a stale starting value. */
@@ -85,7 +112,20 @@ fun networkAvailable(context: Context): Flow<Boolean> {
                 ) = push()
             }
         val registered = runCatching { connectivity?.registerDefaultNetworkCallback(callback) }.isSuccess
+        // A VPN can stay the default network while Wi-Fi or mobile data come and go under it.
+        val physical =
+            object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) = push()
+
+                override fun onLost(network: Network) = push()
+            }
+        // Requests exclude VPNs by default (NOT_VPN), so this follows the real networks only.
+        val physicalRequest = NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
+        val physicalRegistered = runCatching { connectivity?.registerNetworkCallback(physicalRequest, physical) }.isSuccess
         push()
-        awaitClose { if (registered) runCatching { connectivity?.unregisterNetworkCallback(callback) } }
+        awaitClose {
+            if (registered) runCatching { connectivity?.unregisterNetworkCallback(callback) }
+            if (physicalRegistered) runCatching { connectivity?.unregisterNetworkCallback(physical) }
+        }
     }.conflate()
 }
