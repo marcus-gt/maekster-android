@@ -77,7 +77,7 @@ stop playback, as Spotify does ("I want that for mækster as well"). Changes:
 - Installed on the owner's Pixel at 18:22 (debug APK). Swipe-away on the phone is **not verified yet**: waiting
   for the owner to confirm that music and the notification stop.
 
-## Follow-up: no network counts as offline for playback (23 Nov 2026) — COMMITTED, phone check pending
+## Follow-up: no network counts as offline for playback (23 Nov 2026) — COMMITTED, verified on the phone
 
 Owner phone test, airplane mode with downloads: the long-press Smart Shuffle and a shuffled, partly downloaded
 playlist both queued songs that were not downloaded and kept loading. They only worked with offline mode switched
@@ -110,8 +110,9 @@ network" makes playback behave as offline, but the offline mode setting is never
   `hasUsableNetwork` counts a VPN only while a non-VPN network with INTERNET exists (`allNetworks`), and
   `networkAvailable` also listens to non-VPN networks, because the VPN can stay the default while Wi-Fi or mobile
   data change under it. `NetworkModeTest` has 3 new cases. The VPN case failed under the old rule.
-  Full checks passed (testDebugUnitTest 2,040 of 2,040). Not yet on the phone: the Pixel was disconnected when
-  the build was ready. Next: install, then the owner repeats airplane mode with Tailscale on.
+  Full checks passed (testDebugUnitTest 2,040 of 2,040). Owner phone test with `5094ce30` installed, airplane
+  mode on, Tailscale on, offline mode off: "It works now!" (23 Nov 2026). Smart Shuffle uses downloaded songs.
+  Not reported separately: the partly downloaded playlist shuffle, and losing the network mid-song.
 
 ## Next action
 
