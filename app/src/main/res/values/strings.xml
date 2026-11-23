@@ -346,6 +346,8 @@
     <string name="playlist_updated">Updated %1$s</string>
 
     <string name="now_playing_header">Now playing</string>
+    <string name="change_audio_output">Change audio output</string>
+    <string name="change_audio_output_with_device">Change audio output. Current output: %1$s</string>
     <string name="queue_type_album">Album</string>
     <string name="queue_type_playlist">Playlist</string>
     <string name="queue_type_artist">Artist</string>

@@ -1,5 +1,8 @@
 package com.subtracks.ui.playback
 
+import android.media.AudioDeviceInfo
+import android.media.MediaRouter2
+import android.os.Build
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -25,6 +28,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.BluetoothAudio
+import androidx.compose.material.icons.rounded.Headphones
 import androidx.compose.material.icons.rounded.Lyrics
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.PauseCircle
@@ -36,6 +41,7 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.ShuffleOn
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Speaker
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -63,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.keepScreenOn
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
@@ -233,6 +240,8 @@ fun NowPlayingRoute(
             }
         }
     val context = LocalPlatformContext.current
+    val activityContext = LocalContext.current
+    val audioOutput = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) rememberMediaAudioOutput() else null
     val actions =
         ItemActions(
             download = { track -> scope.launch { downloadRepository.download(track.sourceId, track.id) } },
@@ -316,6 +325,14 @@ fun NowPlayingRoute(
         onShowLyrics = onShowLyrics,
         onRetryLyrics = lyricsViewModel::retry,
         onSelectLyricsLanguage = lyricsViewModel::selectLanguage,
+        audioOutputName = audioOutput?.productName?.toString()?.takeIf { it.isNotBlank() },
+        audioOutputType = audioOutput?.type,
+        onOpenOutputSwitcher =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                { MediaRouter2.getInstance(activityContext).showSystemOutputSwitcher() }
+            } else {
+                null
+            },
     )
 
     if (showArtistChooser) {
@@ -363,6 +380,9 @@ fun NowPlayingScreen(
     onShowLyrics: (Boolean) -> Unit = {},
     onRetryLyrics: () -> Unit = {},
     onSelectLyricsLanguage: (String) -> Unit = {},
+    onOpenOutputSwitcher: (() -> Unit)? = null,
+    audioOutputName: String? = null,
+    audioOutputType: Int? = null,
 ) {
     val playButtonSize = 90.dp
     val playCircleDiameter = playButtonSize * 20f / 24f
@@ -459,6 +479,7 @@ fun NowPlayingScreen(
                                         letterSpacing = 1.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                     Text(
                                         text = title,
@@ -473,6 +494,41 @@ fun NowPlayingScreen(
                                         Icons.AutoMirrored.Rounded.ArrowBack,
                                         contentDescription = stringResource(R.string.navigation_back),
                                     )
+                                }
+                            },
+                            actions = {
+                                if (onOpenOutputSwitcher != null) {
+                                    IconButton(onClick = onOpenOutputSwitcher) {
+                                        Icon(
+                                            imageVector =
+                                                when (audioOutputType) {
+                                                    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                                                    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                                                    AudioDeviceInfo.TYPE_BLE_HEADSET,
+                                                    AudioDeviceInfo.TYPE_BLE_SPEAKER,
+                                                    AudioDeviceInfo.TYPE_BLE_BROADCAST,
+                                                    AudioDeviceInfo.TYPE_HEARING_AID,
+                                                    -> Icons.Rounded.BluetoothAudio
+
+                                                    AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                                                    AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                                                    AudioDeviceInfo.TYPE_USB_HEADSET,
+                                                    -> Icons.Rounded.Headphones
+
+                                                    else -> Icons.Rounded.Speaker
+                                                },
+                                            contentDescription =
+                                                if (audioOutputName == null) {
+                                                    stringResource(R.string.change_audio_output)
+                                                } else {
+                                                    stringResource(R.string.change_audio_output_with_device, audioOutputName)
+                                                },
+                                            tint =
+                                                audioOutputType
+                                                    ?.let { MaterialTheme.colorScheme.primary }
+                                                    ?: LocalContentColor.current,
+                                        )
+                                    }
                                 }
                             },
                             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),

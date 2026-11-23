@@ -1,6 +1,6 @@
 # UX polish 3 — starter handoff
 
-**Status: IN PROGRESS.** Planned on 23 Nov 2026. Wave A complete: UX-28 and UX-29 not needed. Wave B not started. The slice list, waves, branches and
+**Status: IN PROGRESS.** Planned on 23 Nov 2026. Wave A merged in PR #61. UX-28 and UX-29 were not needed. Wave B is in progress. The slice list, waves, branches and
 statuses are in the [roadmap](../ANDROID_ROADMAP.md#post-m4--ux-polish-3-daily-feel-android-integration-and-visuals).
 The parent issue is [#60](https://github.com/marcus-gt/maekster-android/issues/60); tick its checklist as slices
 complete. Its sub-issues are #58, #18, #20, #22, #19, #8, #4 and #5. #10 stays a sub-issue of #31 but is listed in #60.
@@ -76,6 +76,5 @@ what was and wasn't verified on a device. The phone is GrapheneOS without Play S
 
 ## Next action
 
-Plan approved and committed on 23 Nov 2026. Wave A is done without code changes: UX-28 and UX-29 were both not
-needed (see the roadmap and `UX-29-play-what-is-shown.md`). Owner: open the wave A PR (docs only), or fold it into
-wave B. Agent: once wave A is merged, or the owner says to continue on the same branch, start wave B with UX-30 (#18).
+Wave B branch `ux/polish-3b-android-integration` was cut from `origin/main` at `c31d5892` (PR #61).
+[UX-30](UX-30-output-switcher.md) is complete. Next: UX-31 (launcher shortcuts, #20).
