@@ -883,6 +883,20 @@ class PlaybackController(
             refresh(target)
         }
 
+    /**
+     * Plays the saved queue from its saved song and position (the Resume shortcut). Connects and restores first
+     * when needed, and never replaces or extends the queue. False when there is nothing to resume.
+     */
+    suspend fun resume(): Boolean {
+        connect()
+        ready.first { it }
+        val player = player ?: return false
+        if (_state.value.item == null) return false
+        if (networkRetry != null || (player.playWhenReady && !player.isEnded)) return true
+        togglePlayPause()
+        return true
+    }
+
     fun togglePlayPause() {
         playbackCommandVersion++
         playbackIntentVersion++

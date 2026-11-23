@@ -399,6 +399,12 @@
     <string name="quality_mp3_192">MP3 192 kbps</string>
     <string name="quality_custom">Custom</string>
     <string name="smart_shuffle_title">Smart Shuffle</string>
+    <string name="shortcut_resume">Resume</string>
+    <string name="shortcut_resume_long">Resume playback</string>
+    <string name="shortcut_smart_shuffle_long">Start Smart Shuffle</string>
+    <string name="shortcut_nothing_to_resume">Nothing to resume yet. Play something to start a queue.</string>
+    <string name="shortcut_smart_shuffle_no_downloads">Smart Shuffle needs downloaded songs while offline.</string>
+    <string name="shortcut_smart_shuffle_empty_library">Smart Shuffle needs songs in your library. Sync your server and try again.</string>
     <string name="discover_title">Discover</string>
     <string name="settings_discover_sections">Discover sections</string>
     <string name="home_section_artist_picks">Artist picks</string>

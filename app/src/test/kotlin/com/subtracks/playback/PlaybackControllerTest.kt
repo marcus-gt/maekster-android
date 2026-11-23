@@ -1027,6 +1027,54 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun resumeAfterProcessDeathPlaysTheSavedQueueFromItsSongAndPositionWithoutDuplicatingIt() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 1)
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+        runBlocking { queues.setPosition(12_000L) }
+        val queuedBefore = runBlocking { queues.snapshot().size }
+
+        val restoredHandle = FakePlayerHandle()
+        val restored = controllerOn(dispatcher, restoredHandle)
+        assertTrue(runBlocking { withTimeout(TEST_TIMEOUT_MS) { restored.resume() } })
+        await { restoredHandle.playWhenReady }
+
+        assertEquals(
+            "s2",
+            restored.state.value.item
+                ?.id,
+        )
+        assertEquals(12_000L, restored.positionMs.value)
+        assertEquals(queuedBefore, runBlocking { queues.snapshot().size })
+        assertEquals(1L, runBlocking { queues.cursor() })
+    }
+
+    @Test
+    fun resumeWhilePlayingKeepsPlaying() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { handle.playWhenReady }
+
+        assertTrue(runBlocking { withTimeout(TEST_TIMEOUT_MS) { controller.resume() } })
+
+        assertTrue(handle.playWhenReady)
+        assertFalse(handle.operations.contains("pause"))
+    }
+
+    @Test
+    fun resumeWithNothingQueuedReportsNothingToResume() {
+        seedAlbum(3, sourceId = 1)
+
+        assertFalse(runBlocking { withTimeout(TEST_TIMEOUT_MS) { controller.resume() } })
+
+        assertFalse(handle.playWhenReady)
+        assertEquals(0L, runBlocking { queues.snapshot().size })
+    }
+
+    @Test
     fun theReadyStateResolvesWithTheRestoredItemAlreadyInPlace() {
         seedAlbum(5, sourceId = 1)
         runBlocking { queues.replace(listOf(queues.albumEntry(1, "al1"))) }

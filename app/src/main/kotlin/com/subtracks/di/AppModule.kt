@@ -2,6 +2,7 @@ package com.subtracks.di
 
 import android.content.Context
 import android.os.Environment
+import com.subtracks.LauncherShortcutRunner
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.UiMessages
@@ -267,6 +268,16 @@ fun appModule(
         }
     }
     single { NowPlayingLauncher() }
+    single {
+        LauncherShortcutRunner(
+            activeSourceId = get<SourceRepository>()::activeSourceIdOnce,
+            resume = get<PlaybackController>()::resume,
+            smartShuffle = get<SmartShufflePlayer>()::play,
+            downloadedOnly = get(named("mixDownloadedOnly")),
+            openNowPlaying = get<NowPlayingLauncher>()::request,
+            showMessage = showMessage,
+        )
+    }
     single {
         com.subtracks.data.recommendations.SimilarArtistsCache(
             get<SubtracksDatabase>().similarArtistsCacheDao(),

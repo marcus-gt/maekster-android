@@ -77,4 +77,5 @@ what was and wasn't verified on a device. The phone is GrapheneOS without Play S
 ## Next action
 
 Wave B branch `ux/polish-3b-android-integration` was cut from `origin/main` at `c31d5892` (PR #61).
-[UX-30](UX-30-output-switcher.md) is complete. Next: UX-31 (launcher shortcuts, #20).
+[UX-30](UX-30-output-switcher.md) and [UX-31](UX-31-launcher-shortcuts.md) are complete. Next: UX-32 (widget, #22),
+which first needs the owner's Glance or `RemoteViews` decision.
