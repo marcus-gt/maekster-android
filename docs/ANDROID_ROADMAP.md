@@ -945,6 +945,45 @@ Dependencies and gates:
 | UX-26 | [Lyrics: find out why lyrics are not synced](https://github.com/marcus-gt/maekster-android/issues/56) | Complete ([handoff](handoffs/UX-26-lyrics-sync.md)) |
 | UX-27 | [Lyrics: blur, reading mode and inline line as on iOS](https://github.com/marcus-gt/maekster-android/issues/57) | Complete, reduced scope: the owner dropped blur and reading mode on 22 Nov 2026; the player's lyric line now shrinks to fit ([handoff](handoffs/UX-27-lyrics-reading.md)) |
 
+Merged in PR #59 on 23 Nov 2026.
+
+## Post-M4 — UX polish 3: daily feel, Android integration and visuals
+
+[Issue #60](https://github.com/marcus-gt/maekster-android/issues/60) is the parent. The owner is testing on a
+physical GrapheneOS Pixel and wants the open issues that lift everyday UX first:
+smoothness, OS integration (widget, shortcuts, output switcher, Back) and visual identity. The
+[starter handoff](handoffs/UX-polish-3-starter.md) holds the workflow, branch rules, interruption recovery and
+per-slice findings. **This table is the progress tracker.** Status values: Not started, In progress,
+Blocked (with the question in the handoff), Complete (verified and committed), Merged.
+
+Work in waves. Each wave has one branch cut from `origin/main` and ends with one PR that the owner opens and
+merges, so each wave can be tested on the phone before the next starts. One slice per session, in table order
+unless a slice is blocked. Start a wave only after the previous wave's PR is merged.
+
+| Wave | Branch |
+|---|---|
+| A: daily feel | `ux/polish-3a-daily-feel` |
+| B: Android integration | `ux/polish-3b-android-integration` (create from `origin/main` after wave A merges) |
+| C: visual identity | `ux/polish-3c-visual-identity` (create from `origin/main` after wave B merges) |
+
+| Slice | Wave | GitHub issue | Gate | Status |
+|---|---|---|---|---|
+| UX-28 | A | Scrolling performance on a physical device (no issue) | None | Not needed: the lag came from the debuggable build; the nightly (release settings) scrolls smoothly on the owner's GrapheneOS Pixel (23 Nov 2026). Judge performance on nightly or release builds only. An app baseline profile stays optional for later (dependency change) |
+| UX-29 | A | [Play buttons play what's shown](https://github.com/marcus-gt/maekster-android/issues/58) | None | Not started |
+| UX-30 | B | [System media output switcher](https://github.com/marcus-gt/maekster-android/issues/18) | None (framework `MediaRouter2`, API 34+) | Not started |
+| UX-31 | B | [Resume and Smart Shuffle launcher shortcuts](https://github.com/marcus-gt/maekster-android/issues/20) | None | Not started |
+| UX-32 | B | [Home-screen Now Playing widget](https://github.com/marcus-gt/maekster-android/issues/22) | Owner decision: Glance (new dependency) or plain `RemoteViews` | Not started |
+| UX-33 | B | [Predictive Back](https://github.com/marcus-gt/maekster-android/issues/19) | None | Not started |
+| UX-34 | C | [3D logo and Home title font](https://github.com/marcus-gt/maekster-android/issues/8) | Asset licence check; owner screenshot feedback | Not started |
+| UX-35 | C | [Launcher icons back in mipmap with raster legacy icons](https://github.com/marcus-gt/maekster-android/issues/4) | Uses UX-34's assets | Not started |
+| UX-36 | C | [Album page: remaining iOS items](https://github.com/marcus-gt/maekster-android/issues/10) | Owner confirms what is still wanted | Not started |
+| UX-37 | C | [Bring back the hidden navigation bar](https://github.com/marcus-gt/maekster-android/issues/5) | Owner confirms after phone use; option 1 recommended | Not started |
+
+Out of this round (unchanged priority): #24 advanced shortcuts, #21 tablet and foldable, #23 Android Auto,
+#3 casting, #2 stream cache, #6 download redirect headers, #1 package rename (do it between waves, when no
+branch is open), #11, #13, #16, #25, #26, #27. The owner runs the release gates #29 and #30 on the phone in
+parallel; agents record results in `docs/RELEASE_READINESS.md` only when the owner reports them.
+
 ---
 
 ## Product decisions

@@ -1,6 +1,7 @@
 # UX polish 2 (#45) — starter handoff
 
-**Status: IN PROGRESS.** UX-16 to UX-25 done. The slices UX-16 to UX-27 are sub-issues #46–#57 of
+**Status: COMPLETE.** UX-16 to UX-27 done and merged in PR #59 (23 Nov 2026). Next round:
+[UX polish 3](UX-polish-3-starter.md). The slices UX-16 to UX-27 are sub-issues #46–#57 of
 [parent #45](https://github.com/marcus-gt/maekster-android/issues/45), listed in the
 [roadmap](../ANDROID_ROADMAP.md#post-m4--ux-polish-2-artist-album-and-now-playing).
 
