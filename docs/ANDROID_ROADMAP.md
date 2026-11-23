@@ -969,7 +969,7 @@ unless a slice is blocked. Start a wave only after the previous wave's PR is mer
 | Slice | Wave | GitHub issue | Gate | Status |
 |---|---|---|---|---|
 | UX-28 | A | Scrolling performance on a physical device (no issue) | None | Not needed: the lag came from the debuggable build; the nightly (release settings) scrolls smoothly on the owner's GrapheneOS Pixel (23 Nov 2026). Judge performance on nightly or release builds only. An app baseline profile stays optional for later (dependency change) |
-| UX-29 | A | [Play buttons play what's shown](https://github.com/marcus-gt/maekster-android/issues/58) | None | Not started |
+| UX-29 | A | [Play buttons play what's shown](https://github.com/marcus-gt/maekster-android/issues/58) | None | Not needed: works on the emulator and on the owner's phone (23 Nov 2026); the owner asked to skip it. Genre queues are still labelled "Songs" ([handoff](handoffs/UX-29-play-what-is-shown.md)) |
 | UX-30 | B | [System media output switcher](https://github.com/marcus-gt/maekster-android/issues/18) | None (framework `MediaRouter2`, API 34+) | Not started |
 | UX-31 | B | [Resume and Smart Shuffle launcher shortcuts](https://github.com/marcus-gt/maekster-android/issues/20) | None | Not started |
 | UX-32 | B | [Home-screen Now Playing widget](https://github.com/marcus-gt/maekster-android/issues/22) | Owner decision: Glance (new dependency) or plain `RemoteViews` | Not started |
