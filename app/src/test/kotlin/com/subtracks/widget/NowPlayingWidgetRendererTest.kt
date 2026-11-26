@@ -2,10 +2,17 @@ package com.subtracks.widget
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.drawable.BitmapDrawable
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.graphics.ColorUtils
+import androidx.core.graphics.createBitmap
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.R
@@ -13,11 +20,13 @@ import com.subtracks.data.audiomuse.RadioMood
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
 class NowPlayingWidgetRendererTest {
@@ -30,6 +39,58 @@ class NowPlayingWidgetRendererTest {
     ): View = renderer.views(layout, content, null).apply(context, FrameLayout(context))
 
     private val playing = NowPlayingWidgetContent("Song", "Artist", null, isPlaying = true, live = true, hasNext = true)
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun artworkBackgroundIsSharedAcrossLayoutsAndClearedWhenTheCoverIsMissing() {
+        val artwork =
+            createBitmap(256, 256).apply {
+                eraseColor(Color.BLACK)
+                Canvas(this).drawRect(128f, 0f, 256f, 256f, Paint().apply { color = Color.WHITE })
+            }
+        val content = playing.copy(moods = true)
+        val parent = FrameLayout(context)
+        var sharedBackground: Bitmap? = null
+        val views =
+            NowPlayingWidgetLayout.entries.associateWith { layout ->
+                val view = renderer.views(layout, content, artwork).apply(context, parent)
+                val image = view.findViewById<ImageView>(R.id.widget_art_background)
+                assertEquals(View.VISIBLE, image.visibility)
+                val background = (image.drawable as BitmapDrawable).bitmap
+                sharedBackground?.let { assertSame(it, background) }
+                sharedBackground = background
+                view
+            }
+
+        val background = checkNotNull(sharedBackground)
+        assertTrue(background.allocationByteCount <= 16 * 1024)
+        val middle = background.getPixel(background.width / 2, 0)
+        val brightest = background.getPixel(background.width - 1, 0)
+        assertTrue(
+            "Expected a softened edge, got ${Color.red(middle)} against ${Color.red(brightest)}",
+            Color.red(middle) in 1 until Color.red(brightest),
+        )
+        assertTrue(Color.red(brightest) >= 75)
+        views.values.forEach { view ->
+            val artist = view.findViewById<TextView>(R.id.widget_artist)
+            assertTrue(ColorUtils.calculateContrast(artist.currentTextColor, brightest) >= 4.5)
+        }
+
+        views.forEach { (layout, view) ->
+            val image = view.findViewById<ImageView>(R.id.widget_art_background)
+            renderer.views(layout, content.copy(isPlaying = false), artwork).reapply(context, view)
+            assertSame(background, (image.drawable as BitmapDrawable).bitmap)
+        }
+
+        views.forEach { (layout, view) ->
+            val image = view.findViewById<ImageView>(R.id.widget_art_background)
+            renderer.views(layout, content, null).reapply(context, view)
+            assertEquals(View.GONE, image.visibility)
+            assertNull(image.drawable)
+            val artist = view.findViewById<TextView>(R.id.widget_artist)
+            assertEquals(context.getColor(R.color.widget_text_secondary), artist.currentTextColor)
+        }
+    }
 
     @Test
     fun eachHomeScreenSizeGetsALayoutThatFitsIt() {

@@ -1,39 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
     android:clipToOutline="true"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:paddingStart="16dp"
-    android:paddingTop="8dp"
-    android:paddingEnd="8dp"
-    android:paddingBottom="8dp"
     tools:ignore="UnusedAttribute">
 
+    <ImageView
+        android:id="@+id/widget_art_background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="@dimen/widget_art_background_inset"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="8dp"
+        tools:ignore="UnusedAttribute">
 
-        <TextView
-            android:id="@+id/widget_title"
-            style="@style/Widget.Maekster.NowPlaying.Title"
-            android:text="@string/widget_nothing_playing" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/widget_artist"
-            style="@style/Widget.Maekster.NowPlaying.Artist"
-            android:text="@string/widget_nothing_playing_hint" />
+            <TextView
+                android:id="@+id/widget_title"
+                style="@style/Widget.Maekster.NowPlaying.Title"
+                android:text="@string/widget_nothing_playing" />
+
+            <TextView
+                android:id="@+id/widget_artist"
+                style="@style/Widget.Maekster.NowPlaying.Artist"
+                android:text="@string/widget_nothing_playing_hint" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/widget_play_pause"
+            style="@style/Widget.Maekster.NowPlaying.PlayButton"
+            android:contentDescription="@string/controls_play" />
     </LinearLayout>
-
-    <ImageButton
-        android:id="@+id/widget_play_pause"
-        style="@style/Widget.Maekster.NowPlaying.PlayButton"
-        android:contentDescription="@string/controls_play" />
-</LinearLayout>
+</FrameLayout>

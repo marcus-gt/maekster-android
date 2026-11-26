@@ -7,6 +7,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
@@ -14,6 +18,8 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.IdRes
 import androidx.annotation.LayoutRes
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -174,6 +180,8 @@ class NowPlayingWidgetRenderer(
 ) {
     private val manager: AppWidgetManager? get() = AppWidgetManager.getInstance(context)
     private val component get() = ComponentName(context, NowPlayingWidget::class.java)
+    private var backgroundCover: Bitmap? = null
+    private var background: Bitmap? = null
 
     fun hasWidgets(): Boolean = manager?.getAppWidgetIds(component)?.isNotEmpty() == true
 
@@ -209,9 +217,19 @@ class NowPlayingWidgetRenderer(
         return RemoteViews(context.packageName, layout.res).apply {
             val open = openAppIntent(content)
             setOnClickPendingIntent(R.id.widget_root, open)
+            val coverBackground = backgroundFor(artwork)
+            if (coverBackground == null) {
+                setImageViewResource(R.id.widget_art_background, 0)
+                setViewVisibility(R.id.widget_art_background, View.GONE)
+            } else {
+                setImageViewBitmap(R.id.widget_art_background, coverBackground)
+                setViewVisibility(R.id.widget_art_background, View.VISIBLE)
+            }
             setTextViewText(R.id.widget_title, content.title ?: context.getString(R.string.widget_nothing_playing))
             val artist = if (content.title == null) context.getString(R.string.widget_nothing_playing_hint) else content.artist
             setTextViewText(R.id.widget_artist, artist.orEmpty())
+            val artistColor = if (coverBackground == null) R.color.widget_text_secondary else R.color.widget_text_secondary_on_artwork
+            setTextColor(R.id.widget_artist, context.getColor(artistColor))
             setViewVisibility(R.id.widget_artist, if (artist.isNullOrBlank()) View.GONE else View.VISIBLE)
             if (layout.hasArtwork) {
                 if (artwork != null) {
@@ -237,6 +255,24 @@ class NowPlayingWidgetRenderer(
                 skipButton(R.id.widget_next, NowPlayingWidgetAction.Next, enabled = content.live && content.hasNext)
             }
             if (layout.hasMoods) moodButtons(content.startingMood)
+        }
+    }
+
+    private fun backgroundFor(cover: Bitmap?): Bitmap? {
+        if (cover !== backgroundCover) {
+            background = cover?.let(::softenedBackground)
+            backgroundCover = cover
+        }
+        return background
+    }
+
+    private fun softenedBackground(cover: Bitmap): Bitmap {
+        val sample = cover.scale(BACKGROUND_SAMPLE_PX, BACKGROUND_SAMPLE_PX, filter = true)
+        return createBitmap(BACKGROUND_PX, BACKGROUND_PX).apply {
+            val canvas = Canvas(this)
+            canvas.drawColor(Color.BLACK)
+            canvas.drawBitmap(sample, null, Rect(0, 0, width, height), Paint(Paint.FILTER_BITMAP_FLAG))
+            canvas.drawColor(BACKGROUND_SCRIM)
         }
     }
 
@@ -274,6 +310,9 @@ class NowPlayingWidgetRenderer(
     }
 
     private companion object {
+        const val BACKGROUND_SAMPLE_PX = 24
+        const val BACKGROUND_PX = 64
+        const val BACKGROUND_SCRIM = 0xAE000000.toInt()
         const val DISABLED_ALPHA = 97
         const val DIMMED_ALPHA = 0.4f
 

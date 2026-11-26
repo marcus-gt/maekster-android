@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <dimen name="widget_art_background_inset">5dp</dimen>
     <color name="widget_surface">#FF171513</color>
     <color name="widget_art_surface">#FF2A2724</color>
     <color name="widget_text_primary">#FFF5F2EE</color>
     <color name="widget_text_secondary">#FFA8A29C</color>
+    <color name="widget_text_secondary_on_artwork">#FFCCC6C0</color>
     <color name="widget_accent">#FFFF8C4B</color>
     <color name="widget_ink">#FF0E0E0E</color>
     <color name="widget_ripple">#33FFFFFF</color>
