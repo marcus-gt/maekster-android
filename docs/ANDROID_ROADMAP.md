@@ -954,7 +954,7 @@ physical GrapheneOS Pixel and wants the open issues that lift everyday UX first:
 smoothness, OS integration (widget, shortcuts, output switcher, Back) and visual identity. The
 [starter handoff](handoffs/UX-polish-3-starter.md) holds the workflow, branch rules, interruption recovery and
 per-slice findings. **This table is the progress tracker.** Status values: Not started, In progress,
-Blocked (with the question in the handoff), Complete (verified and committed), Merged.
+Blocked (with the question in the handoff), On hold (the owner paused it; skip it), Complete (verified and committed), Merged.
 
 Work in waves. Each wave has one branch cut from `origin/main` and ends with one PR that the owner opens and
 merges, so each wave can be tested on the phone before the next starts. One slice per session, in table order
@@ -975,7 +975,7 @@ unless a slice is blocked. Start a wave only after the previous wave's PR is mer
 | UX-31 | B | [Resume and Smart Shuffle launcher shortcuts](https://github.com/marcus-gt/maekster-android/issues/20) | None | Complete: dynamic Resume and Smart Shuffle shortcuts through `PlaybackController.resume()` and `SmartShufflePlayer`, opening Now Playing or explaining why nothing started; verified by unit tests and on the API 37 emulator. The launcher popup still needs a check on the owner's phone ([handoff](handoffs/UX-31-launcher-shortcuts.md)) |
 | UX-32 | B | [Home-screen Now Playing widget](https://github.com/marcus-gt/maekster-android/issues/22) | Owner decision: `RemoteViews` (D19, 24 Nov 2026) | Complete: `RemoteViews` widget with Small (2x1), Row (4x1) and Tall (4x2) layouts, transport through `PlaybackController`, saved song after the app stops; checked on the owner's Pixel 9 (26 Nov 2026). Tap-to-open not checked on a device ([handoff](handoffs/UX-32-now-playing-widget.md)) |
 | UX-33 | B | [Predictive Back](https://github.com/marcus-gt/maekster-android/issues/19) | None | Complete: predictive back on (manifest), route back goes to the NavHost's predictive pop, and Now Playing and the queue follow the gesture and spring back on cancel without touching playback; verified on the API 37 emulator with gesture and three-button navigation, and by the owner on the Pixel 9 (26 Nov 2026) ([handoff](handoffs/UX-33-predictive-back.md)) |
-| UX-34 | C | [3D logo and Home title font](https://github.com/marcus-gt/maekster-android/issues/8) | Asset licence check; owner screenshot feedback | Not started |
+| UX-34 | C | [3D logo and Home title font](https://github.com/marcus-gt/maekster-android/issues/8) | Asset licence check; owner screenshot feedback | On hold (owner, 26 Nov 2026): skip it in wave C until the owner lifts the hold. UX-35 depends on its assets, so ask the owner about UX-35 before starting it |
 | UX-35 | C | [Launcher icons back in mipmap with raster legacy icons](https://github.com/marcus-gt/maekster-android/issues/4) | Uses UX-34's assets | Not started |
 | UX-36 | C | [Album page: remaining iOS items](https://github.com/marcus-gt/maekster-android/issues/10) | Owner confirms what is still wanted | Not started |
 | UX-37 | C | [Bring back the hidden navigation bar](https://github.com/marcus-gt/maekster-android/issues/5) | Owner confirms after phone use; option 1 recommended | Not started |

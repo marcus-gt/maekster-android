@@ -60,6 +60,8 @@ If the existing changes look wrong or ambiguous, explain what you found and ask.
 - **UX-33 Predictive Back:** `AndroidManifest.xml` sets `android:enableOnBackInvokedCallback="false"`. `BackHandler` is used
   in `ui/AppRoot.kt` and `ui/library/LibraryScreen.kt`. navigation-compose is 2.10.1. The Now Playing overlay needs
   `PredictiveBackHandler` with progress, and cancelled gestures must leave playback untouched.
+- **UX-34 is on hold** (owner, 26 Nov 2026): skip it in wave C until the owner lifts the hold. UX-35 uses its
+  assets, so ask the owner whether to do UX-35 without it or hold it too.
 - **UX-34 and UX-35 identity:** brand assets come from the iOS `Branding/` folder (read-only reference, check licences;
   fonts are often OFL). There is no `res/font` yet. D4 (system font) changes for the Home title only: record it.
   Rendering PNGs needs a tool. Check what's installed and ask before installing anything.
