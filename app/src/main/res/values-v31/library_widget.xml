@@ -1,0 +1,3 @@
+<resources>
+    <bool name="library_widgets_enabled">true</bool>
+</resources>

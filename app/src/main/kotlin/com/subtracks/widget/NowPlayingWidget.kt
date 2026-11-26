@@ -28,6 +28,7 @@ import coil3.toBitmap
 import com.subtracks.MainActivity
 import com.subtracks.R
 import com.subtracks.data.audiomuse.RadioMood
+import com.subtracks.data.model.coverArtKey
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.log.Log
@@ -342,26 +343,33 @@ internal fun RadioMood.widgetLabelId(): Int =
     }
 
 /** A small artwork thumbnail for the widget, from the shared image cache. Bounded so the widget stays light. */
-class NowPlayingWidgetArtwork(
+internal class WidgetArtwork(
     private val context: Context,
     private val sources: SourceRepository,
+    private val size: Int = 256,
 ) {
-    suspend fun load(coverArtId: String): Bitmap? {
+    suspend fun load(
+        coverArtId: String,
+        sourceId: Long? = null,
+    ): Bitmap? {
         val ref = sources.coverArt(coverArtId, thumbnail = true) ?: return null
+        if (sourceId != null && ref.cacheKey != coverArtKey(sourceId, coverArtId, thumbnail = true)) return null
         val request =
             ImageRequest
                 .Builder(context)
                 .data(ref.url)
-                .memoryCacheKey(ref.cacheKey)
+                .memoryCacheKey("${ref.cacheKey}:widget:$size")
                 .diskCacheKey(ref.cacheKey)
-                .size(ARTWORK_PX)
+                .size(size)
                 .allowHardware(false)
                 .build()
-        return (SingletonImageLoader.get(context).execute(request) as? SuccessResult)?.image?.toBitmap()
-    }
-
-    private companion object {
-        const val ARTWORK_PX = 256
+        val bitmap = (SingletonImageLoader.get(context).execute(request) as? SuccessResult)?.image?.toBitmap() ?: return null
+        val longest = maxOf(bitmap.width, bitmap.height)
+        return if (longest > size) {
+            bitmap.scale((bitmap.width * size / longest).coerceAtLeast(1), (bitmap.height * size / longest).coerceAtLeast(1))
+        } else {
+            bitmap
+        }
     }
 }
 

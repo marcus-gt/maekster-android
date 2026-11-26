@@ -2,6 +2,7 @@ package com.subtracks
 
 import android.app.Application
 import android.content.res.Configuration
+import android.os.Build
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.annotation.DelicateCoilApi
@@ -14,6 +15,7 @@ import com.subtracks.di.appModule
 import com.subtracks.log.Log
 import com.subtracks.ui.theme.ArtworkSeedCache
 import com.subtracks.widget.NowPlayingWidgetUpdater
+import com.subtracks.widget.RecentlyAddedAlbumsWidgetUpdater
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -50,6 +52,7 @@ class SubtracksApp : Application() {
                 .components { add(OkHttpNetworkFetcherFactory(callFactory = { http })) }
                 .build()
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) koin.get<RecentlyAddedAlbumsWidgetUpdater>().start()
     }
 
     /** The widget's mood labels depend on the font scale, so a new scale redraws it. */

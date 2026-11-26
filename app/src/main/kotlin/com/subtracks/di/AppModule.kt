@@ -270,6 +270,17 @@ fun appModule(
         }
     }
     single { NowPlayingLauncher() }
+    single { com.subtracks.ui.HomeSectionLauncher() }
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        single {
+            com.subtracks.widget.RecentlyAddedAlbumsWidgetUpdater(
+                context.applicationContext,
+                get(),
+                get(),
+                get(named("io")),
+            )
+        }
+    }
     single {
         LauncherShortcutRunner(
             activeSourceId = get<SourceRepository>()::activeSourceIdOnce,
@@ -286,11 +297,12 @@ fun appModule(
         val sources = get<SourceRepository>()
         val queues = get<QueueRepository>()
         val renderer = get<com.subtracks.widget.NowPlayingWidgetRenderer>()
+        val artwork = com.subtracks.widget.WidgetArtwork(context.applicationContext, sources)
         com.subtracks.widget
             .NowPlayingWidgetUpdater(
                 state = playback.state,
                 savedItem = { com.subtracks.widget.savedQueueItem(queues, sources) },
-                artwork = com.subtracks.widget.NowPlayingWidgetArtwork(context.applicationContext, sources)::load,
+                artwork = { artwork.load(it) },
                 render = renderer::render,
                 hasWidgets = renderer::hasWidgets,
                 scope = get(named("playback")),
