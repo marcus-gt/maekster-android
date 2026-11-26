@@ -421,6 +421,12 @@ class LibraryRepository(
             if (spec.downloaded) dao.downloadedSongsPaging(query) else dao.songsPaging(query)
         }
 
+    internal fun favoriteSongsPreview(
+        sourceId: Long,
+        spec: SongListSpec,
+        limit: Int,
+    ): Flow<List<AlbumSongItem>> = db.libraryDao().observeFavoriteSongs(songsPageQuery(sourceId, spec, offset = 0, limit = limit))
+
     /** The Genres or Labels list. Offline ([downloaded]) it counts only what has a download. */
     fun albumCollections(
         sourceId: Long,

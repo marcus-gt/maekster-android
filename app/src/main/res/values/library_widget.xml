@@ -4,4 +4,7 @@
     <string name="widget_recent_albums_no_server">Open maekster to add a server.</string>
     <string name="widget_recent_albums_empty">Open Recently added and sync your library.</string>
     <string name="widget_album_action">%1$s: %2$s</string>
+    <string name="widget_favorite_songs_description">Play favorite songs from your library</string>
+    <string name="widget_favorite_songs_empty">Tap the heart on a song to add it here.</string>
+    <string name="widget_favorite_songs_offline_empty">No downloaded favorite songs.</string>
 </resources>

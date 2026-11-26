@@ -851,6 +851,9 @@ interface LibraryDao {
     @RawQuery(observedEntities = [Song::class, Album::class, SongSearch::class])
     fun songsPaging(query: RoomRawQuery): PagingSource<Int, AlbumSongItem>
 
+    @RawQuery(observedEntities = [Song::class, Album::class, SongDownload::class])
+    fun observeFavoriteSongs(query: RoomRawQuery): Flow<List<AlbumSongItem>>
+
     @RawQuery(
         observedEntities = [
             Album::class, Artist::class, Song::class, SongDownload::class, Source::class,

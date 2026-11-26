@@ -14,6 +14,7 @@ import com.subtracks.data.repo.ArtworkSeedStore
 import com.subtracks.di.appModule
 import com.subtracks.log.Log
 import com.subtracks.ui.theme.ArtworkSeedCache
+import com.subtracks.widget.FavoriteSongsWidgetUpdater
 import com.subtracks.widget.NowPlayingWidgetUpdater
 import com.subtracks.widget.RecentlyAddedAlbumsWidgetUpdater
 import org.koin.core.context.GlobalContext
@@ -52,7 +53,10 @@ class SubtracksApp : Application() {
                 .components { add(OkHttpNetworkFetcherFactory(callFactory = { http })) }
                 .build()
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) koin.get<RecentlyAddedAlbumsWidgetUpdater>().start()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            koin.get<RecentlyAddedAlbumsWidgetUpdater>().start()
+            koin.get<FavoriteSongsWidgetUpdater>().start()
+        }
     }
 
     /** The widget's mood labels depend on the font scale, so a new scale redraws it. */

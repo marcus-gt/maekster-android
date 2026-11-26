@@ -7,6 +7,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.subtracks.R
 import com.subtracks.data.db.SongListSpec
+import com.subtracks.data.db.favoriteSongListSpec
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.AlbumCollectionKind
 import com.subtracks.data.model.AlbumCollectionSummary
@@ -264,15 +265,7 @@ class HomeListViewModel(
     internal val favoriteSongsQuery: StateFlow<LibrarySongsQuery?> =
         combine(libraryRepository.activeSourceId, sourceRepository.offline, preferences.sortNameMode()) { id, offline, mode ->
             id?.let {
-                LibrarySongsQuery(
-                    it,
-                    SongListSpec(
-                        sort = request.favoriteSort.songs,
-                        starred = StarredFilter.Starred,
-                        downloaded = offline,
-                        sortNameMode = mode,
-                    ),
-                )
+                LibrarySongsQuery(it, favoriteSongListSpec(request.favoriteSort, offline, mode))
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 

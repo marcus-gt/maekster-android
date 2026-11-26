@@ -2,6 +2,7 @@ package com.subtracks.data.db
 
 import androidx.room3.RoomRawQuery
 import com.subtracks.data.prefs.AlbumSort
+import com.subtracks.data.prefs.FavoriteSort
 import com.subtracks.data.prefs.SongSort
 import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StarredFilter
@@ -73,6 +74,12 @@ data class SongListSpec(
         }
     }
 }
+
+internal fun favoriteSongListSpec(
+    sort: FavoriteSort,
+    downloaded: Boolean,
+    sortNameMode: SortNameMode,
+): SongListSpec = SongListSpec(sort = sort.songs, starred = StarredFilter.Starred, downloaded = downloaded, sortNameMode = sortNameMode)
 
 private const val SONGS_FROM =
     "FROM songs LEFT JOIN albums ON albums.sourceId = songs.sourceId AND albums.id = songs.albumId " +

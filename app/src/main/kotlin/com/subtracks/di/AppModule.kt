@@ -273,6 +273,16 @@ fun appModule(
     single { com.subtracks.ui.HomeSectionLauncher() }
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
         single {
+            com.subtracks.widget.FavoriteSongsWidgetUpdater(
+                context.applicationContext,
+                get(),
+                get(),
+                get(),
+                get<PlaybackController>().state,
+                get(named("io")),
+            )
+        }
+        single {
             com.subtracks.widget.RecentlyAddedAlbumsWidgetUpdater(
                 context.applicationContext,
                 get(),
