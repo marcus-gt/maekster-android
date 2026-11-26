@@ -16,8 +16,10 @@ import android.os.Bundle
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
+import androidx.annotation.DrawableRes
 import androidx.annotation.IdRes
 import androidx.annotation.LayoutRes
+import androidx.annotation.StringRes
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import coil3.SingletonImageLoader
@@ -28,10 +30,12 @@ import coil3.toBitmap
 import com.subtracks.MainActivity
 import com.subtracks.R
 import com.subtracks.data.audiomuse.RadioMood
+import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.coverArtKey
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.log.Log
+import com.subtracks.playback.QueueCollection
 import com.subtracks.playback.QueueItem
 import com.subtracks.playback.toQueueItem
 import kotlinx.coroutines.CoroutineScope
@@ -248,19 +252,7 @@ class NowPlayingWidgetRenderer(
                 skipButton(R.id.widget_previous, NowPlayingWidgetAction.Previous, enabled = content.live)
                 skipButton(R.id.widget_next, NowPlayingWidgetAction.Next, enabled = content.live && content.hasNext)
             }
-            if (layout.hasMoods) moodButtons(content.startingMood)
-        }
-    }
-
-    /** While one mood radio starts, the others dim and no button takes another tap. */
-    private fun RemoteViews.moodButtons(starting: RadioMood?) {
-        val labels = context.resources.configuration.fontScale < LARGE_TEXT_SCALE
-        RadioMood.entries.forEach { mood ->
-            val button = mood.widgetButtonId()
-            setOnClickPendingIntent(button, NowPlayingWidget.moodIntent(context, mood))
-            setBoolean(button, "setEnabled", starting == null)
-            setFloat(button, "setAlpha", if (starting == null || starting == mood) 1f else DIMMED_ALPHA)
-            setViewVisibility(mood.widgetLabelId(), if (labels) View.VISIBLE else View.GONE)
+            if (layout.hasMoods) setWidgetMoodButtons(context, content.startingMood, content.playingMood, content.isPlaying)
         }
     }
 
@@ -287,12 +279,43 @@ class NowPlayingWidgetRenderer(
 
     private companion object {
         const val DISABLED_ALPHA = 97
-        const val DIMMED_ALPHA = 0.4f
-
-        /** From this font scale the mood labels no longer fit under their icons, so only the icons stay. */
-        const val LARGE_TEXT_SCALE = 1.3f
     }
 }
+
+/**
+ * The row of mood radios shared by the widgets (`widget_mood_row`). Taps go to [NowPlayingWidget], so only one mood
+ * radio starts at a time whichever widget was tapped. While one starts, the others dim and no button takes a tap.
+ * The mood radio the player holds ([playing]) shows pause or play instead of its icon, and a tap on it toggles.
+ */
+internal fun RemoteViews.setWidgetMoodButtons(
+    context: Context,
+    starting: RadioMood?,
+    playing: RadioMood? = null,
+    isPlaying: Boolean = false,
+) {
+    val labels = context.resources.configuration.fontScale < WIDGET_LARGE_TEXT_SCALE
+    RadioMood.entries.forEach { mood ->
+        val button = mood.widgetButtonId()
+        setOnClickPendingIntent(button, NowPlayingWidget.moodIntent(context, mood))
+        setBoolean(button, "setEnabled", starting == null)
+        setFloat(button, "setAlpha", if (starting == null || starting == mood) 1f else WIDGET_DIMMED_ALPHA)
+        setViewVisibility(mood.widgetLabelId(), if (labels) View.VISIBLE else View.GONE)
+        val title = context.getString(mood.widgetTitle())
+        if (mood == playing) {
+            setImageViewResource(mood.widgetIconId(), if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play)
+            val action = context.getString(if (isPlaying) R.string.controls_pause else R.string.controls_play)
+            setContentDescription(button, context.getString(R.string.widget_album_action, action, title))
+        } else {
+            setImageViewResource(mood.widgetIconId(), mood.widgetIcon())
+            setContentDescription(button, title)
+        }
+    }
+}
+
+internal const val WIDGET_DIMMED_ALPHA = 0.4f
+
+/** From this font scale the mood labels no longer fit under their icons, so only the icons stay. */
+private const val WIDGET_LARGE_TEXT_SCALE = 1.3f
 
 internal class WidgetArtworkBackground {
     private var backgroundCover: Bitmap? = null
@@ -344,6 +367,39 @@ internal fun RadioMood.widgetButtonId(): Int =
     }
 
 @IdRes
+internal fun RadioMood.widgetIconId(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.id.widget_mood_night_icon
+        RadioMood.ENERGETIC -> R.id.widget_mood_energetic_icon
+        RadioMood.WORKOUT -> R.id.widget_mood_workout_icon
+        RadioMood.CHILL -> R.id.widget_mood_chill_icon
+        RadioMood.FOCUS -> R.id.widget_mood_focus_icon
+    }
+
+@DrawableRes
+private fun RadioMood.widgetIcon(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.drawable.ic_widget_mood_night
+        RadioMood.ENERGETIC -> R.drawable.ic_widget_mood_energetic
+        RadioMood.WORKOUT -> R.drawable.ic_widget_mood_workout
+        RadioMood.CHILL -> R.drawable.ic_widget_mood_chill
+        RadioMood.FOCUS -> R.drawable.ic_widget_mood_focus
+    }
+
+@StringRes
+private fun RadioMood.widgetTitle(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.string.mood_radio_queue_night
+        RadioMood.ENERGETIC -> R.string.mood_radio_queue_energetic
+        RadioMood.WORKOUT -> R.string.mood_radio_queue_workout
+        RadioMood.CHILL -> R.string.mood_radio_queue_chill
+        RadioMood.FOCUS -> R.string.mood_radio_queue_focus
+    }
+
+/** The mood radio a queue stored as [label] plays, if it is one. */
+internal fun radioMoodOf(label: String?): RadioMood? = RadioMood.entries.firstOrNull { QueueCollection.forMood(it).storedLabel == label }
+
+@IdRes
 internal fun RadioMood.widgetLabelId(): Int =
     when (this) {
         RadioMood.NIGHT -> R.id.widget_mood_night_label
@@ -365,6 +421,11 @@ internal class WidgetArtwork(
     ): Bitmap? {
         val ref = sources.coverArt(coverArtId, thumbnail = true) ?: return null
         if (sourceId != null && ref.cacheKey != coverArtKey(sourceId, coverArtId, thumbnail = true)) return null
+        return load(ref)
+    }
+
+    /** Loads [ref] through the shared image cache, scaled down to the widget size. */
+    suspend fun load(ref: CoverArtRef): Bitmap? {
         val request =
             ImageRequest
                 .Builder(context)

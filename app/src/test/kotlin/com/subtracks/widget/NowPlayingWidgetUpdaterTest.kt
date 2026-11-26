@@ -27,6 +27,7 @@ class NowPlayingWidgetUpdaterTest {
     private var savedLookups = 0
     private var widgets = true
     private val moods = MutableStateFlow(false)
+    private val queueLabel = MutableStateFlow<String?>(null)
 
     private fun item(
         id: String,
@@ -54,7 +55,28 @@ class NowPlayingWidgetUpdaterTest {
             hasWidgets = { widgets },
             scope = backgroundScope,
             moodsAvailable = moods,
+            queueLabel = queueLabel,
         ).also { it.start() }
+
+    @Test
+    fun theMoodRadioThePlayerHoldsIsMarkedOnTheMoodRow() =
+        runTest(UnconfinedTestDispatcher()) {
+            moods.value = true
+            startUpdater()
+            queueLabel.value =
+                com.subtracks.playback.QueueCollection
+                    .forMood(RadioMood.CHILL)
+                    .storedLabel
+            assertEquals(null, renders.last().first.playingMood)
+
+            state.value = playing(item("1"))
+            assertEquals(RadioMood.CHILL, renders.last().first.playingMood)
+
+            queueLabel.value =
+                com.subtracks.playback.QueueCollection
+                    .artistRadioLabel("A")
+            assertEquals(null, renders.last().first.playingMood)
+        }
 
     @Test
     fun theMoodRowComesAndGoesWithMoodAvailability() =

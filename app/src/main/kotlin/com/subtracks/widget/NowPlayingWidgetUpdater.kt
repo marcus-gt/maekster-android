@@ -37,6 +37,8 @@ data class NowPlayingWidgetContent(
     val moods: Boolean = false,
     /** The mood radio a widget tap is starting, until it plays or fails. */
     val startingMood: RadioMood? = null,
+    /** The mood radio the player holds, whose button shows play or pause. */
+    val playingMood: RadioMood? = null,
 ) {
     companion object {
         val Empty = NowPlayingWidgetContent(null, null, null, isPlaying = false, live = false, hasNext = false)
@@ -71,10 +73,12 @@ class NowPlayingWidgetUpdater(
     private val hasWidgets: () -> Boolean,
     private val scope: CoroutineScope,
     private val moodsAvailable: Flow<Boolean> = flowOf(false),
+    private val queueLabel: Flow<String?> = flowOf(null),
 ) {
     private val lock = Mutex()
     private var live: NowPlayingWidgetContent? = null
     private var moods = false
+    private var queueMood: RadioMood? = null
     private val starting = MutableStateFlow<RadioMood?>(null)
     private var startingMood: RadioMood? = null
     private var rendered: NowPlayingWidgetContent? = null
@@ -96,6 +100,12 @@ class NowPlayingWidgetUpdater(
                 }
             }
             launch {
+                queueLabel.map(::radioMoodOf).distinctUntilChanged().collect { mood ->
+                    lock.withLock { queueMood = mood }
+                    update(force = false)
+                }
+            }
+            launch {
                 starting.collect { mood ->
                     lock.withLock { startingMood = mood }
                     update(force = false)
@@ -107,6 +117,9 @@ class NowPlayingWidgetUpdater(
     fun showStartingMood(mood: RadioMood?) {
         starting.value = mood
     }
+
+    /** The mood radio a tap on any widget's mood row is starting, so every mood row dims together. */
+    val moodStarting: StateFlow<RadioMood?> get() = starting
 
     /** Renders again even if nothing changed: a widget was added, resized or the launcher asked for it. */
     fun refresh() {
@@ -121,7 +134,11 @@ class NowPlayingWidgetUpdater(
             }
             val content =
                 (live ?: savedItemOrNull()?.let(NowPlayingWidgetContent::saved) ?: NowPlayingWidgetContent.Empty)
-                    .copy(moods = moods, startingMood = startingMood?.takeIf { moods })
+                    .copy(
+                        moods = moods,
+                        startingMood = startingMood?.takeIf { moods },
+                        playingMood = queueMood?.takeIf { moods && live != null },
+                    )
             if (!force && content == rendered) return@withLock
             render(content, artworkFor(content.coverArtId))
             rendered = content
@@ -185,14 +202,20 @@ class NowPlayingWidgetCommands(
     private val playMood: suspend (RadioMood) -> MoodRadioResult = { MoodRadioResult.Unavailable },
     private val showStartingMood: (RadioMood?) -> Unit = {},
     private val showMessage: (messageRes: Int) -> Unit = {},
+    private val queueLabel: suspend () -> String? = { null },
 ) {
     private val startingMood = AtomicBoolean(false)
 
     /**
      * Starts a mood radio from the home screen, one at a time; taps while one starts are ignored. Nothing opens:
-     * the widget shows the radio once it plays, and a short message says why when it can't start.
+     * the widget shows the radio once it plays, and a short message says why when it can't start. A tap on the mood
+     * radio the player already holds pauses or resumes it instead.
      */
     suspend fun startMood(mood: RadioMood) {
+        if (hasItem() && radioMoodOf(queueLabel()) == mood) {
+            togglePlayPause()
+            return
+        }
         if (!startingMood.compareAndSet(false, true)) return
         showStartingMood(mood)
         try {

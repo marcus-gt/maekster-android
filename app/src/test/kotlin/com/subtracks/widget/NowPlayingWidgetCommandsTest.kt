@@ -3,6 +3,7 @@ package com.subtracks.widget
 import com.subtracks.R
 import com.subtracks.data.audiomuse.MoodRadioResult
 import com.subtracks.data.audiomuse.RadioMood
+import com.subtracks.playback.QueueCollection
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -17,6 +18,7 @@ class NowPlayingWidgetCommandsTest {
     private fun commands(
         hasItem: Boolean,
         resumes: Boolean = true,
+        queueLabel: String? = null,
         playMood: suspend (RadioMood) -> MoodRadioResult = { MoodRadioResult.Ready(listOf("s")) },
     ) = NowPlayingWidgetCommands(
         hasItem = { hasItem },
@@ -34,7 +36,21 @@ class NowPlayingWidgetCommandsTest {
         },
         showStartingMood = { calls += "starting ${it?.key}" },
         showMessage = { calls += "message $it" },
+        queueLabel = { queueLabel },
     )
+
+    @Test
+    fun aTapOnTheMoodRadioThatIsPlayingPausesOrResumesIt() =
+        runBlocking {
+            val chill = QueueCollection.forMood(RadioMood.CHILL).storedLabel
+            commands(hasItem = true, queueLabel = chill).startMood(RadioMood.CHILL)
+            assertEquals(listOf("toggle"), calls)
+
+            calls.clear()
+            commands(hasItem = true, queueLabel = chill).startMood(RadioMood.FOCUS)
+            commands(hasItem = false, queueLabel = chill).startMood(RadioMood.CHILL)
+            assertEquals(listOf("starting focus", "mood focus", "starting null", "starting chill", "mood chill", "starting null"), calls)
+        }
 
     @Test
     fun aMoodTapStartsThatRadioAndShowsItStartingMeanwhile() =

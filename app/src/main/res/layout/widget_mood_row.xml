@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/widget_moods"
+    android:layout_width="match_parent"
+    android:layout_height="58dp"
+    android:orientation="horizontal"
+    tools:ignore="ContentDescription">
+
+    <LinearLayout
+        android:id="@+id/widget_mood_night"
+        style="@style/Widget.Maekster.NowPlaying.Mood"
+        android:background="@drawable/widget_mood_night"
+        android:contentDescription="@string/mood_radio_queue_night">
+
+        <ImageView
+            android:id="@+id/widget_mood_night_icon"
+            style="@style/Widget.Maekster.NowPlaying.MoodIcon"
+            android:src="@drawable/ic_widget_mood_night" />
+
+        <TextView
+            android:id="@+id/widget_mood_night_label"
+            style="@style/Widget.Maekster.NowPlaying.MoodLabel"
+            android:text="@string/mood_night" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_mood_energetic"
+        style="@style/Widget.Maekster.NowPlaying.Mood"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/widget_mood_energetic"
+        android:contentDescription="@string/mood_radio_queue_energetic">
+
+        <ImageView
+            android:id="@+id/widget_mood_energetic_icon"
+            style="@style/Widget.Maekster.NowPlaying.MoodIcon"
+            android:src="@drawable/ic_widget_mood_energetic" />
+
+        <TextView
+            android:id="@+id/widget_mood_energetic_label"
+            style="@style/Widget.Maekster.NowPlaying.MoodLabel"
+            android:text="@string/mood_energetic" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_mood_workout"
+        style="@style/Widget.Maekster.NowPlaying.Mood"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/widget_mood_workout"
+        android:contentDescription="@string/mood_radio_queue_workout">
+
+        <ImageView
+            android:id="@+id/widget_mood_workout_icon"
+            style="@style/Widget.Maekster.NowPlaying.MoodIcon"
+            android:src="@drawable/ic_widget_mood_workout" />
+
+        <TextView
+            android:id="@+id/widget_mood_workout_label"
+            style="@style/Widget.Maekster.NowPlaying.MoodLabel"
+            android:text="@string/mood_workout" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_mood_chill"
+        style="@style/Widget.Maekster.NowPlaying.Mood"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/widget_mood_chill"
+        android:contentDescription="@string/mood_radio_queue_chill">
+
+        <ImageView
+            android:id="@+id/widget_mood_chill_icon"
+            style="@style/Widget.Maekster.NowPlaying.MoodIcon"
+            android:src="@drawable/ic_widget_mood_chill" />
+
+        <TextView
+            android:id="@+id/widget_mood_chill_label"
+            style="@style/Widget.Maekster.NowPlaying.MoodLabel"
+            android:text="@string/mood_chill" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_mood_focus"
+        style="@style/Widget.Maekster.NowPlaying.Mood"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/widget_mood_focus"
+        android:contentDescription="@string/mood_radio_queue_focus">
+
+        <ImageView
+            android:id="@+id/widget_mood_focus_icon"
+            style="@style/Widget.Maekster.NowPlaying.MoodIcon"
+            android:src="@drawable/ic_widget_mood_focus" />
+
+        <TextView
+            android:id="@+id/widget_mood_focus_label"
+            style="@style/Widget.Maekster.NowPlaying.MoodLabel"
+            android:text="@string/mood_focus" />
+    </LinearLayout>
+</LinearLayout>

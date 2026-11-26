@@ -110,6 +110,7 @@ import com.subtracks.ui.settings.QuickPlaylistsSettingsViewModel
 import com.subtracks.ui.settings.SettingsViewModel
 import com.subtracks.ui.settings.StorageViewModel
 import com.subtracks.ui.settings.activeLibraryCounts
+import com.subtracks.widget.radioLabel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -282,6 +283,34 @@ fun appModule(
                 get(named("io")),
             )
         }
+        single {
+            com.subtracks.widget.RadioStationsWidgetUpdater(
+                context = context.applicationContext,
+                sources = get(),
+                stationArtists = get<SubtracksDatabase>().mixDao()::stationArtists,
+                offline = get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess")).map { it.offline },
+                moodsAvailable =
+                    com.subtracks.widget.widgetMoodsAvailable(get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess"))) { id ->
+                        get<AudioMuseConfiguration>().observe(id).map { it.available }
+                    },
+                startingMood = get<com.subtracks.widget.NowPlayingWidgetUpdater>().moodStarting,
+                playback = get<PlaybackController>().state,
+                queueLabel = get<QueueRepository>().sourceLabels(),
+                scope = get(named("io")),
+            )
+        }
+        single {
+            val playback = get<PlaybackController>()
+            val queues = get<QueueRepository>()
+            com.subtracks.widget.RadioStationsWidgetCommands(
+                activeSourceId = get<SourceRepository>()::activeSourceIdOnce,
+                playArtistRadio = get<InstantMixPlayer>()::playArtistRadio,
+                showStartingArtist = get<com.subtracks.widget.RadioStationsWidgetUpdater>()::showStartingArtist,
+                showMessage = { res -> showWidgetToast(context, res) },
+                currentRadio = { sourceId -> playback.state.value.radioLabel(sourceId, queues.sourceLabel()) },
+                togglePlayPause = playback::togglePlayPause,
+            )
+        }
         for (shelf in com.subtracks.widget.AlbumShelf.entries) {
             single(shelf.updaterName) {
                 com.subtracks.widget.AlbumShelfWidgetUpdater(
@@ -324,6 +353,7 @@ fun appModule(
                     com.subtracks.widget.widgetMoodsAvailable(get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess"))) { id ->
                         get<AudioMuseConfiguration>().observe(id).map { it.available }
                     },
+                queueLabel = queues.sourceLabels(),
             ).also { it.start() }
     }
     single {
@@ -337,13 +367,8 @@ fun appModule(
             refresh = get<com.subtracks.widget.NowPlayingWidgetUpdater>()::refresh,
             playMood = get<MoodRadioPlayer>()::play,
             showStartingMood = get<com.subtracks.widget.NowPlayingWidgetUpdater>()::showStartingMood,
-            showMessage = { res ->
-                val app = context.applicationContext
-                androidx.core.content.ContextCompat.getMainExecutor(app).execute {
-                    val toast = android.widget.Toast.makeText(app, res, android.widget.Toast.LENGTH_LONG)
-                    toast.show()
-                }
-            },
+            showMessage = { res -> showWidgetToast(context, res) },
+            queueLabel = get<QueueRepository>()::sourceLabel,
         )
     }
     single {
@@ -629,6 +654,19 @@ fun appModule(
             offline = offline,
             loader = LyricsLoader.from(get()),
         )
+    }
+}
+
+/** A widget tap has no screen to show a snackbar on, so its messages are toasts. */
+private fun showWidgetToast(
+    context: Context,
+    res: Int,
+) {
+    val app = context.applicationContext
+    androidx.core.content.ContextCompat.getMainExecutor(app).execute {
+        android.widget.Toast
+            .makeText(app, res, android.widget.Toast.LENGTH_LONG)
+            .show()
     }
 }
 

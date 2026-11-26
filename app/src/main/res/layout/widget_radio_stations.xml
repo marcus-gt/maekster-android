@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:clipToOutline="true"
+    tools:ignore="Overdraw"
+    tools:targetApi="31">
+
+    <ImageView
+        android:id="@id/widget_art_background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/widget_radio_header"
+            style="@style/Widget.Maekster.AlbumShelf.Header"
+            android:text="@string/widget_radio_stations_label" />
+
+        <include
+            layout="@layout/widget_mood_row"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:layout_marginHorizontal="4dp"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/widget_radio_offline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="8dp"
+            android:paddingBottom="4dp"
+            android:text="@string/widget_radio_stations_offline"
+            android:textColor="@color/widget_text_secondary_on_artwork"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <GridView
+                android:id="@+id/widget_radio_grid"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:columnWidth="76dp"
+                android:numColumns="auto_fit"
+                android:stretchMode="columnWidth" />
+
+            <TextView
+                android:id="@+id/widget_radio_empty"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:padding="8dp"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

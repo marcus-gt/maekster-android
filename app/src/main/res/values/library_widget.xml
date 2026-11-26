@@ -9,6 +9,9 @@
     <string name="widget_favorite_songs_description">Play favorite songs from your library</string>
     <string name="widget_favorite_songs_empty">Tap the heart on a song to add it here.</string>
     <string name="widget_favorite_songs_offline_empty">No downloaded favorite songs.</string>
+    <string name="widget_radio_stations_label">Radio stations</string>
+    <string name="widget_radio_stations_description">Start artist radio and mood radio from your home screen</string>
+    <string name="widget_radio_stations_offline">Offline: artist radio plays downloaded songs.</string>
 
     <style name="Widget.Maekster.AlbumShelf.Header" parent="">
         <item name="android:layout_width">match_parent</item>

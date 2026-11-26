@@ -153,6 +153,17 @@ class NowPlayingWidgetRendererTest {
     }
 
     @Test
+    fun theMoodRadioThatIsPlayingShowsPauseAndThePausedOnePlay() {
+        val playingChill = inflate(NowPlayingWidgetLayout.Moods, playing.copy(moods = true, playingMood = RadioMood.CHILL))
+        assertEquals("Pause: Chill radio", playingChill.findViewById<View>(RadioMood.CHILL.widgetButtonId()).contentDescription)
+        assertEquals("Focus radio", playingChill.findViewById<View>(RadioMood.FOCUS.widgetButtonId()).contentDescription)
+
+        val pausedChill =
+            inflate(NowPlayingWidgetLayout.Moods, playing.copy(moods = true, playingMood = RadioMood.CHILL, isPlaying = false))
+        assertEquals("Play: Chill radio", pausedChill.findViewById<View>(RadioMood.CHILL.widgetButtonId()).contentDescription)
+    }
+
+    @Test
     fun atLargeFontSizesTheMoodsKeepTheirIconsButDropTheLabels() {
         RuntimeEnvironment.setFontScale(2f)
         val view = inflate(NowPlayingWidgetLayout.Moods, playing.copy(moods = true))

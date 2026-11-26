@@ -18,6 +18,7 @@ import com.subtracks.widget.AlbumShelf
 import com.subtracks.widget.AlbumShelfWidgetUpdater
 import com.subtracks.widget.FavoriteSongsWidgetUpdater
 import com.subtracks.widget.NowPlayingWidgetUpdater
+import com.subtracks.widget.RadioStationsWidgetUpdater
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -57,14 +58,18 @@ class SubtracksApp : Application() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             AlbumShelf.entries.forEach { koin.get<AlbumShelfWidgetUpdater>(it.updaterName).start() }
             koin.get<FavoriteSongsWidgetUpdater>().start()
+            koin.get<RadioStationsWidgetUpdater>().start()
         }
     }
 
-    /** The widget's mood labels depend on the font scale, so a new scale redraws it. */
+    /** The widgets' mood labels depend on the font scale, so a new scale redraws them. */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         if (newConfig.fontScale == fontScale) return
         fontScale = newConfig.fontScale
         GlobalContext.getOrNull()?.getOrNull<NowPlayingWidgetUpdater>()?.refresh()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            GlobalContext.getOrNull()?.getOrNull<RadioStationsWidgetUpdater>()?.refresh()
+        }
     }
 }

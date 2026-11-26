@@ -99,6 +99,19 @@
                 android:resource="@xml/favorite_songs_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".widget.RadioStationsWidget"
+            android:enabled="@bool/library_widgets_enabled"
+            android:exported="false"
+            android:label="@string/widget_radio_stations_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/radio_stations_widget_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
