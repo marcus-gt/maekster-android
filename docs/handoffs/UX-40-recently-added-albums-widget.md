@@ -47,4 +47,35 @@ covers and titles and reflowed to three columns when narrowed. Checked the narro
 album. The empty and no-server data states are covered by the regression and their copy was
 checked in resources. No separate launcher run used an empty library or Android 11.
 
+## Play and pause follow-up
+
+Owner requested an indication on the playing album and another tap to pause it. The cover
+shows Pause while the current album plays and Play while paused. The same tile toggles the
+controller and preserves the existing queue and position. Other albums still start in order.
+Song album IDs are carried through Media3 so matching works even during playlist playback.
+Widget updates are distinct by visible shelf and transport state.
+
+The focused regression failed when the playing indicator was forced to paused and passed
+with the restored logic. It also covers playlists, a paused album and cross-server isolation.
+Formatting, debug assemble, full unit suite, ktlint, Android lint and diff whitespace checks
+passed. On the API 37 emulator the Roma tile showed Pause after starting, Play after pausing,
+and Pause after resuming. The indicator remained present at 200% font. Restored 100%.
+
+Rebuilt and installed the play/pause debug APK on the owner's Pixel 9
+at their request. The earlier Pixel 9 check covered the original UX-40 build. The owner
+has yet to verify pause and resume on the phone.
+## Artwork background follow-up
+
+Owner requested the Now Playing background treatment for Recently Added during playback.
+Both widgets use the same softened bitmap and dark scrim. Recently Added uses the current
+track's artwork on the active server, falling back to its visible album cover if the track
+has no cover ID. It clears the image when paused or when there is no usable artwork.
+
+The focused regression failed when paused playback could still supply a background. After
+restoring the pause check, formatting, debug assemble, full unit suite, ktlint, Android lint
+and diff whitespace checks passed. On the API 37 emulator, the Roma artwork matched the
+Now Playing treatment at 100% and 200% font. Pausing restored the dark surface. Restored
+100% font. Installed this debug APK on the owner's Pixel 9 at their request.
+The owner replied positively after installation and requested a commit. Detailed phone checks were not reported.
+
 Next: start UX-41 in a separate session.

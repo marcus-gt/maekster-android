@@ -10,6 +10,7 @@ fun SongItem.toQueueItem(albumContext: Boolean = false) =
         artist = song.artist,
         artists = song.artistRefs,
         album = song.album,
+        albumId = song.albumId,
         coverArtId = coverArt,
         durationMs = song.duration?.let { it * 1000 },
         replayGain = song.replayGain(),

@@ -181,8 +181,7 @@ class NowPlayingWidgetRenderer(
 ) {
     private val manager: AppWidgetManager? get() = AppWidgetManager.getInstance(context)
     private val component get() = ComponentName(context, NowPlayingWidget::class.java)
-    private var backgroundCover: Bitmap? = null
-    private var background: Bitmap? = null
+    private val artworkBackground = WidgetArtworkBackground()
 
     fun hasWidgets(): Boolean = manager?.getAppWidgetIds(component)?.isNotEmpty() == true
 
@@ -218,14 +217,8 @@ class NowPlayingWidgetRenderer(
         return RemoteViews(context.packageName, layout.res).apply {
             val open = openAppIntent(content)
             setOnClickPendingIntent(R.id.widget_root, open)
-            val coverBackground = backgroundFor(artwork)
-            if (coverBackground == null) {
-                setImageViewResource(R.id.widget_art_background, 0)
-                setViewVisibility(R.id.widget_art_background, View.GONE)
-            } else {
-                setImageViewBitmap(R.id.widget_art_background, coverBackground)
-                setViewVisibility(R.id.widget_art_background, View.VISIBLE)
-            }
+            val coverBackground = artworkBackground.forCover(artwork)
+            setWidgetArtworkBackground(coverBackground)
             setTextViewText(R.id.widget_title, content.title ?: context.getString(R.string.widget_nothing_playing))
             val artist = if (content.title == null) context.getString(R.string.widget_nothing_playing_hint) else content.artist
             setTextViewText(R.id.widget_artist, artist.orEmpty())
@@ -256,24 +249,6 @@ class NowPlayingWidgetRenderer(
                 skipButton(R.id.widget_next, NowPlayingWidgetAction.Next, enabled = content.live && content.hasNext)
             }
             if (layout.hasMoods) moodButtons(content.startingMood)
-        }
-    }
-
-    private fun backgroundFor(cover: Bitmap?): Bitmap? {
-        if (cover !== backgroundCover) {
-            background = cover?.let(::softenedBackground)
-            backgroundCover = cover
-        }
-        return background
-    }
-
-    private fun softenedBackground(cover: Bitmap): Bitmap {
-        val sample = cover.scale(BACKGROUND_SAMPLE_PX, BACKGROUND_SAMPLE_PX, filter = true)
-        return createBitmap(BACKGROUND_PX, BACKGROUND_PX).apply {
-            val canvas = Canvas(this)
-            canvas.drawColor(Color.BLACK)
-            canvas.drawBitmap(sample, null, Rect(0, 0, width, height), Paint(Paint.FILTER_BITMAP_FLAG))
-            canvas.drawColor(BACKGROUND_SCRIM)
         }
     }
 
@@ -311,14 +286,50 @@ class NowPlayingWidgetRenderer(
     }
 
     private companion object {
-        const val BACKGROUND_SAMPLE_PX = 24
-        const val BACKGROUND_PX = 64
-        const val BACKGROUND_SCRIM = 0xAE000000.toInt()
         const val DISABLED_ALPHA = 97
         const val DIMMED_ALPHA = 0.4f
 
         /** From this font scale the mood labels no longer fit under their icons, so only the icons stay. */
         const val LARGE_TEXT_SCALE = 1.3f
+    }
+}
+
+internal class WidgetArtworkBackground {
+    private var backgroundCover: Bitmap? = null
+    private var background: Bitmap? = null
+
+    fun forCover(cover: Bitmap?): Bitmap? {
+        if (cover !== backgroundCover) {
+            background = cover?.let(::softenedBackground)
+            backgroundCover = cover
+        }
+        return background
+    }
+
+    private fun softenedBackground(cover: Bitmap): Bitmap {
+        val sample = cover.scale(BACKGROUND_SAMPLE_PX, BACKGROUND_SAMPLE_PX, filter = true)
+        return createBitmap(BACKGROUND_PX, BACKGROUND_PX).apply {
+            val canvas = Canvas(this)
+            canvas.drawColor(Color.BLACK)
+            canvas.drawBitmap(sample, null, Rect(0, 0, width, height), Paint(Paint.FILTER_BITMAP_FLAG))
+            canvas.drawColor(BACKGROUND_SCRIM)
+        }
+    }
+
+    private companion object {
+        const val BACKGROUND_SAMPLE_PX = 24
+        const val BACKGROUND_PX = 64
+        const val BACKGROUND_SCRIM = 0xAE000000.toInt()
+    }
+}
+
+internal fun RemoteViews.setWidgetArtworkBackground(background: Bitmap?) {
+    if (background == null) {
+        setImageViewResource(R.id.widget_art_background, 0)
+        setViewVisibility(R.id.widget_art_background, View.GONE)
+    } else {
+        setImageViewBitmap(R.id.widget_art_background, background)
+        setViewVisibility(R.id.widget_art_background, View.VISIBLE)
     }
 }
 

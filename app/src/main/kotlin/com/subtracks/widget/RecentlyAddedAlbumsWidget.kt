@@ -16,11 +16,13 @@ import com.subtracks.data.model.Album
 import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.playback.PlaybackController
+import com.subtracks.playback.PlaybackState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -58,7 +60,12 @@ class RecentlyAddedAlbumsWidget : AppWidgetProvider() {
         koin.get<CoroutineScope>(named("playback")).launch {
             try {
                 if (koin.get<SourceRepository>().activeSourceIdOnce() == sourceId) {
-                    koin.get<PlaybackController>().playAlbumInOrder(sourceId, albumId)
+                    val playback = koin.get<PlaybackController>()
+                    if (playback.state.value.albumIsPlaying(sourceId, albumId) != null) {
+                        playback.togglePlayPause()
+                    } else {
+                        playback.playAlbumInOrder(sourceId, albumId)
+                    }
                 }
             } finally {
                 pending.finish()
@@ -98,13 +105,29 @@ class RecentlyAddedAlbumsWidget : AppWidgetProvider() {
 internal data class RecentAlbumsContent(
     val sourceId: Long?,
     val albums: List<WidgetAlbum> = emptyList(),
+    val backgroundCoverArt: String? = null,
 )
 
 internal data class WidgetAlbum(
     val id: String,
     val title: String,
     val coverArt: String?,
+    val isPlaying: Boolean? = null,
 )
+
+internal fun PlaybackState.albumIsPlaying(
+    sourceId: Long,
+    albumId: String,
+): Boolean? = isPlaying.takeIf { context?.sourceId == sourceId && item?.albumId == albumId }
+
+internal fun RecentAlbumsContent.withPlayback(state: PlaybackState): RecentAlbumsContent {
+    val sourceId = sourceId ?: return this
+    val playingAlbum = state.item?.takeIf { state.isPlaying && state.context?.sourceId == sourceId }
+    return copy(
+        albums = albums.map { it.copy(isPlaying = state.albumIsPlaying(sourceId, it.id)) },
+        backgroundCoverArt = playingAlbum?.let { item -> item.coverArtId ?: albums.firstOrNull { it.id == item.albumId }?.coverArt },
+    )
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal fun recentAlbumsContent(
@@ -126,12 +149,14 @@ internal class RecentlyAddedAlbumsWidgetUpdater(
     private val context: Context,
     private val sources: SourceRepository,
     private val library: LibraryRepository,
+    private val playback: Flow<PlaybackState>,
     private val scope: CoroutineScope,
 ) {
     private val manager = AppWidgetManager.getInstance(context)
     private val component = ComponentName(context, RecentlyAddedAlbumsWidget::class.java)
     private val revision = MutableStateFlow(0L)
     private val artwork = WidgetArtwork(context, sources, size = 96)
+    private val artworkBackground = WidgetArtworkBackground()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun start() {
@@ -142,6 +167,8 @@ internal class RecentlyAddedAlbumsWidgetUpdater(
                         emptyFlow()
                     } else {
                         recentAlbumsContent(sources.activeSourceId(), library::recentlyAddedAlbums)
+                            .combine(playback, RecentAlbumsContent::withPlayback)
+                            .distinctUntilChanged()
                     }
                 }.collectLatest { content ->
                     val views = views(content)
@@ -158,7 +185,9 @@ internal class RecentlyAddedAlbumsWidgetUpdater(
         val rows = RemoteViews.RemoteCollectionItems.Builder().setViewTypeCount(1)
         val sourceId = content.sourceId
         if (sourceId != null) addAlbums(rows, sourceId, content.albums)
+        val cover = if (sourceId != null) content.backgroundCoverArt?.let { artwork.load(it, sourceId) } else null
         return RemoteViews(context.packageName, R.layout.widget_recent_albums).apply {
+            setWidgetArtworkBackground(artworkBackground.forCover(cover))
             setEmptyView(R.id.widget_album_grid, R.id.widget_album_empty)
             setTextViewText(
                 R.id.widget_album_empty,
@@ -191,6 +220,19 @@ internal class RecentlyAddedAlbumsWidgetUpdater(
         for ((index, album) in albums.withIndex()) {
             val row = RemoteViews(context.packageName, R.layout.widget_recent_album)
             row.setTextViewText(R.id.widget_album_title, album.title)
+            val isPlaying = album.isPlaying
+            row.setViewVisibility(R.id.widget_album_playback, if (isPlaying == null) View.GONE else View.VISIBLE)
+            val action = if (isPlaying == true) R.string.controls_pause else R.string.controls_play
+            row.setContentDescription(
+                R.id.widget_album_cell,
+                context.getString(R.string.widget_album_action, context.getString(action), album.title),
+            )
+            if (isPlaying != null) {
+                row.setImageViewResource(
+                    R.id.widget_album_playback,
+                    if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play,
+                )
+            }
             val bitmap = album.coverArt?.let { artwork.load(it, sourceId) }
             if (bitmap != null) row.setImageViewBitmap(R.id.widget_album_cover, bitmap)
             row.setOnClickFillInIntent(R.id.widget_album_cell, RecentlyAddedAlbumsWidget.playAlbum(sourceId, album.id))

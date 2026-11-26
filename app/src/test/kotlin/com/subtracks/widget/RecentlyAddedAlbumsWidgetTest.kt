@@ -1,6 +1,10 @@
 package com.subtracks.widget
 
 import com.subtracks.data.model.Album
+import com.subtracks.data.model.QueueKind
+import com.subtracks.playback.PlaybackState
+import com.subtracks.playback.QueueContext
+import com.subtracks.playback.QueueItem
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -55,6 +59,39 @@ class RecentlyAddedAlbumsWidgetTest {
             runCurrent()
             assertEquals(RecentAlbumsContent(2, listOf(WidgetAlbum("1", "Album 1", null))), observed.last())
         }
+
+    @Test
+    fun onlyTheCurrentAlbumOffersPauseOrResume() {
+        val shelf = RecentAlbumsContent(1, listOf(WidgetAlbum("1", "First", null), WidgetAlbum("2", "Second", null)))
+        val playing =
+            PlaybackState(
+                item = QueueItem("song", "Song", null, "Second", null, albumId = "2"),
+                context = QueueContext(QueueKind.Playlist, 1, "playlist"),
+                isPlaying = true,
+            )
+
+        assertEquals(listOf(null, true), shelf.withPlayback(playing).albums.map { it.isPlaying })
+        assertEquals(listOf(null, false), shelf.withPlayback(playing.copy(isPlaying = false)).albums.map { it.isPlaying })
+        assertEquals(shelf, shelf.withPlayback(playing.copy(context = QueueContext(QueueKind.Album, 2, "2"))))
+        assertEquals(shelf, shelf.withPlayback(playing.copy(item = null)))
+    }
+
+    @Test
+    fun backgroundFollowsPlayingArtworkOnTheActiveServer() {
+        val shelf = RecentAlbumsContent(1, listOf(WidgetAlbum("2", "Album", "album-cover")))
+        val playing =
+            PlaybackState(
+                item = QueueItem("song", "Song", null, "Album", "track-cover", albumId = "2"),
+                context = QueueContext(QueueKind.Album, 1, "2"),
+                isPlaying = true,
+            )
+
+        assertEquals("track-cover", shelf.withPlayback(playing).backgroundCoverArt)
+        assertEquals("album-cover", shelf.withPlayback(playing.copy(item = playing.item?.copy(coverArtId = null))).backgroundCoverArt)
+        assertEquals(null, shelf.withPlayback(playing.copy(isPlaying = false)).backgroundCoverArt)
+        assertEquals(null, shelf.withPlayback(playing.copy(context = QueueContext(QueueKind.Album, 2, "2"))).backgroundCoverArt)
+        assertEquals(null, shelf.withPlayback(playing.copy(item = null)).backgroundCoverArt)
+    }
 
     private fun album(
         source: Long,

@@ -7,14 +7,29 @@
     android:orientation="vertical"
     android:padding="4dp">
 
-    <ImageView
-        android:id="@+id/widget_album_cover"
+    <FrameLayout
         android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:background="#333333"
-        android:importantForAccessibility="no"
-        android:scaleType="centerCrop"
-        android:src="@drawable/ic_launcher_round" />
+        android:layout_height="64dp">
+
+        <ImageView
+            android:id="@+id/widget_album_cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#333333"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_launcher_round" />
+
+        <ImageView
+            android:id="@+id/widget_album_playback"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            android:background="@drawable/widget_album_playback_background"
+            android:importantForAccessibility="no"
+            android:padding="6dp"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/widget_album_title"

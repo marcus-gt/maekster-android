@@ -3,4 +3,5 @@
     <string name="widget_recent_albums_description">Play recently added albums from your library</string>
     <string name="widget_recent_albums_no_server">Open maekster to add a server.</string>
     <string name="widget_recent_albums_empty">Open Recently added and sync your library.</string>
+    <string name="widget_album_action">%1$s: %2$s</string>
 </resources>

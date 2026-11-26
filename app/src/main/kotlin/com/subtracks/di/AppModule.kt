@@ -277,6 +277,7 @@ fun appModule(
                 context.applicationContext,
                 get(),
                 get(),
+                get<PlaybackController>().state,
                 get(named("io")),
             )
         }
