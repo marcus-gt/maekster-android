@@ -1,6 +1,6 @@
 # UX polish 3 — starter handoff
 
-**Status: IN PROGRESS.** Planned on 23 Nov 2026. Wave A merged in PR #61. UX-28 and UX-29 were not needed. Wave B is in progress. The slice list, waves, branches and
+**Status: IN PROGRESS.** Planned on 23 Nov 2026. Wave A merged in PR #61. UX-28 and UX-29 were not needed. Wave B is complete and awaits its PR. The slice list, waves, branches and
 statuses are in the [roadmap](../ANDROID_ROADMAP.md#post-m4--ux-polish-3-daily-feel-android-integration-and-visuals).
 The parent issue is [#60](https://github.com/marcus-gt/maekster-android/issues/60); tick its checklist as slices
 complete. Its sub-issues are #58, #18, #20, #22, #19, #8, #4 and #5. #10 stays a sub-issue of #31 but is listed in #60.
@@ -86,5 +86,6 @@ shared list plumbing; record it in its handoff for UX-41 to UX-44. Open owner qu
 
 Wave B branch `ux/polish-3b-android-integration` was cut from `origin/main` at `c31d5892` (PR #61).
 [UX-30](UX-30-output-switcher.md), [UX-31](UX-31-launcher-shortcuts.md) and [UX-32](UX-32-now-playing-widget.md) are
-complete (playback fixes found during UX-32 are in `d0071de5`). Next: UX-33 Predictive Back (#19), the last wave B
-slice; then wave B is ready for a PR.
+complete (playback fixes found during UX-32 are in `d0071de5`). [UX-33](UX-33-predictive-back.md) is complete too, so
+wave B is ready for a PR (the owner pushes and opens it). After it merges: mark UX-30 to UX-33 Merged and cut
+`ux/polish-3w-widgets` from a fresh `origin/main` (wave W comes before wave C).

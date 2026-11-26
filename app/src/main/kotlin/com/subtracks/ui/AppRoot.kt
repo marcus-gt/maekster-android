@@ -1,7 +1,6 @@
 package com.subtracks.ui
 
 import android.net.Uri
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.animation.AnimatedVisibility
@@ -149,6 +148,7 @@ private const val NAVIGATION_DURATION_MS = 260
 private const val OVERLAY_DURATION_MS = 200
 private const val FADE_OUT_MS = 150
 private const val EXPAND_FADE = 0.1f
+private const val QUEUE_BACK_PREVIEW = 0.15f
 private const val FLING_VELOCITY = 1000f
 private const val MINI_PLAYER_ANIM_MS = 200
 private const val NAVIGATION_BAR_ANIM_MS = 200
@@ -233,19 +233,22 @@ internal fun resetOnSourceSwitch(
     if (route in DETAIL_ROUTES) popDetail()
 }
 
-internal enum class OverlayBack { Queue, Lyrics, NowPlaying, Route }
+internal enum class OverlayBack { Queue, Lyrics, NowPlaying }
 
-/** What Back closes first: the queue, then the lyrics pane, then now playing, then the route under them. */
+/**
+ * What Back closes first: the queue, then the lyrics pane, then now playing. Null when no overlay is open, so the
+ * navigation host pops the route with its own predictive animation.
+ */
 internal fun overlayBack(
     showingQueue: Boolean,
     nowPlayingOpen: Boolean,
     showingLyrics: Boolean,
-): OverlayBack =
+): OverlayBack? =
     when {
         showingQueue -> OverlayBack.Queue
         nowPlayingOpen && showingLyrics -> OverlayBack.Lyrics
         nowPlayingOpen -> OverlayBack.NowPlaying
-        else -> OverlayBack.Route
+        else -> null
     }
 
 internal data class BackStackKey(
@@ -316,6 +319,8 @@ private fun MainNavigation() {
     var showingLyrics by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(nowPlayingOpen) { if (!nowPlayingOpen) showingLyrics = false }
     var nowPlayingProgress by remember { mutableFloatStateOf(0f) }
+    var queueBackProgress by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(showingQueue) { if (showingQueue) queueBackProgress = 0f }
     var miniPlayerTopPx by remember { mutableFloatStateOf(0f) }
     var nowPlayingFadeOut by remember { mutableStateOf(false) }
     var settleJob by remember { mutableStateOf<Job?>(null) }
@@ -1068,7 +1073,10 @@ private fun MainNavigation() {
                             QueueRoute(
                                 open = showingQueue,
                                 onBack = { showingQueue = false },
-                                modifier = Modifier.fillMaxSize(),
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer { translationY = queueBackProgress * QUEUE_BACK_PREVIEW * size.height },
                             )
                         }
                     }
@@ -1184,23 +1192,47 @@ private fun MainNavigation() {
 
     // The NavHost registers its back callback after ours, so on a pushed route it wins and pops the
     // route under the now playing overlay. Re-register ours on every navigation so it is the most
-    // recent callback in the dispatcher and gets the back first.
+    // recent callback in the dispatcher and gets the back first. It is enabled only while an overlay
+    // is open; otherwise the NavHost pops the route with its predictive animation.
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
     val backCallback =
         remember {
-            object : OnBackPressedCallback(false) {
-                override fun handleOnBackPressed() {
-                    when (overlayBack(showingQueue, nowPlayingOpen, showingLyrics)) {
+            OverlayBackCallback(
+                target = { overlayBack(showingQueue, nowPlayingOpen, showingLyrics) },
+                onPreview = { overlay, progress ->
+                    when (overlay) {
+                        OverlayBack.Queue -> {
+                            queueBackProgress = progress
+                        }
+
+                        OverlayBack.NowPlaying -> {
+                            settleJob?.cancel()
+                            nowPlayingProgress = nowPlayingBackPreview(progress)
+                        }
+
+                        OverlayBack.Lyrics -> {
+                            Unit
+                        }
+                    }
+                },
+                onCancel = { overlay ->
+                    when (overlay) {
+                        OverlayBack.Queue -> scope.launch { animate(queueBackProgress, 0f) { value, _ -> queueBackProgress = value } }
+                        OverlayBack.NowPlaying -> settleNowPlaying(true)
+                        OverlayBack.Lyrics -> Unit
+                    }
+                },
+                onCommit = { overlay ->
+                    when (overlay) {
                         OverlayBack.Queue -> showingQueue = false
                         OverlayBack.Lyrics -> showingLyrics = false
                         OverlayBack.NowPlaying -> settleNowPlaying(false)
-                        OverlayBack.Route -> navController.popBackStack()
                     }
-                }
-            }
+                },
+            )
         }
     SideEffect {
-        backCallback.isEnabled = showingQueue || nowPlayingOpen || navController.previousBackStackEntry != null
+        backCallback.isEnabled = overlayBack(showingQueue, nowPlayingOpen, showingLyrics) != null
     }
     DisposableEffect(backDispatcher, currentRoute, showingQueue, nowPlayingOpen, showingLyrics) {
         backDispatcher?.addCallback(backCallback)
