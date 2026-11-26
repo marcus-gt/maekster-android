@@ -3,7 +3,9 @@ package com.subtracks.ui.playback
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.QueueKind
@@ -12,6 +14,7 @@ import com.subtracks.playback.QueueContext
 import com.subtracks.playback.QueueItem
 import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.artworkColorsFromSeed
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,6 +29,8 @@ class NowPlayingHeaderTest {
     private fun render(
         source: String,
         kind: QueueKind,
+        onOpenOutputSwitcher: (() -> Unit)? = null,
+        audioOutputName: String? = null,
     ) {
         composeRule.setContent {
             MaeksterTheme {
@@ -53,6 +58,8 @@ class NowPlayingHeaderTest {
                     onNext = {},
                     onPrevious = {},
                     onSeek = {},
+                    onOpenOutputSwitcher = onOpenOutputSwitcher,
+                    audioOutputName = audioOutputName,
                 )
             }
         }
@@ -66,6 +73,29 @@ class NowPlayingHeaderTest {
         composeRule.onNodeWithText("Bob Dylan radio").assertIsDisplayed()
         composeRule.onNodeWithText("NOW PLAYING: SONG").assertDoesNotExist()
         composeRule.onNodeWithText("NOW PLAYING:", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun outputActionInvokesTheProvidedCallback() {
+        var opens = 0
+        render("Album", QueueKind.Album, onOpenOutputSwitcher = { opens++ })
+
+        composeRule.onNodeWithContentDescription("Change audio output").assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertEquals(1, opens) }
+    }
+
+    @Test
+    fun outputActionNamesTheSelectedExternalDevice() {
+        render("Album", QueueKind.Album, onOpenOutputSwitcher = {}, audioOutputName = "AirPods")
+
+        composeRule.onNodeWithContentDescription("Change audio output. Current output: AirPods").assertIsDisplayed()
+    }
+
+    @Test
+    fun outputActionIsAbsentWhenUnavailable() {
+        render("Album", QueueKind.Album)
+
+        composeRule.onNodeWithContentDescription("Change audio output").assertDoesNotExist()
     }
 
     @Test

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_surface">#FF171513</color>
+    <color name="widget_art_surface">#FF2A2724</color>
+    <color name="widget_text_primary">#FFF5F2EE</color>
+    <color name="widget_text_secondary">#FFA8A29C</color>
+    <color name="widget_accent">#FFFF8C4B</color>
+    <color name="widget_ink">#FF0E0E0E</color>
+    <color name="widget_ripple">#33FFFFFF</color>
+
+    <dimen name="widget_radius">16dp</dimen>
+    <dimen name="widget_inner_radius">8dp</dimen>
+
+    <style name="Widget.Maekster.NowPlaying.Title" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/widget_text_primary</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.Artist" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.PlayButton" parent="">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:background">@drawable/widget_play_background</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:src">@drawable/ic_widget_play</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.SkipButton" parent="">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:background">@drawable/widget_button_background</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:scaleType">fitCenter</item>
+    </style>
+</resources>

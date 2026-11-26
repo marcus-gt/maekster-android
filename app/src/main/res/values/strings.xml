@@ -346,6 +346,8 @@
     <string name="playlist_updated">Updated %1$s</string>
 
     <string name="now_playing_header">Now playing</string>
+    <string name="change_audio_output">Change audio output</string>
+    <string name="change_audio_output_with_device">Change audio output. Current output: %1$s</string>
     <string name="queue_type_album">Album</string>
     <string name="queue_type_playlist">Playlist</string>
     <string name="queue_type_artist">Artist</string>
@@ -397,6 +399,16 @@
     <string name="quality_mp3_192">MP3 192 kbps</string>
     <string name="quality_custom">Custom</string>
     <string name="smart_shuffle_title">Smart Shuffle</string>
+    <string name="shortcut_resume">Resume</string>
+    <string name="shortcut_resume_long">Resume playback</string>
+    <string name="shortcut_smart_shuffle_long">Start Smart Shuffle</string>
+    <string name="shortcut_nothing_to_resume">Nothing to resume yet. Play something to start a queue.</string>
+    <string name="shortcut_smart_shuffle_no_downloads">Smart Shuffle needs downloaded songs while offline.</string>
+    <string name="shortcut_smart_shuffle_empty_library">Smart Shuffle needs songs in your library. Sync your server and try again.</string>
+    <string name="widget_now_playing_label">Now playing</string>
+    <string name="widget_now_playing_description">The song that is playing, with play, pause and skip.</string>
+    <string name="widget_nothing_playing">Nothing playing</string>
+    <string name="widget_nothing_playing_hint">Open maekster to pick some music</string>
     <string name="discover_title">Discover</string>
     <string name="settings_discover_sections">Discover sections</string>
     <string name="home_section_artist_picks">Artist picks</string>

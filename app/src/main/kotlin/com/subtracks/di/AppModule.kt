@@ -2,6 +2,7 @@ package com.subtracks.di
 
 import android.content.Context
 import android.os.Environment
+import com.subtracks.LauncherShortcutRunner
 import com.subtracks.R
 import com.subtracks.UiMessage
 import com.subtracks.UiMessages
@@ -45,6 +46,7 @@ import com.subtracks.data.musicbrainz.MusicBrainz
 import com.subtracks.data.musicbrainz.MusicBrainzRateLimiter
 import com.subtracks.data.musicbrainz.OkHttpMusicBrainz
 import com.subtracks.data.net.ServerHeaders
+import com.subtracks.data.net.isNetworkAvailable
 import com.subtracks.data.net.networkAvailable
 import com.subtracks.data.net.networkMode
 import com.subtracks.data.prefs.UserPreferences
@@ -216,6 +218,7 @@ fun appModule(
             showMessage = showMessage,
             scope = get(named("playback")),
             networkAvailable = networkAvailable(context.applicationContext),
+            networkAvailableNow = { isNetworkAvailable(context.applicationContext) },
             autoplayPreference = preferences.autoplaySimilar(),
             autoplayFactory = { enabled ->
                 com.subtracks.playback.AutoplayRefill
@@ -267,6 +270,43 @@ fun appModule(
         }
     }
     single { NowPlayingLauncher() }
+    single {
+        LauncherShortcutRunner(
+            activeSourceId = get<SourceRepository>()::activeSourceIdOnce,
+            resume = get<PlaybackController>()::resume,
+            smartShuffle = get<SmartShufflePlayer>()::play,
+            downloadedOnly = get(named("mixDownloadedOnly")),
+            openNowPlaying = get<NowPlayingLauncher>()::request,
+            showMessage = showMessage,
+        )
+    }
+    single { com.subtracks.widget.NowPlayingWidgetRenderer(context.applicationContext) }
+    single(createdAtStart = true) {
+        val playback = get<PlaybackController>()
+        val sources = get<SourceRepository>()
+        val queues = get<QueueRepository>()
+        val renderer = get<com.subtracks.widget.NowPlayingWidgetRenderer>()
+        com.subtracks.widget
+            .NowPlayingWidgetUpdater(
+                state = playback.state,
+                savedItem = { com.subtracks.widget.savedQueueItem(queues, sources) },
+                artwork = com.subtracks.widget.NowPlayingWidgetArtwork(context.applicationContext, sources)::load,
+                render = renderer::render,
+                hasWidgets = renderer::hasWidgets,
+                scope = get(named("playback")),
+            ).also { it.start() }
+    }
+    single {
+        val playback = get<PlaybackController>()
+        com.subtracks.widget.NowPlayingWidgetCommands(
+            hasItem = { playback.state.value.item != null },
+            togglePlayPause = playback::togglePlayPause,
+            resume = playback::resume,
+            previous = playback::previous,
+            next = playback::next,
+            refresh = get<com.subtracks.widget.NowPlayingWidgetUpdater>()::refresh,
+        )
+    }
     single {
         com.subtracks.data.recommendations.SimilarArtistsCache(
             get<SubtracksDatabase>().similarArtistsCacheDao(),
@@ -349,9 +389,9 @@ fun appModule(
     // Offline mode or no network: mixes may only use downloaded songs.
     single(named("mixDownloadedOnly")) {
         val sources = get<SourceRepository>()
-        val connected =
-            networkAvailable(context.applicationContext).stateIn(get<CoroutineScope>(), SharingStarted.Eagerly, true)
-        val downloadedOnly: () -> Boolean = { sources.offline.value || !connected.value }
+        val appContext = context.applicationContext
+        // Asked at the moment a mix is built: a cold-start launcher shortcut asks before any network callback ran.
+        val downloadedOnly: () -> Boolean = { sources.offline.value || !isNetworkAvailable(appContext) }
         downloadedOnly
     }
     single {

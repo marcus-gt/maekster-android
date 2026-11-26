@@ -78,12 +78,13 @@ class PlaybackControllerTest {
     private lateinit var downloads: DownloadRepository
     private lateinit var downloadsDir: File
     private lateinit var handle: FakePlayerHandle
+    private lateinit var connection: FakePlayerConnection
     private lateinit var controller: PlaybackController
     private val messages = CopyOnWriteArrayList<String>()
     private var autoplayGenerate: suspend () -> List<String> = { emptyList() }
     private var builtRefill: suspend () -> List<String> = { emptyList() }
     private val builtRefillExclusions = CopyOnWriteArrayList<Set<String>>()
-    private val networkAvailable = MutableStateFlow(false)
+    private val networkAvailable = MutableStateFlow(true)
     private lateinit var resources: Resources
 
     @Before
@@ -116,11 +117,12 @@ class PlaybackControllerTest {
                 scope = repoScope,
             ).also { it.start() }
         handle = FakePlayerHandle()
+        connection = FakePlayerConnection(handle)
         controller =
             PlaybackController(
                 sources,
                 queues,
-                FakePlayerConnection(handle),
+                connection,
                 downloads,
                 showMessage = { messages += it.resolve(resources) },
                 scope = controllerScope,
@@ -431,9 +433,8 @@ class PlaybackControllerTest {
         controller.setAutoplaySimilar(true)
         await { runBlocking { queues.snapshot().size } == 4L }
         controller.toggleShuffle()
-        await { controller.state.value.shuffle }
+        await { controller.state.value.shuffle && runBlocking { queues.extensionStart() } == null }
         assertEquals(2L, runBlocking { queues.snapshot().size })
-        assertNull(runBlocking { queues.extensionStart() })
         controller.toggleShuffle()
         await { !controller.state.value.shuffle }
         controller.playAt(1)
@@ -698,8 +699,13 @@ class PlaybackControllerTest {
         seedAlbum(3, sourceId = 1)
         controller.playAlbum(1, "al1", 0)
         await { controller.state.value.isPlaying }
+        // Nothing is downloaded, so the failed song waits for the network instead of moving on.
+        networkAvailable.value = false
+        runBlocking { withContext(dispatcher) { } }
         handle.positionMs = 12345
         handle.fail(UiMessage(R.string.playback_error_network))
+        runBlocking { withContext(dispatcher) { } }
+        assertEquals("s1", handle.currentItem?.id)
         handle.operations.clear()
         networkAvailable.value = true
         await { handle.operations.contains("prepare") }
@@ -792,6 +798,83 @@ class PlaybackControllerTest {
         runBlocking { withContext(dispatcher) { controller.retryNetworkPlayback() } }
         assertFalse(handle.operations.contains("prepare"))
         assertFalse(handle.playWhenReady)
+    }
+
+    @Test
+    fun withNoNetworkAPartlyDownloadedQueuePlaysOnlyItsDownloadedSongsWithoutTurningOnOfflineMode() {
+        networkAvailable.value = false
+        seedAlbum(5, sourceId = 1)
+        markDownloaded(1, "s2")
+        markDownloaded(1, "s4")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying }
+        assertEquals(listOf("s2", "s4"), handle.items.map { it.id })
+        assertEquals(
+            "s2",
+            controller.state.value.item
+                ?.id,
+        )
+        assertFalse(sources.offline.value)
+    }
+
+    @Test
+    fun losingTheNetworkLetsTheStreamingSongFinishWithOnlyDownloadedSongsAfterItUntilTheNetworkIsBack() {
+        seedAlbum(5, sourceId = 1)
+        markDownloaded(1, "s3")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying && handle.itemCount == 5 }
+        handle.operations.clear()
+
+        networkAvailable.value = false
+        await { handle.itemCount == 2 }
+        assertEquals(listOf("s1", "s3"), handle.items.map { it.id })
+        assertEquals("s1", handle.currentItem?.id)
+        assertFalse("the buffered song must not restart", handle.operations.contains("prepare"))
+
+        // It ends: the next song is the downloaded one.
+        handle.advanceTo(1)
+        await {
+            controller.state.value.item
+                ?.id == "s3"
+        }
+
+        networkAvailable.value = true
+        await { handle.itemCount == 5 }
+        assertEquals("s3", handle.currentItem?.id)
+        assertFalse(sources.offline.value)
+    }
+
+    @Test
+    fun aStreamThatFailsWithNoNetworkMovesOnToTheNextDownloadedSong() {
+        seedAlbum(5, sourceId = 1)
+        markDownloaded(1, "s4")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying && handle.itemCount == 5 }
+
+        networkAvailable.value = false
+        await { handle.itemCount == 2 }
+        handle.fail(UiMessage(R.string.playback_error_network))
+        await {
+            controller.state.value.item
+                ?.id == "s4"
+        }
+        assertTrue(handle.playWhenReady)
+        assertEquals(listOf("s4"), handle.items.map { it.id })
+    }
+
+    @Test
+    fun aStreamThatFailedBeforeTheNetworkWentAwayMovesOnToTheNextDownloadedSong() {
+        seedAlbum(5, sourceId = 1)
+        markDownloaded(1, "s3")
+        controller.playAlbum(1, "al1", 0)
+        await { controller.state.value.isPlaying && handle.itemCount == 5 }
+        handle.fail(UiMessage(R.string.playback_error_network))
+        networkAvailable.value = false
+        await {
+            controller.state.value.item
+                ?.id == "s3"
+        }
+        assertTrue(handle.playWhenReady)
     }
 
     @Test
@@ -1024,6 +1107,110 @@ class PlaybackControllerTest {
         await { handle.operations.contains("play") }
 
         assertEquals(listOf("prepare", "play"), handle.operations)
+    }
+
+    @Test
+    fun resumeAfterProcessDeathPlaysTheSavedQueueFromItsSongAndPositionWithoutDuplicatingIt() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 1)
+        await {
+            controller.state.value.item
+                ?.id == "s2"
+        }
+        runBlocking { queues.setPosition(12_000L) }
+        val queuedBefore = runBlocking { queues.snapshot().size }
+
+        val restoredHandle = FakePlayerHandle()
+        val restored = controllerOn(dispatcher, restoredHandle)
+        assertTrue(runBlocking { withTimeout(TEST_TIMEOUT_MS) { restored.resume() } })
+        await { restoredHandle.playWhenReady }
+
+        assertEquals(
+            "s2",
+            restored.state.value.item
+                ?.id,
+        )
+        assertEquals(12_000L, restored.positionMs.value)
+        assertEquals(queuedBefore, runBlocking { queues.snapshot().size })
+        assertEquals(1L, runBlocking { queues.cursor() })
+    }
+
+    @Test
+    fun resumeAfterTheServiceStoppedReconnectsAndPlaysTheSameQueue() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 1)
+        await { handle.playWhenReady }
+        handle.pause()
+        connection.disconnect()
+        await { controller.state.value.item == null }
+
+        assertTrue(runBlocking { withTimeout(TEST_TIMEOUT_MS) { controller.resume() } })
+        await { handle.playWhenReady }
+
+        assertEquals(
+            "s2",
+            controller.state.value.item
+                ?.id,
+        )
+        assertEquals(3L, runBlocking { queues.snapshot().size })
+    }
+
+    @Test
+    fun aResumeBeforeTheNetworkIsUpKeepsTheSavedSongAndTheWholeQueueReturnsWithTheNetwork() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 1)
+        await { handle.playWhenReady }
+        handle.pause()
+        connection.disconnect()
+        await { controller.state.value.item == null }
+        // A cold start from the widget can restore before the system reports the network to the new process.
+        networkAvailable.value = false
+
+        assertTrue(runBlocking { withTimeout(TEST_TIMEOUT_MS) { controller.resume() } })
+        assertEquals(
+            "s2",
+            controller.state.value.item
+                ?.id,
+        )
+        assertFalse(sources.offline.value)
+
+        networkAvailable.value = true
+        await { handle.itemCount == 3 }
+        assertEquals("s2", handle.currentItem?.id)
+    }
+
+    @Test
+    fun aPauseFromOutsideTheAppSavesThePositionForTheNextResume() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { handle.playWhenReady }
+        handle.positionMs = 7_000L
+
+        handle.pause()
+
+        await { runBlocking { queues.cursorPositionMs() } == 7_000L }
+    }
+
+    @Test
+    fun resumeWhilePlayingKeepsPlaying() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 0)
+        await { handle.playWhenReady }
+
+        assertTrue(runBlocking { withTimeout(TEST_TIMEOUT_MS) { controller.resume() } })
+
+        assertTrue(handle.playWhenReady)
+        assertFalse(handle.operations.contains("pause"))
+    }
+
+    @Test
+    fun resumeWithNothingQueuedReportsNothingToResume() {
+        seedAlbum(3, sourceId = 1)
+
+        assertFalse(runBlocking { withTimeout(TEST_TIMEOUT_MS) { controller.resume() } })
+
+        assertFalse(handle.playWhenReady)
+        assertEquals(0L, runBlocking { queues.snapshot().size })
     }
 
     @Test

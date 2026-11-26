@@ -19,7 +19,7 @@ A dependency group with a Google name alone does not imply Play Services (for ex
 
 Run on the same Pixel with both a long track and a queue that crosses multiple track boundaries. Test both streamed and downloaded tracks. Use the normal battery setting first, then repeat the applicable scenarios with Battery Saver and the app set to Restricted.
 
-- [ ] Background the app and lock the screen for at least 20 minutes. Check continuity, track advancement and lock-screen controls. Swipe the app away while playing, then again while paused. Active playback should continue, while a paused or finished service can stop.
+- [ ] Background the app and lock the screen for at least 20 minutes. Check continuity, track advancement and lock-screen controls. Swipe the app away while playing, then again while paused. Both should stop playback and remove the notification (D8, changed 23 Nov 2026); reopening the app or the Resume shortcut continues from the saved position.
 - [ ] Disconnect wired headphones or Bluetooth during playback. Observe a safe pause for a noisy route loss. Reconnect and resume deliberately if paused. Check Bluetooth transport controls and repeat while the app is backgrounded.
 - [ ] Interrupt music with a call and a short navigation prompt. Check that audio focus pauses or ducks as appropriate, and that ending the interruption does not resume intentionally paused playback.
 - [ ] Stream across Wi-Fi and mobile data with equal quality preferences, then with different preferences. Drop both networks briefly and restore one. Confirm an active stream recovers near the saved position without restarting the queue or resuming after a user pause.

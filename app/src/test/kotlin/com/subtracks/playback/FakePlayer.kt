@@ -6,10 +6,21 @@ import java.util.concurrent.CopyOnWriteArrayList
 class FakePlayerConnection(
     private val handle: FakePlayerHandle,
 ) : PlayerConnection {
+    @Volatile
+    private var disconnected: (() -> Unit)? = null
+
     override fun connect(
         onConnected: (PlayerHandle) -> Unit,
         onDisconnected: () -> Unit,
-    ) = onConnected(handle)
+    ) {
+        disconnected = onDisconnected
+        onConnected(handle)
+    }
+
+    /** The service stopped (for example after the app was swiped away). */
+    fun disconnect() {
+        disconnected?.invoke()
+    }
 }
 
 class FakePlayerHandle : PlayerHandle {

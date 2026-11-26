@@ -16,6 +16,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.core.content.ContextCompat
+import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.subtracks.data.prefs.ThemeMode
 import com.subtracks.data.prefs.UserPreferences
@@ -25,8 +26,11 @@ import com.subtracks.ui.SubtracksRoot
 import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.StatusBarIcons
 import com.subtracks.ui.theme.isDark
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
+import org.koin.core.qualifier.named
 
 private data class ThemeSettings(
     val mode: ThemeMode,
@@ -43,6 +47,7 @@ class MainActivity : ComponentActivity() {
     private val nowPlayingLauncher: NowPlayingLauncher by lazy { GlobalContext.get().get() }
     private val autoSync: AutoSync by lazy { GlobalContext.get().get() }
     private val userPreferences: UserPreferences by lazy { GlobalContext.get().get() }
+    private val shortcutRunner: LauncherShortcutRunner by lazy { GlobalContext.get().get() }
 
     private val requestNotifications =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -62,6 +67,8 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermission()
         enableEdgeToEdge()
         if (launchViewModel.claimLaunch(intent?.action)) nowPlayingLauncher.request()
+        GlobalContext.get().get<CoroutineScope>(named("io")).launch { publishLauncherShortcuts(applicationContext) }
+        if (savedInstanceState == null) runLauncherShortcut(intent)
         setContent {
             val settings by remember {
                 combine(userPreferences.themeMode(), userPreferences.materialYou(), ::ThemeSettings)
@@ -92,6 +99,15 @@ class MainActivity : ComponentActivity() {
             launchViewModel.markHandled()
             nowPlayingLauncher.request()
         }
+        runLauncherShortcut(intent)
+    }
+
+    /** Runs a shortcut once per tap: not again when the activity is recreated or reopened from recents. */
+    private fun runLauncherShortcut(intent: Intent?) {
+        if (intent == null || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        val shortcut = LauncherShortcut.fromAction(intent.action) ?: return
+        ShortcutManagerCompat.reportShortcutUsed(this, shortcut.id)
+        GlobalContext.get().get<CoroutineScope>(named("playback")).launch { shortcutRunner.run(shortcut) }
     }
 
     private fun requestNotificationPermission() {

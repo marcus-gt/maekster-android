@@ -1,6 +1,6 @@
 # UX polish 3 — starter handoff
 
-**Status: IN PROGRESS.** Planned on 23 Nov 2026. Wave A complete: UX-28 and UX-29 not needed. Wave B not started. The slice list, waves, branches and
+**Status: IN PROGRESS.** Planned on 23 Nov 2026. Wave A merged in PR #61. UX-28 and UX-29 were not needed. Wave B is complete and awaits its PR. The slice list, waves, branches and
 statuses are in the [roadmap](../ANDROID_ROADMAP.md#post-m4--ux-polish-3-daily-feel-android-integration-and-visuals).
 The parent issue is [#60](https://github.com/marcus-gt/maekster-android/issues/60); tick its checklist as slices
 complete. Its sub-issues are #58, #18, #20, #22, #19, #8, #4 and #5. #10 stays a sub-issue of #31 but is listed in #60.
@@ -60,6 +60,8 @@ If the existing changes look wrong or ambiguous, explain what you found and ask.
 - **UX-33 Predictive Back:** `AndroidManifest.xml` sets `android:enableOnBackInvokedCallback="false"`. `BackHandler` is used
   in `ui/AppRoot.kt` and `ui/library/LibraryScreen.kt`. navigation-compose is 2.10.1. The Now Playing overlay needs
   `PredictiveBackHandler` with progress, and cancelled gestures must leave playback untouched.
+- **UX-34 is on hold** (owner, 26 Nov 2026): skip it in wave C until the owner lifts the hold. UX-35 uses its
+  assets, so ask the owner whether to do UX-35 without it or hold it too.
 - **UX-34 and UX-35 identity:** brand assets come from the iOS `Branding/` folder (read-only reference, check licences;
   fonts are often OFL). There is no `res/font` yet. D4 (system font) changes for the Home title only: record it.
   Rendering PNGs needs a tool. Check what's installed and ask before installing anything.
@@ -74,8 +76,18 @@ the change. Check UI changes on the emulator at 100% and 200% font, and restore 
 needs the physical phone (performance, widget, output switcher, shortcuts), ask the owner to test it and record
 what was and wasn't verified on a device. The phone is GrapheneOS without Play Services.
 
+## Wave W: home-screen widgets (added 26 Nov 2026)
+
+After phone testing UX-32 the owner asked for more widgets. Umbrella [#62](https://github.com/marcus-gt/maekster-android/issues/62),
+slices UX-38 to UX-44 (#63 to #69), branch `ux/polish-3w-widgets` after wave B merges; wave C follows wave W.
+Shared rules are in #62: `RemoteViews` (D19), Android 12+ only (D20), no sideways scrolling (a platform limit:
+only vertical lists, grids and swipeable stacks), offline-first, updates only on data changes. UX-40 builds the
+shared list plumbing; record it in its handoff for UX-41 to UX-44. Open owner questions sit in each issue.
+
 ## Next action
 
-Plan approved and committed on 23 Nov 2026. Wave A is done without code changes: UX-28 and UX-29 were both not
-needed (see the roadmap and `UX-29-play-what-is-shown.md`). Owner: open the wave A PR (docs only), or fold it into
-wave B. Agent: once wave A is merged, or the owner says to continue on the same branch, start wave B with UX-30 (#18).
+Wave B branch `ux/polish-3b-android-integration` was cut from `origin/main` at `c31d5892` (PR #61).
+[UX-30](UX-30-output-switcher.md), [UX-31](UX-31-launcher-shortcuts.md) and [UX-32](UX-32-now-playing-widget.md) are
+complete (playback fixes found during UX-32 are in `d0071de5`). [UX-33](UX-33-predictive-back.md) is complete too, so
+wave B is ready for a PR (the owner pushes and opens it). After it merges: mark UX-30 to UX-33 Merged and cut
+`ux/polish-3w-widgets` from a fresh `origin/main` (wave W comes before wave C).
