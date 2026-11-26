@@ -3,8 +3,22 @@
     <string name="widget_recent_albums_description">Play recently added albums from your library</string>
     <string name="widget_recent_albums_no_server">Open maekster to add a server.</string>
     <string name="widget_recent_albums_empty">Open Recently added and sync your library.</string>
+    <string name="widget_recently_played_albums_description">Play albums you listened to recently</string>
+    <string name="widget_recently_played_albums_empty">Albums you play will show up here.</string>
     <string name="widget_album_action">%1$s: %2$s</string>
     <string name="widget_favorite_songs_description">Play favorite songs from your library</string>
     <string name="widget_favorite_songs_empty">Tap the heart on a song to add it here.</string>
     <string name="widget_favorite_songs_offline_empty">No downloaded favorite songs.</string>
+
+    <style name="Widget.Maekster.AlbumShelf.Header" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:minHeight">40dp</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

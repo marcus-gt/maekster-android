@@ -282,14 +282,17 @@ fun appModule(
                 get(named("io")),
             )
         }
-        single {
-            com.subtracks.widget.RecentlyAddedAlbumsWidgetUpdater(
-                context.applicationContext,
-                get(),
-                get(),
-                get<PlaybackController>().state,
-                get(named("io")),
-            )
+        for (shelf in com.subtracks.widget.AlbumShelf.entries) {
+            single(shelf.updaterName) {
+                com.subtracks.widget.AlbumShelfWidgetUpdater(
+                    context.applicationContext,
+                    shelf,
+                    get(),
+                    get(),
+                    get<PlaybackController>().state,
+                    get(named("io")),
+                )
+            }
         }
     }
     single {

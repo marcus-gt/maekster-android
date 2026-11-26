@@ -16,7 +16,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class RecentlyAddedAlbumsWidgetTest {
+class AlbumShelfWidgetTest {
     @Test
     fun mirrorsBoundedShelfAndSwitchesSources() =
         runTest {

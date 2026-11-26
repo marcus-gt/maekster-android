@@ -10,6 +10,7 @@ import android.os.Build
 import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
+import androidx.annotation.StringRes
 import com.subtracks.MainActivity
 import com.subtracks.R
 import com.subtracks.data.model.Album
@@ -17,6 +18,7 @@ import com.subtracks.data.repo.LibraryRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.playback.PlaybackController
 import com.subtracks.playback.PlaybackState
+import com.subtracks.ui.home.HomeSection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -33,7 +35,44 @@ import kotlinx.coroutines.launch
 import org.koin.core.context.GlobalContext
 import org.koin.core.qualifier.named
 
-class RecentlyAddedAlbumsWidget : AppWidgetProvider() {
+/** A Home album shelf mirrored by a home-screen widget, with the same query and the same list to open. */
+internal enum class AlbumShelf(
+    val provider: Class<out AlbumShelfWidget>,
+    val section: HomeSection,
+    @param:StringRes val emptyText: Int,
+    val openAction: String,
+    val albums: (LibraryRepository, Long, Int) -> Flow<List<Album>>,
+) {
+    RecentlyAdded(
+        RecentlyAddedAlbumsWidget::class.java,
+        HomeSection.RecentlyAddedAlbums,
+        R.string.widget_recent_albums_empty,
+        MainActivity.ACTION_OPEN_RECENT_ALBUMS,
+        LibraryRepository::recentlyAddedAlbums,
+    ),
+    RecentlyPlayed(
+        RecentlyPlayedAlbumsWidget::class.java,
+        HomeSection.RecentlyPlayedAlbums,
+        R.string.widget_recently_played_albums_empty,
+        MainActivity.ACTION_OPEN_RECENTLY_PLAYED_ALBUMS,
+        LibraryRepository::recentlyPlayedAlbums,
+    ),
+    ;
+
+    val updaterName get() = named("albumShelfWidget.$name")
+
+    companion object {
+        fun forOpenAction(action: String?): AlbumShelf? = entries.firstOrNull { it.openAction == action }
+    }
+}
+
+class RecentlyAddedAlbumsWidget : AlbumShelfWidget(AlbumShelf.RecentlyAdded)
+
+class RecentlyPlayedAlbumsWidget : AlbumShelfWidget(AlbumShelf.RecentlyPlayed)
+
+abstract class AlbumShelfWidget internal constructor(
+    private val shelf: AlbumShelf,
+) : AppWidgetProvider() {
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -75,24 +114,27 @@ class RecentlyAddedAlbumsWidget : AppWidgetProvider() {
 
     private fun refresh() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            GlobalContext.getOrNull()?.get<RecentlyAddedAlbumsWidgetUpdater>()?.refresh()
+            GlobalContext.getOrNull()?.getOrNull<AlbumShelfWidgetUpdater>(shelf.updaterName)?.refresh()
         }
     }
 
-    companion object {
+    internal companion object {
         private const val ACTION_PLAY_ALBUM = "com.subtracks.widget.PLAY_ALBUM"
         private const val EXTRA_SOURCE = "widget.source"
         private const val EXTRA_ALBUM = "widget.album"
 
-        internal fun playTemplate(context: Context): PendingIntent =
+        fun playTemplate(
+            context: Context,
+            shelf: AlbumShelf,
+        ): PendingIntent =
             PendingIntent.getBroadcast(
                 context,
                 0,
-                Intent(context, RecentlyAddedAlbumsWidget::class.java).setAction(ACTION_PLAY_ALBUM),
+                Intent(context, shelf.provider).setAction(ACTION_PLAY_ALBUM),
                 PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
 
-        internal fun playAlbum(
+        fun playAlbum(
             sourceId: Long,
             albumId: String,
         ): Intent =
@@ -138,22 +180,25 @@ internal fun recentAlbumsContent(
         if (sourceId == null) {
             flowOf(RecentAlbumsContent(null))
         } else {
-            albums(sourceId, 12)
+            albums(sourceId, ALBUM_SHELF_WIDGET_LIMIT)
                 .map { shelf -> RecentAlbumsContent(sourceId, shelf.map { WidgetAlbum(it.id, it.name, it.coverArt) }) }
                 .distinctUntilChanged()
         }
     }
 
+internal const val ALBUM_SHELF_WIDGET_LIMIT = 12
+
 @RequiresApi(Build.VERSION_CODES.S)
-internal class RecentlyAddedAlbumsWidgetUpdater(
+internal class AlbumShelfWidgetUpdater(
     private val context: Context,
+    private val shelf: AlbumShelf,
     private val sources: SourceRepository,
     private val library: LibraryRepository,
     private val playback: Flow<PlaybackState>,
     private val scope: CoroutineScope,
 ) {
     private val manager = AppWidgetManager.getInstance(context)
-    private val component = ComponentName(context, RecentlyAddedAlbumsWidget::class.java)
+    private val component = ComponentName(context, shelf.provider)
     private val revision = MutableStateFlow(0L)
     private val artwork = WidgetArtwork(context, sources, size = 96)
     private val artworkBackground = WidgetArtworkBackground()
@@ -166,7 +211,7 @@ internal class RecentlyAddedAlbumsWidgetUpdater(
                     if (manager.getAppWidgetIds(component).isEmpty()) {
                         emptyFlow()
                     } else {
-                        recentAlbumsContent(sources.activeSourceId(), library::recentlyAddedAlbums)
+                        recentAlbumsContent(sources.activeSourceId()) { sourceId, limit -> shelf.albums(library, sourceId, limit) }
                             .combine(playback, RecentAlbumsContent::withPlayback)
                             .distinctUntilChanged()
                     }
@@ -188,15 +233,14 @@ internal class RecentlyAddedAlbumsWidgetUpdater(
         val cover = if (sourceId != null) content.backgroundCoverArt?.let { artwork.load(it, sourceId) } else null
         return RemoteViews(context.packageName, R.layout.widget_recent_albums).apply {
             setWidgetArtworkBackground(artworkBackground.forCover(cover))
+            setTextViewText(R.id.widget_album_header, context.getString(shelf.section.title))
             setEmptyView(R.id.widget_album_grid, R.id.widget_album_empty)
             setTextViewText(
                 R.id.widget_album_empty,
-                context.getString(
-                    if (content.sourceId == null) R.string.widget_recent_albums_no_server else R.string.widget_recent_albums_empty,
-                ),
+                context.getString(if (content.sourceId == null) R.string.widget_recent_albums_no_server else shelf.emptyText),
             )
             setViewVisibility(R.id.widget_album_empty, if (content.albums.isEmpty()) View.VISIBLE else View.GONE)
-            setPendingIntentTemplate(R.id.widget_album_grid, RecentlyAddedAlbumsWidget.playTemplate(context))
+            setPendingIntentTemplate(R.id.widget_album_grid, AlbumShelfWidget.playTemplate(context, shelf))
             setRemoteAdapter(R.id.widget_album_grid, rows.build())
             setOnClickPendingIntent(
                 R.id.widget_album_header,
@@ -204,7 +248,7 @@ internal class RecentlyAddedAlbumsWidgetUpdater(
                     context,
                     0,
                     Intent(context, MainActivity::class.java)
-                        .setAction(if (content.sourceId == null) Intent.ACTION_MAIN else MainActivity.ACTION_OPEN_RECENT_ALBUMS)
+                        .setAction(if (content.sourceId == null) Intent.ACTION_MAIN else shelf.openAction)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                 ),
@@ -235,7 +279,7 @@ internal class RecentlyAddedAlbumsWidgetUpdater(
             }
             val bitmap = album.coverArt?.let { artwork.load(it, sourceId) }
             if (bitmap != null) row.setImageViewBitmap(R.id.widget_album_cover, bitmap)
-            row.setOnClickFillInIntent(R.id.widget_album_cell, RecentlyAddedAlbumsWidget.playAlbum(sourceId, album.id))
+            row.setOnClickFillInIntent(R.id.widget_album_cell, AlbumShelfWidget.playAlbum(sourceId, album.id))
             rows.addItem(index.toLong(), row)
         }
     }

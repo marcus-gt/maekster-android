@@ -24,10 +24,10 @@ import com.subtracks.data.sync.AutoSync
 import com.subtracks.ui.HomeSectionLauncher
 import com.subtracks.ui.NowPlayingLauncher
 import com.subtracks.ui.SubtracksRoot
-import com.subtracks.ui.home.HomeSection
 import com.subtracks.ui.theme.MaeksterTheme
 import com.subtracks.ui.theme.StatusBarIcons
 import com.subtracks.ui.theme.isDark
+import com.subtracks.widget.AlbumShelf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -109,8 +109,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openWidgetSection(intent: Intent?) {
-        if (intent?.action != ACTION_OPEN_RECENT_ALBUMS || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
-        GlobalContext.get().get<HomeSectionLauncher>().request(HomeSection.RecentlyAddedAlbums)
+        if (intent == null || intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        val shelf = AlbumShelf.forOpenAction(intent.action) ?: return
+        GlobalContext.get().get<HomeSectionLauncher>().request(shelf.section)
     }
 
     /** Runs a shortcut once per tap: not again when the activity is recreated or reopened from recents. */
@@ -132,5 +133,6 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val ACTION_OPEN_NOW_PLAYING = "com.subtracks.action.OPEN_NOW_PLAYING"
         const val ACTION_OPEN_RECENT_ALBUMS = "com.subtracks.action.OPEN_RECENT_ALBUMS"
+        const val ACTION_OPEN_RECENTLY_PLAYED_ALBUMS = "com.subtracks.action.OPEN_RECENTLY_PLAYED_ALBUMS"
     }
 }

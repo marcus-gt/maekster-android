@@ -14,9 +14,10 @@ import com.subtracks.data.repo.ArtworkSeedStore
 import com.subtracks.di.appModule
 import com.subtracks.log.Log
 import com.subtracks.ui.theme.ArtworkSeedCache
+import com.subtracks.widget.AlbumShelf
+import com.subtracks.widget.AlbumShelfWidgetUpdater
 import com.subtracks.widget.FavoriteSongsWidgetUpdater
 import com.subtracks.widget.NowPlayingWidgetUpdater
-import com.subtracks.widget.RecentlyAddedAlbumsWidgetUpdater
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
@@ -54,7 +55,7 @@ class SubtracksApp : Application() {
                 .build()
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            koin.get<RecentlyAddedAlbumsWidgetUpdater>().start()
+            AlbumShelf.entries.forEach { koin.get<AlbumShelfWidgetUpdater>(it.updaterName).start() }
             koin.get<FavoriteSongsWidgetUpdater>().start()
         }
     }

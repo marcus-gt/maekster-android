@@ -406,7 +406,7 @@ private fun MainNavigation() {
         homeSectionLauncher.sections.collect { section ->
             showingQueue = false
             settleNowPlaying(false)
-            navController.navigate(Routes.homeSection(section)) { launchSingleTop = true }
+            navigateDetail(Routes.HOME_SECTION, "section", section.name, Routes.homeSection(section))
         }
     }
 

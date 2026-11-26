@@ -74,6 +74,19 @@
         </receiver>
 
         <receiver
+            android:name=".widget.RecentlyPlayedAlbumsWidget"
+            android:enabled="@bool/library_widgets_enabled"
+            android:exported="false"
+            android:label="@string/resources_sort_by_recently_played">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/recently_played_albums_widget_info" />
+        </receiver>
+
+        <receiver
             android:name=".widget.FavoriteSongsWidget"
             android:enabled="@bool/library_widgets_enabled"
             android:exported="false"
