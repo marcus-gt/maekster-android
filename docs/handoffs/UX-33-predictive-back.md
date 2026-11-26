@@ -1,7 +1,7 @@
 # UX-33 — Predictive Back (#19)
 
 **Status: COMPLETE (26 Nov 2026).** Branch `ux/polish-3b-android-integration`, after `afd9dbb1` (UX-32).
-Committed on the wave branch, not pushed. Verified on the API 37 emulator; not yet tried on the owner's phone.
+Committed on the wave branch, not pushed. Verified on the API 37 emulator and by the owner on the Pixel 9.
 
 ## Acceptance criteria (issue #19, prose)
 
@@ -41,9 +41,13 @@ Committed on the wave branch, not pushed. Verified on the API 37 emulator; not y
   it, release closes it.
 - Emulator, three-button nav (`KEYCODE_BACK`): queue over lyrics → lyrics → Now Playing → playlist → Home, one Back
   each; Now Playing over a playlist closed without popping the playlist; playback PLAYING throughout. Gesture nav restored.
-- Not checked: font scale (no new text), the owner's phone, and the NavHost preview on tab roots other than Home.
+- Not checked: font scale (no new text), three-button navigation on the phone, and the NavHost preview on tab roots
+  other than Home.
 
 ## Owner check on the phone
+
+Debug APK of `158afcd6` installed on the owner's Pixel 9 at 12:04 on 26 Nov 2026. Owner: "It works fine!"
+(26 Nov 2026), after the explanation of a cancelled gesture (slide back to the edge before lifting the finger).
 
 Does the swipe-back preview feel right on Now Playing (slides down 20%), the queue and pages? Is it acceptable that
 the lyrics pane closes without a preview?
