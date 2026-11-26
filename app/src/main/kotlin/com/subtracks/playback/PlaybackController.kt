@@ -260,6 +260,10 @@ class PlaybackController(
                         // A song waiting for the network keeps waiting; offline mode means it never comes back.
                         if (manual) networkRetry = null
                         reloadForOffline()
+                    } else if (manual && networkRetry != null) {
+                        // Offline mode turned on while the network was already gone: the waiting song never comes back.
+                        networkRetry = null
+                        reloadForOffline()
                     } else if (networkChanged && refillActive) {
                         playbackIntentVersion++
                         autoplayJob?.cancel()
@@ -915,9 +919,15 @@ class PlaybackController(
      */
     suspend fun resume(): Boolean {
         connect()
-        withTimeoutOrNull(RESUME_CONNECT_TIMEOUT_MS) { connected.first { it } } ?: return false
+        if (withTimeoutOrNull(RESUME_CONNECT_TIMEOUT_MS) { connected.first { it } } == null) {
+            Log.i("playback", "resume: no player connected")
+            return false
+        }
         val player = player ?: return false
-        if (_state.value.item == null) return false
+        if (_state.value.item == null) {
+            Log.i("playback", "resume: nothing restored")
+            return false
+        }
         if (networkRetry != null || (player.playWhenReady && !player.isEnded)) return true
         togglePlayPause()
         return true
@@ -1515,6 +1525,15 @@ class PlaybackController(
                 }
             }
             lastSavedPositionMs = savedPositionMs
+            if (offlineByNetwork) {
+                // The network may only be missing for a moment (a process started in the background sees it late), so
+                // the saved song keeps its place among the downloaded songs instead of the queue being dropped.
+                queueRepository
+                    .itemAt(snapshot, start)
+                    ?.song
+                    ?.id
+                    ?.let { keptStream = start to it }
+            }
             loadWindow(start, autoplay = false, startPositionMs = savedPositionMs)
             if (!refillActive) {
                 truncateAutoplayLocked()

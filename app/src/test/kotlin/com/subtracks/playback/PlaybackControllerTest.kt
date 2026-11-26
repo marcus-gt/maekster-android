@@ -433,9 +433,8 @@ class PlaybackControllerTest {
         controller.setAutoplaySimilar(true)
         await { runBlocking { queues.snapshot().size } == 4L }
         controller.toggleShuffle()
-        await { controller.state.value.shuffle }
+        await { controller.state.value.shuffle && runBlocking { queues.extensionStart() } == null }
         assertEquals(2L, runBlocking { queues.snapshot().size })
-        assertNull(runBlocking { queues.extensionStart() })
         controller.toggleShuffle()
         await { !controller.state.value.shuffle }
         controller.playAt(1)
@@ -1154,6 +1153,30 @@ class PlaybackControllerTest {
                 ?.id,
         )
         assertEquals(3L, runBlocking { queues.snapshot().size })
+    }
+
+    @Test
+    fun aResumeBeforeTheNetworkIsUpKeepsTheSavedSongAndTheWholeQueueReturnsWithTheNetwork() {
+        seedAlbum(3, sourceId = 1)
+        controller.playAlbum(1, "al1", 1)
+        await { handle.playWhenReady }
+        handle.pause()
+        connection.disconnect()
+        await { controller.state.value.item == null }
+        // A cold start from the widget can restore before the system reports the network to the new process.
+        networkAvailable.value = false
+
+        assertTrue(runBlocking { withTimeout(TEST_TIMEOUT_MS) { controller.resume() } })
+        assertEquals(
+            "s2",
+            controller.state.value.item
+                ?.id,
+        )
+        assertFalse(sources.offline.value)
+
+        networkAvailable.value = true
+        await { handle.itemCount == 3 }
+        assertEquals("s2", handle.currentItem?.id)
     }
 
     @Test
