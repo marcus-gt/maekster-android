@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Discover Chill card gradient; WidgetMoodColorsTest keeps the stops in step with it. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/widget_ripple">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/widget_inner_radius" />
+            <gradient
+                android:angle="315"
+                android:centerColor="#FF224DC3"
+                android:endColor="#FF1B6A5A"
+                android:startColor="#FF16826D" />
+        </shape>
+    </item>
+</ripple>

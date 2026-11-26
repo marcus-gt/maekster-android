@@ -1,6 +1,7 @@
 package com.subtracks
 
 import android.app.Application
+import android.content.res.Configuration
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.annotation.DelicateCoilApi
@@ -12,12 +13,15 @@ import com.subtracks.data.repo.ArtworkSeedStore
 import com.subtracks.di.appModule
 import com.subtracks.log.Log
 import com.subtracks.ui.theme.ArtworkSeedCache
+import com.subtracks.widget.NowPlayingWidgetUpdater
+import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 
 class SubtracksApp : Application() {
     // The active server's custom headers, added per network hop and only for that server's origin.
     private val serverHeaders = ServerHeaders()
+    private var fontScale = 0f
 
     private val http =
         UserAgent
@@ -30,6 +34,7 @@ class SubtracksApp : Application() {
     @OptIn(DelicateCoilApi::class)
     override fun onCreate() {
         super.onCreate()
+        fontScale = resources.configuration.fontScale
         Log.init(this)
         LegacyDataCleanup.run(this)
         stopKoin()
@@ -45,5 +50,13 @@ class SubtracksApp : Application() {
                 .components { add(OkHttpNetworkFetcherFactory(callFactory = { http })) }
                 .build()
         }
+    }
+
+    /** The widget's mood labels depend on the font scale, so a new scale redraws it. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (newConfig.fontScale == fontScale) return
+        fontScale = newConfig.fontScale
+        GlobalContext.getOrNull()?.getOrNull<NowPlayingWidgetUpdater>()?.refresh()
     }
 }

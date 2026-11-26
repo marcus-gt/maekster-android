@@ -1,17 +1,28 @@
 package com.subtracks.widget
 
 import android.graphics.Bitmap
+import com.subtracks.R
+import com.subtracks.data.audiomuse.AudioMuseScoreAccess
+import com.subtracks.data.audiomuse.MoodRadioResult
+import com.subtracks.data.audiomuse.RadioMood
 import com.subtracks.playback.PlaybackState
 import com.subtracks.playback.QueueItem
+import com.subtracks.ui.discover.moodRadioMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** What the Now Playing widget shows. [title] is null when there is nothing to play. */
 data class NowPlayingWidgetContent(
@@ -22,6 +33,10 @@ data class NowPlayingWidgetContent(
     /** A connected player owns the song, so previous and next work. False for the saved song of a stopped app. */
     val live: Boolean,
     val hasNext: Boolean,
+    /** Mood radios can start: AudioMuse is set up for the active server and the app is online. */
+    val moods: Boolean = false,
+    /** The mood radio a widget tap is starting, until it plays or fails. */
+    val startingMood: RadioMood? = null,
 ) {
     companion object {
         val Empty = NowPlayingWidgetContent(null, null, null, isPlaying = false, live = false, hasNext = false)
@@ -55,20 +70,43 @@ class NowPlayingWidgetUpdater(
     private val render: (NowPlayingWidgetContent, Bitmap?) -> Unit,
     private val hasWidgets: () -> Boolean,
     private val scope: CoroutineScope,
+    private val moodsAvailable: Flow<Boolean> = flowOf(false),
 ) {
     private val lock = Mutex()
     private var live: NowPlayingWidgetContent? = null
+    private var moods = false
+    private val starting = MutableStateFlow<RadioMood?>(null)
+    private var startingMood: RadioMood? = null
     private var rendered: NowPlayingWidgetContent? = null
     private var coverArtId: String? = null
     private var bitmap: Bitmap? = null
 
     fun start(): Job =
         scope.launch {
-            state.map(NowPlayingWidgetContent::live).distinctUntilChanged().collect { content ->
-                lock.withLock { live = content }
-                update(force = false)
+            launch {
+                state.map(NowPlayingWidgetContent::live).distinctUntilChanged().collect { content ->
+                    lock.withLock { live = content }
+                    update(force = false)
+                }
+            }
+            launch {
+                moodsAvailable.distinctUntilChanged().collect { available ->
+                    lock.withLock { moods = available }
+                    update(force = false)
+                }
+            }
+            launch {
+                starting.collect { mood ->
+                    lock.withLock { startingMood = mood }
+                    update(force = false)
+                }
             }
         }
+
+    /** Marks the mood radio a widget tap is starting, or clears it with null. */
+    fun showStartingMood(mood: RadioMood?) {
+        starting.value = mood
+    }
 
     /** Renders again even if nothing changed: a widget was added, resized or the launcher asked for it. */
     fun refresh() {
@@ -81,7 +119,9 @@ class NowPlayingWidgetUpdater(
                 rendered = null
                 return@withLock
             }
-            val content = live ?: savedItemOrNull()?.let(NowPlayingWidgetContent::saved) ?: NowPlayingWidgetContent.Empty
+            val content =
+                (live ?: savedItemOrNull()?.let(NowPlayingWidgetContent::saved) ?: NowPlayingWidgetContent.Empty)
+                    .copy(moods = moods, startingMood = startingMood?.takeIf { moods })
             if (!force && content == rendered) return@withLock
             render(content, artworkFor(content.coverArtId))
             rendered = content
@@ -114,6 +154,21 @@ class NowPlayingWidgetUpdater(
         }
 }
 
+/**
+ * Whether the widget offers mood radios, as Discover does: AudioMuse is set up for the active server and the app is
+ * online (a mood radio is never cached, so offline there is nothing to start).
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+fun widgetMoodsAvailable(
+    access: Flow<AudioMuseScoreAccess>,
+    configured: (sourceId: Long) -> Flow<Boolean>,
+): Flow<Boolean> =
+    access
+        .map { it.sourceId.takeIf { _ -> !it.offline } }
+        .distinctUntilChanged()
+        .flatMapLatest { id -> id?.let(configured) ?: flowOf(false) }
+        .distinctUntilChanged()
+
 enum class NowPlayingWidgetAction { PlayPause, Previous, Next }
 
 /**
@@ -127,7 +182,31 @@ class NowPlayingWidgetCommands(
     private val previous: () -> Unit,
     private val next: () -> Unit,
     private val refresh: () -> Unit,
+    private val playMood: suspend (RadioMood) -> MoodRadioResult = { MoodRadioResult.Unavailable },
+    private val showStartingMood: (RadioMood?) -> Unit = {},
+    private val showMessage: (messageRes: Int) -> Unit = {},
 ) {
+    private val startingMood = AtomicBoolean(false)
+
+    /**
+     * Starts a mood radio from the home screen, one at a time; taps while one starts are ignored. Nothing opens:
+     * the widget shows the radio once it plays, and a short message says why when it can't start.
+     */
+    suspend fun startMood(mood: RadioMood) {
+        if (!startingMood.compareAndSet(false, true)) return
+        showStartingMood(mood)
+        try {
+            moodRadioMessage(playMood(mood))?.let(showMessage)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            showMessage(R.string.mood_radio_failed)
+        } finally {
+            showStartingMood(null)
+            startingMood.set(false)
+        }
+    }
+
     suspend fun run(action: NowPlayingWidgetAction) {
         if (!hasItem()) {
             if (action != NowPlayingWidgetAction.PlayPause || !resume()) refresh()

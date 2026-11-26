@@ -979,7 +979,7 @@ unless a slice is blocked. Start a wave only after the previous wave's PR is mer
 | UX-35 | C | [Launcher icons back in mipmap with raster legacy icons](https://github.com/marcus-gt/maekster-android/issues/4) | Uses UX-34's assets | Not started |
 | UX-36 | C | [Album page: remaining iOS items](https://github.com/marcus-gt/maekster-android/issues/10) | Owner confirms what is still wanted | Not started |
 | UX-37 | C | [Bring back the hidden navigation bar](https://github.com/marcus-gt/maekster-android/issues/5) | Owner confirms after phone use; option 1 recommended | Not started |
-| UX-38 | W | [Now Playing widget: mood row](https://github.com/marcus-gt/maekster-android/issues/63) | UX-32 merged; owner picks the moods | Not started |
+| UX-38 | W | [Now Playing widget: mood row](https://github.com/marcus-gt/maekster-android/issues/63) | UX-32 merged; owner confirmed five fixed moods | Complete: five mood buttons on 4×2 and larger; background playback verified on the emulator and after swipe-away on the owner's Pixel 9 ([handoff](handoffs/UX-38-now-playing-mood-row.md)) |
 | UX-39 | W | [Now Playing widget: artwork background](https://github.com/marcus-gt/maekster-android/issues/64) | UX-32 merged (nice to have) | Not started |
 | UX-40 | W | [Recently added albums widget](https://github.com/marcus-gt/maekster-android/issues/65) | UX-32 merged; builds the shared list plumbing (D20: Android 12+) | Not started |
 | UX-41 | W | [Favorite songs widget](https://github.com/marcus-gt/maekster-android/issues/66) | UX-40 | Not started |

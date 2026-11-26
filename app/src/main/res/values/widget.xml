@@ -46,4 +46,37 @@
         <item name="android:padding">10dp</item>
         <item name="android:scaleType">fitCenter</item>
     </style>
+
+    <style name="Widget.Maekster.NowPlaying.Mood" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingStart">2dp</item>
+        <item name="android:paddingEnd">2dp</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.MoodIcon" parent="">
+        <item name="android:layout_width">22dp</item>
+        <item name="android:layout_height">22dp</item>
+        <item name="android:importantForAccessibility">no</item>
+    </style>
+
+    <!-- The renderer hides the label at large font sizes and keeps the icon. API 26+ also shrinks it to fit. -->
+    <style name="Base.Widget.Maekster.NowPlaying.MoodLabel" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">16dp</item>
+        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.MoodLabel" parent="Base.Widget.Maekster.NowPlaying.MoodLabel" />
 </resources>

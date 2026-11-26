@@ -9,11 +9,14 @@ import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.R
+import com.subtracks.data.audiomuse.RadioMood
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows
 
 @RunWith(AndroidJUnit4::class)
@@ -34,8 +37,82 @@ class NowPlayingWidgetRendererTest {
         assertEquals(NowPlayingWidgetLayout.Small, NowPlayingWidgetLayout.forSize(180f, 102f))
         assertEquals(NowPlayingWidgetLayout.Small, NowPlayingWidgetLayout.forSize(277f, 102f))
         assertEquals(NowPlayingWidgetLayout.Row, NowPlayingWidgetLayout.forSize(374f, 102f))
-        assertEquals(NowPlayingWidgetLayout.Tall, NowPlayingWidgetLayout.forSize(374f, 216f))
+        assertEquals(NowPlayingWidgetLayout.Moods, NowPlayingWidgetLayout.forSize(374f, 216f))
         assertEquals(NowPlayingWidgetLayout.Small, NowPlayingWidgetLayout.forSize(60f, 30f))
+        // A shorter two-row cell on another launcher keeps the player without the mood row.
+        assertEquals(NowPlayingWidgetLayout.Tall, NowPlayingWidgetLayout.forSize(300f, 180f))
+    }
+
+    @Test
+    fun theFourByTwoWidgetHasARowOfAllFiveMoodsBelowThePlayer() {
+        val view = inflate(NowPlayingWidgetLayout.Moods, playing.copy(moods = true))
+
+        assertEquals("Song", view.findViewById<TextView>(R.id.widget_title).text)
+        assertTrue(view.findViewById<View>(R.id.widget_next).isEnabled)
+        RadioMood.entries.forEach { mood ->
+            val button = view.findViewById<View>(mood.widgetButtonId())
+            assertTrue(button.isEnabled)
+            assertEquals(1f, button.alpha)
+            assertEquals(View.VISIBLE, view.findViewById<View>(mood.widgetLabelId()).visibility)
+        }
+        assertEquals(
+            listOf("Night radio", "Energetic radio", "Workout radio", "Chill radio", "Focus radio"),
+            RadioMood.entries.map { view.findViewById<View>(it.widgetButtonId()).contentDescription.toString() },
+        )
+    }
+
+    @Test
+    fun withoutMoodsTheFourByTwoWidgetIsThePlainTallPlayer() {
+        val view = inflate(NowPlayingWidgetLayout.Moods, playing)
+
+        assertNull(view.findViewById<View>(R.id.widget_moods))
+        val tallView = inflate(NowPlayingWidgetLayout.Tall, playing)
+        assertEquals(
+            tallView.findViewById<View>(R.id.widget_art).layoutParams.height,
+            view.findViewById<View>(R.id.widget_art).layoutParams.height,
+        )
+    }
+
+    @Test
+    fun smallerSizesNeverShowMoods() {
+        listOf(NowPlayingWidgetLayout.Small, NowPlayingWidgetLayout.Row, NowPlayingWidgetLayout.Tall).forEach { layout ->
+            assertNull(layout.name, inflate(layout, playing.copy(moods = true)).findViewById<View>(R.id.widget_moods))
+        }
+    }
+
+    @Test
+    fun whileAMoodRadioStartsTheOtherMoodsDimAndNoneTakesAnotherTap() {
+        val view = inflate(NowPlayingWidgetLayout.Moods, playing.copy(moods = true, startingMood = RadioMood.CHILL))
+
+        RadioMood.entries.forEach { mood ->
+            val button = view.findViewById<View>(mood.widgetButtonId())
+            assertFalse(mood.name, button.isEnabled)
+            assertEquals(mood.name, if (mood == RadioMood.CHILL) 1f else 0.4f, button.alpha)
+        }
+    }
+
+    @Test
+    fun atLargeFontSizesTheMoodsKeepTheirIconsButDropTheLabels() {
+        RuntimeEnvironment.setFontScale(2f)
+        val view = inflate(NowPlayingWidgetLayout.Moods, playing.copy(moods = true))
+
+        RadioMood.entries.forEach { mood ->
+            assertEquals(mood.name, View.GONE, view.findViewById<View>(mood.widgetLabelId()).visibility)
+            assertEquals(View.VISIBLE, view.findViewById<View>(mood.widgetButtonId()).visibility)
+        }
+    }
+
+    @Test
+    fun moodIntentsCarryTheirMoodBackToTheWidget() {
+        RadioMood.entries.forEach { mood ->
+            val intent = Shadows.shadowOf(NowPlayingWidget.moodIntent(context, mood)).savedIntent
+            assertEquals(NowPlayingWidget::class.java.name, intent.component?.className)
+            assertEquals(mood, NowPlayingWidget.moodOf(intent))
+            assertNull(NowPlayingWidget.actionOf(intent))
+        }
+        NowPlayingWidgetAction.entries.forEach { action ->
+            assertNull(NowPlayingWidget.moodOf(Shadows.shadowOf(NowPlayingWidget.commandIntent(context, action)).savedIntent))
+        }
     }
 
     @Test

@@ -294,6 +294,10 @@ fun appModule(
                 render = renderer::render,
                 hasWidgets = renderer::hasWidgets,
                 scope = get(named("playback")),
+                moodsAvailable =
+                    com.subtracks.widget.widgetMoodsAvailable(get<StateFlow<AudioMuseScoreAccess>>(named("audioMuseAccess"))) { id ->
+                        get<AudioMuseConfiguration>().observe(id).map { it.available }
+                    },
             ).also { it.start() }
     }
     single {
@@ -305,6 +309,15 @@ fun appModule(
             previous = playback::previous,
             next = playback::next,
             refresh = get<com.subtracks.widget.NowPlayingWidgetUpdater>()::refresh,
+            playMood = get<MoodRadioPlayer>()::play,
+            showStartingMood = get<com.subtracks.widget.NowPlayingWidgetUpdater>()::showStartingMood,
+            showMessage = { res ->
+                val app = context.applicationContext
+                androidx.core.content.ContextCompat.getMainExecutor(app).execute {
+                    val toast = android.widget.Toast.makeText(app, res, android.widget.Toast.LENGTH_LONG)
+                    toast.show()
+                }
+            },
         )
     }
     single {

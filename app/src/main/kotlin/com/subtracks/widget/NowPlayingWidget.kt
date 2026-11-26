@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
+import androidx.annotation.IdRes
 import androidx.annotation.LayoutRes
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
@@ -20,6 +21,7 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.subtracks.MainActivity
 import com.subtracks.R
+import com.subtracks.data.audiomuse.RadioMood
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.log.Log
@@ -55,16 +57,22 @@ class NowPlayingWidget : AppWidgetProvider() {
         intent: Intent,
     ) {
         val action = actionOf(intent)
-        if (action == null) {
+        val mood = moodOf(intent)
+        if (action == null && mood == null) {
             super.onReceive(context, intent)
             return
         }
-        Log.i("widget", "button: $action")
+        Log.i("widget", "button: ${action ?: "mood ${mood?.key}"}")
         val koin = GlobalContext.getOrNull() ?: return
         val pending = goAsync()
         koin.get<CoroutineScope>(named("playback")).launch {
             try {
-                koin.get<NowPlayingWidgetCommands>().run(action)
+                val commands = koin.get<NowPlayingWidgetCommands>()
+                if (action != null) {
+                    commands.run(action)
+                } else if (mood != null) {
+                    commands.startMood(mood)
+                }
             } finally {
                 pending.finish()
             }
@@ -76,6 +84,28 @@ class NowPlayingWidget : AppWidgetProvider() {
     companion object {
         private const val EXTRA_ACTION = "io.github.marcus_gt.maekster.widget.ACTION"
         private const val ACTION_COMMAND = "io.github.marcus_gt.maekster.widget.COMMAND"
+        private const val EXTRA_MOOD = "io.github.marcus_gt.maekster.widget.MOOD"
+        private const val ACTION_MOOD = "io.github.marcus_gt.maekster.widget.MOOD_RADIO"
+        private const val MOOD_REQUEST_CODE = 100
+
+        fun moodIntent(
+            context: Context,
+            mood: RadioMood,
+        ): PendingIntent =
+            PendingIntent.getBroadcast(
+                context,
+                MOOD_REQUEST_CODE + mood.ordinal,
+                Intent(context, NowPlayingWidget::class.java)
+                    .setAction(ACTION_MOOD)
+                    .putExtra(EXTRA_MOOD, mood.key),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+
+        internal fun moodOf(intent: Intent): RadioMood? {
+            if (intent.action != ACTION_MOOD) return null
+            val key = intent.getStringExtra(EXTRA_MOOD) ?: return null
+            return RadioMood.entries.firstOrNull { it.key == key }
+        }
 
         fun commandIntent(
             context: Context,
@@ -105,6 +135,7 @@ enum class NowPlayingWidgetLayout(
     val minHeightDp: Float,
     val hasArtwork: Boolean,
     val hasSkipButtons: Boolean,
+    val hasMoods: Boolean = false,
 ) {
     /** 2x1 and other narrow sizes: title, artist and play, so the text keeps its room. */
     Small(R.layout.widget_now_playing_compact, 110f, 40f, hasArtwork = false, hasSkipButtons = false),
@@ -114,7 +145,13 @@ enum class NowPlayingWidgetLayout(
 
     /** Two rows or more (4x2): large artwork, text at the top and the controls at the bottom. */
     Tall(R.layout.widget_now_playing_wide, 250f, 170f, hasArtwork = true, hasSkipButtons = true),
+
+    /** Tall with room to spare (4x2 on a Pixel): a smaller player and a row of mood radios. Tall without moods. */
+    Moods(R.layout.widget_now_playing_moods, 250f, 200f, hasArtwork = true, hasSkipButtons = true, hasMoods = true),
     ;
+
+    /** What this size shows: without mood radios to offer, the mood layout gives its room back to the player. */
+    fun shown(moods: Boolean): NowPlayingWidgetLayout = if (hasMoods && !moods) Tall else this
 
     val size: SizeF get() = SizeF(minWidthDp, minHeightDp)
 
@@ -164,11 +201,12 @@ class NowPlayingWidgetRenderer(
     }
 
     internal fun views(
-        layout: NowPlayingWidgetLayout,
+        size: NowPlayingWidgetLayout,
         content: NowPlayingWidgetContent,
         artwork: Bitmap?,
-    ): RemoteViews =
-        RemoteViews(context.packageName, layout.res).apply {
+    ): RemoteViews {
+        val layout = size.shown(content.moods)
+        return RemoteViews(context.packageName, layout.res).apply {
             val open = openAppIntent(content)
             setOnClickPendingIntent(R.id.widget_root, open)
             setTextViewText(R.id.widget_title, content.title ?: context.getString(R.string.widget_nothing_playing))
@@ -198,7 +236,21 @@ class NowPlayingWidgetRenderer(
                 skipButton(R.id.widget_previous, NowPlayingWidgetAction.Previous, enabled = content.live)
                 skipButton(R.id.widget_next, NowPlayingWidgetAction.Next, enabled = content.live && content.hasNext)
             }
+            if (layout.hasMoods) moodButtons(content.startingMood)
         }
+    }
+
+    /** While one mood radio starts, the others dim and no button takes another tap. */
+    private fun RemoteViews.moodButtons(starting: RadioMood?) {
+        val labels = context.resources.configuration.fontScale < LARGE_TEXT_SCALE
+        RadioMood.entries.forEach { mood ->
+            val button = mood.widgetButtonId()
+            setOnClickPendingIntent(button, NowPlayingWidget.moodIntent(context, mood))
+            setBoolean(button, "setEnabled", starting == null)
+            setFloat(button, "setAlpha", if (starting == null || starting == mood) 1f else DIMMED_ALPHA)
+            setViewVisibility(mood.widgetLabelId(), if (labels) View.VISIBLE else View.GONE)
+        }
+    }
 
     private fun RemoteViews.skipButton(
         id: Int,
@@ -223,8 +275,32 @@ class NowPlayingWidgetRenderer(
 
     private companion object {
         const val DISABLED_ALPHA = 97
+        const val DIMMED_ALPHA = 0.4f
+
+        /** From this font scale the mood labels no longer fit under their icons, so only the icons stay. */
+        const val LARGE_TEXT_SCALE = 1.3f
     }
 }
+
+@IdRes
+internal fun RadioMood.widgetButtonId(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.id.widget_mood_night
+        RadioMood.ENERGETIC -> R.id.widget_mood_energetic
+        RadioMood.WORKOUT -> R.id.widget_mood_workout
+        RadioMood.CHILL -> R.id.widget_mood_chill
+        RadioMood.FOCUS -> R.id.widget_mood_focus
+    }
+
+@IdRes
+internal fun RadioMood.widgetLabelId(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.id.widget_mood_night_label
+        RadioMood.ENERGETIC -> R.id.widget_mood_energetic_label
+        RadioMood.WORKOUT -> R.id.widget_mood_workout_label
+        RadioMood.CHILL -> R.id.widget_mood_chill_label
+        RadioMood.FOCUS -> R.id.widget_mood_focus_label
+    }
 
 /** A small artwork thumbnail for the widget, from the shared image cache. Bounded so the widget stays light. */
 class NowPlayingWidgetArtwork(
