@@ -44,6 +44,12 @@ widget in the UX-32 commit after it. Not pushed.
    queue. `restore()` now keeps the saved song as `keptStream`. `resume()` logs why it returns false.
 2. Offline mode turned on with the network already gone now ends a song's wait for the network.
 3. `enteringShuffleOrRepeatTrimsTheGeneratedTail` waits for the trim (raced under load).
+4. CI fix for PR #70 (26 Nov): `onError` cleared `keptStream` before its reload ran. If the reload started by the
+   network drop was waiting on Room at that moment, it rebuilt the offline window without the current song, called
+   `loadWindow` (dropping `networkRetry`) and stopped, so nothing resumed when the network came back. Now only
+   `reloadForOffline` drops the kept stream, under `startLock`. `networkRecoveryRetriesTheSameTrackAtItsSavedPositionOnlyOnce`
+   caught it: the `networkRecovery*` tests failed 2 of 6 runs without the fix and passed 8 of 8 with it. The order
+   needs a few-millisecond gap, so no deterministic test was added.
 
 ## Tests and checks
 

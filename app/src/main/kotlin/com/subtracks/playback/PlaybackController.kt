@@ -1985,7 +1985,7 @@ class PlaybackController(
                     }
                 if (networkRetry != null && offlineByNetwork) {
                     // The streamed song ran out of buffer with no network: carry on with the downloaded songs.
-                    keptStream = null
+                    // The reload drops the kept stream under its lock, so a reload already in flight keeps the song.
                     scope.launch { reloadForOffline() }
                 }
                 if (failure != PlaybackFailure.Unplayable || !skipUnplayable()) showMessage(message)
