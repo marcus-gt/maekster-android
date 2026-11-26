@@ -280,6 +280,33 @@ fun appModule(
             showMessage = showMessage,
         )
     }
+    single { com.subtracks.widget.NowPlayingWidgetRenderer(context.applicationContext) }
+    single(createdAtStart = true) {
+        val playback = get<PlaybackController>()
+        val sources = get<SourceRepository>()
+        val queues = get<QueueRepository>()
+        val renderer = get<com.subtracks.widget.NowPlayingWidgetRenderer>()
+        com.subtracks.widget
+            .NowPlayingWidgetUpdater(
+                state = playback.state,
+                savedItem = { com.subtracks.widget.savedQueueItem(queues, sources) },
+                artwork = com.subtracks.widget.NowPlayingWidgetArtwork(context.applicationContext, sources)::load,
+                render = renderer::render,
+                hasWidgets = renderer::hasWidgets,
+                scope = get(named("playback")),
+            ).also { it.start() }
+    }
+    single {
+        val playback = get<PlaybackController>()
+        com.subtracks.widget.NowPlayingWidgetCommands(
+            hasItem = { playback.state.value.item != null },
+            togglePlayPause = playback::togglePlayPause,
+            resume = playback::resume,
+            previous = playback::previous,
+            next = playback::next,
+            refresh = get<com.subtracks.widget.NowPlayingWidgetUpdater>()::refresh,
+        )
+    }
     single {
         com.subtracks.data.recommendations.SimilarArtistsCache(
             get<SubtracksDatabase>().similarArtistsCacheDao(),

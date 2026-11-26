@@ -74,8 +74,17 @@ the change. Check UI changes on the emulator at 100% and 200% font, and restore 
 needs the physical phone (performance, widget, output switcher, shortcuts), ask the owner to test it and record
 what was and wasn't verified on a device. The phone is GrapheneOS without Play Services.
 
+## Wave W: home-screen widgets (added 26 Nov 2026)
+
+After phone testing UX-32 the owner asked for more widgets. Umbrella [#62](https://github.com/marcus-gt/maekster-android/issues/62),
+slices UX-38 to UX-44 (#63 to #69), branch `ux/polish-3w-widgets` after wave B merges; wave C follows wave W.
+Shared rules are in #62: `RemoteViews` (D19), Android 12+ only (D20), no sideways scrolling (a platform limit:
+only vertical lists, grids and swipeable stacks), offline-first, updates only on data changes. UX-40 builds the
+shared list plumbing; record it in its handoff for UX-41 to UX-44. Open owner questions sit in each issue.
+
 ## Next action
 
 Wave B branch `ux/polish-3b-android-integration` was cut from `origin/main` at `c31d5892` (PR #61).
-[UX-30](UX-30-output-switcher.md) and [UX-31](UX-31-launcher-shortcuts.md) are complete. Next: UX-32 (widget, #22),
-which first needs the owner's Glance or `RemoteViews` decision.
+[UX-30](UX-30-output-switcher.md), [UX-31](UX-31-launcher-shortcuts.md) and [UX-32](UX-32-now-playing-widget.md) are
+complete (playback fixes found during UX-32 are in `d0071de5`). Next: UX-33 Predictive Back (#19), the last wave B
+slice; then wave B is ready for a PR.

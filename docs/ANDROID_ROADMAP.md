@@ -964,7 +964,8 @@ unless a slice is blocked. Start a wave only after the previous wave's PR is mer
 |---|---|
 | A: daily feel | `ux/polish-3a-daily-feel` |
 | B: Android integration | `ux/polish-3b-android-integration` (create from `origin/main` after wave A merges) |
-| C: visual identity | `ux/polish-3c-visual-identity` (create from `origin/main` after wave B merges) |
+| W: home-screen widgets ([#62](https://github.com/marcus-gt/maekster-android/issues/62)) | `ux/polish-3w-widgets` (create from `origin/main` after wave B merges) |
+| C: visual identity | `ux/polish-3c-visual-identity` (create from `origin/main` after wave W merges) |
 
 | Slice | Wave | GitHub issue | Gate | Status |
 |---|---|---|---|---|
@@ -972,12 +973,19 @@ unless a slice is blocked. Start a wave only after the previous wave's PR is mer
 | UX-29 | A | [Play buttons play what's shown](https://github.com/marcus-gt/maekster-android/issues/58) | None | Merged (not needed): works on the emulator and on the owner's phone (23 Nov 2026); the owner asked to skip it. Genre queues are still labelled "Songs" ([handoff](handoffs/UX-29-play-what-is-shown.md)) |
 | UX-30 | B | [System media output switcher](https://github.com/marcus-gt/maekster-android/issues/18) | None (framework `MediaRouter2`, API 34+) | Complete: Now Playing speaker action opens the system switcher on API 34+ and shows the active Bluetooth or wired route; verified on the owner's Pixel 9 and the API 37 emulator ([handoff](handoffs/UX-30-output-switcher.md)) |
 | UX-31 | B | [Resume and Smart Shuffle launcher shortcuts](https://github.com/marcus-gt/maekster-android/issues/20) | None | Complete: dynamic Resume and Smart Shuffle shortcuts through `PlaybackController.resume()` and `SmartShufflePlayer`, opening Now Playing or explaining why nothing started; verified by unit tests and on the API 37 emulator. The launcher popup still needs a check on the owner's phone ([handoff](handoffs/UX-31-launcher-shortcuts.md)) |
-| UX-32 | B | [Home-screen Now Playing widget](https://github.com/marcus-gt/maekster-android/issues/22) | Owner decision: Glance (new dependency) or plain `RemoteViews` | Not started |
+| UX-32 | B | [Home-screen Now Playing widget](https://github.com/marcus-gt/maekster-android/issues/22) | Owner decision: `RemoteViews` (D19, 24 Nov 2026) | Complete: `RemoteViews` widget with Small (2x1), Row (4x1) and Tall (4x2) layouts, transport through `PlaybackController`, saved song after the app stops; checked on the owner's Pixel 9 (26 Nov 2026). Tap-to-open not checked on a device ([handoff](handoffs/UX-32-now-playing-widget.md)) |
 | UX-33 | B | [Predictive Back](https://github.com/marcus-gt/maekster-android/issues/19) | None | Not started |
 | UX-34 | C | [3D logo and Home title font](https://github.com/marcus-gt/maekster-android/issues/8) | Asset licence check; owner screenshot feedback | Not started |
 | UX-35 | C | [Launcher icons back in mipmap with raster legacy icons](https://github.com/marcus-gt/maekster-android/issues/4) | Uses UX-34's assets | Not started |
 | UX-36 | C | [Album page: remaining iOS items](https://github.com/marcus-gt/maekster-android/issues/10) | Owner confirms what is still wanted | Not started |
 | UX-37 | C | [Bring back the hidden navigation bar](https://github.com/marcus-gt/maekster-android/issues/5) | Owner confirms after phone use; option 1 recommended | Not started |
+| UX-38 | W | [Now Playing widget: mood row](https://github.com/marcus-gt/maekster-android/issues/63) | UX-32 merged; owner picks the moods | Not started |
+| UX-39 | W | [Now Playing widget: artwork background](https://github.com/marcus-gt/maekster-android/issues/64) | UX-32 merged (nice to have) | Not started |
+| UX-40 | W | [Recently added albums widget](https://github.com/marcus-gt/maekster-android/issues/65) | UX-32 merged; builds the shared list plumbing (D20: Android 12+) | Not started |
+| UX-41 | W | [Favorite songs widget](https://github.com/marcus-gt/maekster-android/issues/66) | UX-40 | Not started |
+| UX-42 | W | [Recently played albums widget](https://github.com/marcus-gt/maekster-android/issues/67) | UX-40; mirrors the Home "Recently played" albums shelf | Not started |
+| UX-43 | W | [Radio stations widget](https://github.com/marcus-gt/maekster-android/issues/68) | UX-40; owner picks stack or grid | Not started |
+| UX-44 | W | [Queue Builder widget](https://github.com/marcus-gt/maekster-android/issues/69) | UX-40; owner picks the layout (no sideways scrolling in widgets) | Not started |
 
 Out of this round (unchanged priority): #24 advanced shortcuts, #21 tablet and foldable, #23 Android Auto,
 #3 casting, #2 stream cache, #6 download redirect headers, #1 package rename (do it between waves, when no
@@ -1009,6 +1017,8 @@ All decided on 10 November 2026.
 | D15 | Crossfade | **Agreed.** Prototype in M3.8, drop if it compromises gapless. On hold since 16 Nov 2026 (issue #13) |
 | D16 | Casting | **Wanted, later.** Deferred to Post-M4 (former M4.7, issue #3); ordinary playback must never depend on Play Services |
 | D17 | Internet radio | **Dropped (16 Nov 2026).** Not needed; M3.9 is skipped |
+| D19 | Home-screen widget toolkit ([UX-32](https://github.com/marcus-gt/maekster-android/issues/22)) | **Agreed (24 Nov 2026).** Plain `AppWidgetProvider` + `RemoteViews`, no Glance: no new dependency or background worker, updates only on player changes. Revisit Glance if widgets grow (lists, several layouts). Revisited 26 Nov 2026 for the widget family (#62): still `RemoteViews`, with `RemoteCollectionItems` for lists |
+| D20 | Android versions for the new widgets ([#62](https://github.com/marcus-gt/maekster-android/issues/62)) | **Agreed (26 Nov 2026).** Android 12+ (API 31) only for the widgets added in wave W; no `core-remoteviews` backport. The UX-32 Now Playing widget keeps working on older versions |
 | D18 | Name of the artist-seeded mix ([UX-23](https://github.com/marcus-gt/maekster-android/issues/53)) | **Agreed (19 Nov 2026).** "Artist radio": the artist … menu item and the Discover shelf (formerly "Stations for you") say Artist radio, the Discover tiles have no caption, and the queue and Now Playing say "<Artist> radio". Song and album mixes stay "Instant Mix" |
 
 ## Smallest sensible first implementation slice

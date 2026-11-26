@@ -405,6 +405,10 @@
     <string name="shortcut_nothing_to_resume">Nothing to resume yet. Play something to start a queue.</string>
     <string name="shortcut_smart_shuffle_no_downloads">Smart Shuffle needs downloaded songs while offline.</string>
     <string name="shortcut_smart_shuffle_empty_library">Smart Shuffle needs songs in your library. Sync your server and try again.</string>
+    <string name="widget_now_playing_label">Now playing</string>
+    <string name="widget_now_playing_description">The song that is playing, with play, pause and skip.</string>
+    <string name="widget_nothing_playing">Nothing playing</string>
+    <string name="widget_nothing_playing_hint">Open maekster to pick some music</string>
     <string name="discover_title">Discover</string>
     <string name="settings_discover_sections">Discover sections</string>
     <string name="home_section_artist_picks">Artist picks</string>
