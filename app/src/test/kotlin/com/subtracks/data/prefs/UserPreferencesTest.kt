@@ -54,6 +54,42 @@ class UserPreferencesTest {
         }
 
     @Test
+    fun eachNowPlayingWidgetKeepsItsOwnRowUntilItIsRemoved() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(emptyMap<Int, String>(), prefs.nowPlayingWidgetRows().first())
+
+            prefs.setNowPlayingWidgetRow(7, "ArtistRadio")
+            prefs.setNowPlayingWidgetRow(8, "Nothing")
+            prefs.setNowPlayingWidgetRow(7, "FavoriteSongs")
+            assertEquals(mapOf(7 to "FavoriteSongs", 8 to "Nothing"), prefs.nowPlayingWidgetRows().first())
+
+            prefs.removeNowPlayingWidgetRows(intArrayOf(7, 99))
+            assertEquals(mapOf(8 to "Nothing"), prefs.nowPlayingWidgetRows().first())
+        }
+
+    @Test
+    fun whatTheLastQueueWasBuiltFromIsKeptPerServerApartFromThePicks() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(null, prefs.queueBuilderBuiltPicks(1).first())
+
+            val built = QueueBuilderPicks(QueueBuilderSelection(mains = setOf("Jazz"), decades = setOf(1990)), length = 40)
+            prefs.setQueueBuilderBuiltPicks(1, built)
+            prefs.setQueueBuilderPicks(1, QueueBuilderPicks(QueueBuilderSelection(mains = setOf("Rock"))))
+
+            assertEquals(built, prefs.queueBuilderBuiltPicks(1).first())
+            assertEquals(
+                setOf("Rock"),
+                prefs
+                    .queueBuilderPicks(1)
+                    .first()
+                    .selection.mains,
+            )
+            assertEquals(null, prefs.queueBuilderBuiltPicks(2).first())
+        }
+
+    @Test
     fun autoplayDefaultsOffAndPersistsAcrossReaders() =
         runTest {
             val file = File.createTempFile("autoplay", ".preferences_pb").apply { delete() }

@@ -234,6 +234,7 @@ class Media3PlayerHandle(
                     .orEmpty(),
             artist = mediaItem.mediaMetadata.artist?.toString(),
             album = mediaItem.mediaMetadata.albumTitle?.toString(),
+            albumId = mediaItem.mediaMetadata.extras?.getString(EXTRA_ALBUM_ID),
             artists = mediaItem.artistRefs(),
             coverArtId = mediaItem.mediaMetadata.extras?.getString(EXTRA_COVER_ART_ID),
             durationMs =
@@ -261,6 +262,7 @@ internal fun MediaItem?.playbackOrigin(): PlaybackOrigin? =
 
 private const val EXTRA_COVER_ART_ID = "coverArtId"
 private const val EXTRA_ARTISTS = "artists"
+private const val EXTRA_ALBUM_ID = "albumId"
 private const val EXTRA_DURATION_MS = "durationMs"
 private const val EXTRA_REPLAY_GAIN_TRACK_GAIN = "replayGainTrackGain"
 private const val EXTRA_REPLAY_GAIN_ALBUM_GAIN = "replayGainAlbumGain"
@@ -308,6 +310,7 @@ internal fun queueMediaItem(
             .setExtras(
                 Bundle().apply {
                     putString(EXTRA_COVER_ART_ID, item.coverArtId)
+                    putString(EXTRA_ALBUM_ID, item.albumId)
                     putString(EXTRA_ARTISTS, ArtistRefsCodec.encode(item.artists))
                     item.durationMs?.let { putLong(EXTRA_DURATION_MS, it) }
                     putGain(EXTRA_REPLAY_GAIN_TRACK_GAIN, item.replayGain.trackGain)

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Discover Focus card gradient; WidgetMoodColorsTest keeps the stops in step with it. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/widget_ripple">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/widget_inner_radius" />
+            <gradient
+                android:angle="315"
+                android:centerColor="#FF177B86"
+                android:endColor="#FF1B336A"
+                android:startColor="#FF3F70DE" />
+        </shape>
+    </item>
+</ripple>

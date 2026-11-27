@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Widget.Maekster.NowPlaying.MoodLabel" parent="Base.Widget.Maekster.NowPlaying.MoodLabel">
+        <item name="android:autoSizeMaxTextSize">11sp</item>
+        <item name="android:autoSizeMinTextSize">8sp</item>
+        <item name="android:autoSizeTextType">uniform</item>
+    </style>
+</resources>

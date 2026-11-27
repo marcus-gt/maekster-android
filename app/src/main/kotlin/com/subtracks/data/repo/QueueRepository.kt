@@ -15,6 +15,7 @@ import com.subtracks.data.model.StoredQueueOrder
 import com.subtracks.data.model.StoredQueueOrderEntry
 import com.subtracks.data.model.UpNextEntry
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
@@ -1178,6 +1179,9 @@ class QueueRepository(
     suspend fun cursorPositionMs(): Long = dao.cursor()?.positionMs ?: 0
 
     suspend fun sourceLabel(): String? = dao.cursor()?.sourceLabel
+
+    /** The stored label of what the queue plays from (an artist or mood radio, say), as it changes. */
+    fun sourceLabels(): Flow<String?> = dao.observeSourceLabel().distinctUntilChanged()
 
     suspend fun extensionStart(): Long? = dao.cursor()?.extensionStart
 

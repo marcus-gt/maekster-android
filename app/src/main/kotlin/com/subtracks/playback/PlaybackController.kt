@@ -49,6 +49,7 @@ data class QueueItem(
     val replayGain: ReplayGain = ReplayGain(),
     val albumContext: Boolean = false,
     val artists: List<ArtistRef> = emptyList(),
+    val albumId: String? = null,
 )
 
 data class QueueContext(

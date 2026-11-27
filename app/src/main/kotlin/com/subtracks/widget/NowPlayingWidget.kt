@@ -7,12 +7,21 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
+import androidx.annotation.DrawableRes
+import androidx.annotation.IdRes
 import androidx.annotation.LayoutRes
+import androidx.annotation.StringRes
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -20,9 +29,14 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import com.subtracks.MainActivity
 import com.subtracks.R
+import com.subtracks.data.audiomuse.RadioMood
+import com.subtracks.data.model.CoverArtRef
+import com.subtracks.data.model.coverArtKey
+import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.log.Log
+import com.subtracks.playback.QueueCollection
 import com.subtracks.playback.QueueItem
 import com.subtracks.playback.toQueueItem
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +54,21 @@ class NowPlayingWidget : AppWidgetProvider() {
         updater()?.refresh()
     }
 
+    override fun onDeleted(
+        context: Context,
+        appWidgetIds: IntArray,
+    ) {
+        val koin = GlobalContext.getOrNull() ?: return
+        val pending = goAsync()
+        koin.get<CoroutineScope>(named("playback")).launch {
+            try {
+                koin.get<UserPreferences>().removeNowPlayingWidgetRows(appWidgetIds)
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
     override fun onAppWidgetOptionsChanged(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -55,16 +84,22 @@ class NowPlayingWidget : AppWidgetProvider() {
         intent: Intent,
     ) {
         val action = actionOf(intent)
-        if (action == null) {
+        val mood = moodOf(intent)
+        if (action == null && mood == null) {
             super.onReceive(context, intent)
             return
         }
-        Log.i("widget", "button: $action")
+        Log.i("widget", "button: ${action ?: "mood ${mood?.key}"}")
         val koin = GlobalContext.getOrNull() ?: return
         val pending = goAsync()
         koin.get<CoroutineScope>(named("playback")).launch {
             try {
-                koin.get<NowPlayingWidgetCommands>().run(action)
+                val commands = koin.get<NowPlayingWidgetCommands>()
+                if (action != null) {
+                    commands.run(action)
+                } else if (mood != null) {
+                    commands.startMood(mood)
+                }
             } finally {
                 pending.finish()
             }
@@ -76,6 +111,28 @@ class NowPlayingWidget : AppWidgetProvider() {
     companion object {
         private const val EXTRA_ACTION = "io.github.marcus_gt.maekster.widget.ACTION"
         private const val ACTION_COMMAND = "io.github.marcus_gt.maekster.widget.COMMAND"
+        private const val EXTRA_MOOD = "io.github.marcus_gt.maekster.widget.MOOD"
+        private const val ACTION_MOOD = "io.github.marcus_gt.maekster.widget.MOOD_RADIO"
+        private const val MOOD_REQUEST_CODE = 100
+
+        fun moodIntent(
+            context: Context,
+            mood: RadioMood,
+        ): PendingIntent =
+            PendingIntent.getBroadcast(
+                context,
+                MOOD_REQUEST_CODE + mood.ordinal,
+                Intent(context, NowPlayingWidget::class.java)
+                    .setAction(ACTION_MOOD)
+                    .putExtra(EXTRA_MOOD, mood.key),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+
+        internal fun moodOf(intent: Intent): RadioMood? {
+            if (intent.action != ACTION_MOOD) return null
+            val key = intent.getStringExtra(EXTRA_MOOD) ?: return null
+            return RadioMood.entries.firstOrNull { it.key == key }
+        }
 
         fun commandIntent(
             context: Context,
@@ -105,6 +162,7 @@ enum class NowPlayingWidgetLayout(
     val minHeightDp: Float,
     val hasArtwork: Boolean,
     val hasSkipButtons: Boolean,
+    val hasMoods: Boolean = false,
 ) {
     /** 2x1 and other narrow sizes: title, artist and play, so the text keeps its room. */
     Small(R.layout.widget_now_playing_compact, 110f, 40f, hasArtwork = false, hasSkipButtons = false),
@@ -114,7 +172,13 @@ enum class NowPlayingWidgetLayout(
 
     /** Two rows or more (4x2): large artwork, text at the top and the controls at the bottom. */
     Tall(R.layout.widget_now_playing_wide, 250f, 170f, hasArtwork = true, hasSkipButtons = true),
+
+    /** Tall with room to spare (4x2 on a Pixel): a smaller player and a row of mood radios. Tall without moods. */
+    Moods(R.layout.widget_now_playing_moods, 250f, 200f, hasArtwork = true, hasSkipButtons = true, hasMoods = true),
     ;
+
+    /** What this size shows: without mood radios to offer, the mood layout gives its room back to the player. */
+    fun shown(moods: Boolean): NowPlayingWidgetLayout = if (hasMoods && !moods) Tall else this
 
     val size: SizeF get() = SizeF(minWidthDp, minHeightDp)
 
@@ -137,6 +201,7 @@ class NowPlayingWidgetRenderer(
 ) {
     private val manager: AppWidgetManager? get() = AppWidgetManager.getInstance(context)
     private val component get() = ComponentName(context, NowPlayingWidget::class.java)
+    private val artworkBackground = WidgetArtworkBackground()
 
     fun hasWidgets(): Boolean = manager?.getAppWidgetIds(component)?.isNotEmpty() == true
 
@@ -148,8 +213,11 @@ class NowPlayingWidgetRenderer(
         val ids = manager.getAppWidgetIds(component)
         if (ids.isEmpty()) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val views = RemoteViews(NowPlayingWidgetLayout.entries.associate { it.size to views(it, content, artwork) })
-            manager.updateAppWidget(ids, views)
+            // Each widget may show its own row below the player, so widgets get the size map of their choice.
+            ids.groupBy { content.rows.choice(it) }.forEach { (row, group) ->
+                val views = RemoteViews(NowPlayingWidgetLayout.entries.associate { it.size to views(it, content, artwork, row) })
+                manager.updateAppWidget(group.toIntArray(), views)
+            }
         } else {
             ids.forEach { id ->
                 val options = manager.getAppWidgetOptions(id)
@@ -164,16 +232,30 @@ class NowPlayingWidgetRenderer(
     }
 
     internal fun views(
-        layout: NowPlayingWidgetLayout,
+        size: NowPlayingWidgetLayout,
         content: NowPlayingWidgetContent,
         artwork: Bitmap?,
-    ): RemoteViews =
-        RemoteViews(context.packageName, layout.res).apply {
+        row: NowPlayingWidgetRow = NowPlayingWidgetRow.Moods,
+    ): RemoteViews {
+        val items = content.rows.items[row].orEmpty()
+        val hasRow =
+            when (row) {
+                NowPlayingWidgetRow.Moods -> content.moods
+                NowPlayingWidgetRow.Nothing -> false
+                else -> items.isNotEmpty()
+            }
+        // Without a row to show (moods unavailable, an empty list, or Nothing) the player gets the room back.
+        val layout = size.shown(hasRow)
+        return RemoteViews(context.packageName, layout.res).apply {
             val open = openAppIntent(content)
             setOnClickPendingIntent(R.id.widget_root, open)
+            val coverBackground = artworkBackground.forCover(artwork)
+            setWidgetArtworkBackground(coverBackground)
             setTextViewText(R.id.widget_title, content.title ?: context.getString(R.string.widget_nothing_playing))
             val artist = if (content.title == null) context.getString(R.string.widget_nothing_playing_hint) else content.artist
             setTextViewText(R.id.widget_artist, artist.orEmpty())
+            val artistColor = if (coverBackground == null) R.color.widget_text_secondary else R.color.widget_text_secondary_on_artwork
+            setTextColor(R.id.widget_artist, context.getColor(artistColor))
             setViewVisibility(R.id.widget_artist, if (artist.isNullOrBlank()) View.GONE else View.VISIBLE)
             if (layout.hasArtwork) {
                 if (artwork != null) {
@@ -198,7 +280,113 @@ class NowPlayingWidgetRenderer(
                 skipButton(R.id.widget_previous, NowPlayingWidgetAction.Previous, enabled = content.live)
                 skipButton(R.id.widget_next, NowPlayingWidgetAction.Next, enabled = content.live && content.hasNext)
             }
+            if (layout.hasMoods) setRow(row, content, items)
         }
+    }
+
+    private fun RemoteViews.setRow(
+        row: NowPlayingWidgetRow,
+        content: NowPlayingWidgetContent,
+        items: List<NowPlayingRowItem>,
+    ) {
+        val tiles =
+            row == NowPlayingWidgetRow.RecentlyAdded || row == NowPlayingWidgetRow.RecentlyPlayed || row == NowPlayingWidgetRow.ArtistRadio
+        setViewVisibility(R.id.widget_moods, if (row == NowPlayingWidgetRow.Moods) View.VISIBLE else View.GONE)
+        setViewVisibility(R.id.widget_row_tiles, if (tiles) View.VISIBLE else View.GONE)
+        setViewVisibility(R.id.widget_row_songs, if (row == NowPlayingWidgetRow.FavoriteSongs) View.VISIBLE else View.GONE)
+        when {
+            row == NowPlayingWidgetRow.Moods -> setWidgetMoodButtons(context, content.startingMood, content.playingMood, content.isPlaying)
+            tiles -> setRowTiles(row, items)
+            row == NowPlayingWidgetRow.FavoriteSongs -> setRowSongs(items)
+        }
+    }
+
+    private fun RemoteViews.setRowTiles(
+        row: NowPlayingWidgetRow,
+        items: List<NowPlayingRowItem>,
+    ) {
+        val artist = row == NowPlayingWidgetRow.ArtistRadio
+        ROW_TILES.forEachIndexed { slot, (tile, art, state) ->
+            val item = items.getOrNull(slot)
+            // An empty slot keeps its room, so the tiles line up whatever their number.
+            setViewVisibility(tile, if (item == null) View.INVISIBLE else View.VISIBLE)
+            if (item == null) return@forEachIndexed
+            setInt(art, "setBackgroundResource", if (artist) R.drawable.widget_station_art_background else R.drawable.widget_art_background)
+            if (item.art != null) setImageViewBitmap(art, item.art) else setImageViewResource(art, R.drawable.ic_widget_artwork_placeholder)
+            val playing = item.isPlaying
+            setViewVisibility(state, if (playing == null) View.GONE else View.VISIBLE)
+            if (playing != null) setImageViewResource(state, if (playing) R.drawable.ic_widget_pause else R.drawable.ic_widget_play)
+            val title = if (artist) context.getString(R.string.artist_radio_queue, item.title) else item.title
+            setContentDescription(tile, playing?.let { rowAction(it, title) } ?: title)
+            setOnClickPendingIntent(tile, rowTap(row, slot, item))
+        }
+    }
+
+    private fun RemoteViews.setRowSongs(items: List<NowPlayingRowItem>) {
+        ROW_SONGS.forEachIndexed { slot, line ->
+            val item = items.getOrNull(slot)
+            setViewVisibility(line, if (item == null) View.INVISIBLE else View.VISIBLE)
+            if (item == null) return@forEachIndexed
+            val text = listOfNotNull(item.title, item.subtitle?.takeIf { it.isNotBlank() }).joinToString(" · ")
+            setTextViewText(line, text)
+            // The song the player holds stands out in the accent; a tap on it pauses or resumes.
+            setTextColor(line, context.getColor(if (item.isPlaying != null) R.color.widget_accent else R.color.widget_text_primary))
+            setContentDescription(line, item.isPlaying?.let { rowAction(it, text) } ?: text)
+            setOnClickPendingIntent(line, rowTap(NowPlayingWidgetRow.FavoriteSongs, slot, item))
+        }
+    }
+
+    private fun rowAction(
+        isPlaying: Boolean,
+        title: String,
+    ): String =
+        context.getString(
+            R.string.widget_album_action,
+            context.getString(if (isPlaying) R.string.controls_pause else R.string.controls_play),
+            title,
+        )
+
+    /** A tile's tap goes to the widget that already plays that kind of item, so it behaves the same there and here. */
+    private fun rowTap(
+        row: NowPlayingWidgetRow,
+        slot: Int,
+        item: NowPlayingRowItem,
+    ): PendingIntent {
+        val intent =
+            when (row) {
+                NowPlayingWidgetRow.RecentlyAdded -> {
+                    AlbumShelfWidget.playAlbumIntent(
+                        context,
+                        AlbumShelf.RecentlyAdded,
+                        item.sourceId,
+                        item.refId,
+                    )
+                }
+
+                NowPlayingWidgetRow.RecentlyPlayed -> {
+                    AlbumShelfWidget.playAlbumIntent(
+                        context,
+                        AlbumShelf.RecentlyPlayed,
+                        item.sourceId,
+                        item.refId,
+                    )
+                }
+
+                NowPlayingWidgetRow.ArtistRadio -> {
+                    RadioStationsWidget.artistRadioIntent(context, item.sourceId, item.refId, item.title)
+                }
+
+                else -> {
+                    FavoriteSongsWidget.songIntent(context, item.sourceId, item.refId, toggle = item.isPlaying != null)
+                }
+            }
+        return PendingIntent.getBroadcast(
+            context,
+            ROW_REQUEST_CODE + row.ordinal * NOW_PLAYING_ROW_TILES + slot,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+    }
 
     private fun RemoteViews.skipButton(
         id: Int,
@@ -223,30 +411,179 @@ class NowPlayingWidgetRenderer(
 
     private companion object {
         const val DISABLED_ALPHA = 97
+        const val ROW_REQUEST_CODE = 200
+
+        /** Each tile's frame, cover and play-state ids. */
+        val ROW_TILES =
+            listOf(
+                Triple(R.id.widget_row_tile_0, R.id.widget_row_tile_art_0, R.id.widget_row_tile_state_0),
+                Triple(R.id.widget_row_tile_1, R.id.widget_row_tile_art_1, R.id.widget_row_tile_state_1),
+                Triple(R.id.widget_row_tile_2, R.id.widget_row_tile_art_2, R.id.widget_row_tile_state_2),
+                Triple(R.id.widget_row_tile_3, R.id.widget_row_tile_art_3, R.id.widget_row_tile_state_3),
+                Triple(R.id.widget_row_tile_4, R.id.widget_row_tile_art_4, R.id.widget_row_tile_state_4),
+            )
+        val ROW_SONGS = listOf(R.id.widget_row_song_0, R.id.widget_row_song_1, R.id.widget_row_song_2)
     }
 }
 
+/**
+ * The row of mood radios shared by the widgets (`widget_mood_row`). Taps go to [NowPlayingWidget], so only one mood
+ * radio starts at a time whichever widget was tapped. While one starts, the others dim and no button takes a tap.
+ * The mood radio the player holds ([playing]) shows pause or play instead of its icon, and a tap on it toggles.
+ */
+internal fun RemoteViews.setWidgetMoodButtons(
+    context: Context,
+    starting: RadioMood?,
+    playing: RadioMood? = null,
+    isPlaying: Boolean = false,
+) {
+    val labels = context.resources.configuration.fontScale < WIDGET_LARGE_TEXT_SCALE
+    RadioMood.entries.forEach { mood ->
+        val button = mood.widgetButtonId()
+        setOnClickPendingIntent(button, NowPlayingWidget.moodIntent(context, mood))
+        setBoolean(button, "setEnabled", starting == null)
+        setFloat(button, "setAlpha", if (starting == null || starting == mood) 1f else WIDGET_DIMMED_ALPHA)
+        setViewVisibility(mood.widgetLabelId(), if (labels) View.VISIBLE else View.GONE)
+        val title = context.getString(mood.widgetTitle())
+        if (mood == playing) {
+            // White like the mood icons; the ink play and pause are for the orange Play button.
+            setImageViewResource(mood.widgetIconId(), if (isPlaying) R.drawable.ic_widget_mood_pause else R.drawable.ic_widget_mood_play)
+            val action = context.getString(if (isPlaying) R.string.controls_pause else R.string.controls_play)
+            setContentDescription(button, context.getString(R.string.widget_album_action, action, title))
+        } else {
+            setImageViewResource(mood.widgetIconId(), mood.widgetIcon())
+            setContentDescription(button, title)
+        }
+    }
+}
+
+internal const val WIDGET_DIMMED_ALPHA = 0.4f
+
+/** From this font scale the mood labels no longer fit under their icons, so only the icons stay. */
+private const val WIDGET_LARGE_TEXT_SCALE = 1.3f
+
+internal class WidgetArtworkBackground {
+    private var backgroundCover: Bitmap? = null
+    private var background: Bitmap? = null
+
+    fun forCover(cover: Bitmap?): Bitmap? {
+        if (cover !== backgroundCover) {
+            background = cover?.let(::darkenedBackground)
+            backgroundCover = cover
+        }
+        return background
+    }
+
+    private fun darkenedBackground(cover: Bitmap): Bitmap =
+        createBitmap(BACKGROUND_PX, BACKGROUND_PX).apply {
+            val canvas = Canvas(this)
+            canvas.drawColor(Color.BLACK)
+            canvas.drawBitmap(cover, null, Rect(0, 0, width, height), Paint(Paint.FILTER_BITMAP_FLAG))
+            canvas.drawColor(BACKGROUND_SCRIM)
+        }
+
+    private companion object {
+        const val BACKGROUND_PX = 256
+        const val BACKGROUND_SCRIM = 0xAE000000.toInt()
+    }
+}
+
+internal fun RemoteViews.setWidgetArtworkBackground(background: Bitmap?) {
+    if (background == null) {
+        setImageViewResource(R.id.widget_art_background, 0)
+        setViewVisibility(R.id.widget_art_background, View.GONE)
+    } else {
+        setImageViewBitmap(R.id.widget_art_background, background)
+        setViewVisibility(R.id.widget_art_background, View.VISIBLE)
+    }
+}
+
+@IdRes
+internal fun RadioMood.widgetButtonId(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.id.widget_mood_night
+        RadioMood.ENERGETIC -> R.id.widget_mood_energetic
+        RadioMood.WORKOUT -> R.id.widget_mood_workout
+        RadioMood.CHILL -> R.id.widget_mood_chill
+        RadioMood.FOCUS -> R.id.widget_mood_focus
+    }
+
+@IdRes
+internal fun RadioMood.widgetIconId(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.id.widget_mood_night_icon
+        RadioMood.ENERGETIC -> R.id.widget_mood_energetic_icon
+        RadioMood.WORKOUT -> R.id.widget_mood_workout_icon
+        RadioMood.CHILL -> R.id.widget_mood_chill_icon
+        RadioMood.FOCUS -> R.id.widget_mood_focus_icon
+    }
+
+@DrawableRes
+private fun RadioMood.widgetIcon(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.drawable.ic_widget_mood_night
+        RadioMood.ENERGETIC -> R.drawable.ic_widget_mood_energetic
+        RadioMood.WORKOUT -> R.drawable.ic_widget_mood_workout
+        RadioMood.CHILL -> R.drawable.ic_widget_mood_chill
+        RadioMood.FOCUS -> R.drawable.ic_widget_mood_focus
+    }
+
+@StringRes
+private fun RadioMood.widgetTitle(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.string.mood_radio_queue_night
+        RadioMood.ENERGETIC -> R.string.mood_radio_queue_energetic
+        RadioMood.WORKOUT -> R.string.mood_radio_queue_workout
+        RadioMood.CHILL -> R.string.mood_radio_queue_chill
+        RadioMood.FOCUS -> R.string.mood_radio_queue_focus
+    }
+
+/** The mood radio a queue stored as [label] plays, if it is one. */
+internal fun radioMoodOf(label: String?): RadioMood? = RadioMood.entries.firstOrNull { QueueCollection.forMood(it).storedLabel == label }
+
+@IdRes
+internal fun RadioMood.widgetLabelId(): Int =
+    when (this) {
+        RadioMood.NIGHT -> R.id.widget_mood_night_label
+        RadioMood.ENERGETIC -> R.id.widget_mood_energetic_label
+        RadioMood.WORKOUT -> R.id.widget_mood_workout_label
+        RadioMood.CHILL -> R.id.widget_mood_chill_label
+        RadioMood.FOCUS -> R.id.widget_mood_focus_label
+    }
+
 /** A small artwork thumbnail for the widget, from the shared image cache. Bounded so the widget stays light. */
-class NowPlayingWidgetArtwork(
+internal class WidgetArtwork(
     private val context: Context,
     private val sources: SourceRepository,
+    private val size: Int = 256,
 ) {
-    suspend fun load(coverArtId: String): Bitmap? {
+    suspend fun load(
+        coverArtId: String,
+        sourceId: Long? = null,
+    ): Bitmap? {
         val ref = sources.coverArt(coverArtId, thumbnail = true) ?: return null
+        if (sourceId != null && ref.cacheKey != coverArtKey(sourceId, coverArtId, thumbnail = true)) return null
+        return load(ref)
+    }
+
+    /** Loads [ref] through the shared image cache, scaled down to the widget size. */
+    suspend fun load(ref: CoverArtRef): Bitmap? {
         val request =
             ImageRequest
                 .Builder(context)
                 .data(ref.url)
-                .memoryCacheKey(ref.cacheKey)
+                .memoryCacheKey("${ref.cacheKey}:widget:$size")
                 .diskCacheKey(ref.cacheKey)
-                .size(ARTWORK_PX)
+                .size(size)
                 .allowHardware(false)
                 .build()
-        return (SingletonImageLoader.get(context).execute(request) as? SuccessResult)?.image?.toBitmap()
-    }
-
-    private companion object {
-        const val ARTWORK_PX = 256
+        val bitmap = (SingletonImageLoader.get(context).execute(request) as? SuccessResult)?.image?.toBitmap() ?: return null
+        val longest = maxOf(bitmap.width, bitmap.height)
+        return if (longest > size) {
+            bitmap.scale((bitmap.width * size / longest).coerceAtLeast(1), (bitmap.height * size / longest).coerceAtLeast(1))
+        } else {
+            bitmap
+        }
     }
 }
 

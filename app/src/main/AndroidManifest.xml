@@ -44,6 +44,25 @@
             </intent-filter>
         </service>
 
+        <!-- A Now Playing widget's settings (UX-45): the launcher opens it, so it is exported for that action only. -->
+        <activity
+            android:name=".widget.NowPlayingWidgetConfigureActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Subtracks">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Keeps the app running while a Queue Builder widget Play builds its queue (Android 12+). -->
+        <service
+            android:name=".widget.QueueBuilderBuildService"
+            android:exported="false"
+            android:foregroundServiceType="shortService"
+            tools:targetApi="31" />
+
         <receiver
             android:name=".data.download.DownloadCancelReceiver"
             android:exported="false" />
@@ -58,6 +77,71 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/now_playing_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.RecentlyAddedAlbumsWidget"
+            android:enabled="@bool/library_widgets_enabled"
+            android:exported="false"
+            android:label="@string/home_section_recently_added">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/recently_added_albums_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.RecentlyPlayedAlbumsWidget"
+            android:enabled="@bool/library_widgets_enabled"
+            android:exported="false"
+            android:label="@string/resources_sort_by_recently_played">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/recently_played_albums_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.FavoriteSongsWidget"
+            android:enabled="@bool/library_widgets_enabled"
+            android:exported="false"
+            android:label="@string/home_section_recently_starred">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/favorite_songs_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.RadioStationsWidget"
+            android:enabled="@bool/library_widgets_enabled"
+            android:exported="false"
+            android:label="@string/widget_radio_stations_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/radio_stations_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.QueueBuilderWidget"
+            android:enabled="@bool/library_widgets_enabled"
+            android:exported="false"
+            android:label="@string/queue_builder_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/queue_builder_widget_info" />
         </receiver>
 
         <provider

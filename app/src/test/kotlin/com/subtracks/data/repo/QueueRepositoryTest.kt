@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.subtracks.data.db.SongListSpec
 import com.subtracks.data.db.SubtracksDatabase
 import com.subtracks.data.db.createTestDatabase
+import com.subtracks.data.db.favoriteSongListSpec
 import com.subtracks.data.db.songsPageQuery
 import com.subtracks.data.model.Album
 import com.subtracks.data.model.DownloadStatus
@@ -19,8 +20,12 @@ import com.subtracks.data.model.SongDownload
 import com.subtracks.data.model.Source
 import com.subtracks.data.model.StoredQueueOrder
 import com.subtracks.data.model.StoredQueueOrderEntry
+import com.subtracks.data.prefs.FavoriteSort
 import com.subtracks.data.prefs.SongSort
+import com.subtracks.data.prefs.SortNameMode
 import com.subtracks.data.prefs.StarredFilter
+import com.subtracks.widget.WIDGET_SONG_LIMIT
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -47,6 +52,45 @@ class QueueRepositoryTest {
     fun tearDown() {
         db.close()
     }
+
+    @Test
+    fun favoriteWidgetPreviewTracksLocalStarsAndKeepsTheQueueOrderOffline() =
+        runTest {
+            seedLibrary()
+            val library = db.libraryDao()
+            library.upsertSongs((1..15).map { song("widget-$it", "al1", it.toLong(), starred = it.toLong()) })
+            val spec = favoriteSongListSpec(FavoriteSort.Starred, downloaded = false, SortNameMode.SortName)
+            val preview = library.observeFavoriteSongs(songsPageQuery(1, spec, offset = 0, limit = WIDGET_SONG_LIMIT))
+            val expected = (15 downTo 4).map { "widget-$it" }
+            assertEquals(expected, preview.first().map { it.song.id })
+
+            val observedAfterUnstar =
+                preview.first { rows ->
+                    if (rows.first().song.id == "widget-15") {
+                        library.setSongStar(1, "widget-15", null)
+                        false
+                    } else {
+                        true
+                    }
+                }
+            assertEquals((14 downTo 3).map { "widget-$it" }, observedAfterUnstar.map { it.song.id })
+            library.upsertSongs(listOf(song("widget-new", "al1", 16, starred = 99)))
+            assertEquals(
+                "widget-new",
+                preview
+                    .first()
+                    .first()
+                    .song.id,
+            )
+
+            db.downloadDao().upsert(SongDownload(1, "widget-10", DownloadStatus.Completed))
+            db.downloadDao().upsert(SongDownload(1, "widget-new", DownloadStatus.Completed))
+            val offline = spec.copy(downloaded = true)
+            val downloaded = library.observeFavoriteSongs(songsPageQuery(1, offline, offset = 0, limit = WIDGET_SONG_LIMIT)).first()
+            assertEquals(listOf("widget-new", "widget-10"), downloaded.map { it.song.id })
+            val queue = repository.snapshotAfter(listOf(repository.libraryEntry(1, offline)))
+            assertEquals(downloaded.map { it.song.id }, resolveAll(queue))
+        }
 
     @Test
     fun extensionAppendAndTruncateKeepCurrentHistoryAndManualEntries() =

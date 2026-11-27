@@ -11,6 +11,7 @@ import com.subtracks.data.model.PlaybackCursor
 import com.subtracks.data.model.PlaylistSongItem
 import com.subtracks.data.model.QueueEntry
 import com.subtracks.data.model.UpNextEntry
+import kotlinx.coroutines.flow.Flow
 
 private const val ALBUM_SONGS_SELECT =
     "SELECT songs.*, albums.coverArt AS coverArt FROM songs " +
@@ -111,6 +112,9 @@ interface QueueDao {
 
     @Query("SELECT * FROM playback_cursor WHERE id = 1")
     suspend fun cursor(): PlaybackCursor?
+
+    @Query("SELECT sourceLabel FROM playback_cursor WHERE id = 1")
+    fun observeSourceLabel(): Flow<String?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun setCursor(cursor: PlaybackCursor)

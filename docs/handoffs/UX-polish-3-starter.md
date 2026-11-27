@@ -82,7 +82,8 @@ After phone testing UX-32 the owner asked for more widgets. Umbrella [#62](https
 slices UX-38 to UX-44 (#63 to #69), branch `ux/polish-3w-widgets` after wave B merges; wave C follows wave W.
 Shared rules are in #62: `RemoteViews` (D19), Android 12+ only (D20), no sideways scrolling (a platform limit:
 only vertical lists, grids and swipeable stacks), offline-first, updates only on data changes. UX-40 builds the
-shared list plumbing; record it in its handoff for UX-41 to UX-44. Open owner questions sit in each issue.
+shared list plumbing; record it in its handoff for UX-41 to UX-44. UX-42 generalised the album grid into
+`widget/AlbumShelfWidget.kt` (one `AlbumShelf` entry per Home album shelf). Open owner questions sit in each issue.
 
 ## Next action
 

@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <dimen name="widget_art_background_inset">5dp</dimen>
     <color name="widget_surface">#FF171513</color>
     <color name="widget_art_surface">#FF2A2724</color>
     <color name="widget_text_primary">#FFF5F2EE</color>
     <color name="widget_text_secondary">#FFA8A29C</color>
+    <color name="widget_text_secondary_on_artwork">#FFCCC6C0</color>
     <color name="widget_accent">#FFFF8C4B</color>
     <color name="widget_ink">#FF0E0E0E</color>
     <color name="widget_ripple">#33FFFFFF</color>
@@ -45,5 +47,80 @@
         <item name="android:background">@drawable/widget_button_background</item>
         <item name="android:padding">10dp</item>
         <item name="android:scaleType">fitCenter</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.Mood" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingStart">2dp</item>
+        <item name="android:paddingEnd">2dp</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.MoodIcon" parent="">
+        <item name="android:layout_width">22dp</item>
+        <item name="android:layout_height">22dp</item>
+        <item name="android:importantForAccessibility">no</item>
+    </style>
+
+    <!-- The renderer hides the label at large font sizes and keeps the icon. API 26+ also shrinks it to fit. -->
+    <style name="Base.Widget.Maekster.NowPlaying.MoodLabel" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">16dp</item>
+        <item name="android:layout_marginTop">3dp</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.MoodLabel" parent="Base.Widget.Maekster.NowPlaying.MoodLabel" />
+
+    <!-- The row below the player (UX-45): five album or artist tiles, or three favourite songs. -->
+    <style name="Widget.Maekster.NowPlaying.RowTile" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.RowTileArt" parent="">
+        <item name="android:layout_width">54dp</item>
+        <item name="android:layout_height">54dp</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:background">@drawable/widget_art_background</item>
+        <!-- Rounds the cover on API 31+; older Android keeps the mood row and never shows tiles. -->
+        <item name="android:clipToOutline" tools:targetApi="31">true</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:scaleType">centerCrop</item>
+        <item name="android:src">@drawable/ic_widget_artwork_placeholder</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.RowTileState" parent="">
+        <item name="android:layout_width">28dp</item>
+        <item name="android:layout_height">28dp</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:background">@drawable/widget_album_playback_background</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:padding">5dp</item>
+        <item name="android:visibility">gone</item>
+    </style>
+
+    <style name="Widget.Maekster.NowPlaying.RowSong" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:textColor">@color/widget_text_primary</item>
+        <item name="android:textSize">13sp</item>
     </style>
 </resources>

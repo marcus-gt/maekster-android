@@ -310,6 +310,7 @@ private fun MainNavigation() {
     val selectedTab = currentTab(backStack.map { it.destination.route })
     val playbackController = koinInject<PlaybackController>()
     val nowPlayingLauncher = koinInject<NowPlayingLauncher>()
+    val homeSectionLauncher = koinInject<HomeSectionLauncher>()
     val libraryRepository = koinInject<LibraryRepository>()
     val downloadRepository = koinInject<DownloadRepository>()
     val playback by playbackController.state.collectAsStateWithLifecycle()
@@ -401,6 +402,13 @@ private fun MainNavigation() {
         }
     }
     LaunchedEffect(Unit) { if (nowPlayingOpen) nowPlayingProgress = 1f }
+    LaunchedEffect(homeSectionLauncher, navController) {
+        homeSectionLauncher.sections.collect { section ->
+            showingQueue = false
+            settleNowPlaying(false)
+            navigateDetail(Routes.HOME_SECTION, "section", section.name, Routes.homeSection(section))
+        }
+    }
 
     val focusManager = LocalFocusManager.current
     val playerVisible = playback.item != null
