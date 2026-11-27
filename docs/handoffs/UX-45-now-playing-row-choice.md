@@ -104,6 +104,19 @@ Ticked Favorite songs, Artist radio and Nothing in issue #71. The remaining boxe
 - The fine-detail regression failed with the old blur and passed with the unblurred renderer. The debug build, full unit suite, ktlint, Android lint and diff check passed.
 - Installed the unblurred build on the owner's Pixel 9. The owner said it looks good and asked to commit.
 
+## Lock-screen media badge follow-up
+
+The owner asked to replace the cassette badge on the system Now Playing card in the widget wave PR.
+The tracked Media3 small-icon drawable now wraps the existing monochrome maekster mark. Android
+SystemUI uses the media notification's small icon for this badge. The debug build, ktlint, Android
+lint and diff check passed. Both full unit runs had one timeout in
+`PlaybackControllerTest.enteringShuffleOrRepeatTrimsTheGeneratedTail`. The test passed in isolation.
+Confirmed the new mark on the emulator's system media card in the notification shade during playback.
+The owner requested the non-debug build and the widget PR. Nightly and release builds passed.
+Installed nightly 3.1.0 over the debug build on Pixel 9 and verified its package is non-debuggable.
+The badge was checked on the emulator. Pixel lock-screen verification remains unreported.
+All 2,151 unit tests, ktlint format/check and Android lint passed on the final run with `--max-workers=1`.
+
 ## Next action
 
 Owner prepares the wave W PR from `ux/polish-3w-widgets`. Issue #71 still tracks launcher Customize,
