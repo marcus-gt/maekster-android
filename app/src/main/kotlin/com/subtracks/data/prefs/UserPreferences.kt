@@ -2,6 +2,7 @@ package com.subtracks.data.prefs
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -105,6 +106,10 @@ data class ArtworkSeedValue(
     val primary: Int,
     val secondary: Int?,
 )
+
+/** Key prefixes of the saved Queue Builder picks and of the picks its last queue was built from. */
+private const val QUEUE_BUILDER_PICKS = "queue_builder"
+private const val QUEUE_BUILDER_BUILT = "queue_builder_built"
 
 class UserPreferences(
     private val store: DataStore<Preferences>,
@@ -392,46 +397,91 @@ class UserPreferences(
 
     /** The Queue Builder picks and length for one server; sub-genre keys come from that server's library. */
     fun queueBuilderPicks(sourceId: Long): Flow<QueueBuilderPicks> =
-        store.data.map { prefs ->
-            QueueBuilderPicks(
-                selection =
-                    QueueBuilderSelection(
-                        mains = prefs[queueBuilderMainsKey(sourceId)].orEmpty(),
-                        tags = prefs[queueBuilderTagsKey(sourceId)].orEmpty(),
-                        decades = prefs[queueBuilderDecadesKey(sourceId)].orEmpty().mapNotNull { it.toIntOrNull() }.toSet(),
-                        moods =
-                            prefs[queueBuilderMoodsKey(sourceId)]
-                                .orEmpty()
-                                .mapNotNullTo(mutableSetOf()) { name -> QueueBuilderMood.entries.firstOrNull { it.wireName == name } },
-                    ),
-                length = QueueBuilderPicks.clampLength(prefs[queueBuilderLengthKey(sourceId)] ?: QueueBuilderPicks.DEFAULT_LENGTH),
-            )
-        }
+        store.data.map { prefs -> prefs.queueBuilderPicks(QUEUE_BUILDER_PICKS, sourceId) ?: QueueBuilderPicks() }
 
     suspend fun setQueueBuilderPicks(
         sourceId: Long,
         picks: QueueBuilderPicks,
     ) {
         store.edit {
-            it[queueBuilderMainsKey(sourceId)] = picks.selection.mains
-            it[queueBuilderTagsKey(sourceId)] = picks.selection.tags
-            it[queueBuilderDecadesKey(sourceId)] = picks.selection.decades.mapTo(mutableSetOf()) { decade -> decade.toString() }
-            it[queueBuilderMoodsKey(sourceId)] = picks.selection.moods.mapTo(mutableSetOf()) { mood -> mood.wireName }
-            it[queueBuilderLengthKey(sourceId)] = QueueBuilderPicks.clampLength(picks.length)
+            it.setQueueBuilderPicks(QUEUE_BUILDER_PICKS, sourceId, picks)
             // Flat genre picks from the first Queue Builder build; main genres and sub-genres replaced them.
             it.remove(stringSetPreferencesKey("queue_builder_genres_$sourceId"))
         }
     }
 
-    private fun queueBuilderMainsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_mains_$sourceId")
+    /**
+     * The picks (as built: only those then available) and length the last Queue Builder queue of a server was built
+     * from, or null before the first build. While they still match the picks, the widget's Play continues that queue.
+     */
+    fun queueBuilderBuiltPicks(sourceId: Long): Flow<QueueBuilderPicks?> =
+        store.data.map { prefs -> prefs.queueBuilderPicks(QUEUE_BUILDER_BUILT, sourceId) }
 
-    private fun queueBuilderTagsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_tags_$sourceId")
+    suspend fun setQueueBuilderBuiltPicks(
+        sourceId: Long,
+        picks: QueueBuilderPicks,
+    ) {
+        store.edit { it.setQueueBuilderPicks(QUEUE_BUILDER_BUILT, sourceId, picks) }
+    }
 
-    private fun queueBuilderMoodsKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_moods_$sourceId")
+    // Null when nothing was saved under [prefix] yet (the length is always written).
+    private fun Preferences.queueBuilderPicks(
+        prefix: String,
+        sourceId: Long,
+    ): QueueBuilderPicks? {
+        val length = this[queueBuilderLengthKey(prefix, sourceId)]
+        if (length == null && prefix != QUEUE_BUILDER_PICKS) return null
+        return QueueBuilderPicks(
+            selection =
+                QueueBuilderSelection(
+                    mains = this[queueBuilderMainsKey(prefix, sourceId)].orEmpty(),
+                    tags = this[queueBuilderTagsKey(prefix, sourceId)].orEmpty(),
+                    decades = this[queueBuilderDecadesKey(prefix, sourceId)].orEmpty().mapNotNull { it.toIntOrNull() }.toSet(),
+                    moods =
+                        this[queueBuilderMoodsKey(prefix, sourceId)]
+                            .orEmpty()
+                            .mapNotNullTo(mutableSetOf()) { name -> QueueBuilderMood.entries.firstOrNull { it.wireName == name } },
+                ),
+            length = QueueBuilderPicks.clampLength(length ?: QueueBuilderPicks.DEFAULT_LENGTH),
+        )
+    }
 
-    private fun queueBuilderDecadesKey(sourceId: Long) = stringSetPreferencesKey("queue_builder_decades_$sourceId")
+    private fun MutablePreferences.setQueueBuilderPicks(
+        prefix: String,
+        sourceId: Long,
+        picks: QueueBuilderPicks,
+    ) {
+        this[queueBuilderMainsKey(prefix, sourceId)] = picks.selection.mains
+        this[queueBuilderTagsKey(prefix, sourceId)] = picks.selection.tags
+        this[queueBuilderDecadesKey(prefix, sourceId)] = picks.selection.decades.mapTo(mutableSetOf()) { decade -> decade.toString() }
+        this[queueBuilderMoodsKey(prefix, sourceId)] = picks.selection.moods.mapTo(mutableSetOf()) { mood -> mood.wireName }
+        this[queueBuilderLengthKey(prefix, sourceId)] = QueueBuilderPicks.clampLength(picks.length)
+    }
 
-    private fun queueBuilderLengthKey(sourceId: Long) = intPreferencesKey("queue_builder_length_$sourceId")
+    private fun queueBuilderMainsKey(
+        prefix: String,
+        sourceId: Long,
+    ) = stringSetPreferencesKey("${prefix}_mains_$sourceId")
+
+    private fun queueBuilderTagsKey(
+        prefix: String,
+        sourceId: Long,
+    ) = stringSetPreferencesKey("${prefix}_tags_$sourceId")
+
+    private fun queueBuilderMoodsKey(
+        prefix: String,
+        sourceId: Long,
+    ) = stringSetPreferencesKey("${prefix}_moods_$sourceId")
+
+    private fun queueBuilderDecadesKey(
+        prefix: String,
+        sourceId: Long,
+    ) = stringSetPreferencesKey("${prefix}_decades_$sourceId")
+
+    private fun queueBuilderLengthKey(
+        prefix: String,
+        sourceId: Long,
+    ) = intPreferencesKey("${prefix}_length_$sourceId")
 
     fun keepScreenOn(): Flow<Boolean> = store.data.map { prefs -> prefs[keepScreenOnKey] ?: false }
 

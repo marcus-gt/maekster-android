@@ -44,6 +44,13 @@
             </intent-filter>
         </service>
 
+        <!-- Keeps the app running while a Queue Builder widget Play builds its queue (Android 12+). -->
+        <service
+            android:name=".widget.QueueBuilderBuildService"
+            android:exported="false"
+            android:foregroundServiceType="shortService"
+            tools:targetApi="31" />
+
         <receiver
             android:name=".data.download.DownloadCancelReceiver"
             android:exported="false" />
@@ -110,6 +117,19 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/radio_stations_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.QueueBuilderWidget"
+            android:enabled="@bool/library_widgets_enabled"
+            android:exported="false"
+            android:label="@string/queue_builder_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/queue_builder_widget_info" />
         </receiver>
 
         <provider

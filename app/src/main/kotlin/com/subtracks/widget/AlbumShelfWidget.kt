@@ -162,9 +162,10 @@ internal fun PlaybackState.albumIsPlaying(
     albumId: String,
 ): Boolean? = isPlaying.takeIf { context?.sourceId == sourceId && item?.albumId == albumId }
 
+// The background shows what the player holds for this server, playing or paused, so pausing doesn't blank it.
 internal fun RecentAlbumsContent.withPlayback(state: PlaybackState): RecentAlbumsContent {
     val sourceId = sourceId ?: return this
-    val playingAlbum = state.item?.takeIf { state.isPlaying && state.context?.sourceId == sourceId }
+    val playingAlbum = state.item?.takeIf { state.context?.sourceId == sourceId }
     return copy(
         albums = albums.map { it.copy(isPlaying = state.albumIsPlaying(sourceId, it.id)) },
         backgroundCoverArt = playingAlbum?.let { item -> item.coverArtId ?: albums.firstOrNull { it.id == item.albumId }?.coverArt },

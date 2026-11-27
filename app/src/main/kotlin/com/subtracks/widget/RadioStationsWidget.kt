@@ -217,7 +217,8 @@ internal fun RadioStationsContent.withTaps(
         startingArtist = startingArtist?.takeIf { id -> artists.any { it.id == id } },
         backgroundCoverArt =
             state.item
-                ?.takeIf { state.isPlaying && sourceId != null && state.context?.sourceId == sourceId }
+                // Playing or paused, so pausing doesn't blank the background.
+                ?.takeIf { sourceId != null && state.context?.sourceId == sourceId }
                 ?.coverArtId,
     )
 

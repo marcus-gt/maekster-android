@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:clipToOutline="true"
+    tools:ignore="Overdraw"
+    tools:targetApi="31">
+
+    <ImageView
+        android:id="@id/widget_art_background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/widget_qb_header"
+                style="@style/Widget.Maekster.AlbumShelf.Header"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="@string/queue_builder_title" />
+
+            <ImageView
+                android:id="@+id/widget_qb_reset"
+                style="@style/Widget.Maekster.NowPlaying.SkipButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:contentDescription="@string/queue_builder_reset"
+                android:src="@drawable/ic_widget_reset" />
+
+            <FrameLayout
+                android:id="@+id/widget_qb_play_frame"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="6dp">
+
+                <ImageView
+                    android:id="@+id/widget_qb_play"
+                    style="@style/Widget.Maekster.NowPlaying.PlayButton"
+                    android:contentDescription="@string/queue_builder_play_queue" />
+
+                <!-- Shown instead of Play while a queue builds, which can take a while with moods. -->
+                <ProgressBar
+                    android:id="@+id/widget_qb_building"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/widget_play_background"
+                    android:contentDescription="@string/queue_builder_building"
+                    android:indeterminate="true"
+                    android:indeterminateTint="@color/widget_ink"
+                    android:padding="10dp"
+                    android:visibility="gone" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/widget_qb_genres"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/widget_qb_genres_first"
+                style="@style/Widget.Maekster.QueueBuilder.Row">
+
+                <TextView
+                    android:id="@+id/widget_qb_genre_0"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip" />
+
+                <TextView
+                    android:id="@+id/widget_qb_genre_1"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip"
+                    android:layout_marginStart="6dp" />
+
+                <TextView
+                    android:id="@+id/widget_qb_genre_2"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip"
+                    android:layout_marginStart="6dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/widget_qb_genres_second"
+                style="@style/Widget.Maekster.QueueBuilder.Row">
+
+                <TextView
+                    android:id="@+id/widget_qb_genre_3"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip" />
+
+                <TextView
+                    android:id="@+id/widget_qb_genre_4"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip"
+                    android:layout_marginStart="6dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/widget_qb_decades"
+            style="@style/Widget.Maekster.QueueBuilder.Row">
+
+            <TextView
+                android:id="@+id/widget_qb_decade_0"
+                style="@style/Widget.Maekster.QueueBuilder.Chip"
+                android:text="@string/widget_queue_builder_2000s" />
+
+            <TextView
+                android:id="@+id/widget_qb_decade_1"
+                style="@style/Widget.Maekster.QueueBuilder.Chip"
+                android:layout_marginStart="6dp"
+                android:text="@string/widget_queue_builder_90s" />
+
+            <TextView
+                android:id="@+id/widget_qb_decade_2"
+                style="@style/Widget.Maekster.QueueBuilder.Chip"
+                android:layout_marginStart="6dp"
+                android:text="@string/widget_queue_builder_80s" />
+
+            <TextView
+                android:id="@+id/widget_qb_decade_3"
+                style="@style/Widget.Maekster.QueueBuilder.Chip"
+                android:layout_marginStart="6dp"
+                android:text="@string/widget_queue_builder_70s" />
+
+            <TextView
+                android:id="@+id/widget_qb_decade_4"
+                style="@style/Widget.Maekster.QueueBuilder.Chip"
+                android:layout_marginStart="6dp"
+                android:text="@string/widget_queue_builder_older" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/widget_qb_moods"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout style="@style/Widget.Maekster.QueueBuilder.Row">
+
+                <TextView
+                    android:id="@+id/widget_qb_mood_0"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip"
+                    android:text="@string/queue_builder_mood_happy" />
+
+                <TextView
+                    android:id="@+id/widget_qb_mood_1"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip"
+                    android:layout_marginStart="6dp"
+                    android:text="@string/queue_builder_mood_sad" />
+
+                <TextView
+                    android:id="@+id/widget_qb_mood_2"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip"
+                    android:layout_marginStart="6dp"
+                    android:text="@string/queue_builder_mood_relaxed" />
+            </LinearLayout>
+
+            <LinearLayout style="@style/Widget.Maekster.QueueBuilder.Row">
+
+                <TextView
+                    android:id="@+id/widget_qb_mood_3"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip"
+                    android:text="@string/queue_builder_mood_aggressive" />
+
+                <TextView
+                    android:id="@+id/widget_qb_mood_4"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip"
+                    android:layout_marginStart="6dp"
+                    android:text="@string/queue_builder_mood_party" />
+
+                <TextView
+                    android:id="@+id/widget_qb_mood_5"
+                    style="@style/Widget.Maekster.QueueBuilder.Chip"
+                    android:layout_marginStart="6dp"
+                    android:text="@string/queue_builder_mood_danceable" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_qb_summary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:paddingHorizontal="8dp"
+            android:textColor="@color/widget_text_secondary_on_artwork"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/widget_qb_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:paddingHorizontal="8dp"
+            android:textColor="@color/widget_text_primary"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/widget_qb_offline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="8dp"
+            android:text="@string/queue_builder_offline"
+            android:textColor="@color/widget_text_secondary_on_artwork"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/widget_qb_empty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:padding="8dp"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:visibility="gone" />
+    </LinearLayout>
+</FrameLayout>

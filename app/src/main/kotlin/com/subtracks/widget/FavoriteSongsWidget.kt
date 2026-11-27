@@ -189,7 +189,8 @@ internal fun PlaybackState.favoriteWidgetPlayback(
         hasItem = true,
         isPlaying = isPlaying,
         hasNext = hasNext,
-        coverArt = if (isPlaying) song.coverArtId ?: fallbackCover(song.id) else null,
+        // Playing or paused, so pausing doesn't blank the background.
+        coverArt = song.coverArtId ?: fallbackCover(song.id),
     )
 }
 

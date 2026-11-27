@@ -18,7 +18,8 @@ class FavoriteSongsWidgetTest {
                 hasNext = true,
             )
         assertEquals(FavoriteWidgetPlayback(true, true, true, "cover"), state.favoriteWidgetPlayback(1) { null })
-        assertEquals(FavoriteWidgetPlayback(true, false, true), state.copy(isPlaying = false).favoriteWidgetPlayback(1) { null })
+        // Paused keeps the cover: pausing doesn't blank the background.
+        assertEquals(FavoriteWidgetPlayback(true, false, true, "cover"), state.copy(isPlaying = false).favoriteWidgetPlayback(1) { null })
         assertEquals(FavoriteWidgetPlayback(), state.favoriteWidgetPlayback(2) { "other" })
         assertEquals(FavoriteWidgetPlayback(), state.copy(item = null).favoriteWidgetPlayback(1) { null })
 

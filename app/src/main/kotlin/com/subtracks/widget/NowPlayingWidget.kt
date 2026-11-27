@@ -302,7 +302,8 @@ internal fun RemoteViews.setWidgetMoodButtons(
         setViewVisibility(mood.widgetLabelId(), if (labels) View.VISIBLE else View.GONE)
         val title = context.getString(mood.widgetTitle())
         if (mood == playing) {
-            setImageViewResource(mood.widgetIconId(), if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play)
+            // White like the mood icons; the ink play and pause are for the orange Play button.
+            setImageViewResource(mood.widgetIconId(), if (isPlaying) R.drawable.ic_widget_mood_pause else R.drawable.ic_widget_mood_play)
             val action = context.getString(if (isPlaying) R.string.controls_pause else R.string.controls_play)
             setContentDescription(button, context.getString(R.string.widget_album_action, action, title))
         } else {

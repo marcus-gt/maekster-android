@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <bool name="library_widgets_enabled">false</bool>
     <string name="widget_recent_albums_description">Play recently added albums from your library</string>
     <string name="widget_recent_albums_no_server">Open maekster to add a server.</string>
@@ -12,6 +12,47 @@
     <string name="widget_radio_stations_label">Radio stations</string>
     <string name="widget_radio_stations_description">Start artist radio and mood radio from your home screen</string>
     <string name="widget_radio_stations_offline">Offline: artist radio plays downloaded songs.</string>
+    <string name="widget_queue_builder_description">Pick genres, decades and moods and build a queue from your home screen</string>
+    <string name="widget_queue_builder_2000s">2000+</string>
+    <string name="widget_queue_builder_90s">90s</string>
+    <string name="widget_queue_builder_80s">80s</string>
+    <string name="widget_queue_builder_70s">70s</string>
+    <string name="widget_queue_builder_older">≤60s</string>
+    <string name="widget_queue_builder_2000s_description">2000 and later</string>
+    <string name="widget_queue_builder_older_description">The 1960s and before</string>
+    <string name="widget_queue_builder_paused">Paused · Play to continue</string>
+    <string name="widget_queue_builder_picks_changed">Picks changed · Play builds a new queue</string>
+    <string name="widget_chip_picked">picked</string>
+    <string name="widget_chip_not_picked">not picked</string>
+
+    <style name="Widget.Maekster.QueueBuilder.Row" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+    </style>
+
+    <style name="Widget.Maekster.QueueBuilder.Chip" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">34dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">@drawable/widget_chip_background</item>
+        <!-- Unpicked; the renderer sets each chip's tint. Also what the widget picker preview shows. -->
+        <item name="android:backgroundTint">#26FFFFFF</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:paddingStart">6dp</item>
+        <item name="android:paddingEnd">6dp</item>
+        <item name="android:textColor">@color/widget_text_primary</item>
+        <item name="android:textSize">13sp</item>
+        <!-- Large font sizes shrink the label to fit the chip instead of clipping it (the widget is API 31+). -->
+        <item name="android:autoSizeTextType" tools:targetApi="26">uniform</item>
+        <item name="android:autoSizeMinTextSize" tools:targetApi="26">8sp</item>
+        <item name="android:autoSizeMaxTextSize" tools:targetApi="26">13sp</item>
+    </style>
 
     <style name="Widget.Maekster.AlbumShelf.Header" parent="">
         <item name="android:layout_width">match_parent</item>

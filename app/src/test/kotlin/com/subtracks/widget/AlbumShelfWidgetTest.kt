@@ -88,7 +88,8 @@ class AlbumShelfWidgetTest {
 
         assertEquals("track-cover", shelf.withPlayback(playing).backgroundCoverArt)
         assertEquals("album-cover", shelf.withPlayback(playing.copy(item = playing.item?.copy(coverArtId = null))).backgroundCoverArt)
-        assertEquals(null, shelf.withPlayback(playing.copy(isPlaying = false)).backgroundCoverArt)
+        // Paused keeps the cover: pausing doesn't blank the background.
+        assertEquals("track-cover", shelf.withPlayback(playing.copy(isPlaying = false)).backgroundCoverArt)
         assertEquals(null, shelf.withPlayback(playing.copy(context = QueueContext(QueueKind.Album, 2, "2"))).backgroundCoverArt)
         assertEquals(null, shelf.withPlayback(playing.copy(item = null)).backgroundCoverArt)
     }

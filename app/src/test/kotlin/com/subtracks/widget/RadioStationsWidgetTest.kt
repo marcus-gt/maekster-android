@@ -172,6 +172,20 @@ class RadioStationsWidgetTest {
     }
 
     @Test
+    fun aMoodButtonsPlayAndPauseAreWhiteLikeTheMoodIcons() {
+        val chill = QueueCollection.forMood(RadioMood.CHILL).storedLabel
+
+        fun icon(isPlaying: Boolean): Int {
+            val view = inflate(RadioStationsContent(1, moods = true, radio = chill, isPlaying = isPlaying))
+            val image = view.findViewById<android.widget.ImageView>(RadioMood.CHILL.widgetIconId())
+            return Shadows.shadowOf(image.drawable).createdFromResId
+        }
+
+        assertEquals(R.drawable.ic_widget_mood_pause, icon(isPlaying = true))
+        assertEquals(R.drawable.ic_widget_mood_play, icon(isPlaying = false))
+    }
+
+    @Test
     fun tapsCarryTheSourceAndArtistBack() {
         val template = Shadows.shadowOf(RadioStationsWidget.playTemplate(context)).savedIntent
         assertEquals(RadioStationsWidget::class.java.name, template.component?.className)
@@ -193,7 +207,8 @@ class RadioStationsWidgetTest {
         assertNull(shown.startingMood)
         assertEquals("a", shown.startingArtist)
 
-        assertNull(content.withTaps(playing.copy(isPlaying = false), null, null).backgroundCoverArt)
+        // Paused keeps the cover: pausing doesn't blank the background.
+        assertEquals("cover", content.withTaps(playing.copy(isPlaying = false), null, null).backgroundCoverArt)
         assertNull(
             content
                 .withTaps(

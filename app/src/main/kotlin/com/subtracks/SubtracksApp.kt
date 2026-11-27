@@ -18,6 +18,7 @@ import com.subtracks.widget.AlbumShelf
 import com.subtracks.widget.AlbumShelfWidgetUpdater
 import com.subtracks.widget.FavoriteSongsWidgetUpdater
 import com.subtracks.widget.NowPlayingWidgetUpdater
+import com.subtracks.widget.QueueBuilderWidgetUpdater
 import com.subtracks.widget.RadioStationsWidgetUpdater
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
@@ -59,6 +60,7 @@ class SubtracksApp : Application() {
             AlbumShelf.entries.forEach { koin.get<AlbumShelfWidgetUpdater>(it.updaterName).start() }
             koin.get<FavoriteSongsWidgetUpdater>().start()
             koin.get<RadioStationsWidgetUpdater>().start()
+            koin.get<QueueBuilderWidgetUpdater>().start()
         }
     }
 

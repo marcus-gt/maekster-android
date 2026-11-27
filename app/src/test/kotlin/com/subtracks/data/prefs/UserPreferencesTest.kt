@@ -54,6 +54,27 @@ class UserPreferencesTest {
         }
 
     @Test
+    fun whatTheLastQueueWasBuiltFromIsKeptPerServerApartFromThePicks() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(null, prefs.queueBuilderBuiltPicks(1).first())
+
+            val built = QueueBuilderPicks(QueueBuilderSelection(mains = setOf("Jazz"), decades = setOf(1990)), length = 40)
+            prefs.setQueueBuilderBuiltPicks(1, built)
+            prefs.setQueueBuilderPicks(1, QueueBuilderPicks(QueueBuilderSelection(mains = setOf("Rock"))))
+
+            assertEquals(built, prefs.queueBuilderBuiltPicks(1).first())
+            assertEquals(
+                setOf("Rock"),
+                prefs
+                    .queueBuilderPicks(1)
+                    .first()
+                    .selection.mains,
+            )
+            assertEquals(null, prefs.queueBuilderBuiltPicks(2).first())
+        }
+
+    @Test
     fun autoplayDefaultsOffAndPersistsAcrossReaders() =
         runTest {
             val file = File.createTempFile("autoplay", ".preferences_pb").apply { delete() }

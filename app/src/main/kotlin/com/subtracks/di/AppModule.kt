@@ -118,6 +118,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -311,6 +312,55 @@ fun appModule(
                 togglePlayPause = playback::togglePlayPause,
             )
         }
+        single {
+            val sources = get<SourceRepository>()
+            val builder = get<QueueBuilder>()
+            com.subtracks.widget.QueueBuilderWidgetUpdater(
+                context = context.applicationContext,
+                sources = sources,
+                content =
+                    com.subtracks.widget.queueBuilderWidgetContent(
+                        activeSourceId = sources.activeSourceId(),
+                        offline =
+                            combine(sources.offline, networkAvailable(context.applicationContext)) { offline, connected ->
+                                offline || !connected
+                            },
+                        librarySynced =
+                            get<SyncManager>()
+                                .status
+                                .filter { it == com.subtracks.data.sync.SyncStatus.Success }
+                                .map { },
+                        index = builder::index,
+                        picks = get<UserPreferences>()::queueBuilderPicks,
+                        moodsAvailable = { id -> get<AudioMuseConfiguration>().observe(id).map { it.available } },
+                        builtPicks = get<UserPreferences>()::queueBuilderBuiltPicks,
+                    ),
+                scope = get(named("io")),
+                playback = get<PlaybackController>().state,
+                queueLabel = get<QueueRepository>().sourceLabels(),
+            )
+        }
+        single {
+            val preferences = get<UserPreferences>()
+            val builder = get<QueueBuilder>()
+            val updater = get<com.subtracks.widget.QueueBuilderWidgetUpdater>()
+            val downloadedOnly = get<() -> Boolean>(named("mixDownloadedOnly"))
+            com.subtracks.widget.QueueBuilderWidgetCommands(
+                activeSourceId = get<SourceRepository>()::activeSourceIdOnce,
+                picks = { id -> preferences.queueBuilderPicks(id).first() },
+                savePicks = preferences::setQueueBuilderPicks,
+                index = { id -> updater.shownIndex(id) ?: builder.index(id, downloadedOnly()) },
+                moodsAvailable = { id -> get<AudioMuseConfiguration>().observe(id).first().available },
+                play = get<QueueBuilderPlayer>()::play,
+                showBuilding = updater::showBuilding,
+                showMessage = { res -> showWidgetToast(context, res) },
+                pause = {
+                    val playback = get<PlaybackController>()
+                    if (playback.state.value.isPlaying) playback.togglePlayPause()
+                },
+                resume = { get<PlaybackController>().resume() },
+            )
+        }
         for (shelf in com.subtracks.widget.AlbumShelf.entries) {
             single(shelf.updaterName) {
                 com.subtracks.widget.AlbumShelfWidgetUpdater(
@@ -490,6 +540,7 @@ fun appModule(
             activeSourceId = get<SourceRepository>()::activeSourceIdOnce,
             downloadedOnly = get(named("mixDownloadedOnly")),
             controller = get(),
+            rememberBuilt = get<UserPreferences>()::setQueueBuilderBuiltPicks,
         )
     }
     viewModel {
