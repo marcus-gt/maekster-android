@@ -141,6 +141,14 @@ abstract class AlbumShelfWidget internal constructor(
             Intent()
                 .putExtra(EXTRA_SOURCE, sourceId)
                 .putExtra(EXTRA_ALBUM, albumId)
+
+        /** A complete play-or-pause broadcast for one album, for tiles outside this widget (the Now Playing row). */
+        fun playAlbumIntent(
+            context: Context,
+            shelf: AlbumShelf,
+            sourceId: Long,
+            albumId: String,
+        ): Intent = playAlbum(sourceId, albumId).setClass(context, shelf.provider).setAction(ACTION_PLAY_ALBUM)
     }
 }
 
@@ -202,6 +210,7 @@ internal class AlbumShelfWidgetUpdater(
     private val component = ComponentName(context, shelf.provider)
     private val revision = MutableStateFlow(0L)
     private val artwork = WidgetArtwork(context, sources, size = 96)
+    private val backgroundArtwork = WidgetArtwork(context, sources)
     private val artworkBackground = WidgetArtworkBackground()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -231,7 +240,7 @@ internal class AlbumShelfWidgetUpdater(
         val rows = RemoteViews.RemoteCollectionItems.Builder().setViewTypeCount(1)
         val sourceId = content.sourceId
         if (sourceId != null) addAlbums(rows, sourceId, content.albums)
-        val cover = if (sourceId != null) content.backgroundCoverArt?.let { artwork.load(it, sourceId) } else null
+        val cover = if (sourceId != null) content.backgroundCoverArt?.let { backgroundArtwork.load(it, sourceId) } else null
         return RemoteViews(context.packageName, R.layout.widget_recent_albums).apply {
             setWidgetArtworkBackground(artworkBackground.forCover(cover))
             setTextViewText(R.id.widget_album_header, context.getString(shelf.section.title))

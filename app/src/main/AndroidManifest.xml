@@ -44,6 +44,18 @@
             </intent-filter>
         </service>
 
+        <!-- A Now Playing widget's settings (UX-45): the launcher opens it, so it is exported for that action only. -->
+        <activity
+            android:name=".widget.NowPlayingWidgetConfigureActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Subtracks">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- Keeps the app running while a Queue Builder widget Play builds its queue (Android 12+). -->
         <service
             android:name=".widget.QueueBuilderBuildService"

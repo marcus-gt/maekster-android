@@ -20,6 +20,7 @@ import com.subtracks.data.mix.QueueBuilderSelection
 import com.subtracks.data.net.NetworkMode
 import com.subtracks.data.source.DEFAULT_FETCH_CONCURRENCY
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
@@ -110,6 +111,9 @@ data class ArtworkSeedValue(
 /** Key prefixes of the saved Queue Builder picks and of the picks its last queue was built from. */
 private const val QUEUE_BUILDER_PICKS = "queue_builder"
 private const val QUEUE_BUILDER_BUILT = "queue_builder_built"
+
+/** Key prefix of each Now Playing widget's row, followed by its app widget id. */
+private const val NOW_PLAYING_ROW = "now_playing_widget_row_"
 
 class UserPreferences(
     private val store: DataStore<Preferences>,
@@ -408,6 +412,36 @@ class UserPreferences(
             // Flat genre picks from the first Queue Builder build; main genres and sub-genres replaced them.
             it.remove(stringSetPreferencesKey("queue_builder_genres_$sourceId"))
         }
+    }
+
+    /** Each Now Playing widget's row below the player (UX-45), by app widget id, as the row's name. */
+    fun nowPlayingWidgetRows(): Flow<Map<Int, String>> =
+        store.data
+            .map { prefs ->
+                prefs
+                    .asMap()
+                    .entries
+                    .mapNotNull { (key, value) ->
+                        val id =
+                            key.name
+                                .takeIf { it.startsWith(NOW_PLAYING_ROW) }
+                                ?.removePrefix(NOW_PLAYING_ROW)
+                                ?.toIntOrNull()
+                        val row = value as? String
+                        if (id == null || row == null) null else id to row
+                    }.toMap()
+            }.distinctUntilChanged()
+
+    suspend fun setNowPlayingWidgetRow(
+        appWidgetId: Int,
+        row: String,
+    ) {
+        store.edit { it[stringPreferencesKey(NOW_PLAYING_ROW + appWidgetId)] = row }
+    }
+
+    /** Forgets the choices of removed widgets, so a new widget given a reused id starts from the default. */
+    suspend fun removeNowPlayingWidgetRows(appWidgetIds: IntArray) {
+        store.edit { prefs -> appWidgetIds.forEach { prefs.remove(stringPreferencesKey(NOW_PLAYING_ROW + it)) } }
     }
 
     /**

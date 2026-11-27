@@ -32,6 +32,7 @@ import com.subtracks.R
 import com.subtracks.data.audiomuse.RadioMood
 import com.subtracks.data.model.CoverArtRef
 import com.subtracks.data.model.coverArtKey
+import com.subtracks.data.prefs.UserPreferences
 import com.subtracks.data.repo.QueueRepository
 import com.subtracks.data.repo.SourceRepository
 import com.subtracks.log.Log
@@ -51,6 +52,21 @@ class NowPlayingWidget : AppWidgetProvider() {
         appWidgetIds: IntArray,
     ) {
         updater()?.refresh()
+    }
+
+    override fun onDeleted(
+        context: Context,
+        appWidgetIds: IntArray,
+    ) {
+        val koin = GlobalContext.getOrNull() ?: return
+        val pending = goAsync()
+        koin.get<CoroutineScope>(named("playback")).launch {
+            try {
+                koin.get<UserPreferences>().removeNowPlayingWidgetRows(appWidgetIds)
+            } finally {
+                pending.finish()
+            }
+        }
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -197,8 +213,11 @@ class NowPlayingWidgetRenderer(
         val ids = manager.getAppWidgetIds(component)
         if (ids.isEmpty()) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val views = RemoteViews(NowPlayingWidgetLayout.entries.associate { it.size to views(it, content, artwork) })
-            manager.updateAppWidget(ids, views)
+            // Each widget may show its own row below the player, so widgets get the size map of their choice.
+            ids.groupBy { content.rows.choice(it) }.forEach { (row, group) ->
+                val views = RemoteViews(NowPlayingWidgetLayout.entries.associate { it.size to views(it, content, artwork, row) })
+                manager.updateAppWidget(group.toIntArray(), views)
+            }
         } else {
             ids.forEach { id ->
                 val options = manager.getAppWidgetOptions(id)
@@ -216,8 +235,17 @@ class NowPlayingWidgetRenderer(
         size: NowPlayingWidgetLayout,
         content: NowPlayingWidgetContent,
         artwork: Bitmap?,
+        row: NowPlayingWidgetRow = NowPlayingWidgetRow.Moods,
     ): RemoteViews {
-        val layout = size.shown(content.moods)
+        val items = content.rows.items[row].orEmpty()
+        val hasRow =
+            when (row) {
+                NowPlayingWidgetRow.Moods -> content.moods
+                NowPlayingWidgetRow.Nothing -> false
+                else -> items.isNotEmpty()
+            }
+        // Without a row to show (moods unavailable, an empty list, or Nothing) the player gets the room back.
+        val layout = size.shown(hasRow)
         return RemoteViews(context.packageName, layout.res).apply {
             val open = openAppIntent(content)
             setOnClickPendingIntent(R.id.widget_root, open)
@@ -252,8 +280,112 @@ class NowPlayingWidgetRenderer(
                 skipButton(R.id.widget_previous, NowPlayingWidgetAction.Previous, enabled = content.live)
                 skipButton(R.id.widget_next, NowPlayingWidgetAction.Next, enabled = content.live && content.hasNext)
             }
-            if (layout.hasMoods) setWidgetMoodButtons(context, content.startingMood, content.playingMood, content.isPlaying)
+            if (layout.hasMoods) setRow(row, content, items)
         }
+    }
+
+    private fun RemoteViews.setRow(
+        row: NowPlayingWidgetRow,
+        content: NowPlayingWidgetContent,
+        items: List<NowPlayingRowItem>,
+    ) {
+        val tiles =
+            row == NowPlayingWidgetRow.RecentlyAdded || row == NowPlayingWidgetRow.RecentlyPlayed || row == NowPlayingWidgetRow.ArtistRadio
+        setViewVisibility(R.id.widget_moods, if (row == NowPlayingWidgetRow.Moods) View.VISIBLE else View.GONE)
+        setViewVisibility(R.id.widget_row_tiles, if (tiles) View.VISIBLE else View.GONE)
+        setViewVisibility(R.id.widget_row_songs, if (row == NowPlayingWidgetRow.FavoriteSongs) View.VISIBLE else View.GONE)
+        when {
+            row == NowPlayingWidgetRow.Moods -> setWidgetMoodButtons(context, content.startingMood, content.playingMood, content.isPlaying)
+            tiles -> setRowTiles(row, items)
+            row == NowPlayingWidgetRow.FavoriteSongs -> setRowSongs(items)
+        }
+    }
+
+    private fun RemoteViews.setRowTiles(
+        row: NowPlayingWidgetRow,
+        items: List<NowPlayingRowItem>,
+    ) {
+        val artist = row == NowPlayingWidgetRow.ArtistRadio
+        ROW_TILES.forEachIndexed { slot, (tile, art, state) ->
+            val item = items.getOrNull(slot)
+            // An empty slot keeps its room, so the tiles line up whatever their number.
+            setViewVisibility(tile, if (item == null) View.INVISIBLE else View.VISIBLE)
+            if (item == null) return@forEachIndexed
+            setInt(art, "setBackgroundResource", if (artist) R.drawable.widget_station_art_background else R.drawable.widget_art_background)
+            if (item.art != null) setImageViewBitmap(art, item.art) else setImageViewResource(art, R.drawable.ic_widget_artwork_placeholder)
+            val playing = item.isPlaying
+            setViewVisibility(state, if (playing == null) View.GONE else View.VISIBLE)
+            if (playing != null) setImageViewResource(state, if (playing) R.drawable.ic_widget_pause else R.drawable.ic_widget_play)
+            val title = if (artist) context.getString(R.string.artist_radio_queue, item.title) else item.title
+            setContentDescription(tile, playing?.let { rowAction(it, title) } ?: title)
+            setOnClickPendingIntent(tile, rowTap(row, slot, item))
+        }
+    }
+
+    private fun RemoteViews.setRowSongs(items: List<NowPlayingRowItem>) {
+        ROW_SONGS.forEachIndexed { slot, line ->
+            val item = items.getOrNull(slot)
+            setViewVisibility(line, if (item == null) View.INVISIBLE else View.VISIBLE)
+            if (item == null) return@forEachIndexed
+            val text = listOfNotNull(item.title, item.subtitle?.takeIf { it.isNotBlank() }).joinToString(" · ")
+            setTextViewText(line, text)
+            // The song the player holds stands out in the accent; a tap on it pauses or resumes.
+            setTextColor(line, context.getColor(if (item.isPlaying != null) R.color.widget_accent else R.color.widget_text_primary))
+            setContentDescription(line, item.isPlaying?.let { rowAction(it, text) } ?: text)
+            setOnClickPendingIntent(line, rowTap(NowPlayingWidgetRow.FavoriteSongs, slot, item))
+        }
+    }
+
+    private fun rowAction(
+        isPlaying: Boolean,
+        title: String,
+    ): String =
+        context.getString(
+            R.string.widget_album_action,
+            context.getString(if (isPlaying) R.string.controls_pause else R.string.controls_play),
+            title,
+        )
+
+    /** A tile's tap goes to the widget that already plays that kind of item, so it behaves the same there and here. */
+    private fun rowTap(
+        row: NowPlayingWidgetRow,
+        slot: Int,
+        item: NowPlayingRowItem,
+    ): PendingIntent {
+        val intent =
+            when (row) {
+                NowPlayingWidgetRow.RecentlyAdded -> {
+                    AlbumShelfWidget.playAlbumIntent(
+                        context,
+                        AlbumShelf.RecentlyAdded,
+                        item.sourceId,
+                        item.refId,
+                    )
+                }
+
+                NowPlayingWidgetRow.RecentlyPlayed -> {
+                    AlbumShelfWidget.playAlbumIntent(
+                        context,
+                        AlbumShelf.RecentlyPlayed,
+                        item.sourceId,
+                        item.refId,
+                    )
+                }
+
+                NowPlayingWidgetRow.ArtistRadio -> {
+                    RadioStationsWidget.artistRadioIntent(context, item.sourceId, item.refId, item.title)
+                }
+
+                else -> {
+                    FavoriteSongsWidget.songIntent(context, item.sourceId, item.refId, toggle = item.isPlaying != null)
+                }
+            }
+        return PendingIntent.getBroadcast(
+            context,
+            ROW_REQUEST_CODE + row.ordinal * NOW_PLAYING_ROW_TILES + slot,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
     }
 
     private fun RemoteViews.skipButton(
@@ -279,6 +411,18 @@ class NowPlayingWidgetRenderer(
 
     private companion object {
         const val DISABLED_ALPHA = 97
+        const val ROW_REQUEST_CODE = 200
+
+        /** Each tile's frame, cover and play-state ids. */
+        val ROW_TILES =
+            listOf(
+                Triple(R.id.widget_row_tile_0, R.id.widget_row_tile_art_0, R.id.widget_row_tile_state_0),
+                Triple(R.id.widget_row_tile_1, R.id.widget_row_tile_art_1, R.id.widget_row_tile_state_1),
+                Triple(R.id.widget_row_tile_2, R.id.widget_row_tile_art_2, R.id.widget_row_tile_state_2),
+                Triple(R.id.widget_row_tile_3, R.id.widget_row_tile_art_3, R.id.widget_row_tile_state_3),
+                Triple(R.id.widget_row_tile_4, R.id.widget_row_tile_art_4, R.id.widget_row_tile_state_4),
+            )
+        val ROW_SONGS = listOf(R.id.widget_row_song_0, R.id.widget_row_song_1, R.id.widget_row_song_2)
     }
 }
 
@@ -324,25 +468,22 @@ internal class WidgetArtworkBackground {
 
     fun forCover(cover: Bitmap?): Bitmap? {
         if (cover !== backgroundCover) {
-            background = cover?.let(::softenedBackground)
+            background = cover?.let(::darkenedBackground)
             backgroundCover = cover
         }
         return background
     }
 
-    private fun softenedBackground(cover: Bitmap): Bitmap {
-        val sample = cover.scale(BACKGROUND_SAMPLE_PX, BACKGROUND_SAMPLE_PX, filter = true)
-        return createBitmap(BACKGROUND_PX, BACKGROUND_PX).apply {
+    private fun darkenedBackground(cover: Bitmap): Bitmap =
+        createBitmap(BACKGROUND_PX, BACKGROUND_PX).apply {
             val canvas = Canvas(this)
             canvas.drawColor(Color.BLACK)
-            canvas.drawBitmap(sample, null, Rect(0, 0, width, height), Paint(Paint.FILTER_BITMAP_FLAG))
+            canvas.drawBitmap(cover, null, Rect(0, 0, width, height), Paint(Paint.FILTER_BITMAP_FLAG))
             canvas.drawColor(BACKGROUND_SCRIM)
         }
-    }
 
     private companion object {
-        const val BACKGROUND_SAMPLE_PX = 24
-        const val BACKGROUND_PX = 64
+        const val BACKGROUND_PX = 256
         const val BACKGROUND_SCRIM = 0xAE000000.toInt()
     }
 }

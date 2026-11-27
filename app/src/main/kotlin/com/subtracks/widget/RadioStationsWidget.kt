@@ -104,6 +104,17 @@ class RadioStationsWidget : AppWidgetProvider() {
                 .putExtra(EXTRA_ARTIST, artistId)
                 .putExtra(EXTRA_NAME, name)
 
+        /** A complete artist radio broadcast, for tiles outside this widget (the Now Playing row). */
+        fun artistRadioIntent(
+            context: Context,
+            sourceId: Long,
+            artistId: String,
+            name: String,
+        ): Intent =
+            playArtistRadio(sourceId, artistId, name)
+                .setClass(context, RadioStationsWidget::class.java)
+                .setAction(ACTION_PLAY_ARTIST_RADIO)
+
         /** The tapped station, or null for any other broadcast. */
         fun stationOf(intent: Intent): WidgetStationTap? {
             if (intent.action != ACTION_PLAY_ARTIST_RADIO) return null
@@ -300,6 +311,7 @@ internal class RadioStationsWidgetUpdater(
     private val revision = MutableStateFlow(0L)
     private val startingArtist = MutableStateFlow<String?>(null)
     private val artwork = WidgetArtwork(context, sources, size = 96)
+    private val backgroundArtwork = WidgetArtwork(context, sources)
     private val artworkBackground = WidgetArtworkBackground()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -352,30 +364,36 @@ internal class RadioStationsWidgetUpdater(
                 rows.addItem(index.toLong(), tile)
             }
         }
-        val cover = if (sourceId != null) content.backgroundCoverArt?.let { artwork.load(it, sourceId) } else null
+        val cover = if (sourceId != null) content.backgroundCoverArt?.let { backgroundArtwork.load(it, sourceId) } else null
         return radioStationsFrame(context, content, artworkBackground.forCover(cover)).apply {
             setPendingIntentTemplate(R.id.widget_radio_grid, RadioStationsWidget.playTemplate(context))
             setRemoteAdapter(R.id.widget_radio_grid, rows.build())
         }
     }
 
-    /** The artist's picture as the app shows it, falling back to its album covers when an image doesn't load. */
-    private suspend fun artistBitmap(artist: Artist): Bitmap? {
-        var art: ArtistArt? = sources.artistArt(artist, forIcon = true)
-        while (art != null) {
-            for (ref in listOfNotNull(art.image, art.covers.firstOrNull())) {
-                val bitmap =
-                    try {
-                        artwork.load(ref)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (_: Exception) {
-                        null
-                    }
-                if (bitmap != null) return bitmap
-            }
-            art = art.fallback
+    private suspend fun artistBitmap(artist: Artist): Bitmap? = widgetArtistBitmap(sources, artwork, artist)
+}
+
+/** The artist's picture as the app shows it, falling back to its album covers when an image doesn't load. */
+internal suspend fun widgetArtistBitmap(
+    sources: SourceRepository,
+    artwork: WidgetArtwork,
+    artist: Artist,
+): Bitmap? {
+    var art: ArtistArt? = sources.artistArt(artist, forIcon = true)
+    while (art != null) {
+        for (ref in listOfNotNull(art.image, art.covers.firstOrNull())) {
+            val bitmap =
+                try {
+                    artwork.load(ref)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+            if (bitmap != null) return bitmap
         }
-        return null
+        art = art.fallback
     }
+    return null
 }

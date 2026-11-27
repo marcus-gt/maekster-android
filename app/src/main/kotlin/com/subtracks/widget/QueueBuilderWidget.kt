@@ -643,7 +643,7 @@ internal class QueueBuilderWidgetUpdater(
     private val component = ComponentName(context, QueueBuilderWidget::class.java)
     private val revision = MutableStateFlow(0L)
     private val building = MutableStateFlow(false)
-    private val artwork = WidgetArtwork(context, sources, size = 96)
+    private val artwork = WidgetArtwork(context, sources)
     private val artworkBackground = WidgetArtworkBackground()
 
     @Volatile

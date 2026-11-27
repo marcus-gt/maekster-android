@@ -404,6 +404,32 @@ fun appModule(
                         get<AudioMuseConfiguration>().observe(id).map { it.available }
                     },
                 queueLabel = queues.sourceLabels(),
+                // Rows other than moods are Android 12+ only, as the widgets they borrow their taps from (D20).
+                rows =
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        com.subtracks.widget.nowPlayingRows(
+                            choices =
+                                get<UserPreferences>().nowPlayingWidgetRows().map { rows ->
+                                    rows.mapValues {
+                                        com.subtracks.widget.NowPlayingWidgetRow
+                                            .of(it.value)
+                                    }
+                                },
+                            activeSourceId = sources.activeSourceId(),
+                            playback = playback.state,
+                            queueLabel = queues.sourceLabels(),
+                            sources =
+                                com.subtracks.widget.nowPlayingRowSources(
+                                    context.applicationContext,
+                                    sources,
+                                    get(),
+                                    get(),
+                                    get<SubtracksDatabase>().mixDao()::stationArtists,
+                                ),
+                        )
+                    } else {
+                        kotlinx.coroutines.flow.flowOf(com.subtracks.widget.NowPlayingRows())
+                    },
             ).also { it.start() }
     }
     single {

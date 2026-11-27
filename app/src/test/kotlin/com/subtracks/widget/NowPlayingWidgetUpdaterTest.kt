@@ -59,6 +59,30 @@ class NowPlayingWidgetUpdaterTest {
         ).also { it.start() }
 
     @Test
+    fun eachWidgetsChosenRowReachesTheRenderer() =
+        runTest(UnconfinedTestDispatcher()) {
+            val rows = MutableStateFlow(NowPlayingRows())
+            NowPlayingWidgetUpdater(
+                state = state,
+                savedItem = { null },
+                artwork = { null },
+                render = { content, art -> renders += content to art },
+                hasWidgets = { true },
+                scope = backgroundScope,
+                rows = rows,
+            ).start()
+
+            val chosen =
+                NowPlayingRows(
+                    choices = mapOf(3 to NowPlayingWidgetRow.ArtistRadio),
+                    items = mapOf(NowPlayingWidgetRow.ArtistRadio to listOf(NowPlayingRowItem(1, "x", "Björk"))),
+                )
+            rows.value = chosen
+
+            assertEquals(chosen, renders.last().first.rows)
+        }
+
+    @Test
     fun theMoodRadioThePlayerHoldsIsMarkedOnTheMoodRow() =
         runTest(UnconfinedTestDispatcher()) {
             moods.value = true

@@ -132,6 +132,22 @@ class FavoriteSongsWidget : AppWidgetProvider() {
             sourceId: Long,
         ) = control(context, sourceId, ACTION_TOGGLE)
 
+        /**
+         * A complete broadcast for one favourite song, for lines outside this widget (the Now Playing row): plays the
+         * favourites from it, or with [toggle] (the song the player holds) pauses or resumes.
+         */
+        internal fun songIntent(
+            context: Context,
+            sourceId: Long,
+            songId: String,
+            toggle: Boolean,
+        ): Intent =
+            if (toggle) {
+                Intent(context, FavoriteSongsWidget::class.java).setAction(ACTION_TOGGLE).putExtra(EXTRA_SOURCE, sourceId)
+            } else {
+                playSong(sourceId, songId).setClass(context, FavoriteSongsWidget::class.java).setAction(ACTION_PLAY)
+            }
+
         internal fun shuffle(
             context: Context,
             sourceId: Long,
@@ -207,6 +223,7 @@ internal class FavoriteSongsWidgetUpdater(
     private val component = ComponentName(context, FavoriteSongsWidget::class.java)
     private val revision = MutableStateFlow(0L)
     private val artwork = WidgetArtwork(context, sources, size = 96)
+    private val backgroundArtwork = WidgetArtwork(context, sources)
     private val artworkBackground = WidgetArtworkBackground()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -269,7 +286,7 @@ internal class FavoriteSongsWidgetUpdater(
                 rows.addItem(index.toLong(), row)
             }
         }
-        val cover = if (sourceId != null) playback.coverArt?.let { artwork.load(it, sourceId) } else null
+        val cover = if (sourceId != null) playback.coverArt?.let { backgroundArtwork.load(it, sourceId) } else null
         return RemoteViews(context.packageName, R.layout.widget_favorite_songs).apply {
             setWidgetArtworkBackground(artworkBackground.forCover(cover))
             setImageViewResource(

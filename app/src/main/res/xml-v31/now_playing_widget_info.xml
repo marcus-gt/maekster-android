@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: as xml/now_playing_widget_info, plus optional per-widget settings (the row below the player, UX-45).
+     Older Android would ask for the settings when the widget is placed, so it keeps the plain version. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:configure="com.subtracks.widget.NowPlayingWidgetConfigureActivity"
+    android:description="@string/widget_now_playing_description"
+    android:initialLayout="@layout/widget_now_playing_wide"
+    android:minWidth="250dp"
+    android:minHeight="100dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="40dp"
+    android:previewLayout="@layout/widget_now_playing_wide"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional"
+    tools:ignore="UnusedAttribute" />

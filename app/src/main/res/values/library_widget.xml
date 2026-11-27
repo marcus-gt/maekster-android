@@ -22,6 +22,14 @@
     <string name="widget_queue_builder_older_description">The 1960s and before</string>
     <string name="widget_queue_builder_paused">Paused · Play to continue</string>
     <string name="widget_queue_builder_picks_changed">Picks changed · Play builds a new queue</string>
+    <string name="widget_row_title">Below the player</string>
+    <string name="widget_row_hint">On the large size of this widget. Each Now Playing widget keeps its own choice.</string>
+    <string name="widget_row_moods">Mood radios</string>
+    <string name="widget_row_recently_added">Recently added albums</string>
+    <string name="widget_row_recently_played">Recently played albums</string>
+    <string name="widget_row_favorite_songs">Favorite songs</string>
+    <string name="widget_row_artist_radio">Artist radio</string>
+    <string name="widget_row_nothing">Nothing</string>
     <string name="widget_chip_picked">picked</string>
     <string name="widget_chip_not_picked">not picked</string>
 

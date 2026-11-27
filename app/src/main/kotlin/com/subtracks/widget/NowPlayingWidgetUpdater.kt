@@ -39,6 +39,8 @@ data class NowPlayingWidgetContent(
     val startingMood: RadioMood? = null,
     /** The mood radio the player holds, whose button shows play or pause. */
     val playingMood: RadioMood? = null,
+    /** Each widget's row below the player and the items of the chosen rows (UX-45). */
+    val rows: NowPlayingRows = NowPlayingRows(),
 ) {
     companion object {
         val Empty = NowPlayingWidgetContent(null, null, null, isPlaying = false, live = false, hasNext = false)
@@ -74,10 +76,12 @@ class NowPlayingWidgetUpdater(
     private val scope: CoroutineScope,
     private val moodsAvailable: Flow<Boolean> = flowOf(false),
     private val queueLabel: Flow<String?> = flowOf(null),
+    private val rows: Flow<NowPlayingRows> = flowOf(NowPlayingRows()),
 ) {
     private val lock = Mutex()
     private var live: NowPlayingWidgetContent? = null
     private var moods = false
+    private var shownRows = NowPlayingRows()
     private var queueMood: RadioMood? = null
     private val starting = MutableStateFlow<RadioMood?>(null)
     private var startingMood: RadioMood? = null
@@ -102,6 +106,12 @@ class NowPlayingWidgetUpdater(
             launch {
                 queueLabel.map(::radioMoodOf).distinctUntilChanged().collect { mood ->
                     lock.withLock { queueMood = mood }
+                    update(force = false)
+                }
+            }
+            launch {
+                rows.distinctUntilChanged().collect { chosen ->
+                    lock.withLock { shownRows = chosen }
                     update(force = false)
                 }
             }
@@ -138,6 +148,7 @@ class NowPlayingWidgetUpdater(
                         moods = moods,
                         startingMood = startingMood?.takeIf { moods },
                         playingMood = queueMood?.takeIf { moods && live != null },
+                        rows = shownRows,
                     )
             if (!force && content == rendered) return@withLock
             render(content, artworkFor(content.coverArtId))

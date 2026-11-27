@@ -54,6 +54,21 @@ class UserPreferencesTest {
         }
 
     @Test
+    fun eachNowPlayingWidgetKeepsItsOwnRowUntilItIsRemoved() =
+        runTest {
+            val prefs = fakeUserPreferences()
+            assertEquals(emptyMap<Int, String>(), prefs.nowPlayingWidgetRows().first())
+
+            prefs.setNowPlayingWidgetRow(7, "ArtistRadio")
+            prefs.setNowPlayingWidgetRow(8, "Nothing")
+            prefs.setNowPlayingWidgetRow(7, "FavoriteSongs")
+            assertEquals(mapOf(7 to "FavoriteSongs", 8 to "Nothing"), prefs.nowPlayingWidgetRows().first())
+
+            prefs.removeNowPlayingWidgetRows(intArrayOf(7, 99))
+            assertEquals(mapOf(8 to "Nothing"), prefs.nowPlayingWidgetRows().first())
+        }
+
+    @Test
     fun whatTheLastQueueWasBuiltFromIsKeptPerServerApartFromThePicks() =
         runTest {
             val prefs = fakeUserPreferences()
